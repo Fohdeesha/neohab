@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { useKeyboardCommit } from '../common/useKeyboardCommit'
 
 interface ColorConfig {
   item: string
@@ -56,6 +57,7 @@ function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
       ctx.sendCommand(config.item, `${Math.round(next.h)},${Math.round(next.s)},${Math.round(next.b)}`)
     }
   }
+  const commitOn = useKeyboardCommit(commit)
 
   const channel = (key: keyof Hsb, max: number) => (
     <input
@@ -68,8 +70,8 @@ function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
       disabled={ctx.editing}
       aria-label={key}
       onChange={(e) => update({ [key]: Number(e.target.value) })}
-      onPointerUp={(e) => commit({ ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
-      onKeyUp={(e) => commit({ ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
+      onPointerUp={(e) => commitOn.now({ ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
+      onKeyUp={(e) => commitOn.key(e.key, { ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
     />
   )
 
@@ -92,6 +94,7 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
   name: 'Color',
   description: 'Pick a color for a Color item',
   defaultSize: { w: 3, h: 5 },
+  minPixelHeight: 150,
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Color'] },

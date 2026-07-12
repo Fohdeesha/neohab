@@ -10,11 +10,10 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard, Rect } from '../model/dashboard'
-import { clampRect, overlapsAny, rectOf } from '../model/layout'
+import { cellMetrics, clampRect, overlapsAny, rectOf } from '../model/layout'
 import { selectWidget, setWidgetRect, useEditorStore } from '../store/editor'
 import { WidgetHost } from './WidgetHost'
-
-const GAP = 8
+import { useContainerWidth } from './useContainerWidth'
 
 interface DragState {
   id: string
@@ -34,15 +33,14 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const selectedId = useEditorStore((s) => s.selectedId)
+  const containerWidth = useContainerWidth(containerRef)
+  const { gap, rowHeight } = cellMetrics(dashboard, containerWidth)
 
   /** Pixel size of one grid cell (content, excluding gap), measured live. */
   const cellSize = (): { w: number; h: number } => {
     const el = containerRef.current
-    const width = el ? el.clientWidth : 0
-    return {
-      w: (width - GAP * (dashboard.columns - 1)) / dashboard.columns,
-      h: dashboard.rowHeight,
-    }
+    const m = cellMetrics(dashboard, el ? el.clientWidth : 0)
+    return { w: m.colWidth, h: m.rowHeight }
   }
 
   const beginDrag = (id: string, mode: 'move' | 'resize') => (e: React.PointerEvent) => {
@@ -62,8 +60,8 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     const { w: cw, h: ch } = cellSize()
     const dx = e.clientX - drag.startX
     const dy = e.clientY - drag.startY
-    const cellsX = Math.round(dx / (cw + GAP))
-    const cellsY = Math.round(dy / (ch + GAP))
+    const cellsX = Math.round(dx / (cw + gap))
+    const cellsY = Math.round(dy / (ch + gap))
 
     const target = clampRect(
       drag.mode === 'move'
@@ -81,14 +79,19 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     setDrag(null)
   }
 
+  if (containerWidth === 0) {
+    // First paint: width unknown, render the container alone and lay out next frame.
+    return <div ref={containerRef} className="nh-grid nh-grid--edit" />
+  }
+
   return (
     <div
       ref={containerRef}
       className="nh-grid nh-grid--edit"
       style={{
         gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
-        gridAutoRows: `${dashboard.rowHeight}px`,
-        gap: GAP,
+        gridAutoRows: `${rowHeight}px`,
+        gap,
       }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

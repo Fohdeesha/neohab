@@ -5,6 +5,22 @@ export function rectOf(widget: WidgetInstance): Rect {
   return widget.layout.lg ?? { x: 0, y: 0, w: 3, h: 3 }
 }
 
+export const DEFAULT_GAP = 8
+
+/**
+ * Pixel geometry of one grid cell at a given container width. With rowHeight 'match' the
+ * cells are square (row height = column width), so dashboards scale proportionally.
+ */
+export function cellMetrics(
+  dashboard: Dashboard,
+  containerWidth: number
+): { gap: number; colWidth: number; rowHeight: number } {
+  const gap = dashboard.gap ?? DEFAULT_GAP
+  const colWidth = (containerWidth - gap * (dashboard.columns - 1)) / dashboard.columns
+  const rowHeight = dashboard.rowHeight === 'match' ? Math.max(8, colWidth) : dashboard.rowHeight
+  return { gap, colWidth, rowHeight }
+}
+
 export function collides(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 }

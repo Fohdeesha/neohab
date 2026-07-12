@@ -37,8 +37,13 @@ export interface Dashboard {
   name: string
   /** Grid columns at the `lg` breakpoint (narrower breakpoints scale down). */
   columns: number
-  /** Grid row height in pixels. */
-  rowHeight: number
+  /**
+   * Grid row height in pixels, or 'match' for square cells (row height = column width,
+   * HABPanel's default) so dashboards keep their proportions at any viewport width.
+   */
+  rowHeight: number | 'match'
+  /** Gap between grid cells in pixels (default 8). */
+  gap?: number
   widgets: WidgetInstance[]
 }
 

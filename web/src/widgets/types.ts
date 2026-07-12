@@ -46,6 +46,11 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   description: string
   /** Default grid size when first placed (grid cells). */
   defaultSize: { w: number; h: number }
+  /**
+   * Smallest pixel height at which the widget is fully usable. The mobile stacked view uses
+   * it as a floor so short grid cells never clip controls on phones.
+   */
+  minPixelHeight?: number
   /** Factory for a fresh instance config. */
   defaultConfig: () => C
   /** Declarative settings schema for the editor. */

@@ -20,6 +20,7 @@ interface HPDashboard {
   name?: string
   columns?: unknown
   row_height?: unknown
+  widget_margin?: unknown
   widgets: HPWidget[]
 }
 interface HPCustomWidget {
@@ -361,7 +362,12 @@ const CONVERTERS: Record<string, Converter> = {
 
 function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashboard {
   const columns = Math.max(1, Math.round(num(hp.columns) ?? 12))
-  const rowHeight = Math.round(num(hp.row_height) ?? 60)
+  // HABPanel's default row_height is 'match' (square cells: row height = column width).
+  // Only an explicit numeric value maps to a fixed pixel height.
+  const rowHeightNum = num(hp.row_height)
+  const rowHeight = rowHeightNum !== undefined ? Math.round(rowHeightNum) : ('match' as const)
+  // widget_margin defaults to 5 in HABPanel.
+  const gap = Math.max(0, Math.round(num(hp.widget_margin) ?? 5))
   const id = str(hp.id) ?? str(hp.name) ?? 'imported-' + (index + 1)
 
   const dashboard: Dashboard = {
@@ -370,6 +376,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     name: str(hp.name) ?? id,
     columns,
     rowHeight,
+    gap,
     widgets: [],
   }
 

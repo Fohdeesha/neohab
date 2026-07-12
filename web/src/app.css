@@ -408,13 +408,16 @@ button {
 .nh-color {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   height: 100%;
+  min-height: 0;
 }
 
+/* The swatch absorbs spare height and is the first thing to shrink in short cells,
+   so the three channel sliders stay usable at HABPanel's one-row widget height. */
 .nh-color__swatch {
-  flex: 1;
-  min-height: 40px;
+  flex: 1 1 0;
+  min-height: 0;
   border-radius: 10px;
   border: 1px solid var(--nh-border);
 }
@@ -422,7 +425,11 @@ button {
 .nh-color__channels {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.nh-color__channels .nh-slider__input {
+  height: 22px;
 }
 
 .nh-color__h {

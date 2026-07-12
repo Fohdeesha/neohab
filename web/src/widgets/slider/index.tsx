@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { numericValue } from '../common/format'
+import { useKeyboardCommit } from '../common/useKeyboardCommit'
 
 interface SliderConfig {
   item: string
@@ -27,6 +28,7 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
     setDrag(null)
     if (!ctx.editing) ctx.sendCommand(config.item, String(v))
   }
+  const commitOn = useKeyboardCommit(commit)
 
   return (
     <WidgetFrame label={config.label}>
@@ -41,8 +43,8 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
           disabled={ctx.editing}
           aria-label={config.label ?? config.item}
           onChange={(e) => setDrag(Number(e.target.value))}
-          onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
-          onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+          onPointerUp={(e) => commitOn.now(Number((e.target as HTMLInputElement).value))}
+          onKeyUp={(e) => commitOn.key(e.key, Number((e.target as HTMLInputElement).value))}
         />
         <div className="nh-slider__value">
           {Math.round(value)}
