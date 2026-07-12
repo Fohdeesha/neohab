@@ -16,6 +16,7 @@
  */
 
 const STORAGE_REFRESH = 'neohab:refreshToken'
+const STORAGE_API_TOKEN = 'neohab:apiToken'
 const SESSION_VERIFIER = 'neohab:codeVerifier'
 const SESSION_STATE = 'neohab:authState'
 
@@ -25,6 +26,7 @@ const MAINUI_REFRESH = 'openhab.ui:refreshToken'
 
 let accessToken: string | null = null
 let accessTokenExpiry = 0
+let refreshInFlight: Promise<void> | null = null
 
 export function tokenInCustomHeader(): boolean {
   return document.cookie.includes('X-OPENHAB-AUTH-HEADER')
@@ -34,8 +36,33 @@ export function getRefreshToken(): string | null {
   return localStorage.getItem(STORAGE_REFRESH) ?? localStorage.getItem(MAINUI_REFRESH)
 }
 
+/**
+ * openHAB API tokens (prefix "oh.") are accepted by the server as Bearer tokens and never
+ * expire client-side. Intended for kiosk devices and headless setups.
+ */
+export function getApiToken(): string | null {
+  return localStorage.getItem(STORAGE_API_TOKEN)
+}
+
+export function setApiToken(token: string): void {
+  localStorage.setItem(STORAGE_API_TOKEN, token.trim())
+}
+
+export function clearApiToken(): void {
+  localStorage.removeItem(STORAGE_API_TOKEN)
+}
+
 export function isLoggedIn(): boolean {
-  return getRefreshToken() !== null
+  return getApiToken() !== null || getRefreshToken() !== null
+}
+
+/**
+ * The OAuth redirect target: this page without query or hash. The token endpoint compares
+ * redirect_uri by exact string equality, and a fragment in it would swallow the `?code=...`
+ * (the auth page appends the query to whatever it is given), so it must stay clean.
+ */
+function redirectUri(): string {
+  return window.location.origin + window.location.pathname
 }
 
 /** Apply the current access token to a set of request headers, if we have one. */
@@ -66,11 +93,10 @@ export async function authorize(): Promise<void> {
   sessionStorage.setItem(SESSION_VERIFIER, verifier)
   sessionStorage.setItem(SESSION_STATE, state)
 
-  const origin = window.location.origin
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: origin,
-    redirect_uri: window.location.href.split('?')[0],
+    client_id: window.location.origin,
+    redirect_uri: redirectUri(),
     scope: 'admin',
     code_challenge_method: 'S256',
     code_challenge: challenge,
@@ -111,7 +137,7 @@ export async function completeLogin(): Promise<boolean> {
   await requestToken({
     grant_type: 'authorization_code',
     client_id: window.location.origin,
-    redirect_uri: window.location.href.split('?')[0],
+    redirect_uri: redirectUri(),
     code,
     code_verifier: verifier,
   })
@@ -120,15 +146,24 @@ export async function completeLogin(): Promise<boolean> {
 
 /** Return a valid access token, refreshing if needed. Null if not logged in. */
 export async function getAccessToken(): Promise<string | null> {
+  const apiToken = getApiToken()
+  if (apiToken) return apiToken
+
   if (accessToken && Date.now() < accessTokenExpiry) return accessToken
   const refresh = getRefreshToken()
   if (!refresh) return null
+
+  // De-duplicate concurrent refreshes: all callers await the same request.
+  refreshInFlight ??= requestToken({
+    grant_type: 'refresh_token',
+    client_id: window.location.origin,
+    refresh_token: refresh,
+  }).finally(() => {
+    refreshInFlight = null
+  })
+
   try {
-    await requestToken({
-      grant_type: 'refresh_token',
-      client_id: window.location.origin,
-      refresh_token: refresh,
-    })
+    await refreshInFlight
     return accessToken
   } catch {
     return null

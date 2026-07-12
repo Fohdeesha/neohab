@@ -22,17 +22,11 @@ export const useItemsStore = create<ItemsState>(() => ({
 }))
 
 tracker.onStates((delta: StateMap) => {
-  useItemsStore.setState((s) => ({ states: { ...s.states, ...merge(s.states, delta) } }))
+  // Each event carries the complete state of the items it mentions, so replace per item.
+  // (The server intentionally omits displayState when it equals the raw state - merging old
+  // fields over a new event would keep a stale formatted value around.)
+  useItemsStore.setState((s) => ({ states: { ...s.states, ...delta } }))
 })
-
-// Preserve fields the server omits from a delta (e.g. displayState) by shallow-merging per item.
-function merge(prev: StateMap, delta: StateMap): StateMap {
-  const out: StateMap = {}
-  for (const [name, next] of Object.entries(delta)) {
-    out[name] = prev[name] ? { ...prev[name], ...next } : next
-  }
-  return out
-}
 
 export function startItemTracking(): void {
   tracker.start()

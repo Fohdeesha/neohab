@@ -16,6 +16,9 @@ import type { ItemState } from './types'
 export type StateMap = Record<string, ItemState>
 type Listener = (states: StateMap) => void
 
+/** The server heartbeats every ~10s; treat a socket silent for longer than this as dead. */
+const STALE_AFTER_MS = 35_000
+
 export class StatesTracker {
   private source: EventSource | null = null
   private connectionId: string | null = null
@@ -23,6 +26,8 @@ export class StatesTracker {
   private listeners = new Set<Listener>()
   private reconnectDelay = 1000
   private closed = false
+  private lastEventAt = 0
+  private watchdog: ReturnType<typeof setInterval> | null = null
 
   onStates(listener: Listener): () => void {
     this.listeners.add(listener)
@@ -37,11 +42,26 @@ export class StatesTracker {
 
   start(): void {
     this.closed = false
-    this.connect()
+    if (!this.source) this.connect()
+    // A dropped connection does not always fire onerror (e.g. network path dies silently);
+    // the heartbeat watchdog forces a reconnect so wall panels never show stale-but-live data.
+    this.watchdog ??= setInterval(() => {
+      if (this.closed || !this.source) return
+      if (Date.now() - this.lastEventAt > STALE_AFTER_MS) {
+        this.source.close()
+        this.source = null
+        this.connectionId = null
+        this.connect()
+      }
+    }, 10_000)
   }
 
   stop(): void {
     this.closed = true
+    if (this.watchdog) {
+      clearInterval(this.watchdog)
+      this.watchdog = null
+    }
     this.source?.close()
     this.source = null
     this.connectionId = null
@@ -49,20 +69,23 @@ export class StatesTracker {
 
   private connect(): void {
     if (this.closed) return
+    this.lastEventAt = Date.now()
     const source = new EventSource('/rest/events/states')
     this.source = source
 
     source.addEventListener('ready', (e) => {
+      this.lastEventAt = Date.now()
       this.connectionId = (e as MessageEvent<string>).data
       this.reconnectDelay = 1000
       void this.pushTracked()
     })
 
     source.addEventListener('alive', () => {
-      /* heartbeat - nothing to do */
+      this.lastEventAt = Date.now()
     })
 
     source.onmessage = (e) => {
+      this.lastEventAt = Date.now()
       if (!e.data) return
       try {
         const states = JSON.parse(e.data) as StateMap
