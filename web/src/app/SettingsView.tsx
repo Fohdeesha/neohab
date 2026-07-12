@@ -21,6 +21,7 @@ import {
   type ThemeTokens,
 } from '../themes/themes'
 import { navigate } from './router'
+import { HabpanelImport } from '../editor/HabpanelImport'
 
 export function SettingsView() {
   const { settings, customThemes, usingDemo } = useConfigStore()
@@ -99,6 +100,8 @@ export function SettingsView() {
             onNotice={setNotice}
           />
         ) : null}
+
+        <HabpanelImport onNotice={setNotice} />
 
         <BackupSection usingDemo={usingDemo} onNotice={setNotice} />
       </div>

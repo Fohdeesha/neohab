@@ -10,6 +10,8 @@ interface DialConfig {
   max?: number
   step?: number
   unit?: string
+  /** Display-only gauge: shows the value but never sends commands. */
+  readOnly?: boolean
 }
 
 /** Arc geometry: 270° sweep starting at 135° (7:30 position), like a volume knob. */
@@ -54,7 +56,7 @@ function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (ctx.editing || !config.item) return
+    if (ctx.editing || config.readOnly || !config.item) return
     ;(e.target as Element).setPointerCapture(e.pointerId)
     setDrag(valueFromPointer(e))
   }
@@ -75,7 +77,7 @@ function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
     <WidgetFrame label={config.label} center>
       <svg
         ref={svgRef}
-        className="nh-dial"
+        className={'nh-dial' + (config.readOnly ? ' nh-dial--readonly' : '')}
         viewBox="0 0 100 100"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -86,7 +88,7 @@ function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
         {fraction > 0 ? (
           <path className="nh-dial__fill" d={arcPath(50, 50, 38, START, START + Math.max(0.01, fraction * SWEEP))} />
         ) : null}
-        <circle className="nh-dial__knob" cx={knobPos.x} cy={knobPos.y} r="6" />
+        {config.readOnly ? null : <circle className="nh-dial__knob" cx={knobPos.x} cy={knobPos.y} r="6" />}
         <text className="nh-dial__value" x="50" y="52" textAnchor="middle">
           {Math.round(value)}
           {config.unit ?? ''}
@@ -109,6 +111,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     { key: 'max', type: 'number', label: 'Maximum' },
     { key: 'step', type: 'number', label: 'Step' },
     { key: 'unit', type: 'text', label: 'Unit suffix' },
+    { key: 'readOnly', type: 'boolean', label: 'Read-only gauge' },
   ],
   itemKeys: (c) => [c.item],
   Component: DialWidget,

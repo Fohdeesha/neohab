@@ -1098,3 +1098,114 @@ button {
   font-size: 1.5rem;
   border-color: var(--nh-primary);
 }
+
+/* ============================================================================
+   Template placeholder, HABPanel import + report
+   ============================================================================ */
+.nh-template {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+  max-width: 26rem;
+}
+
+.nh-template__badge {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+}
+
+.nh-dial--readonly {
+  touch-action: auto;
+}
+
+.nh-hpimport__found {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.nh-hpimport__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  font-size: 0.92rem;
+}
+
+.nh-report {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+}
+
+.nh-report__head {
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.nh-report__link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--nh-primary);
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.nh-report__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nh-report__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--nh-text);
+}
+
+.nh-report__chip {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text-dim);
+}
+
+.nh-report__item--warn .nh-report__chip {
+  border-color: var(--nh-brand);
+  color: var(--nh-brand);
+}
+
+.nh-report__item--skip .nh-report__chip {
+  border-color: #e53935;
+  color: #ef6b68;
+}
+
+.nh-report__count {
+  color: var(--nh-text-dim);
+}

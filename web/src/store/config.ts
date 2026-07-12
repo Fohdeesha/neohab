@@ -129,7 +129,11 @@ export function getDashboard(id: string): Dashboard | undefined {
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   await upsert(dashboardComponent(dashboard))
   useConfigStore.setState((s) => {
-    const others = s.dashboards.filter((d) => d.id !== dashboard.id)
+    // Once a real dashboard is saved, the unsaved in-code demo placeholder disappears
+    // (unless the demo itself is what's being saved).
+    const others = s.dashboards.filter(
+      (d) => d.id !== dashboard.id && !(s.usingDemo && d.id === 'demo')
+    )
     return { dashboards: [...others, dashboard], usingDemo: false }
   })
 }
@@ -147,6 +151,11 @@ export async function saveSettings(patch: Partial<AppSettings>): Promise<string 
   } catch (err) {
     return err instanceof Error ? err.message : String(err)
   }
+}
+
+/** Upsert an arbitrary component into the neohab namespace (used by the importer). */
+export async function saveRawComponent(component: UIComponent): Promise<void> {
+  await upsert(component)
 }
 
 export async function saveTheme(theme: Theme): Promise<void> {

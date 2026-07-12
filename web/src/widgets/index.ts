@@ -17,6 +17,7 @@ import { chartWidget } from './chart'
 import { frameWidget } from './frame'
 import { rollershutterWidget } from './rollershutter'
 import { playerWidget } from './player'
+import { templateWidget } from './template'
 
 let registered = false
 
@@ -37,6 +38,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(imageWidget)
   registerWidget(chartWidget)
   registerWidget(frameWidget)
+  registerWidget(templateWidget)
 }
 
 export { getWidgetDefinition, listWidgetDefinitions, itemsForInstance } from './registry'

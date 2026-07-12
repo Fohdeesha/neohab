@@ -13,6 +13,11 @@ export function listComponents(signal?: AbortSignal): Promise<UIComponent[]> {
   return api.get<UIComponent[]>('/rest/ui/components/' + NAMESPACE, { signal })
 }
 
+/** List components from an arbitrary namespace (e.g. reading habpanel:panelconfig). */
+export function listComponentsIn(namespace: string, signal?: AbortSignal): Promise<UIComponent[]> {
+  return api.get<UIComponent[]>('/rest/ui/components/' + encodeURIComponent(namespace), { signal })
+}
+
 export function getComponent(uid: string, signal?: AbortSignal): Promise<UIComponent> {
   return api.get<UIComponent>('/rest/ui/components/' + NAMESPACE + '/' + encodeURIComponent(uid), {
     signal,
