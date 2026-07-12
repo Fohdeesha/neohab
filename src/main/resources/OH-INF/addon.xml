@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon:addon id="neohab" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:addon="https://openhab.org/schemas/addon/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/addon/v1.0.0 https://openhab.org/schemas/addon-1.0.0.xsd">
+
+	<type>ui</type>
+	<name>neohab</name>
+	<description>A modern dashboard UI for openHAB - build touch-friendly, themeable dashboards for phones, tablets and desktops, configured entirely in the browser.</description>
+
+</addon:addon>

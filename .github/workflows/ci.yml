@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build add-on
+        run: ./mvnw -B -ntp clean install
+
+      - name: Upload add-on jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: neohab-addon
+          path: target/org.openhab.ui.neohab-*.jar
+          if-no-files-found: error

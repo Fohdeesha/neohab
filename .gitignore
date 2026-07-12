@@ -25,7 +25,14 @@ target/
 Thumbs.db
 desktop.ini
 
+# --- secrets ---
+*.key
+*.pem
+id_rsa*
+id_ed25519*
+
 # --- misc ---
 *.log
 .env
 .env.*
+*.tsbuildinfo

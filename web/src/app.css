@@ -1,0 +1,70 @@
+/* seed of the neohab design token contract - grows into the theme system */
+:root {
+  --nh-bg: #101418;
+  --nh-surface: #1a2027;
+  --nh-text: #dde3ea;
+  --nh-text-dim: #8a94a0;
+  --nh-primary: #38b6ff;
+  --nh-radius: 10px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--nh-bg);
+  color: var(--nh-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 200;
+  letter-spacing: 0.35em;
+  margin-right: -0.35em; /* optically recenter the tracked-out text */
+  color: var(--nh-text);
+}
+
+.wordmark::first-letter {
+  color: var(--nh-primary);
+}
+
+.status {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--nh-text-dim);
+  text-align: center;
+}
+
+.status strong {
+  color: var(--nh-text);
+  font-weight: 600;
+}
