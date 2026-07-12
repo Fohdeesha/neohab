@@ -1,0 +1,31 @@
+# --- Node / frontend ---
+node_modules/
+web/dist/
+*.local
+npm-debug.log*
+yarn-error.log*
+
+# --- Java / Maven ---
+target/
+.classpath
+.project
+.settings/
+*.class
+*.jar
+!.mvn/wrapper/*.jar
+
+# --- IDE / tooling ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- misc ---
+*.log
+.env
+.env.*

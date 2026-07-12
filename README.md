@@ -1,0 +1,39 @@
+# neohab
+
+A modern dashboard UI for [openHAB](https://www.openhab.org/) — the spiritual successor to HABPanel.
+
+neohab installs as a standard openHAB UI add-on and lets you build touch-friendly dashboards for
+phones, tablets and desktops, configured entirely in the browser. No file editing, ever.
+
+> **Status: early development / pre-alpha.** Not yet usable. Watch the repo for progress.
+
+## Goals
+
+- **Mobile-first** — dashboards are always viewable and dynamically sized, from phone to
+  wall-mounted tablet to desktop, with responsive per-breakpoint layouts.
+- **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
+  browser and stored on your openHAB server. Zero config files.
+- **Import / export** — back up, restore and share complete dashboard configurations (or single
+  dashboards and widgets) as JSON.
+- **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
+  an optional sandboxed JavaScript widget API for power users.
+- **First-class theming** — theme editor with live preview, light/dark switching, shareable
+  theme files, and a custom CSS escape hatch.
+- **HABPanel migration** — import your existing HABPanel panels (from a `habpanel-config.json`
+  export or directly from your server) with best-effort widget mapping and a detailed report.
+
+## Compatibility
+
+Targets openHAB **4.x and 5.x**. Distributed as an add-on jar installable through the openHAB
+community marketplace (planned) or manually via the addons folder.
+
+## Tech
+
+React + TypeScript + Vite frontend served by a thin OSGi add-on shell, talking to openHAB
+exclusively through its public REST and SSE APIs.
+
+## License
+
+[Eclipse Public License 2.0](LICENSE)
+
+neohab is a community project and is not an official openHAB UI.
