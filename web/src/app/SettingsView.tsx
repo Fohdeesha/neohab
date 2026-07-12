@@ -23,6 +23,7 @@ import {
 import { navigate } from './router'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
+import { clearApiToken, isLoggedIn, logout } from '../api/auth'
 
 export function SettingsView() {
   const { settings, customThemes, usingDemo } = useConfigStore()
@@ -107,8 +108,33 @@ export function SettingsView() {
         <HabpanelImport onNotice={setNotice} />
 
         <BackupSection usingDemo={usingDemo} onNotice={setNotice} />
+
+        <AccountSection onNotice={setNotice} />
       </div>
     </div>
+  )
+}
+
+function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  if (!isLoggedIn()) return null
+  return (
+    <section>
+      <h2 className="nh-settings__h">Account</h2>
+      <p className="nh-settings__text">
+        This device is signed in for editing (openHAB login or a stored API token).
+      </p>
+      <button
+        type="button"
+        className="nh-btn nh-btn--ghost"
+        onClick={() => {
+          logout()
+          clearApiToken()
+          onNotice('Signed out on this device.')
+        }}
+      >
+        Sign out on this device
+      </button>
+    </section>
   )
 }
 

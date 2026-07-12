@@ -129,13 +129,17 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   editingRef.current = editing
   const valuesKey = JSON.stringify(values)
 
+  // The iframe is keyed on its content below, so a config/script change replaces the frame and
+  // this bridge together - the SDK's subscription state and ours can never drift apart. Theme
+  // changes deliberately do NOT tear this down (they're pushed via postMessage instead).
   useEffect(() => {
     if (!allow) return
     const iframe = iframeRef.current
     if (!iframe) return
 
     const post = (msg: Record<string, unknown>) => iframe.contentWindow?.postMessage({ neohab: true, ...msg }, '*')
-    const themeTokens = () => resolveTheme(theme, useConfigStore.getState().customThemes).tokens
+    const themeTokens = () =>
+      resolveTheme(useConfigStore.getState().settings.theme, useConfigStore.getState().customThemes).tokens
     const subscribed = new Set<string>()
     const unsubs: (() => void)[] = []
 
@@ -185,7 +189,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       storeUnsub()
       for (const u of unsubs) u()
     }
-  }, [allow, valuesKey, label, theme])
+  }, [allow, valuesKey, label, def.script])
 
   // theme changes propagate without reloading the frame
   useEffect(() => {
@@ -213,6 +217,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   return (
     <div className={'nh-widget nh-template__wrap' + (bare ? ' nh-widget--bare' : '')}>
       <iframe
+        key={(def.script ?? '') + '|' + valuesKey}
         ref={iframeRef}
         className="nh-template__frame"
         title={label || def.name}

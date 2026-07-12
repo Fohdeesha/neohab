@@ -18,7 +18,7 @@ import {
   type WidgetDefSetting,
 } from '../model/widgetdef'
 
-const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color'] as const
+const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
 
 export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) => void }) {
   const defs = useConfigStore((s) => s.widgetDefs)
@@ -124,6 +124,10 @@ function DefEditor({
 
   const save = async () => {
     onNotice(null)
+    if (!def.id.trim() || !def.name.trim()) {
+      onNotice('A custom widget needs both an id and a name.')
+      return
+    }
     try {
       await saveWidgetDef(def)
       onClose()

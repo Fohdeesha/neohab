@@ -25,20 +25,17 @@ export function getComponent(uid: string, signal?: AbortSignal): Promise<UICompo
 }
 
 export function addComponent<C>(component: UIComponent<C>): Promise<UIComponent<C>> {
-  return api.post<UIComponent<C>>('/rest/ui/components/' + NAMESPACE, component, { auth: true })
+  return api.post<UIComponent<C>>('/rest/ui/components/' + NAMESPACE, component)
 }
 
 export function updateComponent<C>(component: UIComponent<C>): Promise<UIComponent<C>> {
   return api.put<UIComponent<C>>(
     '/rest/ui/components/' + NAMESPACE + '/' + encodeURIComponent(component.uid),
-    component,
-    { auth: true }
+    component
   )
 }
 
 export function deleteComponent(uid: string): Promise<void> {
-  return api.delete<void>('/rest/ui/components/' + NAMESPACE + '/' + encodeURIComponent(uid), {
-    auth: true,
-  })
+  return api.delete<void>('/rest/ui/components/' + NAMESPACE + '/' + encodeURIComponent(uid))
 }
 

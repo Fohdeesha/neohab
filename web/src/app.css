@@ -1221,6 +1221,19 @@ button {
   align-items: center;
 }
 
+.nh-defeditor__setting input,
+.nh-defeditor__setting select {
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--nh-text);
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px;
+}
+
 .nh-dial--readonly {
   touch-action: auto;
 }

@@ -77,7 +77,9 @@ function buildScope(opts: {
       .filter(filter)
       .map((i) => ({ name: i.name, label: i.label, type: i.type, state: liveState(i.name)?.state ?? i.state }))
 
-  return {
+  // null prototype: a bare identifier like `constructor` must resolve to undefined,
+  // not fall through to Object.prototype
+  return Object.assign(Object.create(null) as Scope, {
     config,
     ngModel: { name: label },
     vm: { widget: { name: label } },
@@ -91,7 +93,7 @@ function buildScope(opts: {
     },
     itemsInGroup: (group: unknown) => groupItems((i) => Array.isArray(i.groupNames) && i.groupNames.includes(String(group))),
     itemsWithTag: (tag: unknown) => groupItems((i) => Array.isArray(i.tags) && i.tags.includes(String(tag))),
-  }
+  })
 }
 
 function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {

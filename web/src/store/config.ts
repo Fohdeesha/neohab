@@ -97,6 +97,8 @@ function parseComponents(components: UIComponent[]) {
     else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
   }
   widgetDefs.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
+  // stable, predictable Home ordering (component list order is storage-arbitrary)
+  dashboards.sort((a, b) => a.name.localeCompare(b.name))
   return { dashboards, customThemes, widgetDefs, settings }
 }
 
@@ -152,7 +154,8 @@ export async function saveDashboard(dashboard: Dashboard): Promise<void> {
     const others = s.dashboards.filter(
       (d) => d.id !== dashboard.id && !(s.usingDemo && d.id === 'demo')
     )
-    return { dashboards: [...others, dashboard], usingDemo: false }
+    const dashboards = [...others, dashboard].sort((a, b) => a.name.localeCompare(b.name))
+    return { dashboards, usingDemo: false }
   })
 }
 

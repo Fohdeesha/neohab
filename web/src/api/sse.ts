@@ -71,6 +71,10 @@ export class StatesTracker {
       clearInterval(this.watchdog)
       this.watchdog = null
     }
+    if (this.pushTimer) {
+      clearTimeout(this.pushTimer)
+      this.pushTimer = null
+    }
     this.source?.close()
     this.source = null
     this.connectionId = null
@@ -117,13 +121,21 @@ export class StatesTracker {
   private async pushTracked(): Promise<void> {
     if (!this.connectionId) return
     try {
-      await fetch('/rest/events/states/' + this.connectionId, {
+      const res = await fetch('/rest/events/states/' + this.connectionId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([...this.tracked]),
       })
+      if (!res.ok) throw new Error(String(res.status))
     } catch {
-      /* will be retried on next setTracked or reconnect */
+      // A widget would silently never get updates if this were dropped - retry shortly
+      // (unless something else already queued a push).
+      if (!this.closed && !this.pushTimer) {
+        this.pushTimer = setTimeout(() => {
+          this.pushTimer = null
+          void this.pushTracked()
+        }, 2000)
+      }
     }
   }
 }

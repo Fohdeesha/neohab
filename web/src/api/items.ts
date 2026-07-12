@@ -6,7 +6,8 @@ export function getRootInfo(signal?: AbortSignal): Promise<RootInfo> {
 }
 
 export function getItems(signal?: AbortSignal): Promise<Item[]> {
-  return api.get<Item[]>('/rest/items?metadata=.*', { signal })
+  // no metadata: the catalog only needs names, types, labels and option descriptions
+  return api.get<Item[]>('/rest/items', { signal })
 }
 
 export function getItem(name: string, signal?: AbortSignal): Promise<Item> {

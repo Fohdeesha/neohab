@@ -89,7 +89,15 @@ export function parseHabpanelFile(json: unknown): HPPanelConfig {
 
 function normalizeDashboards(raw: unknown[]): HPDashboard[] {
   return raw.map((d) => {
+    // every dashboard entry must be a plain object that looks like one - a bare array of
+    // arrays/scalars is NOT the legacy format, just a wrong file
+    if (!d || typeof d !== 'object' || Array.isArray(d)) {
+      throw new Error('Not a HABPanel configuration (dashboard list contains invalid entries)')
+    }
     const dash = d as Record<string, unknown>
+    if (dash.id === undefined && dash.name === undefined && dash.widgets === undefined) {
+      throw new Error('Not a HABPanel configuration (entries have no id, name or widgets)')
+    }
     const widgets = Array.isArray(dash.widgets) ? (dash.widgets as HPWidget[]) : []
     return { ...dash, widgets } as HPDashboard
   })
@@ -343,7 +351,7 @@ const CONVERTERS: Record<string, Converter> = {
   },
 
   template: (w, report) => {
-    report.add('warn', 'Template/custom widgets were imported and will render once template support lands')
+    report.add('info', 'Template widgets render with the neohab template engine; check anything using exotic AngularJS features')
     return {
       type: 'template',
       config: {
@@ -442,7 +450,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     >,
   }))
   if (widgetDefs.length > 0) {
-    report.add('warn', 'Custom widget definitions were preserved and will work once template support lands')
+    report.add('info', 'Custom widget definitions were imported and are available in the widget palette')
   }
 
   let themeId: string | null = null

@@ -32,8 +32,14 @@ export function tokenInCustomHeader(): boolean {
   return document.cookie.includes('X-OPENHAB-AUTH-HEADER')
 }
 
+// Main UI's token is not ours to delete when it turns out to be dead; just stop using it.
+let mainUiRefreshDead = false
+
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(STORAGE_REFRESH) ?? localStorage.getItem(MAINUI_REFRESH)
+  return (
+    localStorage.getItem(STORAGE_REFRESH) ??
+    (mainUiRefreshDead ? null : localStorage.getItem(MAINUI_REFRESH))
+  )
 }
 
 /**
@@ -111,7 +117,14 @@ async function requestToken(body: Record<string, string>): Promise<void> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body).toString(),
   })
-  if (!res.ok) throw new Error('Token request failed: ' + res.status)
+  if (!res.ok) {
+    // A rejected refresh token is dead for good (revoked/expired session) - forget it so we
+    // don't retry a doomed refresh before every request from now on.
+    if (body.grant_type === 'refresh_token' && (res.status === 400 || res.status === 401)) {
+      localStorage.removeItem(STORAGE_REFRESH)
+    }
+    throw new Error('Token request failed: ' + res.status)
+  }
   const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number }
   accessToken = data.access_token
   accessTokenExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000
@@ -166,6 +179,7 @@ export async function getAccessToken(): Promise<string | null> {
     await refreshInFlight
     return accessToken
   } catch {
+    if (refresh === localStorage.getItem(MAINUI_REFRESH)) mainUiRefreshDead = true
     return null
   }
 }

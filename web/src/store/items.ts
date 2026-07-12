@@ -9,16 +9,17 @@ import type { ItemState } from '../api/types'
 interface ItemsState {
   states: StateMap
   connected: boolean
-  /** Item names currently needed by mounted widgets, ref-counted. */
-  tracked: Map<string, number>
 }
 
 const tracker = new StatesTracker()
 
+/** Item names currently needed by mounted widgets, ref-counted. Kept outside the store:
+ * subscription changes shouldn't notify every widget the way a setState would. */
+const trackedCounts = new Map<string, number>()
+
 export const useItemsStore = create<ItemsState>(() => ({
   states: {},
   connected: false,
-  tracked: new Map(),
 }))
 
 tracker.onStates((delta: StateMap) => {
@@ -41,20 +42,16 @@ export function stopItemTracking(): void {
 /** Ref-count item subscriptions so unmounting one widget doesn't drop another's item. */
 export function subscribeItems(names: string[]): () => void {
   if (names.length === 0) return () => {}
-  const tracked = new Map(useItemsStore.getState().tracked)
-  for (const n of names) tracked.set(n, (tracked.get(n) ?? 0) + 1)
-  useItemsStore.setState({ tracked })
-  tracker.setTracked(tracked.keys())
+  for (const n of names) trackedCounts.set(n, (trackedCounts.get(n) ?? 0) + 1)
+  tracker.setTracked(trackedCounts.keys())
 
   return () => {
-    const t = new Map(useItemsStore.getState().tracked)
     for (const n of names) {
-      const c = (t.get(n) ?? 1) - 1
-      if (c <= 0) t.delete(n)
-      else t.set(n, c)
+      const c = (trackedCounts.get(n) ?? 1) - 1
+      if (c <= 0) trackedCounts.delete(n)
+      else trackedCounts.set(n, c)
     }
-    useItemsStore.setState({ tracked: t })
-    tracker.setTracked(t.keys())
+    tracker.setTracked(trackedCounts.keys())
   }
 }
 
