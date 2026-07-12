@@ -1,60 +1,61 @@
 import { useEffect, useState } from 'react'
+import { registerBuiltinWidgets } from './widgets'
+import { startItemTracking } from './store/items'
+import { loadDashboards, useConfigStore } from './store/config'
+import { getRootInfo } from './api/items'
+import { completeLogin } from './api/auth'
+import { useRoute } from './app/router'
+import { Home } from './app/Home'
+import { DashboardView } from './app/DashboardView'
 
-interface RootInfo {
-  runtimeInfo?: {
-    version: string
-    buildString: string
-  }
-  locale?: string
-  measurementSystem?: string
-}
-
-type ConnectionState =
-  | { status: 'connecting' }
-  | { status: 'connected'; info: RootInfo }
-  | { status: 'error'; message: string }
+registerBuiltinWidgets()
 
 export default function App() {
-  const [connection, setConnection] = useState<ConnectionState>({
-    status: 'connecting',
-  })
+  const route = useRoute()
+  const loaded = useConfigStore((s) => s.loaded)
+  const [ohVersion, setOhVersion] = useState<string>()
 
   useEffect(() => {
-    const controller = new AbortController()
-    fetch('/rest/', { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json() as Promise<RootInfo>
-      })
-      .then((info) => setConnection({ status: 'connected', info }))
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return
-        setConnection({
-          status: 'error',
-          message: err instanceof Error ? err.message : String(err),
-        })
-      })
-    return () => controller.abort()
+    let cancelled = false
+
+    async function boot() {
+      // Finish an in-progress login redirect, then clean the code from the URL.
+      try {
+        if (await completeLogin()) {
+          history.replaceState(null, '', window.location.pathname + window.location.hash)
+        }
+      } catch (err) {
+        console.warn('Login could not be completed:', err)
+      }
+
+      startItemTracking()
+      void loadDashboards()
+
+      try {
+        const info = await getRootInfo()
+        if (!cancelled) setOhVersion(info.runtimeInfo?.version)
+      } catch {
+        /* status stays "connecting" - the dashboard still works for cached/relative calls */
+      }
+    }
+
+    void boot()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
+  if (!loaded) {
+    return (
+      <main className="nh-app nh-app--center">
+        <p className="nh-home__status">loading…</p>
+      </main>
+    )
+  }
+
   return (
-    <main className="shell">
-      <h1 className="wordmark">neohab</h1>
-      <p className="status">
-        {connection.status === 'connecting' && 'connecting to openHAB…'}
-        {connection.status === 'connected' && (
-          <>
-            connected to openHAB{' '}
-            <strong>{connection.info.runtimeInfo?.version ?? '?'}</strong>
-          </>
-        )}
-        {connection.status === 'error' && (
-          <>
-            could not reach openHAB REST API ({connection.message}) — retrying
-            on reload
-          </>
-        )}
-      </p>
+    <main className="nh-app">
+      {route.name === 'home' ? <Home ohVersion={ohVersion} /> : <DashboardView id={route.id} />}
     </main>
   )
 }

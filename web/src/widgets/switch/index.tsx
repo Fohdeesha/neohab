@@ -1,0 +1,56 @@
+import type { WidgetDefinition, WidgetProps } from '../types'
+import { WidgetFrame } from '../common/WidgetFrame'
+import { isOn } from '../common/format'
+
+interface SwitchConfig {
+  item: string
+  label?: string
+  onCommand?: string
+  offCommand?: string
+}
+
+function SwitchWidget({ config, ctx }: WidgetProps<SwitchConfig>) {
+  const state = ctx.getItem(config.item)
+  const on = isOn(state)
+  const onCmd = config.onCommand ?? 'ON'
+  const offCmd = config.offCommand ?? 'OFF'
+
+  const toggle = () => {
+    if (ctx.editing) return
+    ctx.sendCommand(config.item, on ? offCmd : onCmd)
+  }
+
+  return (
+    <WidgetFrame label={config.label} center>
+      <button
+        type="button"
+        className={'nh-switch' + (on ? ' nh-switch--on' : '')}
+        role="switch"
+        aria-checked={on}
+        aria-label={config.label ?? config.item}
+        onClick={toggle}
+      >
+        <span className="nh-switch__track">
+          <span className="nh-switch__thumb" />
+        </span>
+        <span className="nh-switch__state">{on ? 'ON' : 'OFF'}</span>
+      </button>
+    </WidgetFrame>
+  )
+}
+
+export const switchWidget: WidgetDefinition<SwitchConfig> = {
+  type: 'switch',
+  name: 'Switch',
+  description: 'Toggle an on/off item',
+  defaultSize: { w: 3, h: 3 },
+  defaultConfig: () => ({ item: '', onCommand: 'ON', offCommand: 'OFF' }),
+  settings: [
+    { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Switch', 'Dimmer', 'Color'] },
+    { key: 'label', type: 'text', label: 'Name' },
+    { key: 'onCommand', type: 'text', label: 'On command' },
+    { key: 'offCommand', type: 'text', label: 'Off command' },
+  ],
+  itemKeys: (c) => [c.item],
+  Component: SwitchWidget,
+}

@@ -1,11 +1,19 @@
-/* seed of the neohab design token contract - grows into the theme system */
+/* ============================================================================
+   neohab design tokens - the seed of the theme system. Themes will override
+   these custom properties; widgets and chrome only ever read from them.
+   ============================================================================ */
 :root {
-  --nh-bg: #101418;
-  --nh-surface: #1a2027;
+  --nh-bg: #0f1317;
+  --nh-surface: #1a212a;
+  --nh-surface-2: #222c37;
+  --nh-border: #2c3844;
   --nh-text: #dde3ea;
   --nh-text-dim: #8a94a0;
   --nh-primary: #38b6ff;
-  --nh-radius: 10px;
+  /* openHAB-flavored burnt orange, used as the neohab brand accent */
+  --nh-brand: #e35a2b;
+  --nh-radius: 12px;
+  --nh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 
   color-scheme: dark;
 }
@@ -24,47 +32,405 @@ body,
 body {
   background: var(--nh-bg);
   color: var(--nh-text);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
-.shell {
-  height: 100%;
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ============================================================================
+   App shell
+   ============================================================================ */
+.nh-app {
+  min-height: 100%;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nh-app--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================================
+   Wordmark + home
+   ============================================================================ */
+.nh-wordmark {
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 200;
+  letter-spacing: 0.3em;
+  margin-right: -0.3em; /* recenter tracked-out text */
+  color: var(--nh-text);
+}
+
+.nh-wordmark__n {
+  color: var(--nh-brand);
+  font-weight: 300;
+}
+
+.nh-home {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  padding-bottom: env(safe-area-inset-bottom);
+  gap: 1rem;
+  padding: 2rem 1rem;
 }
 
-.wordmark {
+.nh-home__status {
   margin: 0;
-  font-size: clamp(2.5rem, 8vw, 4rem);
-  font-weight: 200;
-  letter-spacing: 0.35em;
-  margin-right: -0.35em; /* optically recenter the tracked-out text */
+  color: var(--nh-text-dim);
+}
+
+.nh-home__status strong {
   color: var(--nh-text);
 }
 
-.wordmark::first-letter {
-  color: var(--nh-primary);
+.nh-home__hint {
+  margin: 0.5rem 0 0;
+  max-width: 30rem;
+  text-align: center;
+  color: var(--nh-text-dim);
+  font-size: 0.9rem;
 }
 
-.status {
-  margin: 0;
-  font-size: 0.95rem;
+.nh-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  width: min(680px, 100%);
+  margin-top: 1rem;
+}
+
+.nh-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 18px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.nh-tile:hover {
+  border-color: var(--nh-brand);
+}
+
+.nh-tile__name {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.nh-tile__meta {
+  font-size: 0.8rem;
   color: var(--nh-text-dim);
+}
+
+/* ============================================================================
+   Dashboard chrome
+   ============================================================================ */
+.nh-dash {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.nh-dash__bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--nh-bg);
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-dash__title {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.nh-dash__surface {
+  flex: 1;
+  padding: 12px;
+}
+
+.nh-dash__empty {
+  padding: 2rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 1.4rem;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  color: var(--nh-text);
+}
+
+/* ============================================================================
+   Grid
+   ============================================================================ */
+.nh-grid {
+  display: grid;
+}
+
+.nh-grid--stacked {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================================
+   Widget frame
+   ============================================================================ */
+.nh-widget {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  box-shadow: var(--nh-shadow);
+  overflow: hidden;
+}
+
+.nh-widget--bare {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.nh-widget--error {
+  align-items: center;
+  justify-content: center;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+}
+
+.nh-widget__label {
+  padding: 8px 12px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nh-widget__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.nh-widget__body--center {
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================================
+   Widgets
+   ============================================================================ */
+
+/* Switch */
+.nh-switch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+}
+
+.nh-switch__track {
+  position: relative;
+  width: 64px;
+  height: 34px;
+  border-radius: 17px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  transition: background 0.15s;
+}
+
+.nh-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--nh-text-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.nh-switch--on .nh-switch__track {
+  background: color-mix(in srgb, var(--nh-primary) 35%, transparent);
+  border-color: var(--nh-primary);
+}
+
+.nh-switch--on .nh-switch__thumb {
+  transform: translateX(30px);
+  background: var(--nh-primary);
+}
+
+.nh-switch__state {
+  font-size: 0.85rem;
+  color: var(--nh-text-dim);
+  letter-spacing: 0.08em;
+}
+
+/* Button */
+.nh-button {
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.nh-button:active {
+  background: var(--nh-border);
+}
+
+.nh-button--active {
+  background: color-mix(in srgb, var(--nh-primary) 30%, transparent);
+  border-color: var(--nh-primary);
+}
+
+/* Slider */
+.nh-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.nh-slider__input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  accent-color: var(--nh-primary);
+}
+
+.nh-slider__value {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--nh-text);
+}
+
+/* Value */
+.nh-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.nh-value__text {
+  font-size: 1.8rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.nh-value__unit {
+  font-size: 1rem;
+  color: var(--nh-text-dim);
+}
+
+/* Label */
+.nh-label {
+  font-weight: 300;
   text-align: center;
 }
 
-.status strong {
-  color: var(--nh-text);
-  font-weight: 600;
+/* Clock */
+.nh-clock {
+  text-align: center;
+}
+
+.nh-clock__time {
+  font-size: 2rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.nh-clock__date {
+  margin-top: 4px;
+  color: var(--nh-text-dim);
+  font-size: 0.9rem;
+}
+
+/* Image */
+.nh-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: calc(var(--nh-radius) - 2px);
+  display: block;
+}
+
+.nh-image__placeholder {
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+}
+
+/* Color */
+.nh-color {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.nh-color__swatch {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--nh-border);
+}
+
+.nh-color__channels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nh-color__h {
+  accent-color: #ff5252;
+}
+.nh-color__s {
+  accent-color: #4caf50;
+}
+.nh-color__b {
+  accent-color: #ffc107;
 }

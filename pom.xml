@@ -82,7 +82,8 @@
         <version>1.15.1</version>
         <configuration>
           <workingDirectory>web</workingDirectory>
-          <installDirectory>target</installDirectory>
+          <!-- persist node outside target/ so it survives `clean` for fast local iteration -->
+          <installDirectory>.tools</installDirectory>
           <skip>${skipFrontend}</skip>
         </configuration>
         <executions>

@@ -36,3 +36,7 @@ id_ed25519*
 .env
 .env.*
 *.tsbuildinfo
+
+# --- frontend toolchain (maven-installed node) ---
+.tools/
+web/node/
