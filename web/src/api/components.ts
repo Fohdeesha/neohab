@@ -37,12 +37,3 @@ export function deleteComponent(uid: string): Promise<void> {
   })
 }
 
-/** Upsert: PUT if it exists, otherwise POST. */
-export async function saveComponent<C>(component: UIComponent<C>): Promise<UIComponent<C>> {
-  try {
-    await getComponent(component.uid)
-    return await updateComponent(component)
-  } catch {
-    return await addComponent(component)
-  }
-}

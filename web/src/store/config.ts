@@ -6,7 +6,7 @@
  * dashboards yet, a built-in demo dashboard is shown so the UI is immediately usable.
  */
 import { create } from 'zustand'
-import { listComponents, saveComponent } from '../api/components'
+import { addComponent, listComponents, updateComponent } from '../api/components'
 import type { UIComponent } from '../api/types'
 import type { Dashboard } from '../model/dashboard'
 import { demoDashboard } from './demoDashboard'
@@ -16,6 +16,8 @@ const DASHBOARD_COMPONENT = 'neohab:dashboard'
 
 interface ConfigState {
   dashboards: Dashboard[]
+  /** Component uids that exist on the server (decides create vs update on save). */
+  serverUids: Set<string>
   loading: boolean
   loaded: boolean
   usingDemo: boolean
@@ -24,6 +26,7 @@ interface ConfigState {
 
 export const useConfigStore = create<ConfigState>(() => ({
   dashboards: [],
+  serverUids: new Set<string>(),
   loading: false,
   loaded: false,
   usingDemo: false,
@@ -43,14 +46,16 @@ export async function loadDashboards(): Promise<void> {
   useConfigStore.setState({ loading: true, error: null })
   try {
     const components = await listComponents()
+    const serverUids = new Set(components.map((c) => c.uid))
     const dashboards = components
       .map(fromComponent)
       .filter((d): d is Dashboard => d !== null)
     if (dashboards.length > 0) {
-      useConfigStore.setState({ dashboards, usingDemo: false, loading: false, loaded: true })
+      useConfigStore.setState({ dashboards, serverUids, usingDemo: false, loading: false, loaded: true })
     } else {
       useConfigStore.setState({
         dashboards: [demoDashboard()],
+        serverUids,
         usingDemo: true,
         loading: false,
         loaded: true,
@@ -60,6 +65,7 @@ export async function loadDashboards(): Promise<void> {
     // Server unreachable - still show the demo so the app renders.
     useConfigStore.setState({
       dashboards: [demoDashboard()],
+      serverUids: new Set<string>(),
       usingDemo: true,
       loading: false,
       loaded: true,
@@ -74,9 +80,16 @@ export function getDashboard(id: string): Dashboard | undefined {
 
 /** Persist a dashboard to the server. Requires an admin token. */
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
-  await saveComponent(toComponent(dashboard))
+  const component = toComponent(dashboard)
+  const exists = useConfigStore.getState().serverUids.has(component.uid)
+  if (exists) await updateComponent(component)
+  else await addComponent(component)
   useConfigStore.setState((s) => {
     const others = s.dashboards.filter((d) => d.id !== dashboard.id)
-    return { dashboards: [...others, dashboard], usingDemo: false }
+    return {
+      dashboards: [...others, dashboard],
+      serverUids: new Set([...s.serverUids, component.uid]),
+      usingDemo: false,
+    }
   })
 }
