@@ -90,6 +90,19 @@ function Field({ field, widget }: { field: SettingField; widget: WidgetInstance 
           />
         </label>
       )
+    case 'multiline':
+      return (
+        <label className="nh-field" htmlFor={id}>
+          <span className="nh-field__label">{field.label}</span>
+          <textarea
+            id={id}
+            rows={4}
+            value={typeof value === 'string' ? value : ''}
+            placeholder={field.placeholder}
+            onChange={(e) => set(e.target.value)}
+          />
+        </label>
+      )
     case 'item':
       return (
         <div className="nh-field">

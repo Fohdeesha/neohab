@@ -2,6 +2,10 @@
  * Item picker combobox: a text input with an explicit dropdown button, so it is obvious the
  * item can be chosen from a list rather than typed. Typing filters by name and label;
  * arrow keys navigate, Enter selects, Escape closes.
+ *
+ * The list is rendered position:fixed and sized to the space available in the viewport
+ * (rather than a small fixed height) so long item lists are comfortable to scan, and it
+ * escapes any scrolling/clipping ancestor such as the settings sheet.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Item } from '../api/types'
@@ -16,13 +20,22 @@ interface ItemPickerProps {
   placeholder?: string
 }
 
+interface ListPos {
+  left: number
+  width: number
+  top?: number
+  bottom?: number
+  maxHeight: number
+}
+
 function typeMatches(item: Item, types?: string[]): boolean {
   if (!types || types.length === 0) return true
   const base = item.type === 'Group' ? item.groupType : item.type
   return base !== undefined && types.some((t) => base.startsWith(t))
 }
 
-const MAX_RESULTS = 60
+const MAX_RESULTS = 200
+const MARGIN = 8
 
 export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: ItemPickerProps) {
   const items = useCatalogStore((s) => s.items)
@@ -31,7 +44,9 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
   /** Text being typed to filter; null means "display the configured value". */
   const [query, setQuery] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
+  const [pos, setPos] = useState<ListPos | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
@@ -39,20 +54,53 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
     ensureCatalog()
   }, [])
 
-  // Close when tapping/clicking outside the picker.
+  const close = () => {
+    setOpen(false)
+    setQuery(null)
+  }
+
+  const openList = () => {
+    const box = boxRef.current?.getBoundingClientRect()
+    if (box) {
+      const below = window.innerHeight - box.bottom - MARGIN
+      const above = box.top - MARGIN
+      // Open downward unless there is clearly more room above.
+      const flip = below < 260 && above > below
+      const maxHeight = Math.max(180, flip ? above : below)
+      setPos(
+        flip
+          ? { left: box.left, width: box.width, bottom: window.innerHeight - box.top + 4, maxHeight }
+          : { left: box.left, width: box.width, top: box.bottom + 4, maxHeight }
+      )
+    }
+    setOpen(true)
+    setHighlight(0)
+  }
+
+  // Close when tapping outside, scrolling elsewhere, or resizing (the fixed position
+  // would otherwise go stale).
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setQuery(null)
-      }
+      const t = e.target as Node
+      if (!rootRef.current?.contains(t) && !listRef.current?.contains(t)) close()
     }
+    const onScroll = (e: Event) => {
+      if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return
+      close()
+    }
+    const onResize = () => close()
     document.addEventListener('pointerdown', onDown)
-    return () => document.removeEventListener('pointerdown', onDown)
+    document.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
+    }
   }, [open])
 
-  const matches = useMemo(() => {
+  const { matches, truncated } = useMemo(() => {
     const q = (query ?? '').trim().toLowerCase()
     const byType = items.filter((i) => typeMatches(i, itemTypes))
     const filtered = q
@@ -60,19 +108,13 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           (i) => i.name.toLowerCase().includes(q) || (i.label ?? '').toLowerCase().includes(q)
         )
       : byType
-    return filtered.slice(0, MAX_RESULTS)
+    return { matches: filtered.slice(0, MAX_RESULTS), truncated: filtered.length - MAX_RESULTS }
   }, [items, itemTypes, query])
 
   const select = (item: Item) => {
     onChange(item.name)
-    setQuery(null)
-    setOpen(false)
+    close()
     inputRef.current?.focus()
-  }
-
-  const openList = () => {
-    setOpen(true)
-    setHighlight(0)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -93,14 +135,13 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
       const item = matches[highlight]
       if (item) select(item)
     } else if (e.key === 'Escape') {
-      setOpen(false)
-      setQuery(null)
+      close()
     }
   }
 
   return (
     <div className="nh-picker" ref={rootRef}>
-      <div className="nh-picker__box">
+      <div className="nh-picker__box" ref={boxRef}>
         <input
           id={id}
           ref={inputRef}
@@ -113,7 +154,8 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           placeholder={placeholder ?? 'Search or pick an item…'}
           onChange={(e) => {
             setQuery(e.target.value)
-            openList()
+            if (!open) openList()
+            setHighlight(0)
             onChange(e.target.value)
           }}
           onFocus={openList}
@@ -127,10 +169,8 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           onPointerDown={(e) => {
             // pointerdown (not click) so the outside-close handler doesn't race us
             e.preventDefault()
-            if (open) {
-              setOpen(false)
-              setQuery(null)
-            } else {
+            if (open) close()
+            else {
               openList()
               inputRef.current?.focus()
             }
@@ -140,8 +180,20 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
         </button>
       </div>
 
-      {open ? (
-        <ul className="nh-picker__list" id={id + '-list'} role="listbox" ref={listRef}>
+      {open && pos ? (
+        <ul
+          className="nh-picker__list"
+          id={id + '-list'}
+          role="listbox"
+          ref={listRef}
+          style={{
+            left: pos.left,
+            width: pos.width,
+            top: pos.top,
+            bottom: pos.bottom,
+            maxHeight: pos.maxHeight,
+          }}
+        >
           {matches.map((item, i) => (
             <li
               key={item.name}
@@ -162,6 +214,9 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
               </span>
             </li>
           ))}
+          {truncated > 0 ? (
+            <li className="nh-picker__empty">…and {truncated} more — type to narrow the list</li>
+          ) : null}
           {matches.length === 0 ? (
             <li className="nh-picker__empty">{loaded ? 'No matching items' : 'Loading items…'}</li>
           ) : null}

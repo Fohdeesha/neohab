@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "uplot": "^1.6.32",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

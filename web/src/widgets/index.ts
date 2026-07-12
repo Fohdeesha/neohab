@@ -11,6 +11,12 @@ import { labelWidget } from './label'
 import { clockWidget } from './clock'
 import { imageWidget } from './image'
 import { colorWidget } from './color'
+import { selectionWidget } from './selection'
+import { dialWidget } from './dial'
+import { chartWidget } from './chart'
+import { frameWidget } from './frame'
+import { rollershutterWidget } from './rollershutter'
+import { playerWidget } from './player'
 
 let registered = false
 
@@ -20,11 +26,17 @@ export function registerBuiltinWidgets(): void {
   registerWidget(switchWidget)
   registerWidget(buttonWidget)
   registerWidget(sliderWidget)
+  registerWidget(dialWidget)
+  registerWidget(colorWidget)
+  registerWidget(selectionWidget)
+  registerWidget(rollershutterWidget)
+  registerWidget(playerWidget)
   registerWidget(valueWidget)
   registerWidget(labelWidget)
   registerWidget(clockWidget)
   registerWidget(imageWidget)
-  registerWidget(colorWidget)
+  registerWidget(chartWidget)
+  registerWidget(frameWidget)
 }
 
 export { getWidgetDefinition, listWidgetDefinitions, itemsForInstance } from './registry'
