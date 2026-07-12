@@ -737,3 +737,210 @@ button {
   margin: 0;
   color: var(--nh-text-dim);
 }
+
+/* ============================================================================
+   Item picker combobox
+   ============================================================================ */
+.nh-picker {
+  position: relative;
+}
+
+.nh-picker__box {
+  display: flex;
+  align-items: stretch;
+}
+
+.nh-picker__box input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--nh-text);
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.nh-picker__toggle {
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: var(--nh-text-dim);
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 0 8px 8px 0;
+  transition: transform 0.12s;
+}
+
+.nh-picker__toggle--open {
+  color: var(--nh-text);
+}
+
+.nh-picker__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.nh-picker__option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  min-height: 44px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.nh-picker__option--hi {
+  background: color-mix(in srgb, var(--nh-primary) 18%, transparent);
+}
+
+.nh-picker__option--current .nh-picker__name {
+  color: var(--nh-primary);
+}
+
+.nh-picker__name {
+  font-size: 0.92rem;
+}
+
+.nh-picker__meta {
+  font-size: 0.75rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-picker__empty {
+  padding: 10px;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+}
+
+/* ============================================================================
+   Settings screen
+   ============================================================================ */
+.nh-settings {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 16px 12px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.nh-settings__h {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nh-settings__text {
+  margin: 0 0 12px;
+  color: var(--nh-text-dim);
+  font-size: 0.92rem;
+}
+
+.nh-settings__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nh-settings__notice {
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--nh-primary) 14%, transparent);
+  border: 1px solid var(--nh-primary);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.nh-themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.nh-theme {
+  position: relative;
+  display: flex;
+}
+
+.nh-theme__pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.nh-theme--active .nh-theme__pick {
+  border-color: var(--nh-brand);
+  outline: 1px solid var(--nh-brand);
+}
+
+.nh-theme__dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.nh-theme__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+}
+
+.nh-theme__name {
+  font-size: 0.9rem;
+}
+
+.nh-theme__edit {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 0.85rem;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 7px;
+  color: var(--nh-text);
+}
+
+.nh-themeeditor {
+  padding: 14px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+}
+
+.nh-themeeditor .nh-settings__row {
+  margin-top: 14px;
+}
+
+.nh-home__settings {
+  margin-top: 0.5rem;
+}

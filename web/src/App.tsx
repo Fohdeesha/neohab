@@ -1,19 +1,31 @@
 import { useEffect, useState } from 'react'
 import { registerBuiltinWidgets } from './widgets'
 import { startItemTracking } from './store/items'
-import { loadDashboards, useConfigStore } from './store/config'
+import { loadConfig, useConfigStore } from './store/config'
 import { getRootInfo } from './api/items'
 import { completeLogin } from './api/auth'
+import { applyTheme, cacheTheme, resolveTheme } from './themes/themes'
 import { useRoute } from './app/router'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
+import { SettingsView } from './app/SettingsView'
 
 registerBuiltinWidgets()
 
 export default function App() {
   const route = useRoute()
   const loaded = useConfigStore((s) => s.loaded)
+  const themeId = useConfigStore((s) => s.settings.theme)
+  const customThemes = useConfigStore((s) => s.customThemes)
   const [ohVersion, setOhVersion] = useState<string>()
+
+  // Apply (and cache) the active theme whenever the choice or a custom theme changes.
+  useEffect(() => {
+    if (!loaded) return
+    const theme = resolveTheme(themeId, customThemes)
+    applyTheme(theme)
+    cacheTheme(theme)
+  }, [loaded, themeId, customThemes])
 
   useEffect(() => {
     let cancelled = false
@@ -29,7 +41,7 @@ export default function App() {
       }
 
       startItemTracking()
-      void loadDashboards()
+      void loadConfig()
 
       try {
         const info = await getRootInfo()
@@ -55,7 +67,13 @@ export default function App() {
 
   return (
     <main className="nh-app">
-      {route.name === 'home' ? <Home ohVersion={ohVersion} /> : <DashboardView id={route.id} />}
+      {route.name === 'home' ? (
+        <Home ohVersion={ohVersion} />
+      ) : route.name === 'settings' ? (
+        <SettingsView />
+      ) : (
+        <DashboardView id={route.id} />
+      )}
     </main>
   )
 }

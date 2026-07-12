@@ -35,6 +35,8 @@ export interface Item {
   category?: string
   tags?: string[]
   groupNames?: string[]
+  /** Base type of a typed Group (item.type is then just "Group"). */
+  groupType?: string
   stateDescription?: StateDescription
   commandDescription?: CommandDescription
 }

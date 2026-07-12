@@ -3,21 +3,15 @@
  * schema. Edits apply to the draft immediately (live preview on the dashboard); same-field
  * changes coalesce into one undo entry.
  */
-import { useEffect } from 'react'
 import { Sheet } from '../components/Sheet'
+import { ItemPicker } from '../components/ItemPicker'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
 import { removeWidget, selectWidget, updateWidgetConfig } from '../store/editor'
-import { ensureCatalog, useCatalogStore } from '../store/catalog'
 
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const def = getWidgetDefinition(widget.type)
-
-  useEffect(() => {
-    if (def?.settings.some((f) => f.type === 'item')) ensureCatalog()
-  }, [def])
-
   if (!def) return null
 
   return (
@@ -97,7 +91,19 @@ function Field({ field, widget }: { field: SettingField; widget: WidgetInstance 
         </label>
       )
     case 'item':
-      return <ItemField field={field} id={id} value={value} set={set} />
+      return (
+        <div className="nh-field">
+          <label className="nh-field__label" htmlFor={id}>
+            {field.label}
+          </label>
+          <ItemPicker
+            id={id}
+            value={typeof value === 'string' ? value : ''}
+            itemTypes={field.itemTypes}
+            onChange={set}
+          />
+        </div>
+      )
     default:
       return (
         <label className="nh-field" htmlFor={id}>
@@ -114,40 +120,3 @@ function Field({ field, widget }: { field: SettingField; widget: WidgetInstance 
   }
 }
 
-function ItemField({
-  field,
-  id,
-  value,
-  set,
-}: {
-  field: Extract<SettingField, { type: 'item' }>
-  id: string
-  value: unknown
-  set: (v: unknown) => void
-}) {
-  const items = useCatalogStore((s) => s.items)
-  const filtered = field.itemTypes
-    ? items.filter((i) => field.itemTypes!.some((t) => i.type.startsWith(t) || i.type.startsWith('Group')))
-    : items
-
-  return (
-    <label className="nh-field" htmlFor={id}>
-      <span className="nh-field__label">{field.label}</span>
-      <input
-        id={id}
-        type="text"
-        list={id + '-list'}
-        value={typeof value === 'string' ? value : ''}
-        placeholder="Item name…"
-        onChange={(e) => set(e.target.value)}
-      />
-      <datalist id={id + '-list'}>
-        {filtered.map((i) => (
-          <option key={i.name} value={i.name}>
-            {i.label ? `${i.label} (${i.type})` : i.type}
-          </option>
-        ))}
-      </datalist>
-    </label>
-  )
-}

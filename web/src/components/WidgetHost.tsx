@@ -13,12 +13,14 @@ import { sendCommand } from '../api/items'
 export function WidgetHost({ instance, editing }: { instance: WidgetInstance; editing: boolean }) {
   const def = getWidgetDefinition(instance.type)
 
-  const itemNames = useMemo(
-    () => itemsForInstance(instance.type, instance.config),
-    [instance.type, instance.config]
+  // Key the subscription on the item names themselves, not config identity - the config object
+  // is recloned on every edit and would otherwise resubscribe per keystroke.
+  const itemNames = itemsForInstance(instance.type, instance.config)
+  const itemsKey = itemNames.join('\n')
+  useEffect(
+    () => subscribeItems(itemsKey ? itemsKey.split('\n') : []),
+    [itemsKey]
   )
-
-  useEffect(() => subscribeItems(itemNames), [itemNames])
 
   // Select only this widget's item states (shallow-compared) to limit re-renders.
   const states = useItemsStore(

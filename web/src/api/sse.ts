@@ -34,10 +34,19 @@ export class StatesTracker {
     return () => this.listeners.delete(listener)
   }
 
-  /** Replace the set of tracked items. Safe to call before the connection is ready. */
+  private pushTimer: ReturnType<typeof setTimeout> | null = null
+
+  /**
+   * Replace the set of tracked items. Safe to call before the connection is ready.
+   * Debounced: rapid changes (mount storms, typing in an item picker) collapse to one POST.
+   */
   setTracked(items: Iterable<string>): void {
     this.tracked = new Set(items)
-    void this.pushTracked()
+    if (this.pushTimer) clearTimeout(this.pushTimer)
+    this.pushTimer = setTimeout(() => {
+      this.pushTimer = null
+      void this.pushTracked()
+    }, 250)
   }
 
   start(): void {

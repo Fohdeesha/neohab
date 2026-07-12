@@ -32,6 +32,14 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           Showing a demo dashboard — sign in as an administrator to create and save your own.
         </p>
       ) : null}
+
+      <button
+        type="button"
+        className="nh-btn nh-btn--ghost nh-home__settings"
+        onClick={() => navigate({ name: 'settings' })}
+      >
+        ⚙ Settings
+      </button>
     </div>
   )
 }
