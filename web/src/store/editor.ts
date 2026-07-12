@@ -132,7 +132,7 @@ export function setPaletteOpen(open: boolean): void {
 }
 
 /** Add a widget of the given type at the first free spot; select it. */
-export function addWidget(type: string): void {
+export function addWidget(type: string, configOverrides?: Record<string, unknown>): void {
   const def = getWidgetDefinition(type)
   const s = useEditorStore.getState()
   if (!def || !s.draft) return
@@ -143,7 +143,7 @@ export function addWidget(type: string): void {
     const widget: WidgetInstance = {
       id,
       type,
-      config: def.defaultConfig() as Record<string, unknown>,
+      config: { ...(def.defaultConfig() as Record<string, unknown>), ...configOverrides },
       layout: { lg: rect },
     }
     draft.widgets.push(widget)

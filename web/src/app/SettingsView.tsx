@@ -22,6 +22,7 @@ import {
 } from '../themes/themes'
 import { navigate } from './router'
 import { HabpanelImport } from '../editor/HabpanelImport'
+import { WidgetDefManager } from '../editor/WidgetDefManager'
 
 export function SettingsView() {
   const { settings, customThemes, usingDemo } = useConfigStore()
@@ -100,6 +101,8 @@ export function SettingsView() {
             onNotice={setNotice}
           />
         ) : null}
+
+        <WidgetDefManager onNotice={setNotice} />
 
         <HabpanelImport onNotice={setNotice} />
 

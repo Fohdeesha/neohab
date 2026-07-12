@@ -13,20 +13,25 @@ import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
 import type { UIComponent } from '../api/types'
 import type { Dashboard } from '../model/dashboard'
+import type { CustomWidgetDef } from '../model/widgetdef'
 import type { Theme } from '../themes/themes'
 import { demoDashboard } from './demoDashboard'
 
 const DASHBOARD_PREFIX = 'dashboard:'
 const THEME_PREFIX = 'theme:'
+const WIDGETDEF_PREFIX = 'widgetdef:'
 const SETTINGS_UID = 'settings'
 
 const DASHBOARD_COMPONENT = 'neohab:dashboard'
 const THEME_COMPONENT = 'neohab:theme'
+const WIDGETDEF_COMPONENT = 'neohab:widgetdef'
 const SETTINGS_COMPONENT = 'neohab:settings'
 
 export interface AppSettings {
   version: number
   theme: string
+  /** Tier-2 sandboxed JavaScript widgets only run when an admin has enabled them. */
+  allowJsWidgets?: boolean
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark' })
@@ -34,6 +39,7 @@ const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark' })
 interface ConfigState {
   dashboards: Dashboard[]
   customThemes: Theme[]
+  widgetDefs: CustomWidgetDef[]
   settings: AppSettings
   /** Component uids that exist on the server (decides create vs update on save). */
   serverUids: Set<string>
@@ -46,6 +52,7 @@ interface ConfigState {
 export const useConfigStore = create<ConfigState>(() => ({
   dashboards: [],
   customThemes: [],
+  widgetDefs: [],
   settings: defaultSettings(),
   serverUids: new Set<string>(),
   loading: false,
@@ -72,16 +79,25 @@ const settingsComponent = (s: AppSettings): UIComponent<AppSettings> => ({
   config: s,
 })
 
+const widgetDefComponent = (d: CustomWidgetDef): UIComponent<CustomWidgetDef> => ({
+  uid: WIDGETDEF_PREFIX + d.id,
+  component: WIDGETDEF_COMPONENT,
+  config: d,
+})
+
 function parseComponents(components: UIComponent[]) {
   const dashboards: Dashboard[] = []
   const customThemes: Theme[] = []
+  const widgetDefs: CustomWidgetDef[] = []
   let settings = defaultSettings()
   for (const c of components) {
     if (c.uid.startsWith(DASHBOARD_PREFIX)) dashboards.push(c.config as unknown as Dashboard)
     else if (c.uid.startsWith(THEME_PREFIX)) customThemes.push(c.config as unknown as Theme)
+    else if (c.uid.startsWith(WIDGETDEF_PREFIX)) widgetDefs.push(c.config as unknown as CustomWidgetDef)
     else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
   }
-  return { dashboards, customThemes, settings }
+  widgetDefs.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
+  return { dashboards, customThemes, widgetDefs, settings }
 }
 
 export async function loadConfig(): Promise<void> {
@@ -89,10 +105,11 @@ export async function loadConfig(): Promise<void> {
   try {
     const components = await listComponents()
     const serverUids = new Set(components.map((c) => c.uid))
-    const { dashboards, customThemes, settings } = parseComponents(components)
+    const { dashboards, customThemes, widgetDefs, settings } = parseComponents(components)
     useConfigStore.setState({
       dashboards: dashboards.length > 0 ? dashboards : [demoDashboard()],
       customThemes,
+      widgetDefs,
       settings,
       serverUids,
       usingDemo: dashboards.length === 0,
@@ -104,6 +121,7 @@ export async function loadConfig(): Promise<void> {
     useConfigStore.setState({
       dashboards: [demoDashboard()],
       customThemes: [],
+      widgetDefs: [],
       settings: defaultSettings(),
       serverUids: new Set<string>(),
       usingDemo: true,
@@ -171,6 +189,22 @@ export async function deleteTheme(id: string): Promise<void> {
   useConfigStore.setState((s) => ({
     customThemes: s.customThemes.filter((t) => t.id !== id),
     serverUids: new Set([...s.serverUids].filter((u) => u !== THEME_PREFIX + id)),
+  }))
+}
+
+export async function saveWidgetDef(def: CustomWidgetDef): Promise<void> {
+  await upsert(widgetDefComponent(def))
+  useConfigStore.setState((s) => {
+    const others = s.widgetDefs.filter((d) => d.id !== def.id)
+    return { widgetDefs: [...others, def].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id)) }
+  })
+}
+
+export async function deleteWidgetDef(id: string): Promise<void> {
+  await deleteComponent(WIDGETDEF_PREFIX + id)
+  useConfigStore.setState((s) => ({
+    widgetDefs: s.widgetDefs.filter((d) => d.id !== id),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== WIDGETDEF_PREFIX + id)),
   }))
 }
 
