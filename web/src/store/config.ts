@@ -159,6 +159,16 @@ export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   })
 }
 
+/** Delete a dashboard. Dashboards that never reached the server (demo) are removed locally. */
+export async function deleteDashboard(id: string): Promise<void> {
+  const uid = DASHBOARD_PREFIX + id
+  if (useConfigStore.getState().serverUids.has(uid)) await deleteComponent(uid)
+  useConfigStore.setState((s) => ({
+    dashboards: s.dashboards.filter((d) => d.id !== id),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== uid)),
+  }))
+}
+
 /**
  * Update settings locally and try to persist. Persistence failures (e.g. not signed in) leave
  * the local change in place; the caller may surface the returned error.

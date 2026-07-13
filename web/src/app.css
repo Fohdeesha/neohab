@@ -136,6 +136,23 @@ button {
   color: var(--nh-text-dim);
 }
 
+.nh-tile--new {
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-style: dashed;
+  color: var(--nh-text-dim);
+}
+
+.nh-tile--new:hover {
+  color: var(--nh-text);
+}
+
+.nh-tile__plus {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
 /* ============================================================================
    Dashboard chrome
    ============================================================================ */
@@ -193,6 +210,11 @@ button {
    ============================================================================ */
 .nh-grid {
   display: grid;
+}
+
+/* An empty dashboard still needs a visible editing surface to drop widgets onto. */
+.nh-grid--edit {
+  min-height: 240px;
 }
 
 .nh-grid--stacked {
@@ -837,6 +859,12 @@ button {
   border-top: 1px solid var(--nh-border);
   display: flex;
   justify-content: flex-end;
+}
+
+.nh-form__error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #ef6b68;
 }
 
 .nh-field {

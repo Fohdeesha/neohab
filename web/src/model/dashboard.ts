@@ -48,5 +48,19 @@ export interface Dashboard {
 }
 
 export function createDashboard(id: string, name: string): Dashboard {
-  return { version: MODEL_VERSION, id, name, columns: 12, rowHeight: 40, widgets: [] }
+  return { version: MODEL_VERSION, id, name, columns: 12, rowHeight: 'match', widgets: [] }
+}
+
+/** URL-safe dashboard id derived from a display name, de-duped against existing ids. */
+export function slugifyDashboardId(name: string, existing: Set<string>): string {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'dashboard'
+  if (!existing.has(base)) return base
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`
+    if (!existing.has(candidate)) return candidate
+  }
 }

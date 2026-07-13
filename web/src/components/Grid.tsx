@@ -35,6 +35,10 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
     return <div ref={ref} className="nh-grid" />
   }
 
+  if (dashboard.widgets.length === 0) {
+    return <p className="nh-dash__empty">This dashboard has no widgets yet — tap ✎ to start adding some.</p>
+  }
+
   if (width < STACK_BELOW) {
     const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
     const ordered = [...dashboard.widgets].sort((a, b) => {

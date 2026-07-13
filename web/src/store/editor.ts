@@ -27,6 +27,7 @@ interface EditorState {
   saveError: string | null
   selectedId: string | null
   paletteOpen: boolean
+  dashSettingsOpen: boolean
 }
 
 export const useEditorStore = create<EditorState>(() => ({
@@ -41,6 +42,7 @@ export const useEditorStore = create<EditorState>(() => ({
   saveError: null,
   selectedId: null,
   paletteOpen: false,
+  dashSettingsOpen: false,
 }))
 
 const clone = <T>(value: T): T => structuredClone(value)
@@ -58,6 +60,7 @@ export function startEditing(dashboard: Dashboard): void {
     saveError: null,
     selectedId: null,
     paletteOpen: false,
+    dashSettingsOpen: false,
   })
 }
 
@@ -74,6 +77,7 @@ export function stopEditing(): void {
     saveError: null,
     selectedId: null,
     paletteOpen: false,
+    dashSettingsOpen: false,
   })
 }
 
@@ -124,11 +128,43 @@ export function redo(): void {
 }
 
 export function selectWidget(id: string | null): void {
-  useEditorStore.setState({ selectedId: id, lastCoalesceKey: null })
+  // The widget panel and the dashboard-settings panel share the same surface.
+  useEditorStore.setState((s) => ({
+    selectedId: id,
+    lastCoalesceKey: null,
+    dashSettingsOpen: id !== null ? false : s.dashSettingsOpen,
+  }))
 }
 
 export function setPaletteOpen(open: boolean): void {
   useEditorStore.setState({ paletteOpen: open })
+}
+
+export function setDashSettingsOpen(open: boolean): void {
+  useEditorStore.setState((s) => ({
+    dashSettingsOpen: open,
+    selectedId: open ? null : s.selectedId,
+    lastCoalesceKey: null,
+  }))
+}
+
+/**
+ * Edit dashboard-level fields (name / grid geometry) on the draft. Shrinking the column
+ * count clamps every widget rect into the new bounds; resulting overlaps are left for the
+ * user to resolve (undo restores the previous layout in one step).
+ */
+export function updateDashboardMeta(
+  patch: Partial<Pick<Dashboard, 'name' | 'columns' | 'rowHeight' | 'gap'>>,
+  coalesceKey: string | null = null,
+): void {
+  applyChange((draft) => {
+    Object.assign(draft, patch)
+    if (patch.columns !== undefined) {
+      for (const w of draft.widgets) {
+        w.layout = { ...w.layout, lg: clampRect(rectOf(w), draft.columns) }
+      }
+    }
+  }, coalesceKey)
 }
 
 /** Add a widget of the given type at the first free spot; select it. */

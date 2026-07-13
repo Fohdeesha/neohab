@@ -3,6 +3,7 @@ import { getDashboard } from '../store/config'
 import {
   redo,
   saveDraft,
+  setDashSettingsOpen,
   setPaletteOpen,
   startEditing,
   stopEditing,
@@ -13,6 +14,7 @@ import { isLoggedIn } from '../api/auth'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
 import { SettingsPanel } from '../editor/SettingsPanel'
+import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
 import { PaletteSheet } from '../editor/PaletteSheet'
 import { SignInSheet } from '../editor/SignInSheet'
 import { navigate } from './router'
@@ -79,6 +81,14 @@ export function DashboardView({ id }: { id: string }) {
           <>
             <span className="nh-dash__title">Editing — {dashboard.name}</span>
             <span className="nh-dash__spacer" />
+            <button
+              className="nh-iconbtn"
+              onClick={() => setDashSettingsOpen(true)}
+              aria-label="Dashboard settings"
+              title="Dashboard settings"
+            >
+              ⚙
+            </button>
             <button className="nh-iconbtn" onClick={() => setPaletteOpen(true)} aria-label="Add widget" title="Add widget">
               +
             </button>
@@ -129,12 +139,18 @@ export function DashboardView({ id }: { id: string }) {
         <div className="nh-dash__error">Save failed: {editor.saveError} — are you signed in as an administrator?</div>
       ) : null}
 
-      <div className={'nh-dash__surface' + (editing && selected ? ' nh-dash__surface--panel' : '')}>
+      <div
+        className={
+          'nh-dash__surface' +
+          (editing && (selected || editor.dashSettingsOpen) ? ' nh-dash__surface--panel' : '')
+        }
+      >
         {editing ? <EditableGrid dashboard={dashboard} /> : <Grid dashboard={dashboard} />}
         {editing ? <p className="nh-dash__edithint">Drag widgets by their handle · tap to configure</p> : null}
       </div>
 
       {editing && selected ? <SettingsPanel key={selected.id} widget={selected} /> : null}
+      {editing && !selected && editor.dashSettingsOpen ? <DashboardSettingsPanel dashboard={dashboard} /> : null}
       {editing && editor.paletteOpen ? <PaletteSheet /> : null}
       {signInOpen ? (
         <SignInSheet

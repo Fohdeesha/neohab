@@ -1,9 +1,15 @@
+import { useState } from 'react'
 import { useConfigStore } from '../store/config'
+import { isLoggedIn } from '../api/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
+import { NewDashboardSheet } from '../editor/NewDashboardSheet'
+import { SignInSheet } from '../editor/SignInSheet'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
   const { dashboards, usingDemo } = useConfigStore()
+  const [newOpen, setNewOpen] = useState(false)
+  const [signInOpen, setSignInOpen] = useState(false)
 
   return (
     <div className="nh-home">
@@ -25,6 +31,16 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
             <span className="nh-tile__meta">{d.widgets.length} widgets</span>
           </button>
         ))}
+        <button
+          type="button"
+          className="nh-tile nh-tile--new"
+          onClick={() => (isLoggedIn() ? setNewOpen(true) : setSignInOpen(true))}
+        >
+          <span className="nh-tile__plus" aria-hidden="true">
+            +
+          </span>
+          <span className="nh-tile__name">New dashboard</span>
+        </button>
       </div>
 
       {usingDemo ? (
@@ -40,6 +56,17 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
       >
         ⚙ Settings
       </button>
+
+      {newOpen ? <NewDashboardSheet onClose={() => setNewOpen(false)} /> : null}
+      {signInOpen ? (
+        <SignInSheet
+          onClose={() => setSignInOpen(false)}
+          onToken={() => {
+            setSignInOpen(false)
+            setNewOpen(true)
+          }}
+        />
+      ) : null}
     </div>
   )
 }
