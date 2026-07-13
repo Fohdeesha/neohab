@@ -44,6 +44,12 @@ export interface Dashboard {
   rowHeight: number | 'match'
   /** Gap between grid cells in pixels (default 8). */
   gap?: number
+  /**
+   * Explicit widget order for the single-column (phone) stack, set the first time the user
+   * reorders it. Absent = derived from the grid layout (row by row). Widgets missing from the
+   * list (added later) stack after the listed ones; stale ids are ignored.
+   */
+  stackOrder?: string[]
   widgets: WidgetInstance[]
 }
 

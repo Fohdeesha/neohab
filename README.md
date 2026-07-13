@@ -12,11 +12,13 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
 ## Goals
 
 - **Mobile-first** — dashboards are always viewable and dynamically sized, from phone to
-  wall-mounted tablet to desktop, with responsive per-breakpoint layouts.
+  wall-mounted tablet to desktop. Phones get a single-column stack whose order you can
+  drag-to-reorder independently of the grid layout.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
 - **Import / export** — back up, restore and share complete dashboard configurations (or single
-  dashboards and widgets) as JSON.
+  dashboards and widgets) as JSON; restore by replacing everything or merging a backup into
+  what you have.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users.
 - **First-class theming** — theme editor with live preview, light/dark switching, shareable

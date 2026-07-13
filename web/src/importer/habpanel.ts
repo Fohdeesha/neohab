@@ -179,12 +179,27 @@ const THEME_MAP: Record<string, string> = {
 
 /* ------------------------------- widget converters ------------------------------- */
 
+/**
+ * HABPanel icons reference server icon sets; keep them as state-aware oh: icons.
+ * HABPanel's "eclipse-smarthome-classic" id is the classic set (servers only accept "classic").
+ */
+function iconRef(w: HPWidget): { icon?: string; iconSize?: number } {
+  const iconName = str(w.icon)
+  if (!iconName || w.hideicon === true) return {}
+  let iconset = str(w.iconset)
+  if (iconset === 'eclipse-smarthome-classic' || iconset === 'smarthome-classic') iconset = 'classic'
+  return {
+    icon: 'oh:' + iconName + (iconset && iconset !== 'classic' ? '@' + iconset : ''),
+    iconSize: num(w.icon_size),
+  }
+}
+
 type Converter = (w: HPWidget, report: Report) => { type: string; config: Record<string, unknown> } | null
 
 const CONVERTERS: Record<string, Converter> = {
   switch: (w) => ({
     type: 'switch',
-    config: { item: str(w.item) ?? '', label: str(w.name) },
+    config: { item: str(w.item) ?? '', label: w.hidelabel === true ? undefined : str(w.name), ...iconRef(w) },
   }),
 
   slider: (w, report) => {
@@ -241,13 +256,7 @@ const CONVERTERS: Record<string, Converter> = {
 
   button: (w, report) => {
     const action = str(w.action_type) ?? 'command'
-    // HABPanel icons reference server icon sets; keep them as state-aware oh: icons.
-    // HABPanel's "eclipse-smarthome-classic" id is the classic set (servers only accept "classic").
-    const iconName = str(w.icon)
-    let iconset = str(w.iconset)
-    if (iconset === 'eclipse-smarthome-classic' || iconset === 'smarthome-classic') iconset = 'classic'
-    const icon = iconName ? 'oh:' + iconName + (iconset && iconset !== 'classic' ? '@' + iconset : '') : undefined
-    const iconSize = num(w.icon_size)
+    const icon = iconRef(w)
     const hideLabel = w.icon_replacestext === true ? true : undefined
     if (action === 'navigate') {
       return {
@@ -258,8 +267,7 @@ const CONVERTERS: Record<string, Converter> = {
           navigateDashboard: str(w.navigate_dashboard),
           navigateUrl: str(w.navigate_url),
           command: 'ON',
-          icon,
-          iconSize,
+          ...icon,
           hideLabel,
         },
       }
@@ -275,8 +283,7 @@ const CONVERTERS: Record<string, Converter> = {
         command: str(w.command) ?? 'ON',
         commandAlt: str(w.command_alt),
         toggle: action === 'toggle',
-        icon,
-        iconSize,
+        ...icon,
         hideLabel,
       },
     }
@@ -296,7 +303,12 @@ const CONVERTERS: Record<string, Converter> = {
     if (w.choices_columns || w.keep_open) report.add('info', 'Selection layout options use the neohab grid style')
     return {
       type: 'selection',
-      config: { item: str(w.item) ?? '', label: str(w.name), choices },
+      config: {
+        item: str(w.item) ?? '',
+        label: w.hidelabel === true ? undefined : str(w.name),
+        choices,
+        ...iconRef(w),
+      },
     }
   },
 

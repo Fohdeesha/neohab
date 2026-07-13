@@ -12,6 +12,7 @@ import {
   useConfigStore,
   validateBundle,
   type ExportBundle,
+  type ImportMode,
 } from '../store/config'
 import {
   BUILTIN_THEMES,
@@ -26,7 +27,7 @@ import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
 
 export function SettingsView() {
-  const { settings, customThemes, usingDemo } = useConfigStore()
+  const { settings, customThemes } = useConfigStore()
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState<Theme | null>(null)
 
@@ -107,7 +108,7 @@ export function SettingsView() {
 
         <HabpanelImport onNotice={setNotice} />
 
-        <BackupSection usingDemo={usingDemo} onNotice={setNotice} />
+        <BackupSection onNotice={setNotice} />
 
         <AccountSection onNotice={setNotice} />
       </div>
@@ -230,9 +231,10 @@ function ThemeEditor({
   )
 }
 
-function BackupSection({ usingDemo, onNotice }: { usingDemo: boolean; onNotice: (m: string | null) => void }) {
+function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<ExportBundle | null>(null)
 
   const exportConfig = async () => {
     onNotice(null)
@@ -251,6 +253,7 @@ function BackupSection({ usingDemo, onNotice }: { usingDemo: boolean; onNotice: 
 
   const importConfig = async (file: File) => {
     onNotice(null)
+    setPending(null)
     let bundle: ExportBundle
     try {
       bundle = JSON.parse(await file.text()) as ExportBundle
@@ -263,18 +266,22 @@ function BackupSection({ usingDemo, onNotice }: { usingDemo: boolean; onNotice: 
       onNotice('Import failed: ' + invalid)
       return
     }
-    const dashboards = bundle.components.filter((c) => c.uid.startsWith('dashboard:')).length
+    setPending(bundle)
+  }
+
+  const runImport = async (mode: ImportMode) => {
+    if (!pending) return
     if (
-      !window.confirm(
-        `Replace the entire neohab configuration with this backup (${dashboards} dashboard${dashboards === 1 ? '' : 's'}, ${bundle.components.length} components)? This cannot be undone.`
-      )
+      mode === 'replace' &&
+      !window.confirm('Replace the entire configuration with this backup? This cannot be undone.')
     ) {
       return
     }
     setBusy(true)
     try {
-      await importBundle(bundle)
-      onNotice('Backup imported.')
+      await importBundle(pending, mode)
+      setPending(null)
+      onNotice(mode === 'replace' ? 'Backup imported.' : 'Backup merged into the current configuration.')
     } catch (err) {
       onNotice(
         'Import failed: ' +
@@ -291,8 +298,7 @@ function BackupSection({ usingDemo, onNotice }: { usingDemo: boolean; onNotice: 
       <h2 className="nh-settings__h">Backup</h2>
       <p className="nh-settings__text">
         Export your complete configuration (dashboards, themes, settings) as a JSON file to back it
-        up or share it. Importing replaces everything with the backup's contents.
-        {usingDemo ? ' Nothing is saved on the server yet — the export will contain the demo.' : ''}
+        up or share it. Importing can replace everything or merge the backup into what you have.
       </p>
       <div className="nh-settings__row">
         <button type="button" className="nh-btn" onClick={() => void exportConfig()}>
@@ -313,6 +319,27 @@ function BackupSection({ usingDemo, onNotice }: { usingDemo: boolean; onNotice: 
           }}
         />
       </div>
+      {pending ? (
+        <div className="nh-settings__importchoice">
+          <p className="nh-settings__text">
+            Backup contains {pending.components.filter((c) => c.uid.startsWith('dashboard:')).length}{' '}
+            dashboard(s), {pending.components.length} components. Merge keeps your current
+            configuration and overwrites only what the backup also contains; replace deletes
+            everything first.
+          </p>
+          <div className="nh-settings__row">
+            <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => void runImport('merge')}>
+              Merge into current
+            </button>
+            <button type="button" className="nh-btn" disabled={busy} onClick={() => void runImport('replace')}>
+              Replace everything
+            </button>
+            <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => setPending(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

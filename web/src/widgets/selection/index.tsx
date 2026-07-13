@@ -8,6 +8,9 @@ interface SelectionConfig {
   label?: string
   /** Manual choices, one per line: `COMMAND=Label` or just `COMMAND`. */
   choices?: string
+  /** "mdi:<name>" or "oh:<name>[@iconset]" (state-aware server icons). */
+  icon?: string
+  iconSize?: number
 }
 
 interface Choice {
@@ -52,7 +55,7 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
   const state = ctx.getItem(config.item)
 
   return (
-    <WidgetFrame label={config.label}>
+    <WidgetFrame label={config.label} icon={config.icon} iconSize={config.iconSize} iconState={state?.state}>
       {choices.length === 0 ? (
         <div className="nh-selection__empty">No choices — set them in the widget settings</div>
       ) : (
@@ -86,6 +89,8 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item' },
     { key: 'label', type: 'text', label: 'Name' },
+    { key: 'icon', type: 'icon', label: 'Icon' },
+    { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 64 },
     {
       key: 'choices',
       type: 'multiline',

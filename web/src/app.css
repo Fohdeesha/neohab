@@ -93,12 +93,38 @@ button {
   color: var(--nh-text);
 }
 
-.nh-home__hint {
-  margin: 0.5rem 0 0;
-  max-width: 30rem;
+/* First-run welcome (no dashboards yet) */
+.nh-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: min(30rem, 100%);
+  margin-top: 1.5rem;
+  padding: 24px 20px;
   text-align: center;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+}
+
+.nh-welcome__title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.nh-welcome__text {
+  margin: 0;
   color: var(--nh-text-dim);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+}
+
+.nh-welcome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .nh-tiles {
@@ -250,6 +276,9 @@ button {
 }
 
 .nh-widget__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 12px 0;
   font-size: 0.8rem;
   font-weight: 600;
@@ -257,6 +286,10 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  overflow: hidden;
+}
+
+.nh-widget__labeltext {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -323,6 +356,14 @@ button {
   font-size: 0.85rem;
   color: var(--nh-text-dim);
   letter-spacing: 0.08em;
+}
+
+.nh-switch__icon {
+  flex-shrink: 1;
+}
+
+.nh-switch--on .nh-icon--mdi {
+  background-color: var(--nh-primary);
 }
 
 /* Button */
@@ -785,6 +826,18 @@ button {
   z-index: 0;
 }
 
+/* Stacked (phone) reorder: drop-position line between rows */
+.nh-grid--stackedit {
+  min-height: 240px;
+}
+
+.nh-stackdrop {
+  height: 0;
+  border-top: 3px solid var(--nh-primary);
+  border-radius: 2px;
+  margin: -2px 0;
+}
+
 .nh-drop--invalid {
   border-color: #e53935;
   background: color-mix(in srgb, #e53935 12%, transparent);
@@ -1075,6 +1128,14 @@ button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.nh-settings__importchoice {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
 }
 
 .nh-settings__notice {

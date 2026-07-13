@@ -101,6 +101,19 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
             }}
           />
         </label>
+
+        {dashboard.stackOrder && dashboard.stackOrder.length > 0 ? (
+          <div className="nh-field">
+            <span className="nh-field__label">Phone layout</span>
+            <button
+              type="button"
+              className="nh-btn nh-btn--ghost"
+              onClick={() => updateDashboardMeta({ stackOrder: undefined })}
+            >
+              Reset stack order to follow the grid
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="nh-form__footer">

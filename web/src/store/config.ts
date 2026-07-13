@@ -6,8 +6,8 @@
  *   - `dashboard:<id>` (component `neohab:dashboard`) - one per dashboard
  *   - `theme:<id>`     (component `neohab:theme`)     - custom themes
  *   - `settings`       (component `neohab:settings`)  - global app settings
- * Reads are public; saving requires an admin login. With no server dashboards a built-in demo
- * is shown so the UI is immediately usable.
+ * Reads are public; saving requires an admin login. With no server dashboards the Home screen
+ * shows a first-run welcome instead.
  */
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
@@ -15,7 +15,6 @@ import type { UIComponent } from '../api/types'
 import type { Dashboard } from '../model/dashboard'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import type { Theme } from '../themes/themes'
-import { demoDashboard } from './demoDashboard'
 
 const DASHBOARD_PREFIX = 'dashboard:'
 const THEME_PREFIX = 'theme:'
@@ -45,7 +44,6 @@ interface ConfigState {
   serverUids: Set<string>
   loading: boolean
   loaded: boolean
-  usingDemo: boolean
   error: string | null
 }
 
@@ -57,7 +55,6 @@ export const useConfigStore = create<ConfigState>(() => ({
   serverUids: new Set<string>(),
   loading: false,
   loaded: false,
-  usingDemo: false,
   error: null,
 }))
 
@@ -109,24 +106,22 @@ export async function loadConfig(): Promise<void> {
     const serverUids = new Set(components.map((c) => c.uid))
     const { dashboards, customThemes, widgetDefs, settings } = parseComponents(components)
     useConfigStore.setState({
-      dashboards: dashboards.length > 0 ? dashboards : [demoDashboard()],
+      dashboards,
       customThemes,
       widgetDefs,
       settings,
       serverUids,
-      usingDemo: dashboards.length === 0,
       loading: false,
       loaded: true,
     })
   } catch (err) {
-    // Server unreachable - still show the demo so the app renders.
+    // Server unreachable - render anyway so the welcome/error state shows.
     useConfigStore.setState({
-      dashboards: [demoDashboard()],
+      dashboards: [],
       customThemes: [],
       widgetDefs: [],
       settings: defaultSettings(),
       serverUids: new Set<string>(),
-      usingDemo: true,
       loading: false,
       loaded: true,
       error: err instanceof Error ? err.message : String(err),
@@ -149,13 +144,9 @@ export function getDashboard(id: string): Dashboard | undefined {
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   await upsert(dashboardComponent(dashboard))
   useConfigStore.setState((s) => {
-    // Once a real dashboard is saved, the unsaved in-code demo placeholder disappears
-    // (unless the demo itself is what's being saved).
-    const others = s.dashboards.filter(
-      (d) => d.id !== dashboard.id && !(s.usingDemo && d.id === 'demo')
-    )
+    const others = s.dashboards.filter((d) => d.id !== dashboard.id)
     const dashboards = [...others, dashboard].sort((a, b) => a.name.localeCompare(b.name))
-    return { dashboards, usingDemo: false }
+    return { dashboards }
   })
 }
 
@@ -239,7 +230,7 @@ export async function buildExportBundle(): Promise<ExportBundle> {
   if (s.serverUids.size > 0) {
     components = await listComponents()
   } else {
-    // Nothing saved yet - export the current in-memory configuration (demo included).
+    // Nothing saved yet - export the current in-memory configuration.
     components = [
       ...s.dashboards.map((d) => dashboardComponent(d)),
       ...s.customThemes.map((t) => themeComponent(t)),
@@ -265,17 +256,29 @@ export function validateBundle(bundle: unknown): string | null {
   return null
 }
 
+export type ImportMode = 'replace' | 'merge'
+
 /**
- * Replace the entire server-side configuration with the bundle's contents, then reload.
- * Requires an admin token.
+ * Import a backup bundle, then reload. Requires an admin token.
+ *   - replace: the bundle becomes the entire configuration (everything else is deleted)
+ *   - merge:   existing components are kept; components present in both are overwritten
+ *              by the bundle's version
  */
-export async function importBundle(bundle: ExportBundle): Promise<void> {
+export async function importBundle(bundle: ExportBundle, mode: ImportMode): Promise<void> {
   const existing = await listComponents()
-  for (const c of existing) {
-    await deleteComponent(c.uid)
-  }
-  for (const c of bundle.components) {
-    await addComponent(c)
+  if (mode === 'replace') {
+    for (const c of existing) {
+      await deleteComponent(c.uid)
+    }
+    for (const c of bundle.components) {
+      await addComponent(c)
+    }
+  } else {
+    const have = new Set(existing.map((c) => c.uid))
+    for (const c of bundle.components) {
+      if (have.has(c.uid)) await updateComponent(c)
+      else await addComponent(c)
+    }
   }
   await loadConfig()
 }

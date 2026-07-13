@@ -4,16 +4,18 @@
  *
  * Interaction model: the dragged widget follows the pointer with a CSS transform while a
  * placeholder shows the snapped target cell; green = free, red = occupied. Dropping on an
- * occupied spot reverts (no push/cascade - predictable on touch). Layout edits require the
- * full grid, so this component is only used on wide viewports; narrow screens keep settings
- * editing but not drag (see DashboardView).
+ * occupied spot reverts (no push/cascade - predictable on touch). Grid layout edits need the
+ * full grid, so they require a wide viewport; narrow screens edit the single-column stack
+ * instead (settings, add/remove, drag-to-reorder — see StackedEditGrid).
  */
 import { useRef, useState } from 'react'
 import type { Dashboard, Rect } from '../model/dashboard'
-import { cellMetrics, clampRect, overlapsAny, rectOf } from '../model/layout'
+import { cellMetrics, clampRect, overlapsAny, rectOf, STACK_BELOW } from '../model/layout'
 import { selectWidget, setWidgetRect, useEditorStore } from '../store/editor'
 import { WidgetHost } from './WidgetHost'
+import { StackedEditGrid } from './StackedEditGrid'
 import { useContainerWidth } from './useContainerWidth'
+import { useViewportWidth } from './useViewportWidth'
 
 interface DragState {
   id: string
@@ -34,7 +36,15 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   const [drag, setDrag] = useState<DragState | null>(null)
   const selectedId = useEditorStore((s) => s.selectedId)
   const containerWidth = useContainerWidth(containerRef)
+  const viewportWidth = useViewportWidth()
   const { gap, rowHeight } = cellMetrics(dashboard, containerWidth)
+
+  if (viewportWidth < STACK_BELOW) {
+    // Phones edit the stack they actually see: reorder + settings, not grid geometry.
+    // (Viewport width, not container width: the side panel shrinking the container on a
+    // desktop must not flip the editor to the stacked surface mid-edit.)
+    return <StackedEditGrid dashboard={dashboard} />
+  }
 
   /** Pixel size of one grid cell (content, excluding gap), measured live. */
   const cellSize = (): { w: number; h: number } => {

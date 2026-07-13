@@ -7,6 +7,35 @@ export function rectOf(widget: WidgetInstance): Rect {
 
 export const DEFAULT_GAP = 8
 
+/** Below this container width the dashboard renders as a single-column stack. */
+export const STACK_BELOW = 720 // px
+/** Assumed desktop width when computing stacked heights for 'match' dashboards. */
+export const STACK_REFERENCE_WIDTH = 1280
+
+/**
+ * Widgets in single-column (stacked) display order: the dashboard's explicit stackOrder when
+ * present, otherwise derived from the grid layout by row then column. Widgets not in the
+ * explicit list keep their derived order after the listed ones.
+ */
+export function stackedOrder(dashboard: Dashboard): WidgetInstance[] {
+  const derived = [...dashboard.widgets].sort((a, b) => {
+    const ra = rectOf(a)
+    const rb = rectOf(b)
+    return ra.y - rb.y || ra.x - rb.x
+  })
+  const order = dashboard.stackOrder
+  if (!order || order.length === 0) return derived
+  const pos = new Map(order.map((id, i) => [id, i]))
+  return derived.sort((a, b) => {
+    const pa = pos.get(a.id)
+    const pb = pos.get(b.id)
+    if (pa !== undefined && pb !== undefined) return pa - pb
+    if (pa !== undefined) return -1
+    if (pb !== undefined) return 1
+    return 0 // both unlisted: stable sort keeps derived order
+  })
+}
+
 /**
  * Pixel geometry of one grid cell at a given container width. With rowHeight 'match' the
  * cells are square (row height = column width), so dashboards scale proportionally.

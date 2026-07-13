@@ -149,12 +149,12 @@ export function setDashSettingsOpen(open: boolean): void {
 }
 
 /**
- * Edit dashboard-level fields (name / grid geometry) on the draft. Shrinking the column
- * count clamps every widget rect into the new bounds; resulting overlaps are left for the
- * user to resolve (undo restores the previous layout in one step).
+ * Edit dashboard-level fields (name / grid geometry / stack order) on the draft. Shrinking
+ * the column count clamps every widget rect into the new bounds; resulting overlaps are left
+ * for the user to resolve (undo restores the previous layout in one step).
  */
 export function updateDashboardMeta(
-  patch: Partial<Pick<Dashboard, 'name' | 'columns' | 'rowHeight' | 'gap'>>,
+  patch: Partial<Pick<Dashboard, 'name' | 'columns' | 'rowHeight' | 'gap' | 'stackOrder'>>,
   coalesceKey: string | null = null,
 ): void {
   applyChange((draft) => {
