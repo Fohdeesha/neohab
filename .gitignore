@@ -1,6 +1,8 @@
 # --- Node / frontend ---
 node_modules/
 web/dist/
+# generated at build time from @mdi/svg
+web/public/icons/
 *.local
 npm-debug.log*
 yarn-error.log*

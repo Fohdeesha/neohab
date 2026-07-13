@@ -5,7 +5,9 @@ A modern dashboard UI for [openHAB](https://www.openhab.org/) — the spiritual 
 neohab installs as a standard openHAB UI add-on and lets you build touch-friendly dashboards for
 phones, tablets and desktops, configured entirely in the browser. No file editing, ever.
 
-> **Status: early development / pre-alpha.** Not yet usable. Watch the repo for progress.
+> **Status: alpha.** The core works end to end — dashboards, live controls, inline editing,
+> theming, backup/restore, HABPanel import and custom widgets — but it is not yet packaged
+> for the marketplace and things still move fast. Feedback welcome.
 
 ## Goals
 
@@ -31,6 +33,14 @@ community marketplace (planned) or manually via the addons folder.
 
 React + TypeScript + Vite frontend served by a thin OSGi add-on shell, talking to openHAB
 exclusively through its public REST and SSE APIs.
+
+## Icons
+
+Widget icons come from two sources: your openHAB server's icon sets (state-aware — a light
+icon follows its item's state) and the bundled
+[Material Design Icons](https://pictogrammers.com/library/mdi/) library
+(© Pictogrammers, [Apache License 2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE)),
+so everything works fully offline.
 
 ## License
 

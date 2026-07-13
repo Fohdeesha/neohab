@@ -30,6 +30,7 @@ export interface WidgetProps<C = Record<string, unknown>> {
  */
 export type SettingField =
   | { key: string; type: 'item'; label: string; itemTypes?: string[] }
+  | { key: string; type: 'icon'; label: string }
   | { key: string; type: 'text'; label: string; placeholder?: string }
   | { key: string; type: 'multiline'; label: string; placeholder?: string }
   | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }

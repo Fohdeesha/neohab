@@ -5,6 +5,7 @@
  */
 import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
+import { IconPicker } from '../components/IconPicker'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -210,6 +211,15 @@ function Field({ field, widget, value }: { field: SettingField; widget: WidgetIn
             itemTypes={field.itemTypes}
             onChange={set}
           />
+        </div>
+      )
+    case 'icon':
+      return (
+        <div className="nh-field">
+          <label className="nh-field__label" htmlFor={id}>
+            {field.label}
+          </label>
+          <IconPicker id={id} value={typeof value === 'string' ? value : ''} onChange={set} />
         </div>
       )
     default:

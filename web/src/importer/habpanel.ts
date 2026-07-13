@@ -241,6 +241,14 @@ const CONVERTERS: Record<string, Converter> = {
 
   button: (w, report) => {
     const action = str(w.action_type) ?? 'command'
+    // HABPanel icons reference server icon sets; keep them as state-aware oh: icons.
+    // HABPanel's "eclipse-smarthome-classic" id is the classic set (servers only accept "classic").
+    const iconName = str(w.icon)
+    let iconset = str(w.iconset)
+    if (iconset === 'eclipse-smarthome-classic' || iconset === 'smarthome-classic') iconset = 'classic'
+    const icon = iconName ? 'oh:' + iconName + (iconset && iconset !== 'classic' ? '@' + iconset : '') : undefined
+    const iconSize = num(w.icon_size)
+    const hideLabel = w.icon_replacestext === true ? true : undefined
     if (action === 'navigate') {
       return {
         type: 'button',
@@ -250,10 +258,12 @@ const CONVERTERS: Record<string, Converter> = {
           navigateDashboard: str(w.navigate_dashboard),
           navigateUrl: str(w.navigate_url),
           command: 'ON',
+          icon,
+          iconSize,
+          hideLabel,
         },
       }
     }
-    if (w.icon) report.add('info', 'Widget icons are not supported yet and were dropped')
     if (w.background || w.foreground || w.background_active) {
       report.add('info', 'Per-button colors are handled by the theme')
     }
@@ -265,6 +275,9 @@ const CONVERTERS: Record<string, Converter> = {
         command: str(w.command) ?? 'ON',
         commandAlt: str(w.command_alt),
         toggle: action === 'toggle',
+        icon,
+        iconSize,
+        hideLabel,
       },
     }
   },

@@ -59,10 +59,26 @@ function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
   }
   const commitOn = useKeyboardCommit(commit)
 
+  // Each track previews what dragging that slider would do at the CURRENT other channels:
+  // hue = the full wheel, saturation = gray -> pure color, brightness = black -> full color.
+  const trackFor = (key: keyof Hsb): string => {
+    if (key === 'h') {
+      const stops = [0, 60, 120, 180, 240, 300, 360]
+        .map((h) => hsbToCss({ h, s: Math.max(40, hsb.s), b: Math.max(50, hsb.b) }))
+        .join(', ')
+      return `linear-gradient(to right, ${stops})`
+    }
+    if (key === 's') {
+      return `linear-gradient(to right, ${hsbToCss({ ...hsb, s: 0 })}, ${hsbToCss({ ...hsb, s: 100 })})`
+    }
+    return `linear-gradient(to right, ${hsbToCss({ ...hsb, b: 0 })}, ${hsbToCss({ ...hsb, b: 100 })})`
+  }
+
   const channel = (key: keyof Hsb, max: number) => (
     <input
       type="range"
-      className={'nh-slider__input nh-color__' + key}
+      className={'nh-color__track nh-color__' + key}
+      style={{ '--nh-track': trackFor(key) } as React.CSSProperties}
       min={0}
       max={max}
       step={1}
