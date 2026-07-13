@@ -1,6 +1,5 @@
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import { isOn } from '../common/format'
 import { navigate } from '../../app/router'
 import { Icon } from '../../components/Icon'
 
@@ -21,9 +20,26 @@ interface ButtonConfig {
   hideLabel?: boolean
 }
 
+/**
+ * HABPanel toggle semantics: a toggle button is "active" exactly when the raw item
+ * state equals the command, and only then sends the alternate command. isOn()-style
+ * heuristics must NOT be used here — for a Rollershutter at an intermediate position
+ * (e.g. a half-stopped garage door at 50) they invert the imported button's behavior.
+ * Numeric-tolerant so a stored '100' still matches a server '100.0'.
+ */
+function stateMatches(command: string | number | undefined, raw: string | undefined): boolean {
+  if (command == null || raw == null) return false
+  const cmd = String(command)
+  if (raw === cmd) return true
+  if (cmd.trim() === '' || raw.trim() === '') return false
+  const a = Number(raw)
+  const b = Number(cmd)
+  return !Number.isNaN(a) && !Number.isNaN(b) && a === b
+}
+
 function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   const state = config.item ? ctx.getItem(config.item) : undefined
-  const on = isOn(state)
+  const active = !!config.toggle && stateMatches(config.command, state?.state)
 
   const press = () => {
     if (ctx.editing) return
@@ -33,7 +49,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
       return
     }
     if (!config.item) return
-    const cmd = config.toggle && config.commandAlt && on ? config.commandAlt : config.command
+    const cmd = config.toggle && config.commandAlt && active ? config.commandAlt : config.command
     ctx.sendCommand(config.item, cmd)
   }
 
@@ -43,7 +59,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
     <WidgetFrame center>
       <button
         type="button"
-        className={'nh-button' + (config.toggle && on ? ' nh-button--active' : '')}
+        className={'nh-button' + (active ? ' nh-button--active' : '')}
         aria-label={config.label}
         onClick={press}
       >
