@@ -6,13 +6,17 @@
  *   public/icons/mdi/LICENSE      - upstream license, shipped alongside the icons
  * public/icons is generated output and gitignored. Runs before dev and build.
  */
-import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const src = join(root, 'node_modules', '@mdi', 'svg')
 const dest = join(root, 'public', 'icons')
+
+// Clear dist/ here with retries: on Windows, vite's own emptyDir intermittently fails with
+// ENOTEMPTY/EBUSY while a scanner holds one of the thousands of staged icon files open.
+rmSync(join(root, 'dist'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 
 if (!existsSync(src)) {
   console.error('copy-mdi: @mdi/svg is not installed')
