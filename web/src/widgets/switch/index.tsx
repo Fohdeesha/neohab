@@ -2,14 +2,13 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { isOn } from '../common/format'
 import { Icon } from '../../components/Icon'
+import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 
-interface SwitchConfig {
+interface SwitchConfig extends StateIconConfig {
   item: string
   label?: string
   onCommand?: string
   offCommand?: string
-  /** "mdi:<name>" or "oh:<name>[@iconset]" (state-aware server icons). */
-  icon?: string
   iconSize?: number
 }
 
@@ -18,6 +17,7 @@ function SwitchWidget({ config, ctx }: WidgetProps<SwitchConfig>) {
   const on = isOn(state)
   const onCmd = config.onCommand ?? 'ON'
   const offCmd = config.offCommand ?? 'OFF'
+  const { icon, color } = resolveStateIcon(config, on)
 
   const toggle = () => {
     if (ctx.editing) return
@@ -34,8 +34,8 @@ function SwitchWidget({ config, ctx }: WidgetProps<SwitchConfig>) {
         aria-label={config.label ?? config.item}
         onClick={toggle}
       >
-        {config.icon ? (
-          <Icon icon={config.icon} size={config.iconSize ?? 32} state={state?.state} className="nh-switch__icon" />
+        {icon ? (
+          <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-switch__icon" />
         ) : null}
         <span className="nh-switch__track">
           <span className="nh-switch__thumb" />
@@ -55,7 +55,7 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Switch', 'Dimmer', 'Color'] },
     { key: 'label', type: 'text', label: 'Name' },
-    { key: 'icon', type: 'icon', label: 'Icon' },
+    ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 128 },
     { key: 'onCommand', type: 'text', label: 'On command' },
     { key: 'offCommand', type: 'text', label: 'Off command' },

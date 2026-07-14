@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/copy-mdi.mjs",
+    "predev": "node scripts/copy-icons.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/copy-mdi.mjs",
+    "prebuild": "node scripts/copy-icons.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b"
@@ -22,6 +22,9 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@iconify-json/flat-color-icons": "^1.2.3",
+    "@iconify-json/fluent-emoji-flat": "^1.2.5",
+    "@iconify-json/meteocons": "^1.2.4",
     "@mdi/svg": "^7.4.47",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

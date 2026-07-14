@@ -430,7 +430,7 @@ button {
   mask-size: contain;
 }
 
-.nh-icon--oh {
+.nh-icon--img {
   object-fit: contain;
 }
 
@@ -464,6 +464,7 @@ button {
 
 .nh-iconpicker__tabs {
   display: flex;
+  flex-wrap: wrap; /* five tabs + Remove must not overflow the 300px popover on phones */
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
@@ -531,6 +532,118 @@ button {
   padding: 6px 4px 0;
   font-size: 0.78rem;
   color: var(--nh-text-dim);
+}
+
+.nh-iconpicker__upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.nh-iconpicker__uploadhint {
+  font-size: 0.78rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-iconpicker__error {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  color: #ff9a8a;
+  background: rgba(200, 60, 40, 0.12);
+  border: 1px solid rgba(200, 60, 40, 0.4);
+  border-radius: 8px;
+}
+
+/* Clearable color setting (explicit color vs "follow the theme") */
+.nh-colorfield {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-colorfield input[type='color'] {
+  width: 44px;
+  height: 30px;
+  padding: 2px;
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 6px;
+}
+
+.nh-colorfield__clear {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  background: none;
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  color: var(--nh-text-dim);
+}
+
+.nh-colorfield__hint {
+  font-size: 0.78rem;
+  color: var(--nh-text-dim);
+}
+
+/* Custom icon manager (Settings) */
+.nh-iconman {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.nh-iconman__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px;
+}
+
+.nh-iconman__name {
+  flex: 1;
+  min-width: 80px;
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--nh-text);
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 6px;
+}
+
+.nh-iconman__meta {
+  font-size: 0.78rem;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+}
+
+.nh-iconman__limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-iconman__limit input {
+  width: 80px;
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--nh-text);
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  .nh-iconman__meta {
+    display: none;
+  }
 }
 
 /* Slider */

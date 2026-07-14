@@ -38,11 +38,24 @@ exclusively through its public REST and SSE APIs.
 
 ## Icons
 
-Widget icons come from two sources: your openHAB server's icon sets (state-aware — a light
-icon follows its item's state) and the bundled
-[Material Design Icons](https://pictogrammers.com/library/mdi/) library
-(© Pictogrammers, [Apache License 2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE)),
-so everything works fully offline.
+Nearly 10,000 icons are bundled in the add-on, so everything works fully offline — plus your
+openHAB server's own icon sets and your own uploads:
+
+- **Color** — [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (flat style, curated
+  for dashboards; © Microsoft, MIT) and
+  [icons8 flat-color-icons](https://github.com/icons8/flat-color-icons) (MIT)
+- **Mono** — [Material Design Icons](https://pictogrammers.com/library/mdi/)
+  (© Pictogrammers, [Apache License 2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE)),
+  tinted by your theme or any color you pick per widget
+- **Weather** — [Meteocons](https://github.com/basmilius/meteocons) animated weather icons
+  (© Bas Milius, MIT)
+- **openHAB** — the server's classic icon set (state-aware where the set provides variants)
+- **Custom** — upload your own PNG, JPG, GIF, WebP, BMP or SVG straight from the icon picker;
+  transparency and GIF animation survive, and uploads are stored in your openHAB config so
+  backups and exports include them
+
+Stateful widgets (switches, toggle buttons) can show a different icon — and a different mono
+tint — for their active state.
 
 ## License
 

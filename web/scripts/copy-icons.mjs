@@ -1,0 +1,126 @@
+/**
+ * Stages the bundled icon packs into public/ so the built app serves them offline from the
+ * add-on jar. One directory + one compact search index per pack:
+ *   public/icons/mdi/<name>.svg    + icons/mdi-index.json    - Material Design Icons (@mdi/svg,
+ *       Apache-2.0): ~7k monochrome glyphs, tinted by the app via CSS mask
+ *   public/icons/fluent/<name>.svg + icons/fluent-index.json - Fluent Emoji flat (MIT): full-color
+ *       set, curated for dashboards (skin-tone variants and flags removed)
+ *   public/icons/fc/<name>.svg     + icons/fc-index.json     - icons8 flat-color-icons (MIT)
+ *   public/icons/meteo/<name>.svg  + icons/meteo-index.json  - Meteocons (MIT): animated
+ *       full-color weather icons
+ * Each pack directory also carries its upstream LICENSE/ATTRIBUTION file.
+ * public/icons is generated output and gitignored. Runs before dev and build.
+ */
+import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const dest = join(root, 'public', 'icons')
+
+// Clear dist/ here with retries: on Windows, vite's own emptyDir intermittently fails with
+// ENOTEMPTY/EBUSY while a scanner holds one of the thousands of staged icon files open.
+rmSync(join(root, 'dist'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+
+/* ------------------------------ Material Design Icons ------------------------------ */
+
+const mdiSrc = join(root, 'node_modules', '@mdi', 'svg')
+if (!existsSync(mdiSrc)) {
+  console.error('copy-icons: @mdi/svg is not installed')
+  process.exit(1)
+}
+const mdiMeta = JSON.parse(readFileSync(join(mdiSrc, 'meta.json'), 'utf8'))
+const already = existsSync(join(dest, 'mdi')) ? readdirSync(join(dest, 'mdi')).length : 0
+mkdirSync(join(dest, 'mdi'), { recursive: true })
+if (already < mdiMeta.length) {
+  cpSync(join(mdiSrc, 'svg'), join(dest, 'mdi'), { recursive: true })
+  cpSync(join(mdiSrc, 'LICENSE'), join(dest, 'mdi', 'LICENSE'))
+}
+const mdiIndex = mdiMeta
+  .filter((m) => !m.deprecated)
+  .map((m) => (m.aliases?.length ? m.name + '|' + m.aliases.join(' ') : m.name))
+writeFileSync(join(dest, 'mdi-index.json'), JSON.stringify(mdiIndex))
+console.log(`copy-icons: mdi: ${mdiIndex.length} icons staged`)
+
+/* ------------------------------ Iconify JSON packs ------------------------------ */
+
+// Fluent emoji skin-tone variants: "-light", "-medium-dark", doubled on two-person emoji.
+const TONE_SUFFIX = /-(?:light|medium-light|medium|medium-dark|dark)$/
+function hasSkinTone(name) {
+  let n = name
+  let found = false
+  while (TONE_SUFFIX.test(n)) {
+    n = n.replace(TONE_SUFFIX, '')
+    found = true
+  }
+  return found
+}
+
+function stageIconifyPack({ pkg, dir, curate }) {
+  const base = join(root, 'node_modules', '@iconify-json', pkg)
+  if (!existsSync(base)) {
+    console.error(`copy-icons: @iconify-json/${pkg} is not installed`)
+    process.exit(1)
+  }
+  const data = JSON.parse(readFileSync(join(base, 'icons.json'), 'utf8'))
+  const info = JSON.parse(readFileSync(join(base, 'info.json'), 'utf8'))
+  const version = JSON.parse(readFileSync(join(base, 'package.json'), 'utf8')).version
+  let catByName = {}
+  try {
+    const categories = JSON.parse(readFileSync(join(base, 'metadata.json'), 'utf8')).categories ?? {}
+    for (const [cat, names] of Object.entries(categories)) for (const n of names) catByName[n] = cat
+  } catch {
+    /* pack without category metadata */
+  }
+
+  const kept = Object.keys(data.icons)
+    .filter((n) => !data.icons[n].hidden && (!curate || curate(n, catByName[n])))
+    .sort()
+
+  const packDir = join(dest, dir)
+  const stampFile = join(dest, dir + '.stamp')
+  const stamp = `${version}:${kept.length}`
+  if (!existsSync(stampFile) || readFileSync(stampFile, 'utf8') !== stamp) {
+    rmSync(packDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+    mkdirSync(packDir, { recursive: true })
+    for (const name of kept) {
+      const ic = data.icons[name]
+      const w = ic.width ?? data.width ?? 16
+      const h = ic.height ?? data.height ?? 16
+      const viewBox = `${ic.left ?? 0} ${ic.top ?? 0} ${w} ${h}`
+      writeFileSync(
+        join(packDir, name + '.svg'),
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${ic.body}</svg>`
+      )
+    }
+    writeFileSync(
+      join(packDir, 'ATTRIBUTION.txt'),
+      `${info.name}\n` +
+        `Author: ${info.author?.name ?? 'unknown'} (${info.author?.url ?? ''})\n` +
+        `License: ${info.license?.title ?? ''} (${info.license?.spdx ?? ''}) ${info.license?.url ?? ''}\n` +
+        `Bundled unmodified from https://www.npmjs.com/package/@iconify-json/${pkg} (icon data via Iconify).\n`
+    )
+    writeFileSync(stampFile, stamp)
+  }
+
+  // Fold alias names (alternate spellings) into their parent's search terms.
+  const aliasTerms = {}
+  const keptSet = new Set(kept)
+  for (const [alias, spec] of Object.entries(data.aliases ?? {})) {
+    if (keptSet.has(spec.parent)) (aliasTerms[spec.parent] ??= []).push(alias)
+  }
+  const index = kept.map((n) => (aliasTerms[n] ? n + '|' + aliasTerms[n].join(' ') : n))
+  writeFileSync(join(dest, dir + '-index.json'), JSON.stringify(index))
+  console.log(`copy-icons: ${pkg} -> ${dir}: ${index.length} icons staged`)
+}
+
+stageIconifyPack({
+  pkg: 'fluent-emoji-flat',
+  dir: 'fluent',
+  // Dashboard curation: no flags, no skin-tone variants (a handful of tone variants are
+  // missing from the category metadata, so uncategorized names get the tone filter too).
+  curate: (name, category) =>
+    category !== 'Flags' && !((category === 'People & Body' || category === undefined) && hasSkinTone(name)),
+})
+stageIconifyPack({ pkg: 'flat-color-icons', dir: 'fc' })
+stageIconifyPack({ pkg: 'meteocons', dir: 'meteo' })

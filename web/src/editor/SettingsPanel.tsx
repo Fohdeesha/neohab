@@ -174,18 +174,29 @@ function Field({ field, widget, value }: { field: SettingField; widget: WidgetIn
         </label>
       )
     }
-    case 'color':
+    case 'color': {
+      const hasValue = typeof value === 'string' && value !== ''
       return (
         <label className="nh-field nh-field--row" htmlFor={id}>
           <span className="nh-field__label">{field.label}</span>
-          <input
-            id={id}
-            type="color"
-            value={typeof value === 'string' && value ? value : '#888888'}
-            onChange={(e) => set(e.target.value)}
-          />
+          <span className="nh-colorfield">
+            {hasValue ? (
+              <button type="button" className="nh-colorfield__clear" onClick={() => set(undefined)}>
+                Auto
+              </button>
+            ) : (
+              <span className="nh-colorfield__hint">theme</span>
+            )}
+            <input
+              id={id}
+              type="color"
+              value={hasValue ? (value as string) : '#888888'}
+              onChange={(e) => set(e.target.value)}
+            />
+          </span>
         </label>
       )
+    }
     case 'multiline':
       return (
         <label className="nh-field" htmlFor={id}>

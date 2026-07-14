@@ -5,6 +5,7 @@
  * namespace, loaded with one list call:
  *   - `dashboard:<id>` (component `neohab:dashboard`) - one per dashboard
  *   - `theme:<id>`     (component `neohab:theme`)     - custom themes
+ *   - `icon:<id>`      (component `neohab:icon`)      - user-uploaded icons (data URIs)
  *   - `settings`       (component `neohab:settings`)  - global app settings
  * Reads are public; saving requires an admin login. With no server dashboards the Home screen
  * shows a first-run welcome instead.
@@ -12,6 +13,7 @@
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
 import type { UIComponent } from '../api/types'
+import type { CustomIcon } from '../model/customIcon'
 import type { Dashboard } from '../model/dashboard'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import type { Theme } from '../themes/themes'
@@ -19,11 +21,13 @@ import type { Theme } from '../themes/themes'
 const DASHBOARD_PREFIX = 'dashboard:'
 const THEME_PREFIX = 'theme:'
 const WIDGETDEF_PREFIX = 'widgetdef:'
+const ICON_PREFIX = 'icon:'
 const SETTINGS_UID = 'settings'
 
 const DASHBOARD_COMPONENT = 'neohab:dashboard'
 const THEME_COMPONENT = 'neohab:theme'
 const WIDGETDEF_COMPONENT = 'neohab:widgetdef'
+const ICON_COMPONENT = 'neohab:icon'
 const SETTINGS_COMPONENT = 'neohab:settings'
 
 export interface AppSettings {
@@ -31,6 +35,8 @@ export interface AppSettings {
   theme: string
   /** Tier-2 sandboxed JavaScript widgets only run when an admin has enabled them. */
   allowJsWidgets?: boolean
+  /** Per-icon upload size cap in KB (default DEFAULT_MAX_ICON_KB). */
+  maxIconKB?: number
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark' })
@@ -39,6 +45,7 @@ interface ConfigState {
   dashboards: Dashboard[]
   customThemes: Theme[]
   widgetDefs: CustomWidgetDef[]
+  customIcons: CustomIcon[]
   settings: AppSettings
   /** Component uids that exist on the server (decides create vs update on save). */
   serverUids: Set<string>
@@ -51,6 +58,7 @@ export const useConfigStore = create<ConfigState>(() => ({
   dashboards: [],
   customThemes: [],
   widgetDefs: [],
+  customIcons: [],
   settings: defaultSettings(),
   serverUids: new Set<string>(),
   loading: false,
@@ -82,21 +90,30 @@ const widgetDefComponent = (d: CustomWidgetDef): UIComponent<CustomWidgetDef> =>
   config: d,
 })
 
+const iconComponent = (i: CustomIcon): UIComponent<CustomIcon> => ({
+  uid: ICON_PREFIX + i.id,
+  component: ICON_COMPONENT,
+  config: i,
+})
+
 function parseComponents(components: UIComponent[]) {
   const dashboards: Dashboard[] = []
   const customThemes: Theme[] = []
   const widgetDefs: CustomWidgetDef[] = []
+  const customIcons: CustomIcon[] = []
   let settings = defaultSettings()
   for (const c of components) {
     if (c.uid.startsWith(DASHBOARD_PREFIX)) dashboards.push(c.config as unknown as Dashboard)
     else if (c.uid.startsWith(THEME_PREFIX)) customThemes.push(c.config as unknown as Theme)
     else if (c.uid.startsWith(WIDGETDEF_PREFIX)) widgetDefs.push(c.config as unknown as CustomWidgetDef)
+    else if (c.uid.startsWith(ICON_PREFIX)) customIcons.push(c.config as unknown as CustomIcon)
     else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
   }
   widgetDefs.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
+  customIcons.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
   // stable, predictable Home ordering (component list order is storage-arbitrary)
   dashboards.sort((a, b) => a.name.localeCompare(b.name))
-  return { dashboards, customThemes, widgetDefs, settings }
+  return { dashboards, customThemes, widgetDefs, customIcons, settings }
 }
 
 export async function loadConfig(): Promise<void> {
@@ -104,11 +121,12 @@ export async function loadConfig(): Promise<void> {
   try {
     const components = await listComponents()
     const serverUids = new Set(components.map((c) => c.uid))
-    const { dashboards, customThemes, widgetDefs, settings } = parseComponents(components)
+    const { dashboards, customThemes, widgetDefs, customIcons, settings } = parseComponents(components)
     useConfigStore.setState({
       dashboards,
       customThemes,
       widgetDefs,
+      customIcons,
       settings,
       serverUids,
       loading: false,
@@ -120,6 +138,7 @@ export async function loadConfig(): Promise<void> {
       dashboards: [],
       customThemes: [],
       widgetDefs: [],
+      customIcons: [],
       settings: defaultSettings(),
       serverUids: new Set<string>(),
       loading: false,
@@ -212,6 +231,23 @@ export async function deleteWidgetDef(id: string): Promise<void> {
   }))
 }
 
+/** Persist a user-uploaded icon. Requires an admin token. */
+export async function saveCustomIcon(icon: CustomIcon): Promise<void> {
+  await upsert(iconComponent(icon))
+  useConfigStore.setState((s) => {
+    const others = s.customIcons.filter((i) => i.id !== icon.id)
+    return { customIcons: [...others, icon].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id)) }
+  })
+}
+
+export async function deleteCustomIcon(id: string): Promise<void> {
+  await deleteComponent(ICON_PREFIX + id)
+  useConfigStore.setState((s) => ({
+    customIcons: s.customIcons.filter((i) => i.id !== id),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== ICON_PREFIX + id)),
+  }))
+}
+
 /* ------------------------------- backup / restore ------------------------------- */
 
 export interface ExportBundle {
@@ -234,6 +270,8 @@ export async function buildExportBundle(): Promise<ExportBundle> {
     components = [
       ...s.dashboards.map((d) => dashboardComponent(d)),
       ...s.customThemes.map((t) => themeComponent(t)),
+      ...s.widgetDefs.map((d) => widgetDefComponent(d)),
+      ...s.customIcons.map((i) => iconComponent(i)),
       settingsComponent(s.settings),
     ] as unknown as UIComponent[]
   }

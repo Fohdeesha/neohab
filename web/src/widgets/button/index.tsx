@@ -2,8 +2,9 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
 import { Icon } from '../../components/Icon'
+import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 
-interface ButtonConfig {
+interface ButtonConfig extends StateIconConfig {
   item?: string
   label: string
   command: string
@@ -14,8 +15,6 @@ interface ButtonConfig {
   action?: 'command' | 'navigate'
   navigateDashboard?: string
   navigateUrl?: string
-  /** "mdi:<name>" or "oh:<name>[@iconset]" (state-aware server icons). */
-  icon?: string
   iconSize?: number
   hideLabel?: boolean
 }
@@ -54,6 +53,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   }
 
   const showLabel = !config.hideLabel && config.label
+  const { icon, color } = resolveStateIcon(config, active)
 
   return (
     <WidgetFrame center>
@@ -63,8 +63,8 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
         aria-label={config.label}
         onClick={press}
       >
-        {config.icon ? (
-          <Icon icon={config.icon} size={config.iconSize ?? 32} state={state?.state} className="nh-button__icon" />
+        {icon ? (
+          <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-button__icon" />
         ) : null}
         {showLabel ? <span className="nh-button__label">{config.label}</span> : null}
       </button>
@@ -80,7 +80,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   defaultConfig: () => ({ label: 'Button', command: 'ON', commandAlt: 'OFF', toggle: false, action: 'command', iconSize: 32 }),
   settings: [
     { key: 'label', type: 'text', label: 'Label' },
-    { key: 'icon', type: 'icon', label: 'Icon' },
+    ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 128 },
     { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide label)' },
     {

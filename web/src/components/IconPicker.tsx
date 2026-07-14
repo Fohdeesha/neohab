@@ -1,12 +1,19 @@
 /**
  * Icon picker: a text field (free text allowed, e.g. custom iconset names) with a browsable
- * popover offering both icon sources - the bundled Material Design Icons library (searchable
- * ~7k set) and the openHAB server's classic icon set (state-aware). Same fixed-position,
- * viewport-sized popover pattern as the item picker.
+ * popover over every icon source:
+ *   Color   - bundled Fluent Emoji flat + icons8 flat-color packs (full color)
+ *   Mono    - bundled Material Design Icons (~7k, tinted by the theme)
+ *   Weather - bundled Meteocons (animated full-color weather icons)
+ *   openHAB - the server's classic icon set (state-aware)
+ *   Custom  - user-uploaded icons, with upload right in the tab
+ * Same fixed-position, viewport-sized popover pattern as the item picker.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { CLASSIC_ICONS } from './classicIcons'
+import { saveCustomIcon, useConfigStore } from '../store/config'
+import { slugifyIconId } from '../model/customIcon'
+import { DEFAULT_MAX_ICON_KB, processIconFile } from './iconUpload'
 
 interface IconPickerProps {
   id: string
@@ -14,28 +21,75 @@ interface IconPickerProps {
   onChange: (icon: string) => void
 }
 
-type Tab = 'mdi' | 'oh'
+type Tab = 'color' | 'mono' | 'weather' | 'oh' | 'custom'
 
-interface MdiEntry {
-  name: string
+interface PackEntry {
+  /** Complete icon reference ("fluent:house", "mdi:sofa", …). */
+  ref: string
+  label: string
   search: string
 }
 
-let mdiIndex: MdiEntry[] | null = null
-let mdiIndexPromise: Promise<MdiEntry[]> | null = null
+/** Bundled search indexes per tab: [index file, ref prefix]. */
+const TAB_PACKS: Partial<Record<Tab, [file: string, prefix: string][]>> = {
+  color: [
+    ['fluent-index.json', 'fluent'],
+    ['fc-index.json', 'fc'],
+  ],
+  mono: [['mdi-index.json', 'mdi']],
+  weather: [['meteo-index.json', 'meteo']],
+}
 
-function loadMdiIndex(): Promise<MdiEntry[]> {
-  mdiIndexPromise ??= fetch('icons/mdi-index.json')
-    .then((r) => (r.ok ? (r.json() as Promise<string[]>) : Promise.reject(new Error(String(r.status)))))
-    .then((list) => {
-      mdiIndex = list.map((row) => {
-        const pipe = row.indexOf('|')
-        const name = pipe === -1 ? row : row.slice(0, pipe)
-        return { name, search: pipe === -1 ? name : name + ' ' + row.slice(pipe + 1) }
+const TAB_LABELS: Record<Tab, string> = {
+  color: 'Color',
+  mono: 'Mono',
+  weather: 'Weather',
+  oh: 'openHAB',
+  custom: 'Custom',
+}
+
+const SEARCH_HINTS: Record<Tab, string> = {
+  color: 'Search ~1,900 color icons…',
+  mono: 'Search ~7,000 icons…',
+  weather: 'Search ~450 weather icons…',
+  oh: 'Search the classic set…',
+  custom: 'Search your icons…',
+}
+
+const loadedIndexes = new Map<string, PackEntry[]>()
+const indexPromises = new Map<string, Promise<void>>()
+
+function loadIndex(file: string, prefix: string): Promise<void> {
+  let p = indexPromises.get(file)
+  if (!p) {
+    p = fetch('icons/' + file)
+      .then((r) => (r.ok ? (r.json() as Promise<string[]>) : Promise.reject(new Error(String(r.status)))))
+      .then((rows) => {
+        loadedIndexes.set(
+          file,
+          rows.map((row) => {
+            const pipe = row.indexOf('|')
+            const name = pipe === -1 ? row : row.slice(0, pipe)
+            return {
+              ref: prefix + ':' + name,
+              label: name,
+              search: pipe === -1 ? name : name + ' ' + row.slice(pipe + 1),
+            }
+          })
+        )
       })
-      return mdiIndex
-    })
-  return mdiIndexPromise
+    indexPromises.set(file, p)
+  }
+  return p
+}
+
+function tabForValue(value: string): Tab {
+  if (value.startsWith('mdi:')) return 'mono'
+  if (value.startsWith('meteo:')) return 'weather'
+  if (value.startsWith('custom:')) return 'custom'
+  if (value.startsWith('fluent:') || value.startsWith('fc:')) return 'color'
+  if (value) return 'oh'
+  return 'color'
 }
 
 const MAX_RESULTS = 120
@@ -51,19 +105,32 @@ interface ListPos {
 
 export function IconPicker({ id, value, onChange }: IconPickerProps) {
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<Tab>(value.startsWith('oh:') ? 'oh' : 'mdi')
+  const [tab, setTab] = useState<Tab>(tabForValue(value))
   const [query, setQuery] = useState('')
   const [pos, setPos] = useState<ListPos | null>(null)
-  const [mdiReady, setMdiReady] = useState(mdiIndex !== null)
+  const [loadTick, setLoadTick] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
+  const customIcons = useConfigStore((s) => s.customIcons)
+
+  // Fetch this tab's search indexes on demand (cached for the whole session).
   useEffect(() => {
-    if (open && !mdiIndex) {
-      void loadMdiIndex().then(() => setMdiReady(true)).catch(() => setMdiReady(false))
+    if (!open) return
+    const packs = TAB_PACKS[tab]
+    if (!packs || packs.every(([file]) => loadedIndexes.has(file))) return
+    let cancelled = false
+    void Promise.allSettled(packs.map(([file, prefix]) => loadIndex(file, prefix))).then(() => {
+      if (!cancelled) setLoadTick((t) => t + 1)
+    })
+    return () => {
+      cancelled = true
     }
-  }, [open])
+  }, [open, tab])
 
   const openList = () => {
     const box = boxRef.current?.getBoundingClientRect()
@@ -83,6 +150,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
   const close = () => {
     setOpen(false)
     setQuery('')
+    setUploadError(null)
   }
 
   useEffect(() => {
@@ -106,23 +174,51 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     }
   }, [open])
 
+  const packs = TAB_PACKS[tab]
+  const packsReady = !packs || packs.every(([file]) => loadedIndexes.has(file))
+
   const { matches, truncated } = useMemo(() => {
     const q = query.trim().toLowerCase()
+    let entries: PackEntry[]
     if (tab === 'oh') {
-      const filtered = q ? CLASSIC_ICONS.filter((n) => n.includes(q)) : CLASSIC_ICONS
-      return { matches: filtered.slice(0, MAX_RESULTS), truncated: Math.max(0, filtered.length - MAX_RESULTS) }
+      entries = CLASSIC_ICONS.map((n) => ({ ref: 'oh:' + n, label: n, search: n }))
+    } else if (tab === 'custom') {
+      entries = customIcons.map((i) => ({ ref: 'custom:' + i.id, label: i.name, search: i.name + ' ' + i.id }))
+    } else {
+      entries = (TAB_PACKS[tab] ?? []).flatMap(([file]) => loadedIndexes.get(file) ?? [])
+      if (entries.length > 0 && (TAB_PACKS[tab] ?? []).length > 1) {
+        entries = [...entries].sort((a, b) => a.label.localeCompare(b.label))
+      }
     }
-    const list = mdiIndex ?? []
-    const filtered = q ? list.filter((e) => e.search.includes(q)) : list
-    return {
-      matches: filtered.slice(0, MAX_RESULTS).map((e) => e.name),
-      truncated: Math.max(0, filtered.length - MAX_RESULTS),
-    }
-  }, [tab, query, mdiReady]) // eslint-disable-line react-hooks/exhaustive-deps
+    const filtered = q ? entries.filter((e) => e.search.includes(q)) : entries
+    return { matches: filtered.slice(0, MAX_RESULTS), truncated: Math.max(0, filtered.length - MAX_RESULTS) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, query, loadTick, customIcons])
 
-  const select = (name: string) => {
-    onChange(tab === 'mdi' ? 'mdi:' + name : 'oh:' + name)
+  const select = (ref: string) => {
+    onChange(ref)
     close()
+  }
+
+  const upload = async (file: File) => {
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const state = useConfigStore.getState()
+      const maxKB = state.settings.maxIconKB ?? DEFAULT_MAX_ICON_KB
+      const processed = await processIconFile(file, maxKB)
+      const name = file.name.replace(/\.[^.]+$/, '') || 'icon'
+      const idSlug = slugifyIconId(name, new Set(state.customIcons.map((i) => i.id)))
+      await saveCustomIcon({ version: 1, id: idSlug, name, ...processed })
+      select('custom:' + idSlug)
+    } catch (err) {
+      setUploadError(
+        (err instanceof Error ? err.message : String(err)) +
+          (/40[13]/.test(String(err)) ? ' — sign in as an administrator to upload icons.' : '')
+      )
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -164,22 +260,25 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
         >
           <div className="nh-iconpicker__tabs">
-            <button
-              type="button"
-              className={'nh-iconpicker__tab' + (tab === 'mdi' ? ' nh-iconpicker__tab--on' : '')}
-              onClick={() => setTab('mdi')}
-            >
-              Icon library
-            </button>
-            <button
-              type="button"
-              className={'nh-iconpicker__tab' + (tab === 'oh' ? ' nh-iconpicker__tab--on' : '')}
-              onClick={() => setTab('oh')}
-            >
-              openHAB
-            </button>
+            {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={'nh-iconpicker__tab' + (tab === t ? ' nh-iconpicker__tab--on' : '')}
+                onClick={() => setTab(t)}
+              >
+                {TAB_LABELS[t]}
+              </button>
+            ))}
             {value ? (
-              <button type="button" className="nh-iconpicker__clear" onClick={() => { onChange(''); close() }}>
+              <button
+                type="button"
+                className="nh-iconpicker__clear"
+                onClick={() => {
+                  onChange('')
+                  close()
+                }}
+              >
                 Remove icon
               </button>
             ) : null}
@@ -187,27 +286,56 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           <input
             type="text"
             className="nh-iconpicker__search"
-            placeholder={tab === 'mdi' ? 'Search ~7,000 icons…' : 'Search the classic set…'}
+            placeholder={SEARCH_HINTS[tab]}
             value={query}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && close()}
           />
-          <div className="nh-iconpicker__grid">
-            {tab === 'mdi' && !mdiReady ? <span className="nh-picker__empty">Loading icon library…</span> : null}
-            {matches.map((name) => (
+          {tab === 'custom' ? (
+            <div className="nh-iconpicker__upload">
               <button
-                key={name}
+                type="button"
+                className="nh-btn nh-btn--ghost"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? 'Uploading…' : 'Upload icon…'}
+              </button>
+              <span className="nh-iconpicker__uploadhint">PNG, JPG, GIF, WebP, BMP or SVG</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,.svg,.png,.jpg,.jpeg,.gif,.webp,.bmp"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) void upload(file)
+                }}
+              />
+            </div>
+          ) : null}
+          {uploadError ? <div className="nh-iconpicker__error">{uploadError}</div> : null}
+          <div className="nh-iconpicker__grid">
+            {!packsReady ? <span className="nh-picker__empty">Loading icon library…</span> : null}
+            {matches.map((entry) => (
+              <button
+                key={entry.ref}
                 type="button"
                 className="nh-iconpicker__cell"
-                title={name}
-                onClick={() => select(name)}
+                title={entry.label}
+                onClick={() => select(entry.ref)}
               >
-                <Icon icon={(tab === 'mdi' ? 'mdi:' : 'oh:') + name} size={26} />
+                <Icon icon={entry.ref} size={26} />
               </button>
             ))}
-            {matches.length === 0 && (tab === 'oh' || mdiReady) ? (
-              <span className="nh-picker__empty">No matching icons</span>
+            {matches.length === 0 && packsReady ? (
+              <span className="nh-picker__empty">
+                {tab === 'custom' && customIcons.length === 0
+                  ? 'No custom icons yet — upload one above'
+                  : 'No matching icons'}
+              </span>
             ) : null}
           </div>
           {truncated > 0 ? (
