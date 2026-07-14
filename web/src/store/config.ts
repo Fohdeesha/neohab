@@ -111,8 +111,10 @@ function parseComponents(components: UIComponent[]) {
   }
   widgetDefs.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
   customIcons.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
-  // stable, predictable Home ordering (component list order is storage-arbitrary)
-  dashboards.sort((a, b) => a.name.localeCompare(b.name))
+  // stable, predictable Home ordering (component list order is storage-arbitrary). Tolerates a
+  // nameless dashboard: a hand-edited or half-written component must not throw here and take
+  // the whole configuration down with it.
+  dashboards.sort((a, b) => String(a.name ?? a.id ?? '').localeCompare(String(b.name ?? b.id ?? '')))
   return { dashboards, customThemes, widgetDefs, customIcons, settings }
 }
 
@@ -304,18 +306,20 @@ export type ImportMode = 'replace' | 'merge'
  */
 export async function importBundle(bundle: ExportBundle, mode: ImportMode): Promise<void> {
   const existing = await listComponents()
+  const have = new Set(existing.map((c) => c.uid))
+
+  // Write the bundle in first, in both modes. Deleting up front would mean a failure partway
+  // through (dropped connection, expired token) left the user with no configuration at all and
+  // nothing to retry from; this way the worst case is a superset they can re-import over.
+  for (const c of bundle.components) {
+    if (have.has(c.uid)) await updateComponent(c)
+    else await addComponent(c)
+  }
+
   if (mode === 'replace') {
+    const keep = new Set(bundle.components.map((c) => c.uid))
     for (const c of existing) {
-      await deleteComponent(c.uid)
-    }
-    for (const c of bundle.components) {
-      await addComponent(c)
-    }
-  } else {
-    const have = new Set(existing.map((c) => c.uid))
-    for (const c of bundle.components) {
-      if (have.has(c.uid)) await updateComponent(c)
-      else await addComponent(c)
+      if (!keep.has(c.uid)) await deleteComponent(c.uid)
     }
   }
   await loadConfig()

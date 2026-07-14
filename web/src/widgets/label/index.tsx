@@ -12,7 +12,12 @@ function LabelWidget({ config }: WidgetProps<LabelConfig>) {
     <WidgetFrame bare center>
       <span
         className="nh-label"
-        style={{ fontSize: config.fontSize ? config.fontSize + 'px' : undefined, color: config.color }}
+        style={{
+          // Authored against a desktop-width dashboard, like iconSize: scale it with the cell
+          // so a label tracks the rest of the widget text instead of staying fixed.
+          fontSize: config.fontSize ? `calc(${config.fontSize}px * var(--nh-textscale, 1))` : undefined,
+          color: config.color,
+        }}
       >
         {config.text}
       </span>
@@ -28,7 +33,7 @@ export const labelWidget: WidgetDefinition<LabelConfig> = {
   defaultConfig: () => ({ text: 'Label', fontSize: 20 }),
   settings: [
     { key: 'text', type: 'text', label: 'Text' },
-    { key: 'fontSize', type: 'number', label: 'Font size (px)', min: 8, max: 96 },
+    { key: 'fontSize', type: 'number', label: 'Font size', min: 8, max: 96 },
     { key: 'color', type: 'color', label: 'Color' },
   ],
   Component: LabelWidget,

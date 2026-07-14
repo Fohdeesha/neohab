@@ -95,6 +95,9 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
           data,
           host
         )
+        // A chart that went empty and came back rebuilds here; drop the previous observer
+        // rather than overwrite the handle and leave it running on a destroyed chart.
+        resizeObserver?.disconnect()
         resizeObserver = new ResizeObserver(() => {
           if (chartRef.current && host.clientWidth > 0) {
             chartRef.current.setSize({ width: host.clientWidth, height: host.clientHeight })

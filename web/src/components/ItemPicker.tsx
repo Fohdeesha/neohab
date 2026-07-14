@@ -111,10 +111,18 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
     return { matches: filtered.slice(0, MAX_RESULTS), truncated: filtered.length - MAX_RESULTS }
   }, [items, itemTypes, query])
 
+  /** True while select() restores focus, so onFocus doesn't reopen the list it just closed. */
+  const restoringFocus = useRef(false)
+
   const select = (item: Item) => {
     onChange(item.name)
     close()
+    // Clicking an option blurs the input, so focus has to be put back for keyboard flow - but
+    // that fires onFocus, which would reopen the list. focus() dispatches synchronously, so the
+    // guard is set and cleared around it (and clears itself if no event fires at all).
+    restoringFocus.current = true
     inputRef.current?.focus()
+    restoringFocus.current = false
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -158,7 +166,9 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
             setHighlight(0)
             onChange(e.target.value)
           }}
-          onFocus={openList}
+          onFocus={() => {
+            if (!restoringFocus.current) openList()
+          }}
           onKeyDown={onKeyDown}
         />
         <button

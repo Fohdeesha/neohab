@@ -415,7 +415,12 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
 
   let counter = 0
   for (const hpWidget of hp.widgets) {
-    const converter = CONVERTERS[hpWidget.type]
+    // hasOwn, not a bare lookup: a widget typed "constructor"/"toString" would otherwise find an
+    // Object.prototype member, get called as a converter, and crash the import instead of being
+    // reported as an unknown type.
+    const converter = Object.prototype.hasOwnProperty.call(CONVERTERS, hpWidget.type)
+      ? CONVERTERS[hpWidget.type]
+      : undefined
     if (!converter) {
       report.add('skip', `Unknown HABPanel widget type “${hpWidget.type}” was skipped`)
       continue
