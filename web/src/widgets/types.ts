@@ -24,19 +24,31 @@ export interface WidgetProps<C = Record<string, unknown>> {
   ctx: WidgetContext
 }
 
+/** Shared by every field kind. */
+interface SettingCommon {
+  /**
+   * Render this field only when the predicate accepts the widget's effective config (stored
+   * values over definition defaults). Use it to hide settings another setting has made
+   * irrelevant, so the form only ever offers fields that do something.
+   */
+  showIf?: (config: Record<string, unknown>) => boolean
+}
+
 /**
  * A single field in a widget's settings form. The editor (Phase 3) renders these generically;
  * defining them now keeps each widget's configurable surface declarative and self-documenting.
  */
-export type SettingField =
-  | { key: string; type: 'item'; label: string; itemTypes?: string[] }
-  | { key: string; type: 'icon'; label: string }
-  | { key: string; type: 'text'; label: string; placeholder?: string }
-  | { key: string; type: 'multiline'; label: string; placeholder?: string }
-  | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }
-  | { key: string; type: 'boolean'; label: string }
-  | { key: string; type: 'color'; label: string }
-  | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
+export type SettingField = SettingCommon &
+  (
+    | { key: string; type: 'item'; label: string; itemTypes?: string[] }
+    | { key: string; type: 'icon'; label: string }
+    | { key: string; type: 'text'; label: string; placeholder?: string }
+    | { key: string; type: 'multiline'; label: string; placeholder?: string }
+    | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }
+    | { key: string; type: 'boolean'; label: string }
+    | { key: string; type: 'color'; label: string }
+    | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
+  )
 
 export interface WidgetDefinition<C = Record<string, unknown>> {
   /** Registry key, also stored as `WidgetInstance.type`. Stable - do not rename casually. */

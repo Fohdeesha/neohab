@@ -927,6 +927,35 @@ button {
   letter-spacing: 0.06em;
   color: var(--nh-text);
   opacity: 0.85;
+  /* on a narrow cell the type yields, so the delete button is never pushed out of reach */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-cell__delete {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  margin-right: -8px; /* reclaim the strip's padding: the hit area reaches the corner */
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--nh-radius) 0 0;
+  background: transparent;
+  color: #ef6b68;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nh-cell__delete:hover,
+.nh-cell__delete:focus-visible {
+  background: #e53935;
+  color: #fff;
 }
 
 .nh-cell__resize {
@@ -965,6 +994,13 @@ button {
 .nh-drop--invalid {
   border-color: #e53935;
   background: color-mix(in srgb, #e53935 12%, transparent);
+}
+
+/* Widgets an armed bump will relocate, previewed at the spot the drop would put them. */
+.nh-cell--bumped .nh-widget {
+  outline: 2px dashed var(--nh-primary);
+  outline-offset: -2px;
+  opacity: 0.75;
 }
 
 /* ============================================================================

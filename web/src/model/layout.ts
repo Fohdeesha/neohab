@@ -84,6 +84,88 @@ export function overlapsAny(dashboard: Dashboard, rect: Rect, ignoreId?: string)
   return dashboard.widgets.some((w) => w.id !== ignoreId && collides(rect, rectOf(w)))
 }
 
+/** Where each widget displaced by a bump ends up: widget id -> its new rect. */
+export type BumpPlan = Map<string, Rect>
+
+/** Cascades terminate on their own (a push only ever moves a widget down); this is a backstop. */
+const MAX_BUMP_DEPTH = 200
+
+/**
+ * Work out how to make room for `id` at `target` when widgets are already there.
+ *
+ * Two rules, tried in order:
+ *  - a same-size 1:1 trade (the target covers exactly one widget the size of the dragged one)
+ *    swaps the pair, so neighbours exchange places and nothing else on the dashboard moves;
+ *  - otherwise each occupant is pushed straight down just far enough to clear the target,
+ *    cascading into whatever it lands on.
+ *
+ * Returns the widgets that move (empty when the target was already free), or null if no legal
+ * arrangement was found - the caller then rejects the drop rather than guessing.
+ */
+export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPlan | null {
+  const moving = dashboard.widgets.find((w) => w.id === id)
+  if (!moving) return null
+  const from = rectOf(moving)
+  const others = dashboard.widgets.filter((w) => w.id !== id)
+  const occupants = others.filter((w) => collides(target, rectOf(w)))
+  if (occupants.length === 0) return new Map()
+
+  /**
+   * A plan is legal when the dragged widget owns `target` outright and everything the plan
+   * moved landed clear. Pairs the plan doesn't touch go unchecked on purpose: a dashboard can
+   * already contain overlaps (shrinking the column count clamps rects into each other), and
+   * those must not veto an unrelated bump.
+   */
+  const isLegal = (plan: BumpPlan): boolean => {
+    const at = (w: WidgetInstance): Rect => plan.get(w.id) ?? rectOf(w)
+    if (others.some((w) => collides(target, at(w)))) return false
+    return others.every(
+      (w) => !plan.has(w.id) || others.every((o) => o.id === w.id || !collides(at(w), at(o)))
+    )
+  }
+
+  // 1:1 trade. Equal sizes mean the occupant lands exactly on the spot the dragged widget
+  // vacates, so it always fits; isLegal still catches the case where the two rects overlap
+  // each other (a nudge onto a neighbour), which would swap a widget onto its own target.
+  if (occupants.length === 1) {
+    const other = rectOf(occupants[0])
+    if (other.w === from.w && other.h === from.h) {
+      const swap: BumpPlan = new Map([[occupants[0].id, { ...from }]])
+      if (isLegal(swap)) return swap
+    }
+  }
+
+  // Push down. `placed` holds every widget's planned rect except the dragged one, which owns
+  // `target` and is never pushed; each push moves a widget strictly downwards, so the cascade
+  // cannot loop back onto the target or revisit a widget forever.
+  const placed = new Map<string, Rect>()
+  for (const w of others) placed.set(w.id, rectOf(w))
+  const moved: BumpPlan = new Map()
+
+  const pushBelow = (widgetId: string, minY: number, depth: number): boolean => {
+    if (depth > MAX_BUMP_DEPTH) return false
+    const rect = placed.get(widgetId)
+    if (!rect) return false
+    if (rect.y >= minY) return true // already clear
+    const next = { ...rect, y: minY }
+    placed.set(widgetId, next)
+    moved.set(widgetId, next)
+    for (const [otherId, otherRect] of placed) {
+      if (otherId === widgetId) continue
+      if (collides(next, otherRect) && !pushBelow(otherId, next.y + next.h, depth + 1)) return false
+    }
+    return true
+  }
+
+  // Bottom-up: the lowest occupant claims the row under the target first and the ones above it
+  // then shove it further down, so a displaced cluster keeps its original stacking order.
+  const lowestFirst = [...occupants].sort((a, b) => rectOf(b).y - rectOf(a).y)
+  for (const occupant of lowestFirst) {
+    if (!pushBelow(occupant.id, target.y + target.h, 0)) return null
+  }
+  return isLegal(moved) ? moved : null
+}
+
 /** Find the topmost-leftmost free w x h spot, scanning row by row. */
 export function findFreeSpot(dashboard: Dashboard, w: number, h: number): Rect {
   const width = Math.min(w, dashboard.columns)

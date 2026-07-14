@@ -72,6 +72,9 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   )
 }
 
+const isNavigate = (c: Record<string, unknown>) => c.action === 'navigate'
+const isCommand = (c: Record<string, unknown>) => c.action !== 'navigate'
+
 export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   type: 'button',
   name: 'Button',
@@ -89,15 +92,18 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
       label: 'Action',
       options: [
         { value: 'command', label: 'Send command' },
-        { value: 'navigate', label: 'Navigate' },
+        { value: 'navigate', label: 'Navigate (neohab)' },
       ],
     },
+    // Item/Command/Toggle stay visible in navigate mode: they still decide the active icon,
+    // so a navigation button can light up with the state of what it navigates to. Only the
+    // alternate command is dead there - press() navigates and returns before ever reading it.
     { key: 'item', type: 'item', label: 'openHAB Item' },
     { key: 'command', type: 'text', label: 'Command' },
-    { key: 'commandAlt', type: 'text', label: 'Alternate command' },
+    { key: 'commandAlt', type: 'text', label: 'Alternate command', showIf: isCommand },
     { key: 'toggle', type: 'boolean', label: 'Toggle with state' },
-    { key: 'navigateDashboard', type: 'text', label: 'Go to dashboard (id)' },
-    { key: 'navigateUrl', type: 'text', label: 'Open URL' },
+    { key: 'navigateDashboard', type: 'text', label: 'Go to dashboard (id)', showIf: isNavigate },
+    { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate },
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),
   Component: ButtonWidget,

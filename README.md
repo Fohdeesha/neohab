@@ -17,6 +17,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   and widget chrome slims itself down in tight cells so labels never clip.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
+- **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
+  resize, delete them from a button on the widget, undo/redo anything, and save when you are
+  ready. Dropping onto an occupied spot rejects by default; hold there for a moment and the
+  widgets in the way step aside — swapping with a same-size neighbour, or shuffling down.
 - **Import / export** — back up, restore and share complete dashboard configurations (or single
   dashboards and widgets) as JSON; restore by replacing everything or merging a backup into
   what you have.

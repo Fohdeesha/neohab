@@ -28,6 +28,8 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         {def.settings
           // an instance driven by a custom widget definition ignores its inline template
           .filter((f) => !(customwidget && f.key === 'template'))
+          // fields another setting has made irrelevant (navigate targets on a command button)
+          .filter((f) => !f.showIf || f.showIf(effective))
           .map((field) => (
             <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
           ))}

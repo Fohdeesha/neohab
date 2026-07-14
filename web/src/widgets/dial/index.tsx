@@ -30,11 +30,24 @@ function arcPath(cx: number, cy: number, r: number, fromDeg: number, toDeg: numb
   return `M ${from.x} ${from.y} A ${r} ${r} 0 ${large} 1 ${to.x} ${to.y}`
 }
 
+/**
+ * Decimal places implied by the step: 0.1 -> 1, 5 -> 0. Step is the precision the dial works
+ * in, so it decides how many decimals the reading shows - a 0.1-step temperature gauge that
+ * rounded to whole degrees would be throwing away the digit it was configured to resolve.
+ * Display is never snapped to the step itself: a 5W-step power gauge still reads 1234, not 1235.
+ */
+function stepDecimals(step: number): number {
+  const dot = String(step).indexOf('.')
+  return dot < 0 ? 0 : Math.min(6, String(step).length - dot - 1)
+}
+
 /** Dial - a circular touch slider for numeric/dimmer items. Commits on release. */
 function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
   const min = config.min ?? 0
   const max = config.max ?? 100
-  const step = config.step ?? 1
+  // a cleared or nonsensical step would make the snap divide by zero
+  const step = config.step && config.step > 0 ? config.step : 1
+  const decimals = stepDecimals(step)
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<number | null>(null)
 
@@ -51,7 +64,8 @@ function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
     while (angle < START) angle += 360
     const clamped = Math.min(START + SWEEP, Math.max(START, angle))
     const raw = min + ((clamped - START) / SWEEP) * (max - min)
-    const snapped = Math.round(raw / step) * step
+    // round to the step's own precision before clamping, or a 0.1 step sends 72.30000000000001
+    const snapped = Number((Math.round(raw / step) * step).toFixed(decimals))
     return Math.min(max, Math.max(min, snapped))
   }
 
@@ -90,7 +104,7 @@ function DialWidget({ config, ctx }: WidgetProps<DialConfig>) {
         ) : null}
         {config.readOnly ? null : <circle className="nh-dial__knob" cx={knobPos.x} cy={knobPos.y} r="6" />}
         <text className="nh-dial__value" x="50" y="52" textAnchor="middle">
-          {Math.round(value)}
+          {value.toFixed(decimals)}
           {config.unit ?? ''}
         </text>
       </svg>

@@ -8,7 +8,7 @@
  */
 import { create } from 'zustand'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
-import { clampRect, findFreeSpot, overlapsAny, rectOf } from '../model/layout'
+import { clampRect, collides, findFreeSpot, rectOf, type BumpPlan } from '../model/layout'
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
 import { saveDashboard } from './config'
@@ -202,21 +202,40 @@ export function updateWidgetConfig(id: string, key: string, value: unknown): voi
   }, `config:${id}:${key}`)
 }
 
-/** Move/resize a widget; returns false (and changes nothing) if the target overlaps. */
-export function setWidgetRect(id: string, rect: Rect): boolean {
+/**
+ * Move/resize a widget; returns false (and changes nothing) if the target overlaps.
+ *
+ * `displaced` carries a bump plan (see planBump): the widgets the move pushes aside, relocated
+ * in the same change so the whole rearrangement is one undo step. The overlap guard then judges
+ * the target against those planned positions rather than the current ones.
+ */
+export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boolean {
   const s = useEditorStore.getState()
   if (!s.draft) return false
   const clamped = clampRect(rect, s.draft.columns)
-  if (overlapsAny(s.draft, clamped, id)) return false
+  const plannedRect = (w: WidgetInstance): Rect => displaced?.get(w.id) ?? rectOf(w)
+  if (s.draft.widgets.some((w) => w.id !== id && collides(clamped, plannedRect(w)))) return false
   const current = s.draft.widgets.find((w) => w.id === id)
   if (!current) return false
   const cur = rectOf(current)
-  if (cur.x === clamped.x && cur.y === clamped.y && cur.w === clamped.w && cur.h === clamped.h) {
+  if (
+    !displaced?.size &&
+    cur.x === clamped.x &&
+    cur.y === clamped.y &&
+    cur.w === clamped.w &&
+    cur.h === clamped.h
+  ) {
     return true // no-op move; don't create an undo entry
   }
   applyChange((draft) => {
-    const widget = draft.widgets.find((w) => w.id === id)
-    if (widget) widget.layout = { ...widget.layout, lg: clamped }
+    for (const widget of draft.widgets) {
+      if (widget.id === id) {
+        widget.layout = { ...widget.layout, lg: clamped }
+        continue
+      }
+      const to = displaced?.get(widget.id)
+      if (to) widget.layout = { ...widget.layout, lg: to }
+    }
   })
   return true
 }

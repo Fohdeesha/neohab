@@ -10,6 +10,7 @@ import type { Dashboard } from '../model/dashboard'
 import { cellMetrics, iconScale, stackedOrder, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { selectWidget, updateDashboardMeta, useEditorStore } from '../store/editor'
+import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
 
 interface DragState {
@@ -45,7 +46,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    selectWidget(id)
+    // Selection waits for the drop, as on the wide grid: opening the settings sheet over the
+    // stack mid-drag would cover the rows being dragged between.
     setDrag({ id, startY: e.clientY, dy: 0, insertPos: insertPosFor(e.clientY, id) })
   }
 
@@ -58,6 +60,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     if (!drag) return
     const from = ordered.findIndex((w) => w.id === drag.id)
     setDrag(null)
+    selectWidget(drag.id)
     if (drag.insertPos === from) return // dropped where it was; no undo entry
     const ids = ordered.filter((w) => w.id !== drag.id).map((w) => w.id)
     ids.splice(drag.insertPos, 0, drag.id)
@@ -106,10 +109,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                   selectWidget(widget.id)
                 }}
               />
-              <div className="nh-cell__handle" onPointerDown={beginDrag(widget.id)}>
-                <span className="nh-cell__grip">⋮⋮</span>
-                <span className="nh-cell__type">{widget.type}</span>
-              </div>
+              <CellHandle id={widget.id} type={widget.type} onDragStart={beginDrag(widget.id)} />
             </div>
           </div>
         )

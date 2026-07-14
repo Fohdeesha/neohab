@@ -146,7 +146,11 @@ export function DashboardView({ id }: { id: string }) {
         }
       >
         {editing ? <EditableGrid dashboard={dashboard} /> : <Grid dashboard={dashboard} />}
-        {editing ? <p className="nh-dash__edithint">Drag widgets by their handle · tap to configure</p> : null}
+        {editing ? (
+          <p className="nh-dash__edithint">
+            Drag widgets by their handle · tap to configure · hold over an occupied spot to bump it aside
+          </p>
+        ) : null}
       </div>
 
       {editing && selected ? <SettingsPanel key={selected.id} widget={selected} /> : null}
