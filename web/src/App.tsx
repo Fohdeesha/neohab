@@ -9,6 +9,7 @@ import { useRoute } from './app/router'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
 import { SettingsView } from './app/SettingsView'
+import { Toast } from './components/Toast'
 
 registerBuiltinWidgets()
 
@@ -74,6 +75,7 @@ export default function App() {
       ) : (
         <DashboardView id={route.id} />
       )}
+      <Toast />
     </main>
   )
 }

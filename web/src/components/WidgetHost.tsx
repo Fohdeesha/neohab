@@ -8,7 +8,7 @@ import { getWidgetDefinition, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { subscribeItems, useItemsStore } from '../store/items'
-import { sendCommand } from '../api/items'
+import { commandItem } from '../widgets/common/command'
 
 export function WidgetHost({ instance, editing }: { instance: WidgetInstance; editing: boolean }) {
   const def = getWidgetDefinition(instance.type)
@@ -30,7 +30,7 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   const ctx: WidgetContext = useMemo(
     () => ({
       getItem: (name) => states[name],
-      sendCommand: (item, command) => void sendCommand(item, command),
+      sendCommand: (item, command) => commandItem(item, command),
       editing,
     }),
     [states, editing]

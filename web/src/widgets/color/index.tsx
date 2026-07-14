@@ -76,7 +76,12 @@ function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
     setDraft(null)
     optimistic.commit(next)
     if (!ctx.editing) {
-      ctx.sendCommand(config.item, `${Math.round(next.h)},${Math.round(next.s)},${Math.round(next.b)}`)
+      // The wheel wraps: openHAB's HSBType accepts 0 <= h < 360 and rejects the whole command
+      // with a 400 otherwise, so the track's top end (360) has to go out as the same red at 0.
+      const h = Math.round(next.h) % 360
+      void ctx
+        .sendCommand(config.item, `${h},${Math.round(next.s)},${Math.round(next.b)}`)
+        .then((accepted) => !accepted && optimistic.cancel(next))
     }
   }
   const commitOn = useKeyboardCommit(commit)

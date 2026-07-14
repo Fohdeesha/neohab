@@ -1753,6 +1753,66 @@ button {
 }
 
 /* ============================================================================
+   Transient notices. Above every other surface (sheets 50, pickers 60) and
+   clear of the phone home indicator. Auto-dismissing, so the close button is a
+   convenience rather than the only way out.
+   ============================================================================ */
+.nh-toasts {
+  position: fixed;
+  right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  pointer-events: none; /* the stack must never swallow taps meant for the dashboard */
+}
+
+.nh-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(520px, 100%);
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--nh-border);
+  border-left: 3px solid #e53935;
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
+  color: var(--nh-text);
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+.nh-toast__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nh-toast__close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--nh-radius);
+  background: none;
+  color: var(--nh-text-dim);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nh-toast__close:hover {
+  background: var(--nh-surface);
+  color: var(--nh-text);
+}
+
+/* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable
    instead of clipping. Older browsers ignore @container and keep the defaults.

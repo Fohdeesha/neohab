@@ -18,7 +18,7 @@ import { WidgetFrame } from '../common/WidgetFrame'
 import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
-import { sendCommand } from '../../api/items'
+import { commandItem } from '../common/command'
 import { resolveTheme } from '../../themes/themes'
 import { defTemplate, mergedSettingValues, type CustomWidgetDef } from '../../model/widgetdef'
 import type { Scope } from '../../template/evaluator'
@@ -89,7 +89,7 @@ function buildScope(opts: {
     getItem,
     sendCmd: (item: unknown, value: unknown) => {
       if (editing || typeof item !== 'string' || !item) return
-      void sendCommand(item, String(value ?? ''))
+      void commandItem(item, String(value ?? ''))
     },
     itemsInGroup: (group: unknown) => groupItems((i) => Array.isArray(i.groupNames) && i.groupNames.includes(String(group))),
     itemsWithTag: (tag: unknown) => groupItems((i) => Array.isArray(i.tags) && i.tags.includes(String(tag))),

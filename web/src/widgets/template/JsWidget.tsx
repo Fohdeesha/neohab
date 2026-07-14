@@ -18,7 +18,7 @@ import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
-import { sendCommand } from '../../api/items'
+import { commandItem } from '../common/command'
 import { resolveTheme } from '../../themes/themes'
 import type { CustomWidgetDef } from '../../model/widgetdef'
 
@@ -158,7 +158,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
           break
         case 'sendCommand':
           if (!editingRef.current && typeof m.name === 'string' && typeof m.command === 'string') {
-            void sendCommand(m.name, m.command)
+            void commandItem(m.name, m.command)
           }
           break
         case 'subscribe': {

@@ -13,8 +13,12 @@ import type { ItemState } from '../api/types'
 export interface WidgetContext {
   /** Live state of an item by name, or undefined if unknown/not yet received. */
   getItem: (name: string) => ItemState | undefined
-  /** Send a command to an item. */
-  sendCommand: (item: string, command: string) => void
+  /**
+   * Send a command to an item. Never rejects (failures are reported to the user centrally);
+   * resolves true when the server accepted it, so widgets showing an optimistic value can drop
+   * it when the device never took the command.
+   */
+  sendCommand: (item: string, command: string) => Promise<boolean>
   /** True while the dashboard is in edit mode (widgets should suppress interactions). */
   editing: boolean
 }

@@ -30,7 +30,9 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   const commit = (v: number) => {
     setDrag(null)
     optimistic.commit(v)
-    if (!ctx.editing) ctx.sendCommand(config.item, String(v))
+    if (!ctx.editing) {
+      void ctx.sendCommand(config.item, String(v)).then((accepted) => !accepted && optimistic.cancel(v))
+    }
   }
   const commitOn = useKeyboardCommit(commit)
 
