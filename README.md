@@ -12,8 +12,9 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
 ## Goals
 
 - **Mobile-first** — dashboards are always viewable and dynamically sized, from phone to
-  wall-mounted tablet to desktop. Phones get a single-column stack whose order you can
-  drag-to-reorder independently of the grid layout.
+  wall-mounted tablet to desktop. Phones and portrait tablets get a single-column stack whose
+  order you can drag-to-reorder independently of the grid layout; icons scale with the screen,
+  and widget chrome slims itself down in tight cells so labels never clip.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
 - **Import / export** — back up, restore and share complete dashboard configurations (or single
@@ -55,7 +56,8 @@ openHAB server's own icon sets and your own uploads:
   backups and exports include them
 
 Stateful widgets (switches, toggle buttons) can show a different icon — and a different mono
-tint — for their active state.
+tint — for their active state. Icon sizes are authored against a desktop-width dashboard and
+scale automatically with the actual cell size, so the same config looks right on any screen.
 
 ## License
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
+import { useOptimisticValue } from '../common/useOptimisticValue'
 
 interface ColorConfig {
   item: string
@@ -20,8 +21,7 @@ function parseHsb(state: string | undefined): Hsb {
   return { h: h || 0, s: s || 0, b: b || 0 }
 }
 
-/** HSB (H 0-360, S/B 0-100) to a CSS rgb() string for the swatch preview. */
-function hsbToCss({ h, s, b }: Hsb): string {
+function hsbToRgb({ h, s, b }: Hsb): [number, number, number] {
   const sat = s / 100
   const val = b / 100
   const c = val * sat
@@ -37,7 +37,24 @@ function hsbToCss({ h, s, b }: Hsb): string {
     [c, 0, x],
   ][seg]
   const to255 = (n: number) => Math.round((n + m) * 255)
-  return `rgb(${to255(r)}, ${to255(g)}, ${to255(bl)})`
+  return [to255(r), to255(g), to255(bl)]
+}
+
+/** HSB (H 0-360, S/B 0-100) to a CSS rgb() string for the swatch preview. */
+function hsbToCss(hsb: Hsb): string {
+  const [r, g, b] = hsbToRgb(hsb)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+/**
+ * "Same color" in RGB space. HSB distance is the wrong measure here: at low saturation or
+ * brightness the hue a device echoes back is arbitrary (white is white at any hue), and
+ * 8-bit-quantizing bindings shift H/S by a point or two while the actual color is identical.
+ */
+function sameColor(a: Hsb, b: Hsb): boolean {
+  const ra = hsbToRgb(a)
+  const rb = hsbToRgb(b)
+  return ra.every((v, i) => Math.abs(v - rb[i]) <= 12)
 }
 
 /**
@@ -48,11 +65,16 @@ function hsbToCss({ h, s, b }: Hsb): string {
 function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
   const state = ctx.getItem(config.item)
   const [draft, setDraft] = useState<Hsb | null>(null)
-  const hsb = draft ?? parseHsb(state?.state)
+  // Between commits, show the last value the user set for as long as the device agrees it is
+  // the same color (or is still fading toward it) - raw HSB echoes would otherwise yank the
+  // other sliders to unrelated positions right after a drag.
+  const optimistic = useOptimisticValue(parseHsb(state?.state), sameColor)
+  const hsb = draft ?? optimistic.display
 
   const update = (patch: Partial<Hsb>) => setDraft({ ...hsb, ...patch })
   const commit = (next: Hsb) => {
     setDraft(null)
+    optimistic.commit(next)
     if (!ctx.editing) {
       ctx.sendCommand(config.item, `${Math.round(next.h)},${Math.round(next.s)},${Math.round(next.b)}`)
     }

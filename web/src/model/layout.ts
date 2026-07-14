@@ -7,8 +7,12 @@ export function rectOf(widget: WidgetInstance): Rect {
 
 export const DEFAULT_GAP = 8
 
-/** Below this container width the dashboard renders as a single-column stack. */
-export const STACK_BELOW = 720 // px
+/**
+ * Below this container width the dashboard renders as a single-column stack. Includes
+ * portrait tablets: a many-column grid squeezed under ~840px yields cells too small for
+ * any control, so stacking is the usable rendering there too.
+ */
+export const STACK_BELOW = 840 // px
 /** Assumed desktop width when computing stacked heights for 'match' dashboards. */
 export const STACK_REFERENCE_WIDTH = 1280
 
@@ -48,6 +52,18 @@ export function cellMetrics(
   const colWidth = (containerWidth - gap * (dashboard.columns - 1)) / dashboard.columns
   const rowHeight = dashboard.rowHeight === 'match' ? Math.max(8, colWidth) : dashboard.rowHeight
   return { gap, colWidth, rowHeight }
+}
+
+/**
+ * Icon sizes are authored in px as they render on a desktop-width dashboard (HABPanel configs
+ * carried px values chosen against desktop cells). Rendering scales them with the actual cell
+ * size so icons grow/shrink proportionally with the screen instead of staying fixed.
+ */
+export const ICON_REFERENCE_WIDTH = 1920
+
+export function iconScale(dashboard: Dashboard, rowHeight: number): number {
+  const ref = cellMetrics(dashboard, ICON_REFERENCE_WIDTH).rowHeight
+  return ref > 0 ? rowHeight / ref : 1
 }
 
 export function collides(a: Rect, b: Rect): boolean {

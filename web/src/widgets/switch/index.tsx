@@ -56,7 +56,7 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Switch', 'Dimmer', 'Color'] },
     { key: 'label', type: 'text', label: 'Name' },
     ...STATE_ICON_SETTINGS,
-    { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 128 },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     { key: 'onCommand', type: 'text', label: 'On command' },
     { key: 'offCommand', type: 'text', label: 'Off command' },
   ],

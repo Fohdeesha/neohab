@@ -62,7 +62,8 @@ export function ohIconUrl(name: string, iconset: string, state?: string): string
 
 interface IconProps {
   icon: string | undefined
-  /** Pixel size (square). */
+  /** Size (square) in px at desktop dashboard scale; inside a grid it is multiplied by the
+   *  grid's --nh-iconscale so icons track the cell size on any screen. */
   size?: number
   /** Current item state, for state-aware openHAB icons. */
   state?: string
@@ -83,14 +84,16 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   )
   if (!ref) return null
 
+  const dim = `calc(${size}px * var(--nh-iconscale, 1))`
+
   if (ref.source === 'mdi') {
     const url = packIconUrl('mdi', ref.name)
     return (
       <span
         className={'nh-icon nh-icon--mdi' + (className ? ' ' + className : '')}
         style={{
-          width: size,
-          height: size,
+          width: dim,
+          height: dim,
           WebkitMaskImage: `url(${url})`,
           maskImage: `url(${url})`,
           backgroundColor: color || undefined,
@@ -106,8 +109,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
       <img
         className={'nh-icon nh-icon--img' + (className ? ' ' + className : '')}
         src={customUri}
-        width={size}
-        height={size}
+        style={{ width: dim, height: dim }}
         alt=""
       />
     )
@@ -118,8 +120,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
       <img
         className={'nh-icon nh-icon--img nh-icon--oh' + (className ? ' ' + className : '')}
         src={ohIconUrl(ref.name, ref.iconset, state)}
-        width={size}
-        height={size}
+        style={{ width: dim, height: dim }}
         alt=""
         loading="lazy"
         onError={hideBroken}
@@ -132,8 +133,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
     <img
       className={'nh-icon nh-icon--img' + (className ? ' ' + className : '')}
       src={packIconUrl(ref.source, ref.name)}
-      width={size}
-      height={size}
+      style={{ width: dim, height: dim }}
       alt=""
       loading="lazy"
       onError={hideBroken}

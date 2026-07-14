@@ -7,7 +7,7 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
-import { cellMetrics, stackedOrder, STACK_REFERENCE_WIDTH } from '../model/layout'
+import { cellMetrics, iconScale, stackedOrder, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { selectWidget, updateDashboardMeta, useEditorStore } from '../store/editor'
 import { WidgetHost } from './WidgetHost'
@@ -70,7 +70,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   return (
     <div
       className="nh-grid nh-grid--stacked nh-grid--stackedit"
-      style={{ gap: dashboard.gap ?? 8 }}
+      style={{ gap: dashboard.gap ?? 8, '--nh-iconscale': iconScale(dashboard, unit) } as React.CSSProperties}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => setDrag(null)}

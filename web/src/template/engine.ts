@@ -261,6 +261,11 @@ export const TEMPLATE_BASE_CSS = `
 :host { display: block; height: 100%; position: relative; overflow: hidden; color: inherit; }
 *, *::before, *::after { box-sizing: border-box; }
 img { max-width: 100%; }
+/* Chromium paints an opaque WHITE canvas behind an iframe whose embedded page doesn't match
+   the embedder's color-scheme (our themes set color-scheme: dark). HABPanel-era pages are
+   light-scheme with transparent backgrounds; declaring the iframe element light restores the
+   transparent canvas so the widget background shows through, like it did in HABPanel. */
+iframe { color-scheme: light; }
 a { color: inherit; }
 .glyphicon { font-style: normal; display: inline-block; line-height: 1; }
 .glyphicon-menu-up::before, .glyphicon-chevron-up::before { content: '\\25B2'; }

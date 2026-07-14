@@ -99,7 +99,7 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'icon', type: 'icon', label: 'Icon' },
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
-    { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 64 },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 64 },
     {
       key: 'choices',
       type: 'multiline',

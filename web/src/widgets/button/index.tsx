@@ -81,7 +81,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   settings: [
     { key: 'label', type: 'text', label: 'Label' },
     ...STATE_ICON_SETTINGS,
-    { key: 'iconSize', type: 'number', label: 'Icon size (px)', min: 16, max: 128 },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide label)' },
     {
       key: 'action',

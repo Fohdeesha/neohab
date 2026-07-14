@@ -3,6 +3,7 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { numericValue } from '../common/format'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
+import { useOptimisticValue } from '../common/useOptimisticValue'
 
 interface SliderConfig {
   item: string
@@ -19,13 +20,16 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   const max = config.max ?? 100
   const step = config.step ?? 1
 
-  // While dragging, show the local value; otherwise follow the item's live state.
+  // While dragging, show the local value; after a commit, hold it until the device confirms
+  // (or diverges after the settle window) so slow/quantizing devices don't snap the slider back.
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
-  const value = drag ?? itemValue
+  const optimistic = useOptimisticValue(itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
+  const value = drag ?? optimistic.display
 
   const commit = (v: number) => {
     setDrag(null)
+    optimistic.commit(v)
     if (!ctx.editing) ctx.sendCommand(config.item, String(v))
   }
   const commitOn = useKeyboardCommit(commit)

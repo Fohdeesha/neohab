@@ -10,7 +10,7 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard, Rect } from '../model/dashboard'
-import { cellMetrics, clampRect, overlapsAny, rectOf, STACK_BELOW } from '../model/layout'
+import { cellMetrics, clampRect, iconScale, overlapsAny, rectOf, STACK_BELOW } from '../model/layout'
 import { selectWidget, setWidgetRect, useEditorStore } from '../store/editor'
 import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
@@ -98,11 +98,14 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     <div
       ref={containerRef}
       className="nh-grid nh-grid--edit"
-      style={{
-        gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
-        gridAutoRows: `${rowHeight}px`,
-        gap,
-      }}
+      style={
+        {
+          gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
+          gridAutoRows: `${rowHeight}px`,
+          gap,
+          '--nh-iconscale': iconScale(dashboard, rowHeight),
+        } as React.CSSProperties
+      }
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => setDrag(null)}

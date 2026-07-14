@@ -358,10 +358,6 @@ button {
   letter-spacing: 0.08em;
 }
 
-.nh-switch__icon {
-  flex-shrink: 1;
-}
-
 .nh-switch--on .nh-icon--mdi {
   background-color: var(--nh-primary);
 }
@@ -400,10 +396,6 @@ button {
   background-color: var(--nh-primary);
 }
 
-.nh-button__icon {
-  flex-shrink: 1;
-}
-
 .nh-button__label {
   max-width: 100%;
   overflow: hidden;
@@ -432,6 +424,25 @@ button {
 
 .nh-icon--img {
   object-fit: contain;
+}
+
+/* Inside widgets the icon is the shrink victim and text never clips: these come after the
+   .nh-icon base rule on purpose (same specificity - source order decides the cascade). */
+.nh-button__icon,
+.nh-switch__icon {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+}
+
+.nh-button__label {
+  flex-shrink: 0;
+  max-height: 2.5em; /* up to two lines; the icon gives way first */
+}
+
+.nh-switch__track,
+.nh-switch__state {
+  flex-shrink: 0;
 }
 
 /* Icon picker popover */
@@ -1703,4 +1714,85 @@ button {
 
 .nh-report__count {
   color: var(--nh-text-dim);
+}
+
+/* ============================================================================
+   Tight cells. Every grid cell is a size container; when the cell is short
+   (many-column dashboards, small windows) shed chrome so content stays readable
+   instead of clipping. Older browsers ignore @container and keep the defaults.
+   This section stays LAST in the file: the overrides share specificity with the
+   base widget rules above, so source order is what makes them win.
+   ============================================================================ */
+.nh-gcell,
+.nh-cell {
+  container-type: size;
+}
+
+@container (max-height: 104px) {
+  .nh-widget__label {
+    padding: 4px 8px 0;
+  }
+
+  .nh-widget__body {
+    padding: 6px 8px;
+  }
+
+  .nh-button {
+    padding: 2px 8px;
+    gap: 2px;
+    font-size: 0.85rem;
+  }
+
+  .nh-switch {
+    gap: 4px;
+  }
+}
+
+/* Too short for a label row at all: a hidden label beats an unreadable sliver. */
+@container (max-height: 72px) {
+  .nh-widget__label {
+    display: none;
+  }
+}
+
+/* Short color pickers: the sliders are the control, the swatch is garnish. */
+@container (max-height: 130px) {
+  .nh-color {
+    gap: 4px;
+  }
+
+  .nh-color__swatch {
+    display: none;
+  }
+
+  .nh-color__channels {
+    gap: 4px;
+  }
+}
+
+/* Shorter still: slim the tracks so all three channels stay visible. */
+@container (max-height: 104px) {
+  .nh-color__track {
+    height: 14px;
+  }
+
+  .nh-color__track::-webkit-slider-runnable-track {
+    height: 10px;
+    border-radius: 5px;
+  }
+
+  .nh-color__track::-webkit-slider-thumb {
+    width: 15px;
+    height: 15px;
+    margin-top: -3.5px;
+  }
+
+  .nh-color__track::-moz-range-track {
+    height: 10px;
+  }
+
+  .nh-color__track::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+  }
 }

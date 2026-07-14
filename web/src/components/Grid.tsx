@@ -14,7 +14,7 @@
  */
 import { useRef } from 'react'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { cellMetrics, stackedOrder, STACK_BELOW, STACK_REFERENCE_WIDTH } from '../model/layout'
+import { cellMetrics, iconScale, stackedOrder, STACK_BELOW, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
@@ -40,11 +40,15 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
     const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
     const ordered = stackedOrder(dashboard)
     return (
-      <div ref={ref} className="nh-grid nh-grid--stacked" style={{ gap: dashboard.gap ?? 8 }}>
+      <div
+        ref={ref}
+        className="nh-grid nh-grid--stacked"
+        style={{ gap: dashboard.gap ?? 8, '--nh-iconscale': iconScale(dashboard, unit) } as React.CSSProperties}
+      >
         {ordered.map((w) => {
           const min = getWidgetDefinition(w.type)?.minPixelHeight ?? 0
           return (
-            <div key={w.id} style={{ height: Math.round(Math.max(rectOf(w).h * unit, min)) }}>
+            <div key={w.id} className="nh-gcell" style={{ height: Math.round(Math.max(rectOf(w).h * unit, min)) }}>
               <WidgetHost instance={w} editing={editing} />
             </div>
           )
@@ -58,17 +62,21 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
     <div
       ref={ref}
       className="nh-grid"
-      style={{
-        gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
-        gridAutoRows: `${rowHeight}px`,
-        gap,
-      }}
+      style={
+        {
+          gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
+          gridAutoRows: `${rowHeight}px`,
+          gap,
+          '--nh-iconscale': iconScale(dashboard, rowHeight),
+        } as React.CSSProperties
+      }
     >
       {dashboard.widgets.map((w) => {
         const r = rectOf(w)
         return (
           <div
             key={w.id}
+            className="nh-gcell"
             style={{
               gridColumn: `${r.x + 1} / span ${r.w}`,
               gridRow: `${r.y + 1} / span ${r.h}`,
