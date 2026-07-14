@@ -66,6 +66,18 @@ export function iconScale(dashboard: Dashboard, rowHeight: number): number {
   return ref > 0 ? rowHeight / ref : 1
 }
 
+/**
+ * Text scales with the cell exactly like icons do, so a dashboard reads as one proportional
+ * unit at any size - but only down to a floor, because text has a readability limit an icon
+ * doesn't: a label shrunk to 7px is worse than a slightly-too-big one. At the floor the
+ * remaining fit comes from the tight-cell padding sheds in app.css instead.
+ */
+export const MIN_TEXT_SCALE = 0.8
+
+export function textScale(dashboard: Dashboard, rowHeight: number): number {
+  return Math.max(MIN_TEXT_SCALE, iconScale(dashboard, rowHeight))
+}
+
 export function collides(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 }

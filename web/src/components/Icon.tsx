@@ -77,6 +77,15 @@ const hideBroken = (e: SyntheticEvent<HTMLImageElement>) => {
   ;(e.target as HTMLImageElement).style.visibility = 'hidden'
 }
 
+/**
+ * State-aware openHAB icons re-fetch when the item changes, and a set may have art for one
+ * state but not another. The hidden flag is set imperatively, so React won't clear it on the
+ * next src - without this an icon that 404s once stays invisible for the rest of the session.
+ */
+const showLoaded = (e: SyntheticEvent<HTMLImageElement>) => {
+  ;(e.target as HTMLImageElement).style.visibility = ''
+}
+
 export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const ref = parseIconRef(icon)
   const customUri = useConfigStore((s) =>
@@ -124,6 +133,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
         alt=""
         loading="lazy"
         onError={hideBroken}
+        onLoad={showLoaded}
       />
     )
   }
@@ -137,6 +147,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
       alt=""
       loading="lazy"
       onError={hideBroken}
+      onLoad={showLoaded}
     />
   )
 }

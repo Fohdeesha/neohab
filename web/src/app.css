@@ -272,7 +272,7 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--nh-text-dim);
-  font-size: 0.85rem;
+  font-size: 0.85em;
 }
 
 .nh-widget__label {
@@ -280,7 +280,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 8px 12px 0;
-  font-size: 0.8rem;
+  font-size: 0.8em;
   font-weight: 600;
   color: var(--nh-text-dim);
   text-transform: uppercase;
@@ -300,6 +300,9 @@ button {
   display: flex;
   flex-direction: column;
   padding: 12px;
+  /* Content that cannot fit is clipped at the body edge. Without this, a centered body
+     (justify-content: center) spills its overflow BOTH ways, painting over the label row. */
+  overflow: hidden;
 }
 
 .nh-widget__body--center {
@@ -353,7 +356,7 @@ button {
 }
 
 .nh-switch__state {
-  font-size: 0.85rem;
+  font-size: 0.85em;
   color: var(--nh-text-dim);
   letter-spacing: 0.08em;
 }
@@ -374,7 +377,7 @@ button {
   min-height: 44px;
   min-width: 0;
   padding: 8px 12px;
-  font-size: 1rem;
+  font-size: 1em;
   font-weight: 500;
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
@@ -400,7 +403,13 @@ button {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  /* Must be >= the font's own ascent+descent, or glyphs paint outside their line box and
+     overflow:hidden shaves the descenders off the last line - a subtle bottom-clip that gets
+     worse as the text scales down (0.7px at 12.8px). 1.2 was under it for system-ui. */
+  line-height: 1.35;
+  /* A label like "Laptop>Studio AVB" is one unbreakable token wider than a small cell; break
+     it rather than ellipsise the whole label away. */
+  overflow-wrap: break-word;
 }
 
 /* ============================================================================
@@ -437,7 +446,7 @@ button {
 
 .nh-button__label {
   flex-shrink: 0;
-  max-height: 2.5em; /* up to two lines; the icon gives way first */
+  max-height: 4.05em; /* exactly three lines at the line-height above; the icon gives way first */
 }
 
 .nh-switch__track,
@@ -687,13 +696,13 @@ button {
 }
 
 .nh-value__text {
-  font-size: 1.8rem;
+  font-size: 1.8em;
   font-weight: 300;
   line-height: 1;
 }
 
 .nh-value__unit {
-  font-size: 1rem;
+  font-size: 1em;
   color: var(--nh-text-dim);
 }
 
@@ -709,7 +718,7 @@ button {
 }
 
 .nh-clock__time {
-  font-size: 2rem;
+  font-size: 2em;
   font-weight: 300;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -718,7 +727,7 @@ button {
 .nh-clock__date {
   margin-top: 4px;
   color: var(--nh-text-dim);
-  font-size: 0.9rem;
+  font-size: 0.9em;
 }
 
 /* Image */
@@ -732,7 +741,7 @@ button {
 
 .nh-image__placeholder {
   color: var(--nh-text-dim);
-  font-size: 0.85rem;
+  font-size: 0.85em;
 }
 
 /* Color */
@@ -1407,7 +1416,7 @@ button {
 .nh-selection__btn {
   min-height: 44px;
   padding: 8px;
-  font-size: 0.92rem;
+  font-size: 0.92em;
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
   border-radius: 9px;
@@ -1421,7 +1430,7 @@ button {
 .nh-selection__empty {
   margin: auto;
   color: var(--nh-text-dim);
-  font-size: 0.85rem;
+  font-size: 0.85em;
 }
 
 /* Dial */
@@ -1471,7 +1480,7 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--nh-text-dim);
-  font-size: 0.85rem;
+  font-size: 0.85em;
 }
 
 .nh-chart .u-over,
@@ -1493,22 +1502,30 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  height: 100%;
+  min-height: 0;
 }
 
+/* Three 44px buttons plus gaps need ~150px; an imported 2x2 cell can be shorter than that.
+   The buttons give way instead of overflowing (which used to paint them over the label). */
 .nh-roller__btn {
+  flex: 0 1 44px;
   width: 56px;
-  min-height: 44px;
-  font-size: 1rem;
+  max-width: 100%;
+  min-height: 0;
+  font-size: 1em;
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
   border-radius: 9px;
 }
 
 .nh-roller__pos {
+  flex-shrink: 0;
   margin-top: 2px;
   color: var(--nh-text-dim);
-  font-size: 0.85rem;
+  font-size: 0.85em;
 }
 
 /* Player */
@@ -1521,7 +1538,7 @@ button {
 .nh-player__btn {
   width: 52px;
   height: 52px;
-  font-size: 1.2rem;
+  font-size: 1.2em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1533,7 +1550,7 @@ button {
 .nh-player__btn--main {
   width: 64px;
   height: 64px;
-  font-size: 1.5rem;
+  font-size: 1.5em;
   border-color: var(--nh-primary);
 }
 
@@ -1822,6 +1839,11 @@ button {
 .nh-gcell,
 .nh-cell {
   container-type: size;
+  /* Widget text tracks the cell size, the way icons do via --nh-iconscale: a dashboard is
+     one proportional unit at any width. Everything inside a cell sizes its text in em, so
+     this single declaration drives all of it. Editor chrome (the handle strip) deliberately
+     stays in rem - it is UI, not dashboard content, and must not shrink with the cell. */
+  font-size: calc(1rem * var(--nh-textscale, 1));
 }
 
 @container (max-height: 104px) {
@@ -1836,11 +1858,41 @@ button {
   .nh-button {
     padding: 2px 8px;
     gap: 2px;
-    font-size: 0.85rem;
   }
 
   .nh-switch {
     gap: 4px;
+  }
+
+  .nh-roller {
+    gap: 4px;
+  }
+}
+
+/* Narrow cells: nested padding costs more than the text it frames. At 70px wide the
+   body + button insets alone used to eat half the cell, so labels ellipsised to "Gu…"
+   however small the font got. Width-keyed, because a tall 1-wide cell needs this too. */
+@container (max-width: 120px) {
+  .nh-widget__label {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .nh-widget__body {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .nh-button {
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+}
+
+/* No room for the position readout under three buttons. */
+@container (max-height: 150px) {
+  .nh-roller__pos {
+    display: none;
   }
 }
 

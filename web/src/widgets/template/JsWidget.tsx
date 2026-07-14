@@ -189,7 +189,12 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       storeUnsub()
       for (const u of unsubs) u()
     }
-  }, [allow, valuesKey, label, def.script])
+    // Deliberately keyed to exactly what remounts the frame (script + values). Adding `label`
+    // here would tear the bridge down without reloading the frame: the SDK only announces its
+    // subscriptions once at boot, so the rebuilt bridge would never learn them and live
+    // updates would stop until something else remounted the widget.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allow, valuesKey, def.script])
 
   // theme changes propagate without reloading the frame
   useEffect(() => {

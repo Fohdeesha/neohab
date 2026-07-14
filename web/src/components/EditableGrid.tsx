@@ -18,6 +18,7 @@ import {
   overlapsAny,
   planBump,
   rectOf,
+  textScale,
   STACK_BELOW,
   type BumpPlan,
 } from '../model/layout'
@@ -181,6 +182,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
+          '--nh-textscale': textScale(dashboard, rowHeight),
         } as React.CSSProperties
       }
       onPointerMove={onPointerMove}

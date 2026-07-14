@@ -28,6 +28,7 @@ export class StatesTracker {
   private closed = false
   private lastEventAt = 0
   private watchdog: ReturnType<typeof setInterval> | null = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   onStates(listener: Listener): () => void {
     this.listeners.add(listener)
@@ -71,6 +72,12 @@ export class StatesTracker {
       clearInterval(this.watchdog)
       this.watchdog = null
     }
+    // A reconnect queued before stop() would otherwise still fire after the next start(),
+    // opening a second stream alongside it and orphaning the first.
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     if (this.pushTimer) {
       clearTimeout(this.pushTimer)
       this.pushTimer = null
@@ -81,7 +88,7 @@ export class StatesTracker {
   }
 
   private connect(): void {
-    if (this.closed) return
+    if (this.closed || this.source) return // never run two streams at once
     this.lastEventAt = Date.now()
     const source = new EventSource('/rest/events/states')
     this.source = source
@@ -112,8 +119,11 @@ export class StatesTracker {
       source.close()
       this.source = null
       this.connectionId = null
-      if (this.closed) return
-      setTimeout(() => this.connect(), this.reconnectDelay)
+      if (this.closed || this.reconnectTimer) return
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null
+        this.connect()
+      }, this.reconnectDelay)
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30_000)
     }
   }

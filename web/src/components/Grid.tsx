@@ -14,7 +14,7 @@
  */
 import { useRef } from 'react'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { cellMetrics, iconScale, stackedOrder, STACK_BELOW, STACK_REFERENCE_WIDTH } from '../model/layout'
+import { cellMetrics, iconScale, stackedOrder, textScale, STACK_BELOW, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
@@ -43,7 +43,13 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
       <div
         ref={ref}
         className="nh-grid nh-grid--stacked"
-        style={{ gap: dashboard.gap ?? 8, '--nh-iconscale': iconScale(dashboard, unit) } as React.CSSProperties}
+        style={
+          {
+            gap: dashboard.gap ?? 8,
+            '--nh-iconscale': iconScale(dashboard, unit),
+            '--nh-textscale': textScale(dashboard, unit),
+          } as React.CSSProperties
+        }
       >
         {ordered.map((w) => {
           const min = getWidgetDefinition(w.type)?.minPixelHeight ?? 0
@@ -68,6 +74,7 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
+          '--nh-textscale': textScale(dashboard, rowHeight),
         } as React.CSSProperties
       }
     >

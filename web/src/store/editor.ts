@@ -190,6 +190,8 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
 export function removeWidget(id: string): void {
   applyChange((draft) => {
     draft.widgets = draft.widgets.filter((w) => w.id !== id)
+    // Drop it from the pinned stack order too, or deleted ids accumulate there for good.
+    if (draft.stackOrder) draft.stackOrder = draft.stackOrder.filter((w) => w !== id)
   })
   const s = useEditorStore.getState()
   if (s.selectedId === id) useEditorStore.setState({ selectedId: null })

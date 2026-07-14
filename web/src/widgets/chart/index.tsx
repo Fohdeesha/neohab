@@ -54,10 +54,11 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       if (disposed) return
       const xs: number[] = []
       const ys: (number | null)[] = []
-      // ON/OFF-style histories plot as 1/0 (persistence stores them as text)
-      const BINARY: Record<string, number> = { ON: 1, OFF: 0, OPEN: 1, CLOSED: 0 }
+      // ON/OFF-style histories plot as 1/0 (persistence stores them as text). A Map, so a
+      // state that happens to name an Object.prototype member isn't mistaken for a hit.
+      const BINARY = new Map([['ON', 1], ['OFF', 0], ['OPEN', 1], ['CLOSED', 0]])
       for (const p of points) {
-        const v = p.state in BINARY ? BINARY[p.state] : parseFloat(p.state)
+        const v = BINARY.get(p.state) ?? parseFloat(p.state)
         xs.push(p.time / 1000)
         ys.push(Number.isFinite(v) ? v : null)
       }

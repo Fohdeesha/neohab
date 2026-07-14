@@ -104,15 +104,19 @@ function processElement(el: Element, scope: Scope): void {
     }
   }
 
-  const ifExpr = attr(el, 'x-if', 'ng-if')
-  if (ifExpr !== null && !evalWithFilters(ifExpr, scope)) {
-    el.remove()
-    return
-  }
-
+  // Repeats expand before conditionals, as in AngularJS (ng-repeat outranks ng-if). On the same
+  // element the condition belongs to each item: judging it here, against a scope where the loop
+  // variable does not exist yet, would drop the whole list. Each clone re-enters with the item
+  // scope and applies the condition there.
   const forExpr = attr(el, 'x-for', 'ng-repeat')
   if (forExpr !== null) {
     expandRepeat(el, forExpr, scope)
+    return
+  }
+
+  const ifExpr = attr(el, 'x-if', 'ng-if')
+  if (ifExpr !== null && !evalWithFilters(ifExpr, scope)) {
+    el.remove()
     return
   }
 
