@@ -41,9 +41,11 @@ export interface AppSettings {
   allowJsWidgets?: boolean
   /** Per-icon upload size cap in KB (default DEFAULT_MAX_ICON_KB). */
   maxIconKB?: number
+  /** Show the navigation sidebar (☰ in the top-left of every screen). On by default. */
+  sidebar?: boolean
 }
 
-const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true })
+const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })
 
 interface ConfigState {
   dashboards: Dashboard[]

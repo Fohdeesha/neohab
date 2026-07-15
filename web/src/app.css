@@ -75,6 +75,7 @@ button {
 }
 
 .nh-home {
+  position: relative; /* anchors the floating sidebar trigger */
   min-height: 100%;
   display: flex;
   flex-direction: column;
@@ -150,6 +151,10 @@ button {
 
 .nh-tile:hover {
   border-color: var(--nh-brand);
+}
+
+.nh-tile__icon {
+  margin-bottom: 2px;
 }
 
 .nh-tile__name {
@@ -1835,6 +1840,149 @@ button {
 .nh-toast__close:hover {
   background: var(--nh-surface);
   color: var(--nh-text);
+}
+
+/* ============================================================================
+   Navigation sidebar
+   ============================================================================ */
+.nh-side {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 65; /* above sheets (50) and pickers (60): it is top-level navigation */
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  background: var(--nh-surface);
+  border-right: 1px solid var(--nh-border);
+  transform: translateX(-100%);
+  visibility: hidden; /* also keeps a closed sidebar out of the tab order */
+  /* A transition holds `visibility` at visible for its whole duration, so while it slides away
+     the aside still covers the top-left corner - including the ☰ underneath it. Without this a
+     click aimed at ☰ during those 160ms lands on the departing sidebar and does nothing. */
+  pointer-events: none;
+  transition:
+    transform 160ms ease,
+    visibility 160ms;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nh-side--open {
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Phones have no room to inset the dashboard beside it, so it slides over instead. */
+.nh-side--overlay {
+  width: min(280px, 80vw);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.nh-side__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 64;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.nh-side__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.nh-side__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px; /* touch target */
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--nh-text);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.nh-side__item:hover {
+  background: var(--nh-surface-2);
+}
+
+.nh-side__item--active {
+  background: var(--nh-surface-2);
+  color: var(--nh-primary);
+  font-weight: 600;
+}
+
+.nh-side__item--home {
+  font-weight: 600;
+}
+
+/* Fixed-width gutter so labels line up whether or not a dashboard has an icon. */
+.nh-side__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 22px;
+  font-size: 1.1rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-side__item--active .nh-side__glyph {
+  color: inherit;
+}
+
+.nh-side__icon {
+  flex: 0 0 22px;
+}
+
+.nh-side__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-side__sep {
+  height: 1px;
+  margin: 8px 4px;
+  background: var(--nh-border);
+}
+
+.nh-side__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--nh-border);
+}
+
+.nh-side__foot-settings {
+  flex: 1;
+}
+
+.nh-side__pin {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  opacity: 0.4;
+}
+
+.nh-side__pin--on {
+  opacity: 1;
+  border-color: var(--nh-primary);
+}
+
+/* Home has no top bar to host the trigger, so it floats in the same top-left spot. */
+.nh-home__menu {
+  position: absolute;
+  top: 12px;
+  left: 12px;
 }
 
 /* ============================================================================

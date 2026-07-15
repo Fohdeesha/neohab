@@ -154,7 +154,7 @@ export function setDashSettingsOpen(open: boolean): void {
  * for the user to resolve (undo restores the previous layout in one step).
  */
 export function updateDashboardMeta(
-  patch: Partial<Pick<Dashboard, 'name' | 'columns' | 'rowHeight' | 'gap' | 'stackOrder'>>,
+  patch: Partial<Pick<Dashboard, 'name' | 'icon' | 'hideInSidebar' | 'columns' | 'rowHeight' | 'gap' | 'stackOrder'>>,
   coalesceKey: string | null = null,
 ): void {
   applyChange((draft) => {

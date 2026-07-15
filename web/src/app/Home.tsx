@@ -3,6 +3,8 @@ import { useConfigStore } from '../store/config'
 import { isLoggedIn } from '../api/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
+import { SidebarTrigger } from './Sidebar'
+import { Icon } from '../components/Icon'
 import { NewDashboardSheet } from '../editor/NewDashboardSheet'
 import { SignInSheet } from '../editor/SignInSheet'
 
@@ -15,6 +17,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
 
   return (
     <div className="nh-home">
+      <SidebarTrigger className="nh-iconbtn nh-home__menu" />
       <Wordmark />
       <p className="nh-home__status">
         {ohVersion ? (
@@ -53,6 +56,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
         <div className="nh-tiles">
           {dashboards.map((d) => (
             <button key={d.id} className="nh-tile" onClick={() => navigate({ name: 'dashboard', id: d.id })}>
+              {d.icon ? <Icon icon={d.icon} size={28} className="nh-tile__icon" /> : null}
               <span className="nh-tile__name">{d.name}</span>
               <span className="nh-tile__meta">{d.widgets.length} widgets</span>
             </button>

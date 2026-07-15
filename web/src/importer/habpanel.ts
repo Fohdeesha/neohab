@@ -21,6 +21,10 @@ interface HPDashboard {
   columns?: unknown
   row_height?: unknown
   widget_margin?: unknown
+  /** Home-menu tile appearance; only its icon has an equivalent here. */
+  tile?: Record<string, unknown>
+  /** HABPanel's drawer options; `hide` keeps a dashboard out of the menu. */
+  drawer?: Record<string, unknown>
   widgets: HPWidget[]
 }
 interface HPCustomWidget {
@@ -183,15 +187,18 @@ const THEME_MAP: Record<string, string> = {
  * HABPanel icons reference server icon sets; keep them as state-aware oh: icons.
  * HABPanel's "eclipse-smarthome-classic" id is the classic set (servers only accept "classic").
  */
+function ohIcon(name: string | undefined, rawIconset: string | undefined): string | undefined {
+  if (!name) return undefined
+  const iconset =
+    rawIconset === 'eclipse-smarthome-classic' || rawIconset === 'smarthome-classic' ? 'classic' : rawIconset
+  return 'oh:' + name + (iconset && iconset !== 'classic' ? '@' + iconset : '')
+}
+
 function iconRef(w: HPWidget): { icon?: string; iconSize?: number } {
-  const iconName = str(w.icon)
-  if (!iconName || w.hideicon === true) return {}
-  let iconset = str(w.iconset)
-  if (iconset === 'eclipse-smarthome-classic' || iconset === 'smarthome-classic') iconset = 'classic'
-  return {
-    icon: 'oh:' + iconName + (iconset && iconset !== 'classic' ? '@' + iconset : ''),
-    iconSize: num(w.icon_size),
-  }
+  if (w.hideicon === true) return {}
+  const icon = ohIcon(str(w.icon), str(w.iconset))
+  if (!icon) return {}
+  return { icon, iconSize: num(w.icon_size) }
 }
 
 type Converter = (w: HPWidget, report: Report) => { type: string; config: Record<string, unknown> } | null
@@ -407,6 +414,10 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     version: MODEL_VERSION,
     id,
     name: str(hp.name) ?? id,
+    // The menu tile's icon carries over to the Home tile and the sidebar; the rest of the tile
+    // styling (backdrops, colours, background images) has no equivalent and is dropped.
+    icon: ohIcon(str(hp.tile?.icon), str(hp.tile?.iconset)),
+    hideInSidebar: hp.drawer?.hide === true ? true : undefined,
     columns,
     rowHeight,
     gap,

@@ -35,6 +35,10 @@ export interface Dashboard {
   version: number
   id: string
   name: string
+  /** Icon shown on the Home tile and in the sidebar (any `Icon` reference). */
+  icon?: string
+  /** Keep this dashboard out of the sidebar list (HABPanel's `drawer.hide`). */
+  hideInSidebar?: boolean
   /** Grid columns at the `lg` breakpoint (narrower breakpoints scale down). */
   columns: number
   /**

@@ -17,7 +17,7 @@ import { SettingsPanel } from '../editor/SettingsPanel'
 import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
 import { PaletteSheet } from '../editor/PaletteSheet'
 import { SignInSheet } from '../editor/SignInSheet'
-import { navigate } from './router'
+import { NavButton } from './Sidebar'
 
 export function DashboardView({ id }: { id: string }) {
   // subscribed, not read once: a save, an import or a reload replaces the stored dashboard, and
@@ -56,9 +56,7 @@ export function DashboardView({ id }: { id: string }) {
     return (
       <div className="nh-dash">
         <header className="nh-dash__bar">
-          <button className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label="Home">
-            ‹
-          </button>
+          <NavButton />
           <span className="nh-dash__title">Not found</span>
         </header>
         <p className="nh-dash__empty">Dashboard “{id}” does not exist.</p>
@@ -125,9 +123,7 @@ export function DashboardView({ id }: { id: string }) {
           </>
         ) : (
           <>
-            <button className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label="Home">
-              ‹
-            </button>
+            <NavButton />
             <span className="nh-dash__title">{dashboard.name}</span>
             <span className="nh-dash__spacer" />
             <button className="nh-iconbtn" onClick={enterEdit} aria-label="Edit dashboard" title="Edit dashboard">

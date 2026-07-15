@@ -18,6 +18,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   and widget chrome slims itself down in tight cells, so labels stay readable instead of
   clipping. Stacked rows are full-width, so there they size their text to the room the row has
   rather than shrinking it to match a desktop.
+- **Navigate from anywhere** — a pull-out sidebar lists every dashboard, so switching is one tap
+  from wherever you are. It slides the dashboard aside on desktop and overlays it on phones,
+  closes itself when you move away from it, and pins open if you would rather it stayed. The Home
+  screen is still there, and the sidebar can be switched off entirely.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
 - **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or

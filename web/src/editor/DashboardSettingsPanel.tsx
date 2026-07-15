@@ -4,13 +4,15 @@
  * exactly like the widget settings panel.
  */
 import { Sheet } from '../components/Sheet'
+import { IconPicker } from '../components/IconPicker'
 import type { Dashboard } from '../model/dashboard'
 import { setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
-import { deleteDashboard } from '../store/config'
+import { deleteDashboard, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
   const fixed = dashboard.rowHeight !== 'match'
+  const sidebarOn = useConfigStore((s) => s.settings.sidebar !== false)
 
   const remove = async () => {
     if (!window.confirm(`Delete dashboard “${dashboard.name}” and all its widgets? This cannot be undone.`)) return
@@ -40,6 +42,28 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
             onChange={(e) => updateDashboardMeta({ name: e.target.value }, 'dash:name')}
           />
         </label>
+
+        <div className="nh-field">
+          <span className="nh-field__label">Icon</span>
+          <IconPicker
+            id="nh-dash-icon"
+            value={dashboard.icon ?? ''}
+            onChange={(icon) => updateDashboardMeta({ icon: icon || undefined }, 'dash:icon')}
+          />
+          <span className="nh-field__hint">Shown on the Home tile and in the sidebar.</span>
+        </div>
+
+        {sidebarOn ? (
+          <label className="nh-field nh-field--row" htmlFor="nh-dash-hide">
+            <span className="nh-field__label">Hide from the sidebar</span>
+            <input
+              id="nh-dash-hide"
+              type="checkbox"
+              checked={dashboard.hideInSidebar === true}
+              onChange={(e) => updateDashboardMeta({ hideInSidebar: e.target.checked || undefined })}
+            />
+          </label>
+        ) : null}
 
         <label className="nh-field" htmlFor="nh-dash-columns">
           <span className="nh-field__label">Grid columns</span>

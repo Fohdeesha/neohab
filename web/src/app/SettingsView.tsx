@@ -21,7 +21,7 @@ import {
   type Theme,
   type ThemeTokens,
 } from '../themes/themes'
-import { navigate } from './router'
+import { NavButton } from './Sidebar'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
@@ -43,6 +43,12 @@ export function SettingsView() {
     if (err) setNotice('Theme applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
   }
 
+  const toggleSidebarSetting = async (on: boolean) => {
+    setNotice(null)
+    const err = await saveSettings({ sidebar: on })
+    if (err) setNotice('Applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
+  }
+
   const newFromCurrent = () => {
     const id = 'custom-' + Math.random().toString(36).slice(2, 8)
     setEditing({
@@ -56,9 +62,7 @@ export function SettingsView() {
   return (
     <div className="nh-dash">
       <header className="nh-dash__bar">
-        <button className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label="Home">
-          ‹
-        </button>
+        <NavButton />
         <span className="nh-dash__title">Settings</span>
       </header>
 
@@ -97,6 +101,21 @@ export function SettingsView() {
           <button type="button" className="nh-btn nh-btn--ghost" onClick={newFromCurrent}>
             New theme from current
           </button>
+
+          <label className="nh-field nh-field--row" htmlFor="nh-set-sidebar">
+            <span className="nh-field__label">Dashboard sidebar</span>
+            <input
+              id="nh-set-sidebar"
+              type="checkbox"
+              checked={settings.sidebar !== false}
+              onChange={(e) => void toggleSidebarSetting(e.target.checked)}
+            />
+          </label>
+          <p className="nh-settings__text">
+            Adds a ☰ to the top-left of every screen that slides out the dashboard list, so you can
+            switch dashboards without going back Home. Turn it off to navigate from the Home screen
+            only.
+          </p>
         </section>
 
         {editing ? (

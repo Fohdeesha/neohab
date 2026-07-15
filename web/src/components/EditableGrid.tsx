@@ -23,6 +23,7 @@ import {
   type BumpPlan,
 } from '../model/layout'
 import { selectWidget, setWidgetRect, useEditorStore } from '../store/editor'
+import { useSidebarLayout } from '../store/sidebar'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
@@ -59,6 +60,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   const selectedId = useEditorStore((s) => s.selectedId)
   const containerWidth = useContainerWidth(containerRef)
   const viewportWidth = useViewportWidth()
+  const sidebarInset = useSidebarLayout().inset
   const dwellRef = useRef<number | null>(null)
   // The dwell fires 400ms after the render that armed it, by which time an undo, a redo or a
   // settings edit may have replaced the draft. The plan must be made against the current
@@ -75,10 +77,12 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   }
   useEffect(() => clearDwell, [])
 
-  if (viewportWidth < STACK_BELOW) {
+  if (viewportWidth - sidebarInset < STACK_BELOW) {
     // Phones edit the stack they actually see: reorder + settings, not grid geometry.
     // (Viewport width, not container width: the side panel shrinking the container on a
-    // desktop must not flip the editor to the stacked surface mid-edit.)
+    // desktop must not flip the editor to the stacked surface mid-edit. The sidebar's inset is
+    // subtracted because it is standing chrome rather than a transient panel - leaving it out
+    // would show a grid here while the runtime Grid, which measures its container, stacked.)
     return <StackedEditGrid dashboard={dashboard} />
   }
 

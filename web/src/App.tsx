@@ -9,12 +9,15 @@ import { useRoute } from './app/router'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
 import { SettingsView } from './app/SettingsView'
+import { Sidebar } from './app/Sidebar'
+import { useSidebarLayout } from './store/sidebar'
 import { Toast } from './components/Toast'
 
 registerBuiltinWidgets()
 
 export default function App() {
   const route = useRoute()
+  const sidebar = useSidebarLayout()
   const loaded = useConfigStore((s) => s.loaded)
   const themeId = useConfigStore((s) => s.settings.theme)
   const customThemes = useConfigStore((s) => s.customThemes)
@@ -67,15 +70,20 @@ export default function App() {
   }
 
   return (
-    <main className="nh-app">
-      {route.name === 'home' ? (
-        <Home ohVersion={ohVersion} />
-      ) : route.name === 'settings' ? (
-        <SettingsView />
-      ) : (
-        <DashboardView id={route.id} />
-      )}
-      <Toast />
-    </main>
+    <>
+      <Sidebar />
+      {/* The inset moves the whole app, sticky top bars included, so the sidebar sits beside
+          the content rather than over it. It is 0 whenever the sidebar overlays or is closed. */}
+      <main className="nh-app" style={{ paddingLeft: sidebar.inset }}>
+        {route.name === 'home' ? (
+          <Home ohVersion={ohVersion} />
+        ) : route.name === 'settings' ? (
+          <SettingsView />
+        ) : (
+          <DashboardView id={route.id} />
+        )}
+        <Toast />
+      </main>
+    </>
   )
 }
