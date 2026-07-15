@@ -7,7 +7,7 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
-import { cellMetrics, iconScale, stackedOrder, textScale, STACK_REFERENCE_WIDTH } from '../model/layout'
+import { cellMetrics, iconScale, stackedOrder, stackedTextScale, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { selectWidget, updateDashboardMeta, useEditorStore } from '../store/editor'
 import { CellHandle } from './CellHandle'
@@ -77,7 +77,6 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
         {
           gap: dashboard.gap ?? 8,
           '--nh-iconscale': iconScale(dashboard, unit),
-          '--nh-textscale': textScale(dashboard, unit),
         } as React.CSSProperties
       }
       onPointerMove={onPointerMove}
@@ -87,6 +86,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
       {ordered.map((widget) => {
         const min = getWidgetDefinition(widget.type)?.minPixelHeight ?? 0
         const rect = widget.layout.lg ?? { h: 3 }
+        const height = Math.round(Math.max(rect.h * unit, min))
         const isDragging = drag?.id === widget.id
         const indicator = drag && !isDragging && nonDragged++ === drag.insertPos
         return (
@@ -102,10 +102,13 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 (selectedId === widget.id ? ' nh-cell--selected' : '') +
                 (isDragging ? ' nh-cell--dragging' : '')
               }
-              style={{
-                height: Math.round(Math.max(rect.h * unit, min)),
-                transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
-              }}
+              style={
+                {
+                  height,
+                  '--nh-textscale': stackedTextScale(dashboard, unit, height),
+                  transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
+                } as React.CSSProperties
+              }
             >
               <WidgetHost instance={widget} editing />
               <div

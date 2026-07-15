@@ -78,6 +78,28 @@ export function textScale(dashboard: Dashboard, rowHeight: number): number {
   return Math.max(MIN_TEXT_SCALE, iconScale(dashboard, rowHeight))
 }
 
+/**
+ * A stacked row a phone can comfortably read full-size text in: enough for a scaled icon, the
+ * gap under it and a wrapped label. Below this the scale eases back down to the floor.
+ */
+export const STACK_COMFORT_HEIGHT = 96
+
+/**
+ * Text scale for one row of the single-column stack.
+ *
+ * The grid's proportional scale is the wrong measure here. Stacked rows are as wide as the
+ * viewport and as tall as they would be on a reference desktop, so the scale would sit at its
+ * floor on every phone - a fixed 0.8 no matter how big the screen - and render tiny text in a
+ * roomy full-width row. Size it by the room the row actually has instead: full size once the row
+ * can hold an icon and a label, easing to the floor for the short rows a many-column dashboard
+ * stacks into. Never below the grid scale, so this can only ever add room, and never above 1:
+ * a full-width row has width to spare, so there is nothing to gain by growing past normal
+ * reading size.
+ */
+export function stackedTextScale(dashboard: Dashboard, unit: number, cellHeight: number): number {
+  return Math.max(textScale(dashboard, unit), Math.min(1, cellHeight / STACK_COMFORT_HEIGHT))
+}
+
 export function collides(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 }

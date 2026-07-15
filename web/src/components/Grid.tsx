@@ -7,14 +7,23 @@
  * collapse to a single-column stack (see stackedOrder: pinned order when the user reordered it,
  * else row by row); stacked heights preserve the author's intent by sizing rows as they would
  * render at a reference desktop width, with each widget's minPixelHeight as a floor so controls
- * never clip on phones.
+ * never clip on phones. Stacked rows size their text per row (see stackedTextScale) rather than
+ * from the grid's proportional scale, because a full-width row's room is its own height.
  *
  * Intermediate breakpoints (auto-derived md/sm) and drag-to-edit are later phases; this
  * component reads the same layout schema they will, so adding them needs no data change.
  */
 import { useRef } from 'react'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { cellMetrics, iconScale, stackedOrder, textScale, STACK_BELOW, STACK_REFERENCE_WIDTH } from '../model/layout'
+import {
+  cellMetrics,
+  iconScale,
+  stackedOrder,
+  stackedTextScale,
+  textScale,
+  STACK_BELOW,
+  STACK_REFERENCE_WIDTH,
+} from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
@@ -47,14 +56,20 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
           {
             gap: dashboard.gap ?? 8,
             '--nh-iconscale': iconScale(dashboard, unit),
-            '--nh-textscale': textScale(dashboard, unit),
           } as React.CSSProperties
         }
       >
         {ordered.map((w) => {
           const min = getWidgetDefinition(w.type)?.minPixelHeight ?? 0
+          const height = Math.round(Math.max(rectOf(w).h * unit, min))
           return (
-            <div key={w.id} className="nh-gcell" style={{ height: Math.round(Math.max(rectOf(w).h * unit, min)) }}>
+            <div
+              key={w.id}
+              className="nh-gcell"
+              style={
+                { height, '--nh-textscale': stackedTextScale(dashboard, unit, height) } as React.CSSProperties
+              }
+            >
               <WidgetHost instance={w} editing={editing} />
             </div>
           )

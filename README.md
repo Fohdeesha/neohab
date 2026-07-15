@@ -13,9 +13,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
 
 - **Mobile-first** — dashboards are always viewable and dynamically sized, from phone to
   wall-mounted tablet to desktop. Phones and portrait tablets get a single-column stack whose
-  order you can drag-to-reorder independently of the grid layout. A dashboard scales as one
-  proportional unit: icons *and* text track the cell size (text down to a readable floor), and
-  widget chrome slims itself down in tight cells, so labels stay readable instead of clipping.
+  order you can drag-to-reorder independently of the grid layout. On the grid a dashboard scales
+  as one proportional unit: icons *and* text track the cell size (text down to a readable floor),
+  and widget chrome slims itself down in tight cells, so labels stay readable instead of
+  clipping. Stacked rows are full-width, so there they size their text to the room the row has
+  rather than shrinking it to match a desktop.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
 - **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
