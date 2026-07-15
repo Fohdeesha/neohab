@@ -1,8 +1,8 @@
 /**
  * Settings section for custom widget definitions: create, edit, and delete `widgetdef:<id>`
  * components. Template widgets edit their HTML and a settings schema (each row becomes a field
- * in the widget's settings panel); JavaScript widgets edit their sandboxed script instead and
- * only run once an administrator has enabled them.
+ * in the widget's settings panel); JavaScript widgets edit their sandboxed script instead, and
+ * an administrator can stop them running at all.
  */
 import { useState } from 'react'
 import {
@@ -57,8 +57,8 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
       <h2 className="nh-settings__h">Custom widgets</h2>
       <p className="nh-settings__text">
         Template widgets are HTML with expressions (HABPanel-compatible) and are always safe to
-        run. JavaScript widgets run in an isolated sandbox but execute code, so they stay off
-        until you enable them.
+        run. JavaScript widgets execute code, but only inside a sandbox that cannot reach this
+        dashboard, your session or your token. Turn them off to stop them running at all.
       </p>
       <label className="nh-field nh-field--row" htmlFor="allow-js">
         <span className="nh-field__label">Enable JavaScript widgets</span>

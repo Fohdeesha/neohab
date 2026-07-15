@@ -33,13 +33,17 @@ const SETTINGS_COMPONENT = 'neohab:settings'
 export interface AppSettings {
   version: number
   theme: string
-  /** Tier-2 sandboxed JavaScript widgets only run when an admin has enabled them. */
+  /**
+   * Tier-2 JavaScript widgets. On by default: they only ever run in a sandbox that cannot reach
+   * the app, the session or the token, which is a tighter box than the frame widget puts an
+   * embedded page in. An admin can still turn them off to stop them running at all.
+   */
   allowJsWidgets?: boolean
   /** Per-icon upload size cap in KB (default DEFAULT_MAX_ICON_KB). */
   maxIconKB?: number
 }
 
-const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark' })
+const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true })
 
 interface ConfigState {
   dashboards: Dashboard[]

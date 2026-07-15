@@ -11,8 +11,8 @@
  *   oh.sendCommand(name, command)   - send a command
  *   oh.onReady(cb)                  - config/theme are populated
  *
- * JavaScript widgets only run when an administrator has enabled them in Settings
- * (settings.allowJsWidgets); otherwise a notice renders instead.
+ * JavaScript widgets run unless an administrator has turned them off in Settings
+ * (settings.allowJsWidgets); when off, a notice renders instead.
  */
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -211,8 +211,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
         <div className="nh-template">
           <span className="nh-template__badge">javascript</span>
           <span className="nh-template__text">
-            “{def.name}” is a JavaScript widget. These are disabled until an administrator enables
-            them in Settings.
+            “{def.name}” is a JavaScript widget. An administrator has disabled these in Settings.
           </span>
         </div>
       </div>
