@@ -2,55 +2,30 @@
  * Dashboard navigation sidebar: reachable from every screen via the ☰ in the top-left, so
  * switching dashboards never means going via Home (Home stays, and is the list's first entry).
  *
- * Opening it insets the dashboard beside it on wide screens and overlays it on phones. Unless
- * pinned it closes as soon as it is done with: when the pointer leaves it, when something
- * outside it is clicked or tapped, on Escape, and on navigation.
+ * Opening it insets the dashboard beside it on wide screens and overlays it on phones. Once open
+ * it stays open until it is deliberately dismissed - by clicking or tapping somewhere else, by
+ * picking a dashboard, on Escape, or on navigation. It deliberately does NOT close when the
+ * pointer merely moves away: reading down a list of dashboards means moving off it, and a menu
+ * that vanishes because a mouse drifted is one you have to re-open to use.
  *
  * The order matches Home's tiles (by name) on purpose - two lists of the same dashboards that
  * disagreed about their order would be a puzzle to use.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useConfigStore } from '../store/config'
 import { useEditorStore } from '../store/editor'
 import { closeSidebar, setSidebarPinned, toggleSidebar, useSidebarLayout } from '../store/sidebar'
 import { navigate, useRoute } from './router'
 import { Icon } from '../components/Icon'
 
-/** Grace period so a pointer clipping the edge on its way somewhere else doesn't close it. */
-const CLOSE_DELAY_MS = 180
-
 export function Sidebar() {
   const dashboards = useConfigStore((s) => s.dashboards)
   const layout = useSidebarLayout()
   const route = useRoute()
-  const closeTimer = useRef<number | null>(null)
 
   const { enabled, open, pinned } = layout
 
-  const cancelClose = () => {
-    if (closeTimer.current === null) return
-    window.clearTimeout(closeTimer.current)
-    closeTimer.current = null
-  }
-
-  const scheduleClose = () => {
-    cancelClose()
-    closeTimer.current = window.setTimeout(closeSidebar, CLOSE_DELAY_MS)
-  }
-
-  useEffect(() => cancelClose, [])
-
-  /**
-   * Opening always wins over a close the pointer armed earlier. Without this, a close scheduled
-   * as the pointer left is still in flight when it is re-opened moments later - by ☰ or by the
-   * sidebar sliding out from under a resting pointer on navigation - and fires into the fresh
-   * sidebar, shutting it a fraction of a second after it appeared.
-   */
-  useEffect(() => {
-    if (open) cancelClose()
-  }, [open])
-
-  // Any navigation closes it, not just the rows above: arriving somewhere via browser-back or a
+  // Any navigation closes it, not just the rows below: arriving somewhere via browser-back or a
   // Home tile has finished with the sidebar just as much as clicking a row has. Harmless while
   // pinned, where being open does not depend on this flag.
   const routeKey = route.name === 'dashboard' ? 'd:' + route.id : route.name
@@ -58,8 +33,8 @@ export function Sidebar() {
     closeSidebar()
   }, [routeKey])
 
-  // Anything outside closes it: a click/tap on the dashboard is the touch equivalent of moving
-  // the pointer away, and it also covers a mouse that opened the sidebar but never entered it.
+  // A click or tap anywhere outside dismisses it - the one gesture that closes it on both mouse
+  // and touch. pointerdown rather than click so it goes away as the press lands, not after it.
   useEffect(() => {
     if (!open || pinned) return
     const onDown = (e: PointerEvent) => {
@@ -97,8 +72,6 @@ export function Sidebar() {
         className={'nh-side' + (open ? ' nh-side--open' : '') + (layout.canPush ? '' : ' nh-side--overlay')}
         aria-label="Dashboards"
         aria-hidden={!open}
-        onMouseEnter={cancelClose}
-        onMouseLeave={pinned ? undefined : scheduleClose}
       >
         <nav className="nh-side__list">
           <button

@@ -49,8 +49,8 @@ export const toggleSidebar = (): void => useSidebarStore.setState((s) => ({ open
  * Pinning clears `open` rather than setting it: while pinned, `pinned` alone decides visibility,
  * and a leftover `open` would resurface the moment the screen stopped being wide enough to honour
  * the pin - rotating a pinned tablet to portrait would throw the sidebar over the dashboard as an
- * overlay nobody asked for. Unpinning does the opposite and leaves it on screen, so it goes away
- * on its own terms (the pointer leaving) rather than vanishing from under the cursor.
+ * overlay nobody asked for. Unpinning does the opposite and leaves it on screen, to be dismissed
+ * like any unpinned sidebar, rather than vanishing from under the cursor that just unpinned it.
  */
 export function setSidebarPinned(pinned: boolean): void {
   try {
