@@ -1881,10 +1881,18 @@ button {
   box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
 }
 
+/* Catches the click that dismisses an unpinned sidebar so it cannot also press what is behind
+   it. Transparent while the sidebar pushes the content aside: the dashboard is fully visible
+   there, it is just not accepting clicks until the sidebar is out of the way. */
 .nh-side__scrim {
   position: fixed;
   inset: 0;
   z-index: 64;
+  background: transparent;
+}
+
+/* Overlaying a phone: dim what the sidebar is covering. */
+.nh-side__scrim--dim {
   background: rgba(0, 0, 0, 0.45);
 }
 

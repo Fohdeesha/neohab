@@ -8,6 +8,10 @@
  * pointer merely moves away: reading down a list of dashboards means moving off it, and a menu
  * that vanishes because a mouse drifted is one you have to re-open to use.
  *
+ * While it is unpinned a scrim covers everything else, so the click that dismisses it does just
+ * that and does not also work whatever it landed on. The dashboard is live under a *pinned*
+ * sidebar, which is not going anywhere, and inert under an unpinned one.
+ *
  * The order matches Home's tiles (by name) on purpose - two lists of the same dashboards that
  * disagreed about their order would be a puzzle to use.
  */
@@ -33,24 +37,14 @@ export function Sidebar() {
     closeSidebar()
   }, [routeKey])
 
-  // A click or tap anywhere outside dismisses it - the one gesture that closes it on both mouse
-  // and touch. pointerdown rather than click so it goes away as the press lands, not after it.
+  // Escape is the keyboard's version of clicking away; the scrim below handles pointers.
   useEffect(() => {
     if (!open || pinned) return
-    const onDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target?.closest('.nh-side, .nh-side__trigger')) return
-      closeSidebar()
-    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeSidebar()
     }
-    window.addEventListener('pointerdown', onDown)
     window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [open, pinned])
 
   if (!enabled) return null
@@ -67,7 +61,17 @@ export function Sidebar() {
 
   return (
     <>
-      {open && !layout.canPush ? <div className="nh-side__scrim" /> : null}
+      {/* Rendered whenever it is open and unpinned, on every screen width - it is what makes the
+          dismissing click *only* dismiss. Invisible where the sidebar pushes the content aside
+          (nothing is hidden, so dimming would only be noise) and dimmed where it overlays.
+          Closing on the click rather than the press keeps it in place for the whole gesture, so
+          nothing underneath sees any part of it. */}
+      {open && !pinned ? (
+        <div
+          className={'nh-side__scrim' + (layout.canPush ? '' : ' nh-side__scrim--dim')}
+          onClick={closeSidebar}
+        />
+      ) : null}
       <aside
         className={'nh-side' + (open ? ' nh-side--open' : '') + (layout.canPush ? '' : ' nh-side--overlay')}
         aria-label="Dashboards"
