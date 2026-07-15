@@ -7,6 +7,24 @@ interface FrameConfig {
   label?: string
   /** Reload interval in seconds (0 = never). */
   refresh?: number
+  /** Sandbox a page served from this openHAB (default false). Ignored for other origins. */
+  sandbox?: boolean
+}
+
+/**
+ * Is this page served from the same origin as neohab itself?
+ *
+ * Only same-origin pages are worth sandboxing: the browser already walls off other origins from
+ * the app's DOM, storage and token, and sandboxing them would break pages that legitimately need
+ * their own origin (WebRTC camera streams). An unparseable URL is treated as ours, so a page we
+ * cannot place is at least sandboxable rather than silently exempt.
+ */
+function isSameOrigin(url: string): boolean {
+  try {
+    return new URL(url, location.href).origin === location.origin
+  } catch {
+    return true
+  }
 }
 
 /** Frame - embeds an external page (weather, cameras, other UIs). */
@@ -27,9 +45,18 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     )
   }
 
+  const sandboxed = config.sandbox === true && isSameOrigin(config.url)
+
   return (
     <WidgetFrame label={config.label} bare>
-      <iframe key={generation} className="nh-frame" src={config.url} title={config.label ?? 'frame'} />
+      {/* the sandbox attribute only takes effect on load, so toggling it remounts the frame */}
+      <iframe
+        key={`${generation}:${sandboxed}`}
+        className="nh-frame"
+        src={config.url}
+        title={config.label ?? 'frame'}
+        sandbox={sandboxed ? 'allow-scripts' : undefined}
+      />
     </WidgetFrame>
   )
 }
@@ -39,11 +66,21 @@ export const frameWidget: WidgetDefinition<FrameConfig> = {
   name: 'Frame',
   description: 'Embed a web page',
   defaultSize: { w: 6, h: 5 },
-  defaultConfig: () => ({ url: '', refresh: 0 }),
+  defaultConfig: () => ({ url: '', refresh: 0, sandbox: false }),
   settings: [
     { key: 'url', type: 'text', label: 'Page URL', placeholder: 'https://…' },
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'refresh', type: 'number', label: 'Reload (seconds)', min: 0 },
+    {
+      key: 'sandbox',
+      type: 'boolean',
+      label: 'Sandbox the embedded page',
+      hint:
+        'A page served by openHAB itself can otherwise read this dashboard and your session token. Sandboxing ' +
+        'walls it off, but it can then no longer reach openHAB at all: Basic UI, Main UI and HABPanel still draw ' +
+        'themselves and quietly stop updating. Pages on any other address are already isolated by the browser, so ' +
+        'this does nothing for them.',
+    },
   ],
   Component: FrameWidget,
 }

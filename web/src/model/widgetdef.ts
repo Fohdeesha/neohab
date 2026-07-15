@@ -69,9 +69,10 @@ export function mergedSettingValues(
     const v = coerceSettingValue(s, raw)
     if (v !== undefined) out[s.id] = v
   }
-  // keep any extra instance keys the schema doesn't declare
+  // keep any extra instance keys the schema doesn't declare (own keys only: `k in out` would
+  // see Object.prototype and drop a setting named "toString")
   for (const [k, v] of Object.entries(instanceValues ?? {})) {
-    if (!(k in out)) out[k] = v
+    if (!Object.prototype.hasOwnProperty.call(out, k)) out[k] = v
   }
   return out
 }

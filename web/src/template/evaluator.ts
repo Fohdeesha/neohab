@@ -128,7 +128,7 @@ function evalNode(node: jsep.Expression, scope: Scope): unknown {
       const value = evalNode(n.right as jsep.Expression, scope)
       // Assignments only ever write template-scope variables, never members of exposed objects.
       if (left.type === 'Identifier' && !FORBIDDEN_PROPS.has(left.name as string)) {
-        scope[left.name as string] = value
+        assign(scope, left.name as string, value)
       }
       return value
     }
@@ -142,6 +142,24 @@ function evalNode(node: jsep.Expression, scope: Scope): unknown {
     default:
       return undefined
   }
+}
+
+/**
+ * Write a scope variable where it already lives, like AngularJS did: a name defined on a parent
+ * scope is updated there, so `ng-init="total = 0"` on a wrapper and `total = total + x` inside an
+ * ng-repeat accumulate into the same variable instead of the assignment landing on the loop's own
+ * child scope and vanishing with each iteration. An undeclared name is created locally.
+ */
+function assign(scope: Scope, name: string, value: unknown): void {
+  let target: object | null = scope
+  while (target) {
+    if (Object.prototype.hasOwnProperty.call(target, name)) {
+      ;(target as Scope)[name] = value
+      return
+    }
+    target = Object.getPrototypeOf(target) as object | null
+  }
+  scope[name] = value
 }
 
 function evalMember(n: AnyNode, scope: Scope): { object: unknown; value: unknown } {

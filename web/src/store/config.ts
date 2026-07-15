@@ -109,13 +109,19 @@ function parseComponents(components: UIComponent[]) {
     else if (c.uid.startsWith(ICON_PREFIX)) customIcons.push(c.config as unknown as CustomIcon)
     else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
   }
-  widgetDefs.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
-  customIcons.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id))
-  // stable, predictable Home ordering (component list order is storage-arbitrary). Tolerates a
-  // nameless dashboard: a hand-edited or half-written component must not throw here and take
-  // the whole configuration down with it.
-  dashboards.sort((a, b) => String(a.name ?? a.id ?? '').localeCompare(String(b.name ?? b.id ?? '')))
+  // stable, predictable ordering: component list order is storage-arbitrary
+  widgetDefs.sort(byName)
+  customIcons.sort(byName)
+  dashboards.sort(byName)
   return { dashboards, customThemes, widgetDefs, customIcons, settings }
+}
+
+/**
+ * Display order for anything with a name. Tolerates a nameless or half-written component: a
+ * hand-edited config must not throw in a comparator and take the whole configuration down.
+ */
+function byName<T extends { name?: string; id?: string }>(a: T, b: T): number {
+  return String(a.name ?? a.id ?? '').localeCompare(String(b.name ?? b.id ?? ''))
 }
 
 export async function loadConfig(): Promise<void> {
@@ -166,7 +172,7 @@ export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   await upsert(dashboardComponent(dashboard))
   useConfigStore.setState((s) => {
     const others = s.dashboards.filter((d) => d.id !== dashboard.id)
-    const dashboards = [...others, dashboard].sort((a, b) => a.name.localeCompare(b.name))
+    const dashboards = [...others, dashboard].sort(byName)
     return { dashboards }
   })
 }
@@ -221,7 +227,7 @@ export async function saveWidgetDef(def: CustomWidgetDef): Promise<void> {
   await upsert(widgetDefComponent(def))
   useConfigStore.setState((s) => {
     const others = s.widgetDefs.filter((d) => d.id !== def.id)
-    return { widgetDefs: [...others, def].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id)) }
+    return { widgetDefs: [...others, def].sort(byName) }
   })
 }
 
@@ -238,7 +244,7 @@ export async function saveCustomIcon(icon: CustomIcon): Promise<void> {
   await upsert(iconComponent(icon))
   useConfigStore.setState((s) => {
     const others = s.customIcons.filter((i) => i.id !== icon.id)
-    return { customIcons: [...others, icon].sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id)) }
+    return { customIcons: [...others, icon].sort(byName) }
   })
 }
 

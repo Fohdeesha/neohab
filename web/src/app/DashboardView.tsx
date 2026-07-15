@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getDashboard } from '../store/config'
+import { useConfigStore } from '../store/config'
 import {
   redo,
   saveDraft,
@@ -20,7 +20,9 @@ import { SignInSheet } from '../editor/SignInSheet'
 import { navigate } from './router'
 
 export function DashboardView({ id }: { id: string }) {
-  const saved = getDashboard(id)
+  // subscribed, not read once: a save, an import or a reload replaces the stored dashboard, and
+  // the view must follow it on its own rather than relying on an editor render to carry it in.
+  const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const editor = useEditorStore()
   const [signInOpen, setSignInOpen] = useState(false)
 

@@ -74,6 +74,19 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
   )
 }
 
+/**
+ * Value for a number input. Imported and hand-edited configs store numbers as strings, and a
+ * field that silently renders blank looks like an unset setting the user is about to lose.
+ */
+function numberValue(value: unknown): number | '' {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : ''
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value)
+    if (Number.isFinite(n)) return n
+  }
+  return ''
+}
+
 function CustomField({
   setting,
   value,
@@ -109,7 +122,7 @@ function CustomField({
           <input
             id={id}
             type="number"
-            value={typeof value === 'number' ? value : typeof value === 'string' && value !== '' ? Number(value) : ''}
+            value={numberValue(value)}
             onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
           />
         </label>
@@ -132,7 +145,16 @@ function CustomField({
   }
 }
 
-function Field({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
+function Field(props: { field: SettingField; widget: WidgetInstance; value: unknown }) {
+  return (
+    <>
+      <FieldInput {...props} />
+      {props.field.hint ? <p className="nh-field__hint">{props.field.hint}</p> : null}
+    </>
+  )
+}
+
+function FieldInput({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const set = (v: unknown) => updateWidgetConfig(widget.id, field.key, v)
   const id = `f-${widget.id}-${field.key}`
 
@@ -151,7 +173,7 @@ function Field({ field, widget, value }: { field: SettingField; widget: WidgetIn
           <input
             id={id}
             type="number"
-            value={typeof value === 'number' ? value : ''}
+            value={numberValue(value)}
             min={field.min}
             max={field.max}
             step={field.step}

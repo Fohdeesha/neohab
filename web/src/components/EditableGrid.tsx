@@ -60,6 +60,11 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   const containerWidth = useContainerWidth(containerRef)
   const viewportWidth = useViewportWidth()
   const dwellRef = useRef<number | null>(null)
+  // The dwell fires 400ms after the render that armed it, by which time an undo, a redo or a
+  // settings edit may have replaced the draft. The plan must be made against the current
+  // dashboard, not the one that was on screen when the pointer stopped moving.
+  const dashRef = useRef(dashboard)
+  dashRef.current = dashboard
   const { gap, rowHeight } = cellMetrics(dashboard, containerWidth)
 
   const clearDwell = () => {
@@ -114,7 +119,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     dwellRef.current = null
     setDrag((d) => {
       if (!d || d.mode !== 'move') return d
-      const plan = planBump(dashboard, d.id, d.target)
+      const plan = planBump(dashRef.current, d.id, d.target)
       if (!plan || plan.size === 0) return d
       return { ...d, bump: plan, valid: true }
     })

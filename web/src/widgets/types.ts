@@ -36,6 +36,8 @@ interface SettingCommon {
    * irrelevant, so the form only ever offers fields that do something.
    */
   showIf?: (config: Record<string, unknown>) => boolean
+  /** Explanatory line under the field, for settings whose consequences aren't self-evident. */
+  hint?: string
 }
 
 /**

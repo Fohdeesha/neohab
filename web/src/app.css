@@ -1107,6 +1107,14 @@ button {
   color: var(--nh-text-dim);
 }
 
+/* explains a field; the negative margin pulls it back under the field it belongs to */
+.nh-field__hint {
+  margin: -8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--nh-text-dim);
+}
+
 .nh-field input[type='text'],
 .nh-field input[type='number'],
 .nh-field input[type='password'],
