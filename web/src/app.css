@@ -46,7 +46,11 @@ button {
 /* ============================================================================
    App shell
    ============================================================================ */
+/* Flex column so a view can fill the viewport via flex: 1. Percentage heights cannot do it:
+   .nh-app's own height is indefinite (min-height only), so a child's min-height: 100% is inert. */
 .nh-app {
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -188,7 +192,7 @@ button {
    Dashboard chrome
    ============================================================================ */
 .nh-dash {
-  min-height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -213,6 +217,8 @@ button {
 
 .nh-dash__surface {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
 }
 
@@ -274,9 +280,12 @@ button {
 
 /* An empty dashboard still needs a visible editing surface to drop widgets onto.
    position: relative anchors the rubber-band selection box (.nh-marquee) to the grid.
-   user-select: none — a marquee dragged across widgets must not smear text selection. */
+   user-select: none — a marquee dragged across widgets must not smear text selection.
+   flex: 1 — the grid owns all the empty space below the widgets (down to the edit hint),
+   so a lasso can start anywhere on it, not just between the rows. */
 .nh-grid--edit {
   position: relative;
+  flex: 1;
   min-height: 240px;
   user-select: none;
 }
