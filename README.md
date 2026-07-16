@@ -28,8 +28,12 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   browser and stored on your openHAB server. Zero config files.
 - **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
   resize, delete them from a button on the widget, undo/redo anything, and save when you are
-  ready. Dropping onto an occupied spot rejects by default; hold there for a moment and the
-  widgets in the way step aside — swapping with a same-size neighbour, or shuffling down.
+  ready (Save returns you to the live dashboard). Dropping onto an occupied spot rejects by
+  default; hold there for a moment and the widgets in the way step aside — swapping with a
+  same-size neighbour, or shuffling down. Select several widgets at once (Ctrl/Cmd- or
+  Shift-click, a drag-a-box marquee, or long-press on touch) to copy, cut or delete them
+  together, and copy/paste widgets — including from one dashboard to another — with the usual
+  Ctrl+C / Ctrl+V.
 - **Import / export** — back up, restore and share complete dashboard configurations (or single
   dashboards and widgets) as JSON; restore by replacing everything or merging a backup into
   what you have.

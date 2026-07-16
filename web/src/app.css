@@ -216,6 +216,35 @@ button {
   padding: 12px;
 }
 
+/* Contextual selection/clipboard action bar (shown in edit mode when something is selected or
+   the clipboard holds widgets). Sticky under the toolbar so batch actions stay reachable.
+   Content is left-aligned on purpose: the widget settings side-panel occupies 340px on the
+   right of a wide screen, so right-aligned buttons here would end up hidden behind it. */
+.nh-selbar {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--nh-brand) 12%, var(--nh-surface));
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-selbar__count {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--nh-text);
+}
+
+.nh-selbar .nh-btn {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 0.9rem;
+}
+
 .nh-dash__empty {
   padding: 2rem;
   color: var(--nh-text-dim);
@@ -243,9 +272,23 @@ button {
   display: grid;
 }
 
-/* An empty dashboard still needs a visible editing surface to drop widgets onto. */
+/* An empty dashboard still needs a visible editing surface to drop widgets onto.
+   position: relative anchors the rubber-band selection box (.nh-marquee) to the grid.
+   user-select: none — a marquee dragged across widgets must not smear text selection. */
 .nh-grid--edit {
+  position: relative;
   min-height: 240px;
+  user-select: none;
+}
+
+/* Rubber-band selection box dragged across empty grid area. */
+.nh-marquee {
+  position: absolute;
+  z-index: 25;
+  pointer-events: none;
+  border: 1px solid var(--nh-brand);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--nh-brand) 16%, transparent);
 }
 
 .nh-grid--stacked {

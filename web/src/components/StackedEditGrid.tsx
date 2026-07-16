@@ -9,9 +9,18 @@ import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
 import { cellMetrics, iconScale, stackedOrder, stackedTextScale, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
-import { selectWidget, updateDashboardMeta, useEditorStore } from '../store/editor'
+import {
+  addToSelection,
+  selectWidget,
+  toggleWidgetSelection,
+  updateDashboardMeta,
+  useEditorStore,
+} from '../store/editor'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
+
+/** Touch hold that starts a multi-selection (mirrors the wide grid). */
+const LONG_PRESS_MS = 500
 
 interface DragState {
   id: string
@@ -24,9 +33,50 @@ interface DragState {
 export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   const ordered = stackedOrder(dashboard)
   const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
-  const selectedId = useEditorStore((s) => s.selectedId)
+  const selectedIds = useEditorStore((s) => s.selectedIds)
   const [drag, setDrag] = useState<DragState | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  // Touch long-press → multi-select, matching the wide grid.
+  const longPressRef = useRef<number | null>(null)
+  const longPressStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressClickRef = useRef(false)
+
+  const clearLongPress = () => {
+    if (longPressRef.current !== null) {
+      window.clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+    longPressStart.current = null
+  }
+
+  const onOverlayClick = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false
+      return
+    }
+    if (e.ctrlKey || e.metaKey) toggleWidgetSelection(id)
+    else if (e.shiftKey) addToSelection(id)
+    else selectWidget(id)
+  }
+
+  const onOverlayPointerDown = (id: string) => (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') return
+    suppressClickRef.current = false // clear any stale flag from a press whose click never fired
+    clearLongPress()
+    longPressStart.current = { x: e.clientX, y: e.clientY }
+    longPressRef.current = window.setTimeout(() => {
+      suppressClickRef.current = true
+      toggleWidgetSelection(id)
+      navigator.vibrate?.(10)
+    }, LONG_PRESS_MS)
+  }
+
+  const onOverlayPointerMove = (e: React.PointerEvent) => {
+    const start = longPressStart.current
+    if (!start) return
+    if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
+  }
 
   /** How many non-dragged rows the pointer is below (midpoint rule) = insertion position. */
   const insertPosFor = (clientY: number, dragId: string): number => {
@@ -56,11 +106,21 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     setDrag({ ...drag, dy: e.clientY - drag.startY, insertPos: insertPosFor(e.clientY, drag.id) })
   }
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!drag) return
     const from = ordered.findIndex((w) => w.id === drag.id)
     setDrag(null)
-    selectWidget(drag.id)
+    // Selection on drop: a no-move press on the handle is a click on the widget, so it behaves
+    // exactly like a body click (Ctrl toggles, Shift adds, plain replace-selects — matching the
+    // wide grid). A real reorder keeps a multi-selection intact when the widget belongs to it.
+    const clickLike = Math.abs(drag.dy) <= 5
+    if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
+    else if (clickLike && e.shiftKey) addToSelection(drag.id)
+    else if (clickLike) selectWidget(drag.id)
+    else {
+      const sel = useEditorStore.getState().selectedIds
+      if (!(sel.length > 1 && sel.includes(drag.id))) selectWidget(drag.id)
+    }
     if (drag.insertPos === from) return // dropped where it was; no undo entry
     const ids = ordered.filter((w) => w.id !== drag.id).map((w) => w.id)
     ids.splice(drag.insertPos, 0, drag.id)
@@ -99,7 +159,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
               }}
               className={
                 'nh-cell' +
-                (selectedId === widget.id ? ' nh-cell--selected' : '') +
+                (selectedIds.includes(widget.id) ? ' nh-cell--selected' : '') +
                 (isDragging ? ' nh-cell--dragging' : '')
               }
               style={
@@ -113,10 +173,11 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
               <WidgetHost instance={widget} editing />
               <div
                 className="nh-cell__overlay"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  selectWidget(widget.id)
-                }}
+                onClick={onOverlayClick(widget.id)}
+                onPointerDown={onOverlayPointerDown(widget.id)}
+                onPointerMove={onOverlayPointerMove}
+                onPointerUp={clearLongPress}
+                onPointerCancel={clearLongPress}
               />
               <CellHandle id={widget.id} type={widget.type} onDragStart={beginDrag(widget.id)} />
             </div>

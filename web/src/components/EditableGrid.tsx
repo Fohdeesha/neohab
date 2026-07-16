@@ -8,6 +8,13 @@
  * BUMP_DWELL_MS. Grid layout edits need the full grid, so they require a wide viewport; narrow
  * screens edit the single-column stack instead (settings, add/remove, drag-to-reorder — see
  * StackedEditGrid).
+ *
+ * Selection: a plain click selects one widget (opening its settings); Ctrl/Cmd-click toggles a
+ * widget in/out of a multi-selection and Shift-click adds to it; touch long-press starts a
+ * multi-selection; and a mouse drag from ANYWHERE that is not a handle — widget bodies included,
+ * because a dense dashboard has next to no bare background — draws a rubber-band box selecting
+ * everything it touches (widgets move only by their handle strip, so a body-drag is unambiguous).
+ * A multi-selection drives batch copy/cut/delete from the toolbar (see DashboardView).
  */
 import { useEffect, useRef, useState } from 'react'
 import type { Dashboard, Rect } from '../model/dashboard'
@@ -22,7 +29,15 @@ import {
   STACK_BELOW,
   type BumpPlan,
 } from '../model/layout'
-import { selectWidget, setWidgetRect, useEditorStore } from '../store/editor'
+import {
+  addToSelection,
+  clearSelection,
+  selectWidget,
+  setSelection,
+  setWidgetRect,
+  toggleWidgetSelection,
+  useEditorStore,
+} from '../store/editor'
 import { useSidebarLayout } from '../store/sidebar'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
@@ -35,6 +50,9 @@ import { useViewportWidth } from './useViewportWidth'
  * Dragging across the grid crosses plenty of widgets on the way; only stopping on one means it.
  */
 const BUMP_DWELL_MS = 400
+
+/** Touch hold that starts a multi-selection. */
+const LONG_PRESS_MS = 500
 
 interface DragState {
   id: string
@@ -52,22 +70,71 @@ interface DragState {
   bump: BumpPlan | null
 }
 
+/** Rubber-band selection box, in container-local pixels. Exists only once the pointer has
+ * moved past MARQUEE_THRESHOLD_PX — before that the press is a potential click (see pending). */
+interface MarqueeState {
+  startX: number
+  startY: number
+  curX: number
+  curY: number
+  /** Shift/Ctrl/Cmd held at the start: add the enclosed widgets to the existing selection. */
+  additive: boolean
+}
+
+/**
+ * A mouse press that may become either a click (selection) or a marquee (if it moves). Held in
+ * a ref, not state: it changes on pointer events that must not re-render the grid.
+ */
+interface PendingMarquee {
+  clientX: number
+  clientY: number
+  additive: boolean
+  /** Started on a widget overlay (vs bare grid background). A bare-background click clears the
+   * selection; a widget click's selection is handled by the overlay's own click handler. */
+  fromWidget: boolean
+}
+
+/** Movement past this many pixels turns a press into a marquee instead of a click. */
+const MARQUEE_THRESHOLD_PX = 5
+
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
+
+/** Pixel bounding box (left/top/right/bottom) of a grid rect at the given cell metrics. */
+function pixelBox(r: Rect, colWidth: number, rowHeight: number, gap: number) {
+  const left = r.x * (colWidth + gap)
+  const top = r.y * (rowHeight + gap)
+  return { left, top, right: left + r.w * colWidth + (r.w - 1) * gap, bottom: top + r.h * rowHeight + (r.h - 1) * gap }
+}
+
+function boxesOverlap(
+  a: { left: number; top: number; right: number; bottom: number },
+  b: { left: number; top: number; right: number; bottom: number }
+): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+}
 
 export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
-  const selectedId = useEditorStore((s) => s.selectedId)
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null)
+  const selectedIds = useEditorStore((s) => s.selectedIds)
   const containerWidth = useContainerWidth(containerRef)
   const viewportWidth = useViewportWidth()
   const sidebarInset = useSidebarLayout().inset
   const dwellRef = useRef<number | null>(null)
+  // Touch long-press → multi-select. One press at a time; the ref survives re-renders.
+  const longPressRef = useRef<number | null>(null)
+  const longPressStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressClickRef = useRef(false)
+  // A mouse press that may become a click or a marquee, depending on movement. Must be
+  // declared with the other hooks: the stacked-surface early return below skips later code.
+  const pendingRef = useRef<PendingMarquee | null>(null)
   // The dwell fires 400ms after the render that armed it, by which time an undo, a redo or a
   // settings edit may have replaced the draft. The plan must be made against the current
   // dashboard, not the one that was on screen when the pointer stopped moving.
   const dashRef = useRef(dashboard)
   dashRef.current = dashboard
-  const { gap, rowHeight } = cellMetrics(dashboard, containerWidth)
+  const { gap, colWidth, rowHeight } = cellMetrics(dashboard, containerWidth)
 
   const clearDwell = () => {
     if (dwellRef.current !== null) {
@@ -75,7 +142,17 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
       dwellRef.current = null
     }
   }
-  useEffect(() => clearDwell, [])
+  const clearLongPress = () => {
+    if (longPressRef.current !== null) {
+      window.clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+    longPressStart.current = null
+  }
+  useEffect(() => () => {
+    clearDwell()
+    clearLongPress()
+  }, [])
 
   if (viewportWidth - sidebarInset < STACK_BELOW) {
     // Phones edit the stack they actually see: reorder + settings, not grid geometry.
@@ -129,7 +206,111 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     })
   }
 
+  /* -------------------------------- selection (per widget) -------------------------------- */
+
+  const onWidgetClick = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false // a long-press or marquee already handled this press
+      return
+    }
+    if (e.ctrlKey || e.metaKey) toggleWidgetSelection(id)
+    else if (e.shiftKey) addToSelection(id)
+    else selectWidget(id)
+  }
+
+  const onWidgetPointerDown = (id: string) => (e: React.PointerEvent) => {
+    suppressClickRef.current = false // clear any stale flag from a press whose click never fired
+    if (e.pointerType === 'mouse') {
+      // A mouse press on a widget body is a potential marquee start (widgets only move by
+      // their handle, so a body-drag is unambiguous — and dense dashboards have no bare
+      // background to start one from). No movement = a normal click, handled by onWidgetClick.
+      if (e.button === 0) {
+        pendingRef.current = {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          additive: e.shiftKey || e.ctrlKey || e.metaKey,
+          fromWidget: true,
+        }
+      }
+      return
+    }
+    clearLongPress()
+    longPressStart.current = { x: e.clientX, y: e.clientY }
+    longPressRef.current = window.setTimeout(() => {
+      suppressClickRef.current = true
+      toggleWidgetSelection(id)
+      navigator.vibrate?.(10)
+    }, LONG_PRESS_MS)
+  }
+
+  const onWidgetPointerMove = (e: React.PointerEvent) => {
+    const start = longPressStart.current
+    if (!start) return
+    if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
+  }
+
+  /* ------------------------------------- marquee ------------------------------------- */
+
+  const toLocal = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = containerRef.current!.getBoundingClientRect()
+    return {
+      x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
+      y: Math.max(0, Math.min(clientY - rect.top, rect.height)),
+    }
+  }
+
+  const onGridPointerDown = (e: React.PointerEvent) => {
+    // A press on the bare grid background (cells stop propagation of their own paths: handle,
+    // resize and delete all stopPropagation; the overlay records its own pending above).
+    if (e.target !== containerRef.current) return
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    pendingRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      additive: e.shiftKey || e.ctrlKey || e.metaKey,
+      fromWidget: false,
+    }
+  }
+
+  const finishMarquee = (m: MarqueeState) => {
+    setMarquee(null)
+    const box = {
+      left: Math.min(m.startX, m.curX),
+      top: Math.min(m.startY, m.curY),
+      right: Math.max(m.startX, m.curX),
+      bottom: Math.max(m.startY, m.curY),
+    }
+    const hit = dashboard.widgets
+      .filter((w) => boxesOverlap(pixelBox(rectOf(w), colWidth, rowHeight, gap), box))
+      .map((w) => w.id)
+    const current = useEditorStore.getState().selectedIds
+    setSelection(m.additive ? [...new Set([...current, ...hit])] : hit)
+  }
+
+  /* --------------------------------- unified pointer flow --------------------------------- */
+
   const onPointerMove = (e: React.PointerEvent) => {
+    // Promote a pending press to a marquee once it has clearly moved (and is not a drag).
+    const pend = pendingRef.current
+    if (pend && !marquee && !drag) {
+      if (
+        Math.abs(e.clientX - pend.clientX) > MARQUEE_THRESHOLD_PX ||
+        Math.abs(e.clientY - pend.clientY) > MARQUEE_THRESHOLD_PX
+      ) {
+        pendingRef.current = null
+        containerRef.current?.setPointerCapture(e.pointerId)
+        const s = toLocal(pend.clientX, pend.clientY)
+        const c = toLocal(e.clientX, e.clientY)
+        setMarquee({ startX: s.x, startY: s.y, curX: c.x, curY: c.y, additive: pend.additive })
+      }
+      return
+    }
+    if (marquee) {
+      const p = toLocal(e.clientX, e.clientY)
+      setMarquee({ ...marquee, curX: p.x, curY: p.y })
+      return
+    }
     if (!drag) return
     const { w: cw, h: ch } = cellSize()
     const dx = e.clientX - drag.startX
@@ -163,17 +344,51 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     })
   }
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
+    const pend = pendingRef.current
+    pendingRef.current = null
+    if (marquee) {
+      finishMarquee(marquee)
+      // A release over the widget the marquee started on still fires a click there; that click
+      // must not replace the selection the marquee just made. Cleared on the next tick so a
+      // stale flag can never swallow a later, unrelated click.
+      suppressClickRef.current = true
+      window.setTimeout(() => {
+        suppressClickRef.current = false
+      }, 0)
+      return
+    }
+    if (pend && !pend.fromWidget) {
+      // A bare click on empty background clears the selection (modifier held = keep adding).
+      if (!pend.additive) clearSelection()
+      return
+    }
     clearDwell()
     if (!drag) return
     if (drag.valid) setWidgetRect(drag.id, drag.target, drag.bump ?? undefined)
+    // Selection on drop. A no-move press on the handle strip is just a click on the widget, so
+    // it behaves exactly like a body click — Ctrl toggles, Shift adds, plain replace-selects
+    // (even out of a multi-selection: a bare click always means "just this one"). Only a real
+    // move preserves an existing multi-selection the dragged widget belongs to; otherwise the
+    // drop selects the moved widget (opening its settings panel).
+    const clickLike =
+      Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX &&
+      Math.abs(e.clientY - drag.startY) <= MARQUEE_THRESHOLD_PX
+    if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
+    else if (clickLike && e.shiftKey) addToSelection(drag.id)
+    else if (clickLike) selectWidget(drag.id)
+    else {
+      const sel = useEditorStore.getState().selectedIds
+      if (!(sel.length > 1 && sel.includes(drag.id))) selectWidget(drag.id)
+    }
     setDrag(null)
-    selectWidget(drag.id)
   }
 
-  const cancelDrag = () => {
+  const cancelPointer = () => {
     clearDwell()
+    pendingRef.current = null
     setDrag(null)
+    setMarquee(null)
   }
 
   if (containerWidth === 0) {
@@ -194,9 +409,10 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
           '--nh-textscale': textScale(dashboard, rowHeight),
         } as React.CSSProperties
       }
+      onPointerDown={onGridPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={cancelDrag}
+      onPointerCancel={cancelPointer}
     >
       {/* placeholder for the snapped drop target */}
       {drag ? (
@@ -209,12 +425,25 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
         />
       ) : null}
 
+      {/* rubber-band selection box */}
+      {marquee ? (
+        <div
+          className="nh-marquee"
+          style={{
+            left: Math.min(marquee.startX, marquee.curX),
+            top: Math.min(marquee.startY, marquee.curY),
+            width: Math.abs(marquee.curX - marquee.startX),
+            height: Math.abs(marquee.curY - marquee.startY),
+          }}
+        />
+      ) : null}
+
       {dashboard.widgets.map((widget) => {
         // An armed bump previews itself: the widgets it moves render where the drop puts them.
         const bumpedTo = drag?.bump?.get(widget.id)
         const r = bumpedTo ?? rectOf(widget)
         const isDragging = drag?.id === widget.id
-        const isSelected = selectedId === widget.id
+        const isSelected = selectedIds.includes(widget.id)
         return (
           <div
             key={widget.id}
@@ -237,10 +466,11 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
             {/* edit overlay: tap selects, handle strip drags, corner resizes */}
             <div
               className="nh-cell__overlay"
-              onClick={(e) => {
-                e.stopPropagation()
-                selectWidget(widget.id)
-              }}
+              onClick={onWidgetClick(widget.id)}
+              onPointerDown={onWidgetPointerDown(widget.id)}
+              onPointerMove={onWidgetPointerMove}
+              onPointerUp={clearLongPress}
+              onPointerCancel={clearLongPress}
             />
             <CellHandle id={widget.id} type={widget.type} onDragStart={beginDrag(widget.id, 'move')} />
             <div className="nh-cell__resize" onPointerDown={beginDrag(widget.id, 'resize')} />

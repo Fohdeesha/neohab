@@ -11,6 +11,7 @@ import type { Dashboard, WidgetInstance } from '../model/dashboard'
 import { clampRect, collides, findFreeSpot, rectOf, type BumpPlan } from '../model/layout'
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
+import type { ClipboardWidget } from './clipboard'
 import { saveDashboard } from './config'
 
 const UNDO_LIMIT = 50
@@ -25,7 +26,18 @@ interface EditorState {
   dirty: boolean
   saving: boolean
   saveError: string | null
-  selectedId: string | null
+  /**
+   * The selected widget ids. A single selection can open that widget's settings panel (see
+   * panelOpen); multiple selection enables batch copy/cut/delete. Empty = nothing selected.
+   */
+  selectedIds: string[]
+  /**
+   * Whether the single-widget settings panel is open. Only an explicit single-select (a plain
+   * click, a drag-drop, adding from the palette) opens it — Ctrl/Shift-click, marquee and
+   * long-press signal multi-select intent, and popping the panel open there both surprises and
+   * reflows the grid 340px mid-flow, moving the very widgets the user is about to click.
+   */
+  panelOpen: boolean
   paletteOpen: boolean
   dashSettingsOpen: boolean
 }
@@ -40,7 +52,8 @@ export const useEditorStore = create<EditorState>(() => ({
   dirty: false,
   saving: false,
   saveError: null,
-  selectedId: null,
+  selectedIds: [],
+  panelOpen: false,
   paletteOpen: false,
   dashSettingsOpen: false,
 }))
@@ -58,7 +71,8 @@ export function startEditing(dashboard: Dashboard): void {
     dirty: false,
     saving: false,
     saveError: null,
-    selectedId: null,
+    selectedIds: [],
+    panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
   })
@@ -75,7 +89,8 @@ export function stopEditing(): void {
     dirty: false,
     saving: false,
     saveError: null,
-    selectedId: null,
+    selectedIds: [],
+    panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
   })
@@ -127,13 +142,67 @@ export function redo(): void {
   })
 }
 
+/**
+ * Replace the selection with a single widget (or clear it with null). The widget panel and the
+ * dashboard-settings panel share one surface, so selecting a widget closes the dashboard panel.
+ */
 export function selectWidget(id: string | null): void {
-  // The widget panel and the dashboard-settings panel share the same surface.
   useEditorStore.setState((s) => ({
-    selectedId: id,
+    selectedIds: id === null ? [] : [id],
+    // An explicit single-select is the one gesture that opens the settings panel.
+    panelOpen: id !== null,
     lastCoalesceKey: null,
     dashSettingsOpen: id !== null ? false : s.dashSettingsOpen,
   }))
+}
+
+/** Add a widget to the selection if absent, remove it if present (Ctrl/Cmd-click). */
+export function toggleWidgetSelection(id: string): void {
+  useEditorStore.setState((s) => {
+    const has = s.selectedIds.includes(id)
+    return {
+      selectedIds: has ? s.selectedIds.filter((w) => w !== id) : [...s.selectedIds, id],
+      panelOpen: false, // multi-select intent: never pop the panel open
+      lastCoalesceKey: null,
+      dashSettingsOpen: false,
+    }
+  })
+}
+
+/** Add a widget to the selection without removing it if already present (Shift-click). */
+export function addToSelection(id: string): void {
+  useEditorStore.setState((s) => ({
+    selectedIds: s.selectedIds.includes(id) ? s.selectedIds : [...s.selectedIds, id],
+    panelOpen: false,
+    lastCoalesceKey: null,
+    dashSettingsOpen: false,
+  }))
+}
+
+/** Replace the whole selection (used by marquee select and select-all). */
+export function setSelection(ids: string[]): void {
+  useEditorStore.setState((s) => ({
+    selectedIds: [...ids],
+    panelOpen: false,
+    lastCoalesceKey: null,
+    // The dashboard-settings panel shares the surface, so close it once anything is selected.
+    dashSettingsOpen: ids.length > 0 ? false : s.dashSettingsOpen,
+  }))
+}
+
+export function clearSelection(): void {
+  useEditorStore.setState({ selectedIds: [], panelOpen: false, lastCoalesceKey: null })
+}
+
+export function selectAll(): void {
+  const s = useEditorStore.getState()
+  if (!s.draft) return
+  useEditorStore.setState({
+    selectedIds: s.draft.widgets.map((w) => w.id),
+    panelOpen: false,
+    lastCoalesceKey: null,
+    dashSettingsOpen: false,
+  })
 }
 
 export function setPaletteOpen(open: boolean): void {
@@ -143,7 +212,8 @@ export function setPaletteOpen(open: boolean): void {
 export function setDashSettingsOpen(open: boolean): void {
   useEditorStore.setState((s) => ({
     dashSettingsOpen: open,
-    selectedId: open ? null : s.selectedId,
+    // Opening the dashboard panel clears any widget selection (they share the surface).
+    selectedIds: open ? [] : s.selectedIds,
     lastCoalesceKey: null,
   }))
 }
@@ -173,7 +243,7 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
   const s = useEditorStore.getState()
   if (!def || !s.draft) return
 
-  const id = 'w-' + Math.random().toString(36).slice(2, 10)
+  const id = newWidgetId()
   applyChange((draft) => {
     const rect = findFreeSpot(draft, def.defaultSize.w, def.defaultSize.h)
     const widget: WidgetInstance = {
@@ -184,17 +254,62 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
     }
     draft.widgets.push(widget)
   })
-  useEditorStore.setState({ selectedId: id, paletteOpen: false })
+  // A freshly added widget opens its settings — the natural next step is configuring it.
+  useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false })
+}
+
+/** Fresh, collision-unlikely widget id. */
+function newWidgetId(): string {
+  return 'w-' + Math.random().toString(36).slice(2, 10)
 }
 
 export function removeWidget(id: string): void {
+  removeWidgets([id])
+}
+
+/** Delete a set of widgets in one undo step and drop them from the selection/stack order. */
+export function removeWidgets(ids: string[]): void {
+  if (ids.length === 0) return
+  const drop = new Set(ids)
   applyChange((draft) => {
-    draft.widgets = draft.widgets.filter((w) => w.id !== id)
-    // Drop it from the pinned stack order too, or deleted ids accumulate there for good.
-    if (draft.stackOrder) draft.stackOrder = draft.stackOrder.filter((w) => w !== id)
+    draft.widgets = draft.widgets.filter((w) => !drop.has(w.id))
+    // Drop them from the pinned stack order too, or deleted ids accumulate there for good.
+    if (draft.stackOrder) draft.stackOrder = draft.stackOrder.filter((w) => !drop.has(w))
   })
+  useEditorStore.setState((s) => ({ selectedIds: s.selectedIds.filter((w) => !drop.has(w)) }))
+}
+
+/**
+ * Paste copied widgets onto the draft: the whole group drops into the first free region big
+ * enough to hold its bounding box, keeping the widgets' relative arrangement. Each gets a fresh
+ * id; the pasted widgets become the new selection.
+ */
+export function pasteWidgets(items: ClipboardWidget[]): void {
+  if (items.length === 0) return
   const s = useEditorStore.getState()
-  if (s.selectedId === id) useEditorStore.setState({ selectedId: null })
+  if (!s.draft) return
+
+  // Normalise the group so its top-left corner sits at (0,0), then measure the bounding box.
+  const minX = Math.min(...items.map((i) => i.rect.x))
+  const minY = Math.min(...items.map((i) => i.rect.y))
+  const bboxW = Math.max(...items.map((i) => i.rect.x - minX + i.rect.w))
+  const bboxH = Math.max(...items.map((i) => i.rect.y - minY + i.rect.h))
+
+  const newIds: string[] = []
+  applyChange((draft) => {
+    const base = findFreeSpot(draft, bboxW, bboxH)
+    for (const item of items) {
+      const id = newWidgetId()
+      newIds.push(id)
+      const rect = clampRect(
+        { x: base.x + (item.rect.x - minX), y: base.y + (item.rect.y - minY), w: item.rect.w, h: item.rect.h },
+        draft.columns
+      )
+      draft.widgets.push({ id, type: item.type, config: clone(item.config), layout: { lg: rect } })
+    }
+  })
+  // Pasted widgets are selected for an immediate move/delete, without popping the panel.
+  useEditorStore.setState({ selectedIds: newIds, panelOpen: false, dashSettingsOpen: false })
 }
 
 export function updateWidgetConfig(id: string, key: string, value: unknown): void {
@@ -242,13 +357,19 @@ export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boo
   return true
 }
 
-export async function saveDraft(): Promise<boolean> {
+/**
+ * Persist the draft. On success the editor leaves edit mode and returns to run mode, so Save is
+ * a clear, terminal exit; a failure keeps the draft open with the error shown so it can be
+ * retried. Pass `keepEditing` to commit without leaving (not currently used by the UI).
+ */
+export async function saveDraft(keepEditing = false): Promise<boolean> {
   const s = useEditorStore.getState()
   if (!s.draft) return false
   useEditorStore.setState({ saving: true, saveError: null })
   try {
     await saveDashboard(clone(s.draft))
-    useEditorStore.setState({ saving: false, dirty: false })
+    if (keepEditing) useEditorStore.setState({ saving: false, dirty: false })
+    else stopEditing()
     return true
   } catch (err) {
     useEditorStore.setState({
