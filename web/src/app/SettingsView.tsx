@@ -2,7 +2,7 @@
  * Settings: appearance (theme picker + custom theme editor) and backup (export/import).
  * Theme changes apply instantly; persisting them (and importing) needs an admin login.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   buildExportBundle,
   deleteTheme,
@@ -22,6 +22,10 @@ import {
   type ThemeTokens,
 } from '../themes/themes'
 import { NavButton } from './Sidebar'
+import { navigate } from './router'
+import { setKioskSettings, useKioskStore, type ScreensaverMode } from '../store/kiosk'
+import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
+import { ItemPicker } from '../components/ItemPicker'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
@@ -127,6 +131,8 @@ export function SettingsView() {
           />
         ) : null}
 
+        <KioskSection onNotice={setNotice} />
+
         <WidgetDefManager onNotice={setNotice} />
 
         <CustomIconsSection onNotice={setNotice} />
@@ -138,6 +144,178 @@ export function SettingsView() {
         <AccountSection onNotice={setNotice} />
       </div>
     </div>
+  )
+}
+
+/**
+ * Kiosk / wall-panel settings. Everything here is per-device (localStorage) except the
+ * dashboard-control item, which is part of the server configuration.
+ */
+function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const kioskSettings = useKioskStore((s) => s.settings)
+  const sessionKiosk = useKioskStore((s) => s.sessionKiosk)
+  const dashboards = useConfigStore((s) => s.dashboards)
+  const controlItem = useConfigStore((s) => s.settings.controlItem) ?? ''
+  const wakeActive = useWakeLockStore((s) => s.active)
+  const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement)
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const kioskOn = sessionKiosk ?? kioskSettings.kiosk
+
+  const setKioskMode = (on: boolean) => {
+    setKioskSettings({ kiosk: on })
+    if (on) {
+      // All chrome (including the way back from this screen) is gone now - land somewhere useful.
+      const pinned = kioskSettings.pinnedDashboard
+      if (pinned && dashboards.some((d) => d.id === pinned)) navigate({ name: 'dashboard', id: pinned })
+      else navigate({ name: 'home' })
+    }
+  }
+
+  const setControlItem = async (name: string) => {
+    onNotice(null)
+    const err = await saveSettings({ controlItem: name || undefined })
+    if (err) onNotice('Applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
+  }
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+    } else {
+      document.documentElement.requestFullscreen().catch(() => onNotice('Fullscreen was blocked by the browser.'))
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="nh-settings__h">Kiosk &amp; wall panel</h2>
+      <p className="nh-settings__text">
+        These settings apply to this device only, so a wall panel and a phone can each have their
+        own. The dashboard-control item at the bottom is the exception — it is shared.
+      </p>
+
+      <label className="nh-field" htmlFor="kiosk-pinned">
+        <span className="nh-field__label">Open this dashboard at start</span>
+        <select
+          id="kiosk-pinned"
+          value={kioskSettings.pinnedDashboard ?? ''}
+          onChange={(e) => setKioskSettings({ pinnedDashboard: e.target.value || undefined })}
+        >
+          <option value="">Home screen (default)</option>
+          {dashboards.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="nh-field nh-field--row" htmlFor="kiosk-wake">
+        <span className="nh-field__label">Keep the screen awake</span>
+        <input
+          id="kiosk-wake"
+          type="checkbox"
+          checked={kioskSettings.wakeLock}
+          disabled={!wakeLockSupported()}
+          onChange={(e) => setKioskSettings({ wakeLock: e.target.checked })}
+        />
+      </label>
+      {!wakeLockSupported() ? (
+        <p className="nh-settings__text">
+          Not available here: browsers only offer the wake lock over HTTPS (or on localhost).
+          Kiosk-browser apps usually keep the screen on themselves instead.
+        </p>
+      ) : kioskSettings.wakeLock ? (
+        <p className="nh-settings__text">
+          {wakeActive ? 'The screen is being kept awake.' : 'Waiting for the browser to grant the wake lock…'}
+        </p>
+      ) : null}
+
+      <label className="nh-field" htmlFor="kiosk-saver">
+        <span className="nh-field__label">Screensaver</span>
+        <select
+          id="kiosk-saver"
+          value={kioskSettings.screensaver}
+          onChange={(e) => setKioskSettings({ screensaver: e.target.value as ScreensaverMode })}
+        >
+          <option value="off">Off</option>
+          <option value="blank">Blank screen</option>
+          <option value="clock">Clock</option>
+        </select>
+      </label>
+      {kioskSettings.screensaver !== 'off' ? (
+        <label className="nh-field nh-field--row" htmlFor="kiosk-saver-min">
+          <span className="nh-field__label">Start after (minutes)</span>
+          <input
+            id="kiosk-saver-min"
+            type="number"
+            min={1}
+            max={720}
+            value={kioskSettings.screensaverMinutes}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v) && v >= 1) setKioskSettings({ screensaverMinutes: v })
+            }}
+          />
+        </label>
+      ) : null}
+
+      <div className="nh-settings__row">
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={toggleFullscreen}>
+          {fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        </button>
+      </div>
+
+      <label className="nh-field nh-field--row" htmlFor="kiosk-mode">
+        <span className="nh-field__label">Kiosk mode</span>
+        <input id="kiosk-mode" type="checkbox" checked={kioskOn} onChange={(e) => setKioskMode(e.target.checked)} />
+      </label>
+      <p className="nh-settings__text">
+        Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap
+        any screen corner five times in a row, or open the app with <code>?kiosk=off</code> in the
+        address. <code>?kiosk=on</code> turns it on for one session — handy as the pinned address
+        in a kiosk-browser app.
+      </p>
+
+      <label className="nh-field nh-field--row" htmlFor="kiosk-follow">
+        <span className="nh-field__label">Follow the dashboard-control item</span>
+        <input
+          id="kiosk-follow"
+          type="checkbox"
+          checked={kioskSettings.followControl ?? kioskOn}
+          onChange={(e) => setKioskSettings({ followControl: e.target.checked })}
+        />
+      </label>
+
+      <label className="nh-field" htmlFor="kiosk-controlitem">
+        <span className="nh-field__label">Dashboard-control item (all devices)</span>
+        <ItemPicker
+          id="kiosk-controlitem"
+          value={controlItem}
+          onChange={(n) => void setControlItem(n)}
+          itemTypes={['String']}
+          placeholder="No control item"
+        />
+      </label>
+      {controlItem ? (
+        <div className="nh-settings__row">
+          <button type="button" className="nh-btn nh-btn--ghost" onClick={() => void setControlItem('')}>
+            Clear control item
+          </button>
+        </div>
+      ) : null}
+      <p className="nh-settings__text">
+        A String item whose state names a dashboard (by id, or by name). When a rule changes it,
+        every device that follows it switches to that dashboard — the classic way to drive wall
+        panels remotely. Saving it needs an administrator sign-in; whether a device follows it is
+        that device's own choice above (kiosk-mode devices follow by default).
+      </p>
+    </section>
   )
 }
 

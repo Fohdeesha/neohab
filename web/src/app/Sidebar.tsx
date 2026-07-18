@@ -19,6 +19,7 @@ import { useEffect } from 'react'
 import { useConfigStore } from '../store/config'
 import { useEditorStore } from '../store/editor'
 import { closeSidebar, setSidebarPinned, toggleSidebar, useSidebarLayout } from '../store/sidebar'
+import { useKioskMode } from '../store/kiosk'
 import { navigate, useRoute } from './router'
 import { Icon } from '../components/Icon'
 
@@ -47,6 +48,7 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, pinned])
 
+  // useSidebarLayout reports the sidebar disabled in kiosk mode, so this covers that too.
   if (!enabled) return null
 
   const go = (to: Parameters<typeof navigate>[0]) => {
@@ -148,6 +150,8 @@ export function Sidebar() {
  */
 export function NavButton() {
   const { enabled } = useSidebarLayout()
+  const kiosk = useKioskMode()
+  if (kiosk) return null
   if (enabled) return <SidebarTrigger />
   return (
     <button type="button" className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label="Home">

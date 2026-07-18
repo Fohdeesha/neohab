@@ -2045,6 +2045,41 @@ button {
   left: 12px;
 }
 
+/* Kiosk screensaver: a black overlay above everything (sheets 50, pickers 60, toasts 70) -
+   the screen is "off", so nothing may shine through it. */
+.nh-saver {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #000;
+  cursor: none;
+  user-select: none;
+}
+
+/* Dim clock that drifts to a new spot every minute so no OLED pixel holds a static image. */
+.nh-saver__clock {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #4a4f55;
+  transition:
+    left 3s ease,
+    top 3s ease;
+}
+
+.nh-saver__time {
+  font-size: clamp(48px, 10vw, 160px);
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-saver__date {
+  font-size: clamp(16px, 2.5vw, 32px);
+  opacity: 0.7;
+}
+
 /* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable

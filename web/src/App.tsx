@@ -12,6 +12,8 @@ import { SettingsView } from './app/SettingsView'
 import { Sidebar } from './app/Sidebar'
 import { useSidebarLayout } from './store/sidebar'
 import { Toast } from './components/Toast'
+import { KioskRuntime } from './kiosk/KioskRuntime'
+import { Screensaver } from './kiosk/Screensaver'
 
 registerBuiltinWidgets()
 
@@ -84,6 +86,8 @@ export default function App() {
         )}
         <Toast />
       </main>
+      <KioskRuntime />
+      <Screensaver />
     </>
   )
 }

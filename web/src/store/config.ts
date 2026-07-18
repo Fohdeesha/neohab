@@ -43,6 +43,13 @@ export interface AppSettings {
   maxIconKB?: number
   /** Show the navigation sidebar (☰ in the top-left of every screen). On by default. */
   sidebar?: boolean
+  /**
+   * Dashboard-control item: a String item whose state names a dashboard (id, or name
+   * case-insensitively). When it changes, devices that follow it switch to that dashboard -
+   * the classic way to drive wall panels from a rule. Whether a given device follows it is a
+   * per-device choice (kiosk-mode devices follow by default).
+   */
+  controlItem?: string
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })

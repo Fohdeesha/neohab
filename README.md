@@ -34,6 +34,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   Shift-click, a drag-a-box marquee, or long-press on touch) to copy, cut or delete them
   together, and copy/paste widgets — including from one dashboard to another — with the usual
   Ctrl+C / Ctrl+V.
+- **Wall panels & kiosks** — install neohab as an app (PWA) with an offline-capable shell; per
+  device, keep the screen awake, blank it after idle (or show a slowly drifting clock), open
+  straight onto a pinned dashboard, and hide all chrome in kiosk mode (five quick taps in a
+  screen corner exits, and `?kiosk=on` / `?kiosk=off` in the address works for kiosk-browser
+  apps). A dashboard-control item lets your rules remotely switch what every wall panel shows.
 - **Import / export** — back up, restore and share complete dashboard configurations (or single
   dashboards and widgets) as JSON; restore by replacing everything or merging a backup into
   what you have.

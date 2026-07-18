@@ -24,6 +24,7 @@ import {
   useClipboardStore,
 } from '../store/clipboard'
 import { isLoggedIn } from '../api/auth'
+import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
 import { SettingsPanel } from '../editor/SettingsPanel'
@@ -47,6 +48,7 @@ export function DashboardView({ id }: { id: string }) {
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const editor = useEditorStore()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
+  const kiosk = useKioskMode()
   const [signInOpen, setSignInOpen] = useState(false)
 
   const editing = editor.editing && editor.draft?.id === id
@@ -185,6 +187,9 @@ export function DashboardView({ id }: { id: string }) {
 
   return (
     <div className="nh-dash">
+      {/* Kiosk mode is a full-screen dashboard: no header at all (edit mode cannot start while
+          it is on, but a draft in progress keeps its toolbar if kiosk flips mid-edit). */}
+      {kiosk && !editing ? null : (
       <header className="nh-dash__bar">
         {editing ? (
           <>
@@ -242,6 +247,7 @@ export function DashboardView({ id }: { id: string }) {
           </>
         )}
       </header>
+      )}
 
       {/* Contextual selection/clipboard actions (also the touch path — no Ctrl keys there). */}
       {editing && (selectedIds.length > 0 || clipboardCount > 0) ? (

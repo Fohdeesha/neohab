@@ -4,7 +4,8 @@ import { useSyncExternalStore } from 'react'
 export type Route = { name: 'home' } | { name: 'dashboard'; id: string } | { name: 'settings' }
 
 function parse(hash: string): Route {
-  const path = hash.replace(/^#/, '') || '/'
+  // Tolerate a query suffix (`#/d/x?kiosk=on`): parameters are not part of the route.
+  const path = hash.replace(/^#/, '').split('?')[0] || '/'
   if (path === '/settings') return { name: 'settings' }
   const m = /^\/d\/(.+)$/.exec(path)
   if (m) return { name: 'dashboard', id: decodeURIComponent(m[1]) }

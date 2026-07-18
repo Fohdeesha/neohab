@@ -11,6 +11,7 @@
  */
 import { create } from 'zustand'
 import { useConfigStore } from './config'
+import { useKioskMode } from './kiosk'
 import { useViewportWidth } from '../components/useViewportWidth'
 
 export const SIDEBAR_WIDTH = 260
@@ -81,7 +82,11 @@ export interface SidebarLayout {
  * shrinking the window falls back to the overlay, and widening it restores the pin.
  */
 export function useSidebarLayout(): SidebarLayout {
-  const enabled = useConfigStore((s) => s.settings.sidebar !== false)
+  // Kiosk mode disables the sidebar wholesale, HERE rather than in each consumer: the layout
+  // inset, the aside and the ☰ must all agree, or a pinned sidebar entering kiosk mode would
+  // leave 260px of blank padding with nothing in it.
+  const kiosk = useKioskMode()
+  const enabled = useConfigStore((s) => s.settings.sidebar !== false) && !kiosk
   const open = useSidebarStore((s) => s.open)
   const pinned = useSidebarStore((s) => s.pinned)
   const canPush = useViewportWidth() >= SIDEBAR_PUSH_MIN

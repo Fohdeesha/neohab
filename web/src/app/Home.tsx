@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useConfigStore } from '../store/config'
+import { useKioskMode } from '../store/kiosk'
 import { isLoggedIn } from '../api/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
@@ -10,6 +11,7 @@ import { SignInSheet } from '../editor/SignInSheet'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
   const { dashboards, error } = useConfigStore()
+  const kiosk = useKioskMode()
   const [newOpen, setNewOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
 
@@ -61,22 +63,26 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               <span className="nh-tile__meta">{d.widgets.length} widgets</span>
             </button>
           ))}
-          <button type="button" className="nh-tile nh-tile--new" onClick={createFirst}>
-            <span className="nh-tile__plus" aria-hidden="true">
-              +
-            </span>
-            <span className="nh-tile__name">New dashboard</span>
-          </button>
+          {kiosk ? null : (
+            <button type="button" className="nh-tile nh-tile--new" onClick={createFirst}>
+              <span className="nh-tile__plus" aria-hidden="true">
+                +
+              </span>
+              <span className="nh-tile__name">New dashboard</span>
+            </button>
+          )}
         </div>
       )}
 
-      <button
-        type="button"
-        className="nh-btn nh-btn--ghost nh-home__settings"
-        onClick={() => navigate({ name: 'settings' })}
-      >
-        ⚙ Settings
-      </button>
+      {kiosk ? null : (
+        <button
+          type="button"
+          className="nh-btn nh-btn--ghost nh-home__settings"
+          onClick={() => navigate({ name: 'settings' })}
+        >
+          ⚙ Settings
+        </button>
+      )}
 
       {newOpen ? <NewDashboardSheet onClose={() => setNewOpen(false)} /> : null}
       {signInOpen ? (
