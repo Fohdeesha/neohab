@@ -224,8 +224,8 @@ export function DashboardView({ id }: { id: string }) {
             >
               ↪
             </button>
-            <button className="nh-btn nh-btn--ghost" onClick={cancel}>
-              Cancel
+            <button className="nh-btn nh-btn--ghost" onClick={cancel} title="Exit edit mode (unsaved changes are discarded)">
+              Exit
             </button>
             <button
               className="nh-btn nh-btn--primary"
