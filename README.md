@@ -39,6 +39,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   straight onto a pinned dashboard, and hide all chrome in kiosk mode (five quick taps in a
   screen corner exits, and `?kiosk=on` / `?kiosk=off` in the address works for kiosk-browser
   apps). A dashboard-control item lets your rules remotely switch what every wall panel shows.
+- **Charts** — history graphs straight from openHAB persistence: multiple series with
+  per-series colors and styles (smooth/linear/stepped lines, gradient fills, points), left and
+  right y-axes with fixed or automatic ranges, threshold lines and shaded bands, a legend that
+  toggles series on and off, a crosshair tooltip, quick time-range switching from an hour to a
+  year, drag-to-zoom, and live updating as item states change.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
   restore by replacing everything or merging a backup into what you have.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus

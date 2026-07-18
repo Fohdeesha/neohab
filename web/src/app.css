@@ -1531,6 +1531,15 @@ button {
 }
 
 /* Chart */
+.nh-chartwrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .nh-chart {
   position: relative;
   flex: 1;
@@ -1551,6 +1560,196 @@ button {
 .nh-chart .u-over,
 .nh-chart .u-under {
   border-radius: 6px;
+}
+
+.nh-chart .u-select {
+  background: color-mix(in srgb, var(--nh-primary) 18%, transparent);
+}
+
+.nh-chart__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Header slot for widget extras (the chart parks its period chips here when wide enough). */
+.nh-widget__aside {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.nh-widget__aside .nh-chart__chips {
+  flex-wrap: nowrap;
+}
+
+.nh-chart__chip {
+  font-size: 0.68em;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text-dim);
+  cursor: pointer;
+}
+
+.nh-chart__chip--on {
+  background: var(--nh-surface-2);
+  border-color: var(--nh-primary);
+  color: var(--nh-text);
+}
+
+.nh-chart__chip--reset {
+  color: var(--nh-primary);
+}
+
+.nh-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+
+.nh-chart__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72em;
+  color: var(--nh-text-dim);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.nh-chart__key--off {
+  opacity: 0.45;
+}
+
+.nh-chart__dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* Crosshair tooltip: fixed-size overlay, not textscale-driven */
+.nh-chart__tt {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  display: none;
+  pointer-events: none;
+  max-width: 280px;
+  padding: 6px 9px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+}
+
+.nh-chart__tt--show {
+  display: block;
+}
+
+.nh-chart__tt-time {
+  color: var(--nh-text-dim);
+  font-size: 11px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.nh-chart__tt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.nh-chart__tt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.nh-chart__tt-val {
+  margin-left: auto;
+  padding-left: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--nh-text);
+}
+
+/* Chart settings: series / threshold cards in the settings panel */
+.nh-chartcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px;
+}
+
+.nh-chartcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-chartcard__title {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--nh-text);
+}
+
+.nh-chartcard__btn {
+  background: none;
+  border: 1px solid var(--nh-border);
+  border-radius: 6px;
+  color: var(--nh-text-dim);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.nh-chartcard__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.nh-chartcard__row {
+  display: flex;
+  gap: 8px;
+}
+
+.nh-chartcard__cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-chartcard__cell input,
+.nh-chartcard__cell select {
+  width: 100%;
+  min-width: 0;
+}
+
+.nh-chartcard__cell--check {
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.nh-chartcard__cell--check input {
+  width: auto;
+  margin-top: 6px;
 }
 
 /* Frame */
@@ -2143,6 +2342,14 @@ button {
 /* No room for the position readout under three buttons. */
 @container (max-height: 150px) {
   .nh-roller__pos {
+    display: none;
+  }
+}
+
+/* Short chart cells: the plot is the point; chips and legend go first. */
+@container (max-height: 170px) {
+  .nh-chart__chips,
+  .nh-chart__legend {
     display: none;
   }
 }

@@ -54,6 +54,9 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'boolean'; label: string }
     | { key: string; type: 'color'; label: string }
     | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
+    /* chart-only list editors, rendered by dedicated components in editor/ChartFields */
+    | { key: string; type: 'chartseries'; label: string }
+    | { key: string; type: 'chartthresholds'; label: string }
   )
 
 export interface WidgetDefinition<C = Record<string, unknown>> {

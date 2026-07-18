@@ -6,6 +6,7 @@
 import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
+import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -257,6 +258,10 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
           <IconPicker id={id} value={typeof value === 'string' ? value : ''} onChange={set} />
         </div>
       )
+    case 'chartseries':
+      return <ChartSeriesField widget={widget} />
+    case 'chartthresholds':
+      return <ChartThresholdsField widget={widget} />
     default:
       return (
         <label className="nh-field" htmlFor={id}>

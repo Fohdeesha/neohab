@@ -155,20 +155,36 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v !== '' ? v : undefined
 }
 
+/** One HABPanel interactive-chart series -> a neohab chart series (defaults omitted). */
+function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
+  return {
+    item: str(s.item),
+    label: str(s.name),
+    color: str(s.color),
+    axis: s.axis === 'y2' ? 'y2' : undefined,
+    // display_line/area default true in HABPanel's series editor; only deviations are stored
+    width: s.display_line === false ? 0 : undefined,
+    fill: s.display_area === false ? 0 : undefined,
+    points: s.display_dots === true ? true : undefined,
+  }
+}
+
+// Every HABPanel chart period has an exact neohab counterpart; `exact: false` only remains
+// for unknown values falling back to a day.
 const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   h: { period: '1h', exact: true },
   '4h': { period: '4h', exact: true },
-  '8h': { period: '12h', exact: false },
+  '8h': { period: '8h', exact: true },
   '12h': { period: '12h', exact: true },
   D: { period: '24h', exact: true },
-  '2D': { period: '7d', exact: false },
-  '3D': { period: '7d', exact: false },
+  '2D': { period: '2d', exact: true },
+  '3D': { period: '3d', exact: true },
   W: { period: '7d', exact: true },
-  '2W': { period: '30d', exact: false },
+  '2W': { period: '14d', exact: true },
   M: { period: '30d', exact: true },
-  '2M': { period: '30d', exact: false },
-  '4M': { period: '30d', exact: false },
-  Y: { period: '30d', exact: false },
+  '2M': { period: '60d', exact: true },
+  '4M': { period: '120d', exact: true },
+  Y: { period: '1y', exact: true },
 }
 
 const THEME_MAP: Record<string, string> = {
@@ -353,32 +369,50 @@ const CONVERTERS: Record<string, Converter> = {
   },
 
   chart: (w, report) => {
-    let item = str(w.item)
-    const series = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
-    if (!item && series.length > 0) item = str(series[0].item)
-    if (series.length > 1) report.add('warn', 'Multi-series charts: only the first series was imported')
     const p = PERIOD_MAP[str(w.period) ?? 'D'] ?? { period: '24h', exact: false }
     if (!p.exact) report.add('info', 'Some chart periods were mapped to the nearest available period')
+    const hpSeries = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
+    let series: Record<string, unknown>[]
+    if (str(w.charttype) === 'interactive' && hpSeries.length > 0) {
+      series = hpSeries.filter((s) => str(s.item)).map((s) => hpChartSeries(s))
+    } else {
+      // 'default'/'rrd4j' charts are server-rendered images of one item (or a whole group)
+      const item = str(w.item) ?? (hpSeries.length > 0 ? str(hpSeries[0].item) : undefined)
+      if (w.isgroup === true) {
+        report.add('warn', "Group charts plot the group item's own state; add member items as extra series if needed")
+      }
+      series = item ? [{ item }] : []
+    }
+    const axis = (w.axis ?? {}) as { y?: Record<string, unknown>; y2?: Record<string, unknown> }
+    const y = axis.y ?? {}
+    const y2 = axis.y2 ?? {}
     return {
       type: 'chart',
       config: {
-        item: item ?? '',
+        series,
         label: str(w.name),
         period: p.period,
         service: str(w.service),
         refresh: 300,
+        legend: str(w.showlegend) === 'never' ? false : undefined,
+        yMin: num(y.min) ?? (y.includezero === true ? 0 : undefined),
+        yMax: num(y.max),
+        y2Min: y2.enabled === true ? (num(y2.min) ?? (y2.includezero === true ? 0 : undefined)) : undefined,
+        y2Max: y2.enabled === true ? num(y2.max) : undefined,
       },
     }
   },
 
   timeline: (w, report) => {
     report.add('warn', 'Timeline widgets were imported as charts (a timeline widget is planned)')
-    const series = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
-    const item = series.length > 0 ? str(series[0].item) : undefined
+    const hpSeries = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
+    const series = hpSeries
+      .filter((s) => str(s.item))
+      .map((s) => ({ item: str(s.item), label: str(s.name), mode: 'step' }))
     const p = PERIOD_MAP[str(w.period) ?? 'D'] ?? { period: '24h', exact: false }
     return {
       type: 'chart',
-      config: { item: item ?? '', label: str(w.name), period: p.period, service: str(w.service), refresh: 300 },
+      config: { series, label: str(w.name), period: p.period, service: str(w.service), refresh: 300 },
     }
   },
 

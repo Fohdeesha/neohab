@@ -11,6 +11,8 @@ interface WidgetFrameProps {
   iconState?: string
   /** Explicit tint for monochrome (mdi) header icons. */
   iconColor?: string
+  /** Extra content at the right end of the header row (e.g. the chart's period chips). */
+  aside?: ReactNode
   /** Center content both axes (the common case for controls). */
   center?: boolean
   /** Remove the card background/padding (e.g. image, label widgets). */
@@ -18,13 +20,14 @@ interface WidgetFrameProps {
   children: ReactNode
 }
 
-export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, center, bare, children }: WidgetFrameProps) {
+export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside, center, bare, children }: WidgetFrameProps) {
   return (
     <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '')}>
-      {label || icon ? (
+      {label || icon || aside ? (
         <div className="nh-widget__label">
           {icon ? <Icon icon={icon} size={iconSize ?? 20} state={iconState} color={iconColor} /> : null}
           {label ? <span className="nh-widget__labeltext">{label}</span> : null}
+          {aside ? <span className="nh-widget__aside">{aside}</span> : null}
         </div>
       ) : null}
       <div className={'nh-widget__body' + (center ? ' nh-widget__body--center' : '')}>{children}</div>
