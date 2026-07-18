@@ -458,7 +458,11 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
               gridRow: `${r.y + 1} / span ${r.h}`,
               minWidth: 0,
               minHeight: 0,
-              transform: isDragging ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
+              // A move follows the pointer; a resize stretches the box in place (its top-left
+              // is anchored) while the placeholder shows the snapped result.
+              transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
+              width: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dx}px))` : undefined,
+              height: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dy}px))` : undefined,
             }}
           >
             <WidgetHost instance={widget} editing />
