@@ -39,13 +39,12 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   straight onto a pinned dashboard, and hide all chrome in kiosk mode (five quick taps in a
   screen corner exits, and `?kiosk=on` / `?kiosk=off` in the address works for kiosk-browser
   apps). A dashboard-control item lets your rules remotely switch what every wall panel shows.
-- **Import / export** — back up, restore and share complete dashboard configurations (or single
-  dashboards and widgets) as JSON; restore by replacing everything or merging a backup into
-  what you have.
+- **Import / export** — back up, restore and share complete dashboard configurations as JSON;
+  restore by replacing everything or merging a backup into what you have.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users.
-- **First-class theming** — theme editor with live preview, light/dark switching, shareable
-  theme files, and a custom CSS escape hatch.
+- **First-class theming** — theme editor with live preview, light/dark themes, and custom
+  themes that travel with your backups.
 - **HABPanel migration** — import your existing HABPanel panels (from a `habpanel-config.json`
   export or directly from your server) with best-effort widget mapping and a detailed report.
 
