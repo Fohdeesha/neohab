@@ -200,6 +200,7 @@ export const templateWidget: WidgetDefinition<TemplateConfig> = {
   name: 'Template',
   description: 'Custom HTML widget (HABPanel-compatible)',
   defaultSize: { w: 4, h: 3 },
+  hasHeader: true,
   defaultConfig: () => ({ template: '' }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },

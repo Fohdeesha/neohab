@@ -66,6 +66,7 @@ export const frameWidget: WidgetDefinition<FrameConfig> = {
   name: 'Frame',
   description: 'Embed a web page',
   defaultSize: { w: 6, h: 5 },
+  hasHeader: true,
   defaultConfig: () => ({ url: '', refresh: 0, sandbox: false }),
   settings: [
     { key: 'url', type: 'text', label: 'Page URL', placeholder: 'https://…' },

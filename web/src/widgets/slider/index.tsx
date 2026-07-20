@@ -66,6 +66,7 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
   name: 'Slider',
   description: 'Set a numeric or dimmer item',
   defaultSize: { w: 6, h: 3 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '', min: 0, max: 100, step: 1 }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },

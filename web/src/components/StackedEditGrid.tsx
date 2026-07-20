@@ -7,7 +7,16 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
-import { cellMetrics, iconScale, stackedOrder, stackedTextScale, widgetTextScale, STACK_REFERENCE_WIDTH } from '../model/layout'
+import {
+  cellMetrics,
+  iconScale,
+  stackedOrder,
+  stackedTextScale,
+  widgetLabelAlign,
+  widgetLabelBottom,
+  widgetTextScale,
+  STACK_REFERENCE_WIDTH,
+} from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import {
   addToSelection,
@@ -160,13 +169,15 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
               className={
                 'nh-cell' +
                 (selectedIds.includes(widget.id) ? ' nh-cell--selected' : '') +
-                (isDragging ? ' nh-cell--dragging' : '')
+                (isDragging ? ' nh-cell--dragging' : '') +
+                (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
               }
               style={
                 {
                   height,
                   '--nh-textscale': stackedTextScale(dashboard, unit, height),
                   '--nh-widgetscale': widgetTextScale(widget),
+                  '--nh-labelalign': widgetLabelAlign(widget),
                   transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
                 } as React.CSSProperties
               }

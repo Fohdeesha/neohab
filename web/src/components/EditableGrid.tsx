@@ -26,6 +26,8 @@ import {
   planBump,
   rectOf,
   textScale,
+  widgetLabelAlign,
+  widgetLabelBottom,
   widgetTextScale,
   STACK_BELOW,
   type BumpPlan,
@@ -452,7 +454,8 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
               'nh-cell' +
               (isSelected ? ' nh-cell--selected' : '') +
               (isDragging ? ' nh-cell--dragging' : '') +
-              (bumpedTo ? ' nh-cell--bumped' : '')
+              (bumpedTo ? ' nh-cell--bumped' : '') +
+              (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
             }
             style={
               {
@@ -461,6 +464,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
                 minWidth: 0,
                 minHeight: 0,
                 '--nh-widgetscale': widgetTextScale(widget),
+                '--nh-labelalign': widgetLabelAlign(widget),
                 // A move follows the pointer; a resize stretches the box in place (its top-left
                 // is anchored) while the placeholder shows the snapped result.
                 transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,

@@ -44,6 +44,7 @@ export const imageWidget: WidgetDefinition<ImageConfig> = {
   name: 'Image',
   description: 'Show an image or camera snapshot',
   defaultSize: { w: 6, h: 4 },
+  hasHeader: true,
   defaultConfig: () => ({ url: '', refresh: 0 }),
   settings: [
     { key: 'url', type: 'text', label: 'Image URL', placeholder: 'https://…' },

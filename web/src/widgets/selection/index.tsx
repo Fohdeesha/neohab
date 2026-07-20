@@ -93,6 +93,7 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
   name: 'Selection',
   description: 'Buttons for a set of commands or item options',
   defaultSize: { w: 4, h: 3 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '', choices: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item' },

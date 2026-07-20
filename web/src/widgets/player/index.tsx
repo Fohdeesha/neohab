@@ -41,6 +41,7 @@ export const playerWidget: WidgetDefinition<PlayerConfig> = {
   name: 'Player',
   description: 'Media transport controls',
   defaultSize: { w: 4, h: 3 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Player'] },

@@ -138,6 +138,7 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
   description: 'Pick a color for a Color item',
   defaultSize: { w: 3, h: 5 },
   minPixelHeight: 150,
+  hasHeader: true,
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Color'] },

@@ -25,8 +25,14 @@ export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside
     <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '')}>
       {label || icon || aside ? (
         <div className="nh-widget__label">
-          {icon ? <Icon icon={icon} size={iconSize ?? 20} state={iconState} color={iconColor} /> : null}
-          {label ? <span className="nh-widget__labeltext">{label}</span> : null}
+          {/* icon + name travel together so the per-widget Name alignment (--nh-labelalign,
+              set on the cell) can center or right-align them in the space before the aside */}
+          {icon || label ? (
+            <span className="nh-widget__labelmain">
+              {icon ? <Icon icon={icon} size={iconSize ?? 20} state={iconState} color={iconColor} /> : null}
+              {label ? <span className="nh-widget__labeltext">{label}</span> : null}
+            </span>
+          ) : null}
           {aside ? <span className="nh-widget__aside">{aside}</span> : null}
         </div>
       ) : null}

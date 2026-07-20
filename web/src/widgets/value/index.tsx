@@ -26,6 +26,7 @@ export const valueWidget: WidgetDefinition<ValueConfig> = {
   name: 'Value',
   description: 'Display an item value as text',
   defaultSize: { w: 3, h: 2 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item' },

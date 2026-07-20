@@ -15,8 +15,10 @@ import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
 
 /**
- * Offered on every widget, not declared per definition: text size is instance-level
- * presentation (like layout), and the grids read `config.textSize` for any widget type.
+ * Universal fields, not declared per definition: instance-level presentation (like layout)
+ * that the grids read for any widget type. Text size is offered everywhere; the Name
+ * alignment/position pair only on widgets whose definition says the Name renders as the
+ * shared frame's header row (`hasHeader`).
  */
 const TEXT_SIZE_FIELD: SettingField = {
   key: 'textSize',
@@ -26,6 +28,27 @@ const TEXT_SIZE_FIELD: SettingField = {
   max: 300,
   step: 5,
   hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.',
+}
+
+const LABEL_ALIGN_FIELD: SettingField = {
+  key: 'labelAlign',
+  type: 'select',
+  label: 'Name alignment',
+  options: [
+    { value: 'left', label: 'Left' },
+    { value: 'center', label: 'Center' },
+    { value: 'right', label: 'Right' },
+  ],
+}
+
+const LABEL_POSITION_FIELD: SettingField = {
+  key: 'labelPosition',
+  type: 'select',
+  label: 'Name position',
+  options: [
+    { value: 'top', label: 'Top' },
+    { value: 'bottom', label: 'Bottom' },
+  ],
 }
 
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
@@ -49,6 +72,12 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
           ))}
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
+        {def.hasHeader ? (
+          <>
+            <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? 'left'} />
+            <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? 'top'} />
+          </>
+        ) : null}
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
       </div>
       <div className="nh-form__footer">

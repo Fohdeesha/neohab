@@ -21,6 +21,8 @@ import {
   stackedOrder,
   stackedTextScale,
   textScale,
+  widgetLabelAlign,
+  widgetLabelBottom,
   widgetTextScale,
   STACK_BELOW,
   STACK_REFERENCE_WIDTH,
@@ -66,12 +68,13 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
           return (
             <div
               key={w.id}
-              className="nh-gcell"
+              className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '')}
               style={
                 {
                   height,
                   '--nh-textscale': stackedTextScale(dashboard, unit, height),
                   '--nh-widgetscale': widgetTextScale(w),
+                  '--nh-labelalign': widgetLabelAlign(w),
                 } as React.CSSProperties
               }
             >
@@ -103,7 +106,7 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
         return (
           <div
             key={w.id}
-            className="nh-gcell"
+            className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '')}
             style={
               {
                 gridColumn: `${r.x + 1} / span ${r.w}`,
@@ -111,6 +114,7 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
                 minWidth: 0,
                 minHeight: 0,
                 '--nh-widgetscale': widgetTextScale(w),
+                '--nh-labelalign': widgetLabelAlign(w),
               } as React.CSSProperties
             }
           >

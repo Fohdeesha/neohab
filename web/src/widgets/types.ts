@@ -78,6 +78,12 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
    * it as a floor so short grid cells never clip controls on phones.
    */
   minPixelHeight?: number
+  /**
+   * True when the widget shows its Name as the shared frame's header row. Header widgets get
+   * the universal "Name alignment" / "Name position" settings; widgets whose label is content
+   * (button) or who have no name at all (clock, label) must not offer fields that do nothing.
+   */
+  hasHeader?: boolean
   /** Factory for a fresh instance config. */
   defaultConfig: () => C
   /** Declarative settings schema for the editor. */

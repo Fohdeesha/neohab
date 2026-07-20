@@ -51,6 +51,7 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
   name: 'Switch',
   description: 'Toggle an on/off item',
   defaultSize: { w: 3, h: 3 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '', onCommand: 'ON', offCommand: 'OFF' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Switch', 'Dimmer', 'Color'] },

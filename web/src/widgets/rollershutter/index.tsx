@@ -37,6 +37,7 @@ export const rollershutterWidget: WidgetDefinition<RollershutterConfig> = {
   name: 'Rollershutter',
   description: 'Up / stop / down control',
   defaultSize: { w: 3, h: 4 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Rollershutter'] },

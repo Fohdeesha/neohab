@@ -353,6 +353,7 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
   description: 'History graph from persistence',
   defaultSize: { w: 6, h: 5 },
   minPixelHeight: 180,
+  hasHeader: true,
   defaultConfig: () => ({
     series: [],
     period: '24h',

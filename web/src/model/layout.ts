@@ -130,6 +130,24 @@ export function widgetTextScale(widget: WidgetInstance): number | undefined {
   return Math.min(3, Math.max(0.5, n / 100))
 }
 
+/**
+ * A widget's header ("Name") alignment (`config.labelAlign`, a universal setting on every
+ * headered widget), as the justify-content its cell sets in `--nh-labelalign`. Undefined for
+ * left/unset so the common case carries no style; unknown values fall back the same way.
+ */
+export function widgetLabelAlign(widget: WidgetInstance): 'center' | 'flex-end' | undefined {
+  const v = (widget.config as Record<string, unknown>).labelAlign
+  return v === 'center' ? 'center' : v === 'right' ? 'flex-end' : undefined
+}
+
+/**
+ * True when the widget's header row is parked at the bottom of the card
+ * (`config.labelPosition`); the cell then carries the `nh-labelbottom` class.
+ */
+export function widgetLabelBottom(widget: WidgetInstance): boolean {
+  return (widget.config as Record<string, unknown>).labelPosition === 'bottom'
+}
+
 export function collides(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 }

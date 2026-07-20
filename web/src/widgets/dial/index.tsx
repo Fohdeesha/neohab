@@ -117,6 +117,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
   name: 'Dial',
   description: 'Circular slider for numeric items',
   defaultSize: { w: 3, h: 4 },
+  hasHeader: true,
   defaultConfig: () => ({ item: '', min: 0, max: 100, step: 1 }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },

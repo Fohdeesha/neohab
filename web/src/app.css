@@ -351,6 +351,26 @@ button {
   text-overflow: ellipsis;
 }
 
+/* Icon + name as one group, aligned by the per-widget Name alignment setting (the cell sets
+   --nh-labelalign). Flexes into the space before the aside, so alignment stays meaningful
+   when the chart parks its period chips in the header. */
+.nh-widget__labelmain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: var(--nh-labelalign, flex-start);
+}
+
+/* Per-widget "Name position: bottom": the header row renders under the body. Two selectors
+   deep on purpose - it must also outrank the tight-cell padding sheds at the end of this
+   file, which is why those blocks carry a bottom variant of their own. */
+.nh-labelbottom .nh-widget__label {
+  order: 1;
+  padding: 0 12px 8px;
+}
+
 .nh-widget__body {
   flex: 1;
   min-height: 0;
@@ -2312,6 +2332,10 @@ button {
     padding: 4px 8px 0;
   }
 
+  .nh-labelbottom .nh-widget__label {
+    padding: 0 8px 4px;
+  }
+
   .nh-widget__body {
     padding: 6px 8px;
   }
@@ -2334,7 +2358,8 @@ button {
    body + button insets alone used to eat half the cell, so labels ellipsised to "Gu…"
    however small the font got. Width-keyed, because a tall 1-wide cell needs this too. */
 @container (max-width: 120px) {
-  .nh-widget__label {
+  .nh-widget__label,
+  .nh-labelbottom .nh-widget__label {
     padding-right: 4px;
     padding-left: 4px;
   }
