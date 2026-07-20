@@ -49,6 +49,12 @@ export interface Dashboard {
   /** Gap between grid cells in pixels (default 8). */
   gap?: number
   /**
+   * Text size for the whole dashboard, percent (100 = normal). Multiplies the automatic
+   * text scaling on every surface, so proportions and phone behavior are preserved.
+   * HABPanel's `font_scale` imports into this.
+   */
+  textSize?: number
+  /**
    * Explicit widget order for the single-column (phone) stack, set the first time the user
    * reorders it. Absent = derived from the grid layout (row by row). Widgets missing from the
    * list (added later) stack after the listed ones; stale ids are ignored.

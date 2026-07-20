@@ -14,6 +14,20 @@ import { removeWidget, selectWidget, updateWidgetConfig } from '../store/editor'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
 
+/**
+ * Offered on every widget, not declared per definition: text size is instance-level
+ * presentation (like layout), and the grids read `config.textSize` for any widget type.
+ */
+const TEXT_SIZE_FIELD: SettingField = {
+  key: 'textSize',
+  type: 'number',
+  label: 'Text size (%)',
+  min: 50,
+  max: 300,
+  step: 5,
+  hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.',
+}
+
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const def = getWidgetDefinition(widget.type)
   if (!def) return null
@@ -35,6 +49,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
           ))}
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
+        <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
       </div>
       <div className="nh-form__footer">
         <button

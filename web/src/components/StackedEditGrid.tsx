@@ -7,7 +7,7 @@
  */
 import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
-import { cellMetrics, iconScale, stackedOrder, stackedTextScale, STACK_REFERENCE_WIDTH } from '../model/layout'
+import { cellMetrics, iconScale, stackedOrder, stackedTextScale, widgetTextScale, STACK_REFERENCE_WIDTH } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
 import {
   addToSelection,
@@ -166,6 +166,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 {
                   height,
                   '--nh-textscale': stackedTextScale(dashboard, unit, height),
+                  '--nh-widgetscale': widgetTextScale(widget),
                   transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
                 } as React.CSSProperties
               }

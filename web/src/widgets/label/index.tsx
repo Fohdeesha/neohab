@@ -15,7 +15,9 @@ function LabelWidget({ config }: WidgetProps<LabelConfig>) {
         style={{
           // Authored against a desktop-width dashboard, like iconSize: scale it with the cell
           // so a label tracks the rest of the widget text instead of staying fixed.
-          fontSize: config.fontSize ? `calc(${config.fontSize}px * var(--nh-textscale, 1))` : undefined,
+          fontSize: config.fontSize
+            ? `calc(${config.fontSize}px * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1))`
+            : undefined,
           color: config.color,
         }}
       >

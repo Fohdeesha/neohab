@@ -21,6 +21,7 @@ import {
   stackedOrder,
   stackedTextScale,
   textScale,
+  widgetTextScale,
   STACK_BELOW,
   STACK_REFERENCE_WIDTH,
 } from '../model/layout'
@@ -67,7 +68,11 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
               key={w.id}
               className="nh-gcell"
               style={
-                { height, '--nh-textscale': stackedTextScale(dashboard, unit, height) } as React.CSSProperties
+                {
+                  height,
+                  '--nh-textscale': stackedTextScale(dashboard, unit, height),
+                  '--nh-widgetscale': widgetTextScale(w),
+                } as React.CSSProperties
               }
             >
               <WidgetHost instance={w} editing={editing} />
@@ -99,12 +104,15 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
           <div
             key={w.id}
             className="nh-gcell"
-            style={{
-              gridColumn: `${r.x + 1} / span ${r.w}`,
-              gridRow: `${r.y + 1} / span ${r.h}`,
-              minWidth: 0,
-              minHeight: 0,
-            }}
+            style={
+              {
+                gridColumn: `${r.x + 1} / span ${r.w}`,
+                gridRow: `${r.y + 1} / span ${r.h}`,
+                minWidth: 0,
+                minHeight: 0,
+                '--nh-widgetscale': widgetTextScale(w),
+              } as React.CSSProperties
+            }
           >
             <WidgetHost instance={w} editing={editing} />
           </div>

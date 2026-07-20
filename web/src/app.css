@@ -2292,8 +2292,10 @@ button {
   /* Widget text tracks the cell size, the way icons do via --nh-iconscale: a dashboard is
      one proportional unit at any width. Everything inside a cell sizes its text in em, so
      this single declaration drives all of it. Editor chrome (the handle strip) deliberately
-     stays in rem - it is UI, not dashboard content, and must not shrink with the cell. */
-  font-size: calc(1rem * var(--nh-textscale, 1));
+     stays in rem - it is UI, not dashboard content, and must not shrink with the cell.
+     Three multipliers compose here: the automatic scale (incl. the dashboard's Text size),
+     the per-device scale set in Settings, and a widget's own Text size override. */
+  font-size: calc(1rem * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1));
 }
 
 @container (max-height: 104px) {

@@ -24,6 +24,7 @@ import {
 import { NavButton } from './Sidebar'
 import { navigate } from './router'
 import { setKioskSettings, useKioskStore, type ScreensaverMode } from '../store/kiosk'
+import { setDeviceTextSize, useTextSizeStore } from '../store/textsize'
 import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
 import { ItemPicker } from '../components/ItemPicker'
 import { HabpanelImport } from '../editor/HabpanelImport'
@@ -38,6 +39,7 @@ export function SettingsView() {
   const { settings, customThemes } = useConfigStore()
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState<Theme | null>(null)
+  const textPct = useTextSizeStore((s) => s.percent)
 
   const activeTheme = resolveTheme(settings.theme, customThemes)
 
@@ -120,6 +122,26 @@ export function SettingsView() {
             switch dashboards without going back Home. Turn it off to navigate from the Home screen
             only.
           </p>
+
+          <label className="nh-field" htmlFor="nh-set-textsize">
+            <span className="nh-field__label">Text size on this device (%)</span>
+            <input
+              id="nh-set-textsize"
+              type="number"
+              min={50}
+              max={300}
+              step={5}
+              value={textPct}
+              onChange={(e) => {
+                const n = Math.round(Number(e.target.value))
+                if (Number.isFinite(n) && n >= 50 && n <= 300) setDeviceTextSize(n)
+              }}
+            />
+            <span className="nh-field__hint">
+              Scales dashboard text on this device only — other devices and the dashboards
+              themselves are unchanged. 100 = normal.
+            </span>
+          </label>
         </section>
 
         {editing ? (

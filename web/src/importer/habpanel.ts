@@ -21,6 +21,7 @@ interface HPDashboard {
   columns?: unknown
   row_height?: unknown
   widget_margin?: unknown
+  font_scale?: unknown
   /** Home-menu tile appearance; only its icon has an equivalent here. */
   tile?: Record<string, unknown>
   /** HABPanel's drawer options; `hide` keeps a dashboard out of the menu. */
@@ -442,6 +443,12 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
   const rowHeight = rowHeightNum !== undefined ? Math.round(rowHeightNum) : ('match' as const)
   // widget_margin defaults to 5 in HABPanel.
   const gap = Math.max(0, Math.round(num(hp.widget_margin) ?? 5))
+  // font_scale is a ratio (1.5 = 150%); ours is stored as percent.
+  const fontScale = num(hp.font_scale)
+  const textSize =
+    fontScale !== undefined && fontScale > 0 && fontScale !== 1
+      ? Math.min(300, Math.max(50, Math.round(fontScale * 100)))
+      : undefined
   const id = str(hp.id) ?? str(hp.name) ?? 'imported-' + (index + 1)
 
   const dashboard: Dashboard = {
@@ -455,6 +462,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     columns,
     rowHeight,
     gap,
+    textSize,
     widgets: [],
   }
 

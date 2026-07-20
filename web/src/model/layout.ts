@@ -74,8 +74,22 @@ export function iconScale(dashboard: Dashboard, rowHeight: number): number {
  */
 export const MIN_TEXT_SCALE = 0.8
 
-export function textScale(dashboard: Dashboard, rowHeight: number): number {
+/**
+ * The dashboard's authored text-size multiplier (`textSize` percent, 100 = normal), applied on
+ * top of the automatic scaling everywhere - one knob that means the same thing on a desktop
+ * grid and a phone stack. Clamped so a garbage import can't render text invisible or absurd.
+ */
+function dashTextScale(dashboard: Dashboard): number {
+  const v = dashboard.textSize
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(3, Math.max(0.5, v / 100)) : 1
+}
+
+function baseTextScale(dashboard: Dashboard, rowHeight: number): number {
   return Math.max(MIN_TEXT_SCALE, iconScale(dashboard, rowHeight))
+}
+
+export function textScale(dashboard: Dashboard, rowHeight: number): number {
+  return dashTextScale(dashboard) * baseTextScale(dashboard, rowHeight)
 }
 
 /**
@@ -97,7 +111,23 @@ export const STACK_COMFORT_HEIGHT = 96
  * reading size.
  */
 export function stackedTextScale(dashboard: Dashboard, unit: number, cellHeight: number): number {
-  return Math.max(textScale(dashboard, unit), Math.min(1, cellHeight / STACK_COMFORT_HEIGHT))
+  return (
+    dashTextScale(dashboard) *
+    Math.max(baseTextScale(dashboard, unit), Math.min(1, cellHeight / STACK_COMFORT_HEIGHT))
+  )
+}
+
+/**
+ * A single widget's text-size override (`config.textSize` percent, a universal setting every
+ * widget offers), as the multiplier its cell sets in `--nh-widgetscale`. Undefined when unset
+ * or 100, so the cell carries no style for the common case. Tolerates string-stored numbers
+ * like every other imported config value.
+ */
+export function widgetTextScale(widget: WidgetInstance): number | undefined {
+  const raw = (widget.config as Record<string, unknown>).textSize
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN
+  if (!Number.isFinite(n) || n === 100) return undefined
+  return Math.min(3, Math.max(0.5, n / 100))
 }
 
 export function collides(a: Rect, b: Rect): boolean {

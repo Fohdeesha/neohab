@@ -126,6 +126,25 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           />
         </label>
 
+        <label className="nh-field" htmlFor="nh-dash-textsize">
+          <span className="nh-field__label">Text size (%)</span>
+          <input
+            id="nh-dash-textsize"
+            type="number"
+            min={50}
+            max={300}
+            step={5}
+            value={dashboard.textSize ?? 100}
+            onChange={(e) => {
+              const n = num(e.target.value, 50, 300)
+              if (n !== null) updateDashboardMeta({ textSize: n === 100 ? undefined : n }, 'dash:textsize')
+            }}
+          />
+          <span className="nh-field__hint">
+            Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.
+          </span>
+        </label>
+
         {dashboard.stackOrder && dashboard.stackOrder.length > 0 ? (
           <div className="nh-field">
             <span className="nh-field__label">Phone layout</span>
