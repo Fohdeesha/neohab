@@ -11,6 +11,11 @@ import type { ItemState } from '../api/types'
 
 /** Runtime context passed to every widget. Uniform on purpose - the stable contract. */
 export interface WidgetContext {
+  /**
+   * Id of this widget instance. Stable across mode switches (run/edit remount the tree), so
+   * widgets can key ephemeral UI state on it and survive the remount.
+   */
+  widgetId: string
   /** Live state of an item by name, or undefined if unknown/not yet received. */
   getItem: (name: string) => ItemState | undefined
   /**

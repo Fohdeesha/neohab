@@ -23,6 +23,9 @@ const BINARY = new Map([
   ['CLOSED', 0],
 ])
 
+/** Chip selection per widget instance; survives the run/edit remount. Session-scoped. */
+const periodMemory = new Map<string, string>()
+
 function parseState(s: string): number | null {
   const b = BINARY.get(s)
   if (b !== undefined) return b
@@ -69,9 +72,25 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     }))
     .filter((t) => t.from !== undefined || t.to !== undefined)
 
-  const [period, setPeriod] = useState(config.period ?? '24h')
+  // The picked period outlives this component: entering/leaving edit mode remounts the whole
+  // widget tree, and losing the chip selection there means you can't tweak a chart while
+  // looking at the range you care about. Session-scoped, keyed by widget instance id.
+  const [period, setPeriodState] = useState(
+    () => periodMemory.get(ctx.widgetId) ?? config.period ?? '24h'
+  )
+  const setPeriod = (p: string) => {
+    periodMemory.set(ctx.widgetId, p)
+    setPeriodState(p)
+  }
+  // Follow a *change* to the configured default (the settings panel edits it live); the mount
+  // run must not clobber the remembered chip with the default.
+  const configPeriodRef = useRef(config.period)
   useEffect(() => {
-    setPeriod(config.period ?? '24h')
+    if (configPeriodRef.current === config.period) return
+    configPeriodRef.current = config.period
+    periodMemory.set(ctx.widgetId, config.period ?? '24h')
+    setPeriodState(config.period ?? '24h')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.period])
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')

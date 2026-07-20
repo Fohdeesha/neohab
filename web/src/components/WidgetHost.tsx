@@ -29,11 +29,12 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
 
   const ctx: WidgetContext = useMemo(
     () => ({
+      widgetId: instance.id,
       getItem: (name) => states[name],
       sendCommand: (item, command) => commandItem(item, command),
       editing,
     }),
-    [states, editing]
+    [states, editing, instance.id]
   )
 
   if (!def) {
