@@ -4,7 +4,7 @@
  * in the widget's settings panel); JavaScript widgets edit their sandboxed script instead, and
  * an administrator can stop them running at all.
  */
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   deleteWidgetDef,
   saveSettings,
@@ -24,8 +24,12 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
   const defs = useConfigStore((s) => s.widgetDefs)
   const allowJs = useConfigStore((s) => s.settings.allowJsWidgets === true)
   const [editing, setEditing] = useState<CustomWidgetDef | null>(null)
+  // The list row the editor was opened from, so it renders right under what was clicked
+  // instead of below the whole list. Null = a new widget (editor sits under the New buttons).
+  const [anchor, setAnchor] = useState<string | null>(null)
 
   const newDef = (kind: 'template' | 'js') => {
+    setAnchor(null)
     setEditing({
       version: 1,
       id: 'widget-' + Math.random().toString(36).slice(2, 8),
@@ -38,12 +42,18 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
   }
 
   const edit = (def: CustomWidgetDef) => {
+    setAnchor(def.id)
     // normalize imported defs into editable shape without touching the stored original yet
     setEditing({
       ...def,
       template: def.kind === 'js' ? undefined : defTemplate(def),
       settings: defSettings(def),
     })
+  }
+
+  const close = () => {
+    setEditing(null)
+    setAnchor(null)
   }
 
   const toggleJs = async (enabled: boolean) => {
@@ -68,16 +78,21 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
       {defs.length > 0 ? (
         <div className="nh-deflist">
           {defs.map((def) => (
-            <div key={def.id} className="nh-deflist__row">
-              <span className="nh-deflist__name">{def.name}</span>
-              <span className="nh-deflist__meta">
-                {def.kind === 'js' ? 'JavaScript' : 'Template'}
-                {def.source ? ` · imported from ${def.source}` : ''}
-              </span>
-              <button type="button" className="nh-btn nh-btn--ghost" onClick={() => edit(def)}>
-                Edit
-              </button>
-            </div>
+            <Fragment key={def.id}>
+              <div className="nh-deflist__row">
+                <span className="nh-deflist__name">{def.name}</span>
+                <span className="nh-deflist__meta">
+                  {def.kind === 'js' ? 'JavaScript' : 'Template'}
+                  {def.source ? ` · imported from ${def.source}` : ''}
+                </span>
+                <button type="button" className="nh-btn nh-btn--ghost" onClick={() => edit(def)}>
+                  Edit
+                </button>
+              </div>
+              {editing && anchor === def.id ? (
+                <DefEditor def={editing} exists onChange={setEditing} onClose={close} onNotice={onNotice} />
+              ) : null}
+            </Fragment>
           ))}
         </div>
       ) : (
@@ -93,12 +108,13 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
         </button>
       </div>
 
-      {editing ? (
+      {/* new widgets (and an anchor that vanished from the list) edit down here */}
+      {editing && !defs.some((d) => d.id === anchor) ? (
         <DefEditor
           def={editing}
           exists={defs.some((d) => d.id === editing.id)}
           onChange={setEditing}
-          onClose={() => setEditing(null)}
+          onClose={close}
           onNotice={onNotice}
         />
       ) : null}

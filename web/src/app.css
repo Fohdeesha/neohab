@@ -1924,6 +1924,11 @@ button {
   border-radius: var(--nh-radius);
 }
 
+/* Opened from a list row, the editor sits directly under it - the list gap is spacing enough. */
+.nh-deflist .nh-defeditor {
+  margin-top: 0;
+}
+
 .nh-defeditor__code {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85rem;
