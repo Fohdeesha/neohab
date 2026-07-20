@@ -939,6 +939,10 @@ button {
 /* editable grid cells */
 .nh-cell {
   position: relative;
+  /* Room for the handle strip: widget content sits below it so nothing a widget draws in its
+     top row (its label, a chart's period chips) is ever covered while editing. The strip is
+     absolutely positioned into this padding band. */
+  padding-top: 26px;
 }
 
 .nh-cell--dragging {
