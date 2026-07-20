@@ -8,8 +8,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.OPENHAB_URL || 'http://localhost:8080'
+  // '^/icon/' as a regex: a plain '/icon' prefix would also swallow the app's own
+  // /icons/* bundled packs and 404 them against the openHAB server.
   const proxy = Object.fromEntries(
-    ['/rest', '/auth', '/icon', '/static', '/images'].map((path) => [
+    ['/rest', '/auth', '^/icon/', '/static', '/images'].map((path) => [
       path,
       { target, changeOrigin: true },
     ])
