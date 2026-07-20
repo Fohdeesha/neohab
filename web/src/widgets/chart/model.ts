@@ -54,12 +54,16 @@ export interface ChartConfig {
   maxPoints?: number
 }
 
-export const DEFAULT_MAX_POINTS = 2000
+export const DEFAULT_MAX_POINTS = 250
 
 /**
- * Min/max-per-bucket decimation: cap a series at ~maxPoints while keeping the exact visual
- * envelope (every spike's extreme survives). A year of minute-resolution history is half a
- * million points - far more than any plot width can show, and enough to bog the browser down.
+ * Average-per-bucket decimation: cap a series at ~maxPoints so a year of minute-resolution
+ * history doesn't bog the browser down. Buckets are equal TIME slices and each emits the
+ * time-weighted mean of its samples (a state holds until the next sample), so the downsampled
+ * line follows the dense render's center of mass - the same shape Grafana shows for an
+ * averaged-down query. Min/max-per-bucket was tried first and rejected: emitting each
+ * bucket's extremes turns noisy data into a full-amplitude sawtooth that looks nothing like
+ * the raw plot.
  */
 export function decimate(
   xs: number[],
@@ -68,30 +72,39 @@ export function decimate(
 ): [number[], (number | null)[]] {
   const n = xs.length
   if (maxPoints <= 0 || n <= maxPoints) return [xs, ys]
-  const buckets = Math.max(1, Math.floor(maxPoints / 2))
-  const span = n / buckets
+  const x0 = xs[0]
+  const span = (xs[n - 1] - x0) / maxPoints
+  if (!(span > 0)) return [xs, ys]
   const outX: number[] = []
   const outY: (number | null)[] = []
-  for (let b = 0; b < buckets; b++) {
-    const start = Math.floor(b * span)
-    const end = Math.min(n, Math.floor((b + 1) * span))
-    let minI = -1
-    let maxI = -1
-    for (let i = start; i < end; i++) {
+  let i = 0
+  for (let b = 0; b < maxPoints; b++) {
+    const bStart = x0 + b * span
+    const bEnd = b === maxPoints - 1 ? Infinity : x0 + (b + 1) * span
+    let weighted = 0
+    let weight = 0
+    let sum = 0
+    let count = 0
+    while (i < n && xs[i] < bEnd) {
       const v = ys[i]
-      if (v === null) continue
-      if (minI < 0 || v < (ys[minI] as number)) minI = i
-      if (maxI < 0 || v > (ys[maxI] as number)) maxI = i
+      if (v !== null) {
+        // the sample holds until the next one; clip the hold to this bucket both ways, since
+        // a long-held state (change-based persistence) can span many buckets
+        const holdEnd = Math.min(i + 1 < n ? xs[i + 1] : xs[n - 1], bEnd === Infinity ? xs[n - 1] : bEnd)
+        const w = Math.max(0, holdEnd - Math.max(xs[i], bStart))
+        weighted += v * w
+        weight += w
+        sum += v
+        count++
+      }
+      // a sample held past the bucket boundary is revisited by the next bucket
+      if (i + 1 < n && xs[i + 1] > bEnd) break
+      i++
     }
-    if (minI < 0) continue
-    const first = Math.min(minI, maxI)
-    const second = Math.max(minI, maxI)
-    outX.push(xs[first])
-    outY.push(ys[first])
-    if (second !== first) {
-      outX.push(xs[second])
-      outY.push(ys[second])
-    }
+    if (count === 0) continue
+    // zero total weight (e.g. the final sample alone): plain mean of the bucket's samples
+    outX.push(x0 + (b + 0.5) * span)
+    outY.push(weight > 0 ? weighted / weight : sum / count)
   }
   return [outX, outY]
 }

@@ -383,7 +383,7 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       type: 'number',
       label: 'Max points per series',
       min: 0,
-      hint: 'Long histories are downsampled to about this many points (peaks are preserved). 0 = unlimited.',
+      hint: 'Long histories are averaged down to about this many points. 0 = unlimited.',
     },
   ],
   itemKeys: (config) =>
