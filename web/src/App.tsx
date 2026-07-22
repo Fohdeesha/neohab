@@ -17,6 +17,7 @@ import { Toast } from './components/Toast'
 import { KioskRuntime } from './kiosk/KioskRuntime'
 import { Screensaver } from './kiosk/Screensaver'
 import { AudioRuntime } from './audio/AudioRuntime'
+import { useDeviceThemeStore } from './store/deviceTheme'
 
 registerBuiltinWidgets()
 
@@ -26,16 +27,19 @@ export default function App() {
   const sidebar = useSidebarLayout()
   const loaded = useConfigStore((s) => s.loaded)
   const themeId = useConfigStore((s) => s.settings.theme)
+  const deviceThemeId = useDeviceThemeStore((s) => s.themeId)
   const customThemes = useConfigStore((s) => s.customThemes)
   const [ohVersion, setOhVersion] = useState<string>()
 
   // Apply (and cache) the active theme whenever the choice or a custom theme changes.
+  // A per-device override beats the shared setting; the cache stores whatever was applied,
+  // so the pre-paint path is correct either way.
   useEffect(() => {
     if (!loaded) return
-    const theme = resolveTheme(themeId, customThemes)
+    const theme = resolveTheme(deviceThemeId ?? themeId, customThemes)
     applyTheme(theme)
     cacheTheme(theme)
-  }, [loaded, themeId, customThemes])
+  }, [loaded, themeId, deviceThemeId, customThemes])
 
   useEffect(() => {
     let cancelled = false
