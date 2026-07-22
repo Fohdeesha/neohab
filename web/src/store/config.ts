@@ -65,6 +65,14 @@ export interface AppSettings {
    * `bg:<id>` for an uploaded one. A dashboard's own `background` overrides it.
    */
   background?: string
+  /**
+   * Speech item (HABPanel's `speech_synthesis_item`): a String item whose state changes are
+   * spoken aloud through the browser's speech synthesis. Whether a given device actually
+   * speaks (and with which voice) is that device's own choice.
+   */
+  speechItem?: string
+  /** Voice-input microphone button in the dashboard header (where supported). On by default. */
+  voiceButton?: boolean
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })

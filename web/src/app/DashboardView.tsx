@@ -35,6 +35,7 @@ import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
 import { PaletteSheet } from '../editor/PaletteSheet'
 import { SignInSheet } from '../editor/SignInSheet'
 import { NavButton } from './Sidebar'
+import { VoiceButton } from '../audio/VoiceButton'
 
 /** True when the keyboard focus is in a text field, so shortcuts must not fire. */
 function isTyping(): boolean {
@@ -249,6 +250,7 @@ export function DashboardView({ id }: { id: string }) {
             <NavButton />
             <span className="nh-dash__title">{dashboard.name}</span>
             <span className="nh-dash__spacer" />
+            <VoiceButton />
             {canEdit ? (
               <button className="nh-iconbtn" onClick={enterEdit} aria-label={t('Edit dashboard')} title={t('Edit dashboard')}>
                 ✎

@@ -62,11 +62,8 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       for (const def of converted.widgetDefs) {
         await saveRawComponent(def)
       }
-      if (converted.themeId || converted.background) {
-        await saveSettings({
-          ...(converted.themeId ? { theme: converted.themeId } : {}),
-          ...(converted.background ? { background: converted.background } : {}),
-        })
+      if (Object.keys(converted.settingsPatch).length > 0) {
+        await saveSettings(converted.settingsPatch)
       }
       setResult(converted)
     } catch (err) {

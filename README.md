@@ -46,6 +46,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   right y-axes with fixed or automatic ranges, threshold lines and shaded bands, a legend that
   toggles series on and off, a crosshair tooltip, quick time-range switching from an hour to a
   year, drag-to-zoom, and live updating as item states change.
+- **Voice & audio** — every open dashboard can be a speaker: sounds your rules play through
+  openHAB's Web Audio sink come out of the browser, a speech item announces its changes out
+  loud (voice picked per device), and a microphone button sends spoken commands to openHAB's
+  interpreter where the browser supports it. Each device decides for itself whether it plays
+  along, so the wall panel chimes and your desk stays quiet.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
   restore by replacing everything or merging a backup into what you have.
 - **Your language** — the UI ships in English, German, Spanish, French, Italian, Dutch and

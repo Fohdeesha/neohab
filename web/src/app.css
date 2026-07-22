@@ -2335,6 +2335,50 @@ button {
   background-position: center;
 }
 
+/* Voice input: live state on the mic button + the floating transcript while listening */
+.nh-iconbtn svg {
+  display: block;
+}
+
+.nh-iconbtn--live {
+  color: var(--nh-primary);
+}
+
+.nh-voice {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(90vw, 480px);
+  padding: 8px 14px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  box-shadow: var(--nh-shadow);
+}
+
+.nh-voice__dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--nh-primary);
+  animation: nh-voicepulse 0.9s infinite alternate;
+}
+
+@keyframes nh-voicepulse {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable

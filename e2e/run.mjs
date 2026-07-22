@@ -38,6 +38,7 @@ const SAFE_SUITES = [
   'e2e-kiosk',
   'e2e-audit2',
   'e2e-audit3',
+  'e2e-voiceaudio',
 ]
 
 const only = process.argv.slice(2)

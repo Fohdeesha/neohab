@@ -11,6 +11,7 @@ import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
+import type { AppSettings } from '../store/config'
 
 /* ------------------------------- source model ------------------------------- */
 
@@ -71,10 +72,11 @@ export interface HabpanelImportResult {
   dashboards: Dashboard[]
   /** Preserved HABPanel custom-widget definitions, ready to store as components. */
   widgetDefs: UIComponent[]
-  /** Suggested neohab theme id mapped from the HABPanel theme, if any. */
-  themeId: string | null
-  /** HABPanel's panel-wide background image URL, mapped to the global background setting. */
-  background: string | null
+  /**
+   * Global settings mapped from the HABPanel panel settings (theme, background image,
+   * speech item, Speak-button visibility). Empty when nothing mapped.
+   */
+  settingsPatch: Partial<AppSettings>
   widgetCount: number
   notes: (ImportNote & { count: number })[]
 }
@@ -541,22 +543,34 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     report.add('info', 'Custom widget definitions were imported and are available in the widget palette')
   }
 
-  let themeId: string | null = null
+  const settingsPatch: Partial<AppSettings> = {}
   const hpTheme = str(cfg.settings.theme)
   if (hpTheme) {
-    themeId = THEME_MAP[hpTheme] ?? null
-    if (themeId && hpTheme !== 'default') {
-      report.add('info', 'HABPanel theme “{{theme}}” was mapped to the closest neohab theme', { theme: hpTheme })
+    const themeId = THEME_MAP[hpTheme] ?? null
+    if (themeId) {
+      settingsPatch.theme = themeId
+      if (hpTheme !== 'default') {
+        report.add('info', 'HABPanel theme “{{theme}}” was mapped to the closest neohab theme', { theme: hpTheme })
+      }
     }
   }
-  const background = str(cfg.settings.background_image) || null
+  const background = str(cfg.settings.background_image)
   if (background) {
+    settingsPatch.background = background
     report.add('info', 'The panel background image was imported as the global background')
   }
   if (str(cfg.settings.additional_stylesheet_url)) {
     report.add('info', 'Additional stylesheets are replaced by neohab themes')
   }
+  const speechItem = str(cfg.settings.speech_synthesis_item)
+  if (speechItem) {
+    settingsPatch.speechItem = speechItem
+    report.add('info', 'The speech item was imported; each device chooses whether (and with which voice) it speaks')
+  }
+  if (cfg.settings.hide_speak_button === true) {
+    settingsPatch.voiceButton = false
+  }
 
   const widgetCount = dashboards.reduce((sum, d) => sum + d.widgets.length, 0)
-  return { dashboards, widgetDefs, themeId, background, widgetCount, notes: report.list() }
+  return { dashboards, widgetDefs, settingsPatch, widgetCount, notes: report.list() }
 }

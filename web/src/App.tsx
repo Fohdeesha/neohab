@@ -16,6 +16,7 @@ import { useSidebarLayout } from './store/sidebar'
 import { Toast } from './components/Toast'
 import { KioskRuntime } from './kiosk/KioskRuntime'
 import { Screensaver } from './kiosk/Screensaver'
+import { AudioRuntime } from './audio/AudioRuntime'
 
 registerBuiltinWidgets()
 
@@ -91,6 +92,7 @@ export default function App() {
         <Toast />
       </main>
       <KioskRuntime />
+      <AudioRuntime />
       <Screensaver />
     </>
   )
