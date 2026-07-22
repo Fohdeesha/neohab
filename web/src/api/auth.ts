@@ -15,6 +15,8 @@
  * user role (default). A token is only required for admin operations such as saving config.
  */
 
+import { sha256 } from './sha256'
+
 const STORAGE_REFRESH = 'neohab:refreshToken'
 const STORAGE_API_TOKEN = 'neohab:apiToken'
 const SESSION_VERIFIER = 'neohab:codeVerifier'
@@ -88,8 +90,13 @@ function base64url(bytes: Uint8Array): string {
 
 async function makePkce(): Promise<{ verifier: string; challenge: string }> {
   const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)))
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
-  return { verifier, challenge: base64url(new Uint8Array(digest)) }
+  const bytes = new TextEncoder().encode(verifier)
+  // SubtleCrypto only exists in secure contexts; a LAN openHAB over plain HTTP is not one,
+  // and the login button must work there too - fall back to the bundled SHA-256.
+  const digest = crypto.subtle
+    ? new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+    : sha256(bytes)
+  return { verifier, challenge: base64url(digest) }
 }
 
 /** Begin the login flow by redirecting to openHAB's authorization page. */

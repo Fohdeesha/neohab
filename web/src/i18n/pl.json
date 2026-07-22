@@ -376,6 +376,7 @@
   "Sign in": "Zaloguj się",
   "Sign in to edit": "Zaloguj się, aby edytować",
   "Sign out on this device": "Wyloguj się na tym urządzeniu",
+  "Sign-in failed: {{error}}": "Logowanie nie powiodło się: {{error}}",
   "Signed in on this device.": "Zalogowano na tym urządzeniu.",
   "Signed out on this device.": "Wylogowano na tym urządzeniu.",
   "Simplify the SVG or raise the limit in Settings.": "Uprość SVG albo podnieś limit w ustawieniach.",

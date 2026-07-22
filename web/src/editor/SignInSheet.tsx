@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { authorize, setApiToken } from '../api/auth'
 import { refreshAuthStatus } from '../store/auth'
+import { notify } from '../store/notify'
 
 export function SignInSheet({ onClose, onToken }: { onClose: () => void; onToken: () => void }) {
   const { t } = useTranslation()
@@ -20,7 +21,16 @@ export function SignInSheet({ onClose, onToken }: { onClose: () => void; onToken
         <p className="nh-signin__text">
           {t('Editing dashboards requires an openHAB administrator account.')}
         </p>
-        <button type="button" className="nh-btn nh-btn--primary" onClick={() => void authorize()}>
+        <button
+          type="button"
+          className="nh-btn nh-btn--primary"
+          onClick={() =>
+            // never let this fail silently - a dead login button gives the user nothing to act on
+            authorize().catch((err) =>
+              notify(t('Sign-in failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+            )
+          }
+        >
           {t('Log in with openHAB')}
         </button>
 

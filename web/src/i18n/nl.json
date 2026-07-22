@@ -360,6 +360,7 @@
   "Sign in": "Aanmelden",
   "Sign in to edit": "Meld je aan om te bewerken",
   "Sign out on this device": "Afmelden op dit apparaat",
+  "Sign-in failed: {{error}}": "Aanmelden mislukt: {{error}}",
   "Signed in on this device.": "Aangemeld op dit apparaat.",
   "Signed out on this device.": "Afgemeld op dit apparaat.",
   "Simplify the SVG or raise the limit in Settings.": "Vereenvoudig de SVG of verhoog de limiet in de instellingen.",

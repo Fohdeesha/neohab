@@ -360,6 +360,7 @@
   "Sign in": "Iniciar sesión",
   "Sign in to edit": "Inicia sesión para editar",
   "Sign out on this device": "Cerrar sesión en este dispositivo",
+  "Sign-in failed: {{error}}": "El inicio de sesión falló: {{error}}",
   "Signed in on this device.": "Sesión iniciada en este dispositivo.",
   "Signed out on this device.": "Sesión cerrada en este dispositivo.",
   "Simplify the SVG or raise the limit in Settings.": "Simplifica el SVG o sube el límite en Ajustes.",

@@ -360,6 +360,7 @@
   "Sign in": "Se connecter",
   "Sign in to edit": "Connectez-vous pour modifier",
   "Sign out on this device": "Se déconnecter sur cet appareil",
+  "Sign-in failed: {{error}}": "Échec de la connexion : {{error}}",
   "Signed in on this device.": "Connecté sur cet appareil.",
   "Signed out on this device.": "Déconnecté sur cet appareil.",
   "Simplify the SVG or raise the limit in Settings.": "Simplifiez le SVG ou augmentez la limite dans les réglages.",
