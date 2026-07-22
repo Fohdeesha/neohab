@@ -1,0 +1,12 @@
+{
+  "name": "neohab-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser end-to-end suites for neohab, run against a live openHAB server",
+  "scripts": {
+    "battery": "node run.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}

@@ -43,3 +43,9 @@ id_ed25519*
 # --- frontend toolchain (maven-installed node) ---
 .tools/
 web/node/
+
+# --- e2e (local target config + run artifacts) ---
+e2e/target.local.json
+e2e/*.png
+e2e/*.json.bak
+e2e/snapshot*.json

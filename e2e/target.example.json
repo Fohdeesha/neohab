@@ -1,0 +1,11 @@
+{
+  "baseUrl": "http://openhab.local:8080",
+  "tokenFile": "./token.local",
+  "items": {
+    "dimmer": "MyDimmerItem",
+    "color": "MyColorItem",
+    "switch": "MySwitchItem",
+    "temperature": "MyTemperatureItem",
+    "player": "MyPlayerItem"
+  }
+}

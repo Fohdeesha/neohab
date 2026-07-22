@@ -79,6 +79,10 @@ community marketplace (planned) or manually via the addons folder.
 React + TypeScript + Vite frontend served by a thin OSGi add-on shell, talking to openHAB
 exclusively through its public REST and SSE APIs.
 
+The browser end-to-end suites live in [`e2e/`](e2e/) — they drive a real browser against a live
+openHAB server with the add-on deployed. See [`e2e/README.md`](e2e/README.md) before running
+them against a server you care about.
+
 ## Icons
 
 Nearly 10,000 icons are bundled in the add-on, so everything works fully offline — plus your
