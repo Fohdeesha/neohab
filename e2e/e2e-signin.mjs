@@ -6,11 +6,18 @@
  * dead (found by a user, not by the suites - hence this suite). Also proves a failure inside
  * authorize() surfaces as a notice instead of vanishing into an unhandled rejection.
  *
- * SAFE with a live config: creates nothing, commands nothing, signs nothing in (it stops at
- * the server's login form - completing the exchange needs user credentials no test has).
+ * When the target configuration provides a throwaway login (`user` in target.local.json, see
+ * README), the FULL exchange runs too: credentials into the server's form, redirect back,
+ * code-for-token exchange, admin status from the session JWT, a real admin write through the
+ * session, and sign-out. Without one that section self-skips.
+ *
+ * SAFE with a live config: creates only dashboard:nh-e2e-pkce (deleted; only in the exchange
+ * section), commands nothing, and only ever signs in as the throwaway user.
  */
 import { chromium } from 'playwright-core'
-import { BASE, APP } from './lib/target.mjs'
+import { BASE, APP, NS, AUTH, TEST_USER } from './lib/target.mjs'
+
+const PKCE_UID = 'dashboard:nh-e2e-pkce'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -47,6 +54,9 @@ function checkAuthUrl(url, label) {
     q.get('redirect_uri') === APP,
     q.get('redirect_uri') ?? 'none'
   )
+  // core's authorize page rejects the credential submit with unauthorized_client unless
+  // client_id EXACTLY equals redirect_uri - the bug the first real exchange run uncovered
+  ok(`${label}: client_id equals redirect_uri`, q.get('client_id') === q.get('redirect_uri'), q.get('client_id') ?? 'none')
 }
 
 try {
@@ -98,6 +108,72 @@ try {
     await page.close()
   }
 
+  // ---------- the full credential exchange (needs the throwaway login) ----------
+  if (!TEST_USER) {
+    console.log('SKIP  no throwaway login in the target configuration - credential exchange not exercised (see README)')
+  } else {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
+    const errs = []
+    page.on('pageerror', (e) => errs.push(String(e.message)))
+    page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
+    page.on('dialog', (d) => d.accept())
+
+    await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('h2:text-is("Account")', { timeout: 15000 })
+    await page.click('section:has(h2:text-is("Account")) button:has-text("Sign in")')
+    await clickLogin(page)
+    await page.fill('input[name="username"]', TEST_USER.name)
+    await page.fill('input[type="password"]', TEST_USER.password)
+    await Promise.all([
+      page.waitForURL((u) => u.pathname.endsWith('/neohab/index.html'), { timeout: 15000 }),
+      page.click('form button[type="submit"], form input[type="submit"], form button'),
+    ])
+    ok('exchange: server redirected back to the app', true, page.url().slice(0, 100))
+
+    // boot completes the code-for-token exchange and strips the code from the address
+    await page.waitForFunction(() => !window.location.search.includes('code='), undefined, { timeout: 15000 })
+    ok('exchange: auth code stripped from the address', !page.url().includes('code='), page.url().slice(0, 120))
+    await page.waitForFunction(() => !!localStorage.getItem('neohab:refreshToken'), undefined, { timeout: 10000 }).catch(() => {})
+    ok('exchange: refresh token stored', await page.evaluate(() => !!localStorage.getItem('neohab:refreshToken')))
+
+    // the session JWT carries the administrator role - the path no suite could reach before
+    await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+    await page
+      .waitForSelector('text=This device is signed in as an administrator.', { timeout: 10000 })
+      .catch(() => {})
+    ok(
+      'exchange: admin role read from the session token',
+      (await page.locator('text=This device is signed in as an administrator.').count()) === 1
+    )
+
+    // a real admin write through the session token: create a dashboard, verify, delete it
+    await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-tile--new', { timeout: 10000 })
+    await page.click('.nh-tile--new')
+    await page.waitForSelector('#nh-newdash-name', { timeout: 5000 })
+    await page.fill('#nh-newdash-name', 'nh-e2e-pkce')
+    await page.click('button:has-text("Create dashboard")')
+    await sleep(1200)
+    const created = await fetch(NS + '/' + PKCE_UID, { headers: AUTH })
+    ok('exchange: session token performs an admin write', created.ok)
+    await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH })
+
+    // sign out: token revoked server-side, forgotten locally, UI back to anonymous
+    await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('button:has-text("Sign out on this device")', { timeout: 10000 })
+    await page.click('button:has-text("Sign out on this device")')
+    await sleep(800)
+    ok('sign-out: refresh token forgotten', await page.evaluate(() => !localStorage.getItem('neohab:refreshToken')))
+    ok(
+      'sign-out: account section back to anonymous',
+      (await page.locator('text=This device is not signed in').count()) === 1
+    )
+
+    const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
+    ok('exchange: no page/console errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
+    await page.close()
+  }
+
   // ---------- a failure inside authorize() must surface, never vanish ----------
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
@@ -123,10 +199,18 @@ try {
   await browser.close()
 }
 
+// cleanup guard: the exchange dashboard must never survive, even if a section crashed
+await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH })
+{
+  const r = await fetch(NS + '/' + PKCE_UID, { headers: AUTH })
+  ok('cleanup: exchange dashboard absent', !r.ok)
+}
+
 let allPass = true
 for (const r of results) {
   if (!r.pass) allPass = false
   console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.detail ? '  [' + r.detail + ']' : ''}`)
 }
 console.log(allPass ? '\nALL PASS' : '\nSOME FAILED')
-process.exit(allPass ? 0 : 1)
+// exitCode, not exit(): a hard exit during teardown trips a libuv assertion on Windows
+process.exitCode = allPass ? 0 : 1

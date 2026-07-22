@@ -18,7 +18,22 @@ auth, the works. There is no mock server.
 3. Deploy the jar you want to test (`/neohab/index.html` must serve it).
 
 Environment overrides: `NEOHAB_E2E_BASE`, `NEOHAB_E2E_TOKEN`, `NEOHAB_E2E_TOKEN_FILE`,
-`NEOHAB_E2E_TARGET`.
+`NEOHAB_E2E_TARGET`, `NEOHAB_E2E_USER`, `NEOHAB_E2E_PASSWORD`.
+
+### Optional: a throwaway login
+
+`e2e-signin` covers the full OAuth2/PKCE credential exchange (login form → code → token →
+admin write → sign-out) when the target configuration names a **throwaway user** it may sign
+in and out freely:
+
+```json
+"user": { "name": "e2e-throwaway", "password": "..." }
+```
+
+Create one in the karaf console with `openhab:users add e2e-throwaway <password>
+administrator` and remove it with `openhab:users remove e2e-throwaway` when done. Without
+this the exchange section self-skips; everything up to the server's login form is still
+covered. Never point it at a real account.
 
 ### Test items
 

@@ -7,5 +7,6 @@
     "switch": "MySwitchItem",
     "temperature": "MyTemperatureItem",
     "player": "MyPlayerItem"
-  }
+  },
+  "user": { "name": "e2e-throwaway", "password": "change-me-or-remove-this-key" }
 }

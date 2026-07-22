@@ -65,3 +65,15 @@ for (const key of ['dimmer', 'color', 'switch', 'temperature', 'player']) {
     process.exit(2)
   }
 }
+
+/**
+ * Optional throwaway login for the full credential-exchange test (e2e-signin): a user that
+ * exists on the target server and may be signed in and out freely. Without one the exchange
+ * section self-skips - everything up to the server's login form is still covered. Create one
+ * with `openhab:users add <name> <password> administrator` in the karaf console and remove it
+ * with `openhab:users remove <name>` afterwards. Env overrides: NEOHAB_E2E_USER /
+ * NEOHAB_E2E_PASSWORD.
+ */
+const userName = process.env.NEOHAB_E2E_USER ?? cfg.user?.name
+const userPassword = process.env.NEOHAB_E2E_PASSWORD ?? cfg.user?.password
+export const TEST_USER = userName && userPassword ? { name: String(userName), password: String(userPassword) } : null

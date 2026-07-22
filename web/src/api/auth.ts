@@ -68,6 +68,11 @@ export function isLoggedIn(): boolean {
  * The OAuth redirect target: this page without query or hash. The token endpoint compares
  * redirect_uri by exact string equality, and a fragment in it would swallow the `?code=...`
  * (the auth page appends the query to whatever it is given), so it must stay clean.
+ *
+ * It doubles as the client_id: core's authorize page REQUIRES client_id to exactly equal
+ * redirect_uri (AuthorizePageServlet rejects the credential submit with unauthorized_client
+ * otherwise). Sending the bare origin as client_id passed every step up to the login form
+ * and died only there - found the day the credential exchange first ran end to end.
  */
 function redirectUri(): string {
   return window.location.origin + window.location.pathname
@@ -108,7 +113,7 @@ export async function authorize(): Promise<void> {
 
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: window.location.origin,
+    client_id: redirectUri(),
     redirect_uri: redirectUri(),
     scope: 'admin',
     code_challenge_method: 'S256',
@@ -156,7 +161,7 @@ export async function completeLogin(): Promise<boolean> {
 
   await requestToken({
     grant_type: 'authorization_code',
-    client_id: window.location.origin,
+    client_id: redirectUri(),
     redirect_uri: redirectUri(),
     code,
     code_verifier: verifier,
@@ -176,7 +181,7 @@ export async function getAccessToken(): Promise<string | null> {
   // De-duplicate concurrent refreshes: all callers await the same request.
   refreshInFlight ??= requestToken({
     grant_type: 'refresh_token',
-    client_id: window.location.origin,
+    client_id: redirectUri(),
     refresh_token: refresh,
   }).finally(() => {
     refreshInFlight = null
