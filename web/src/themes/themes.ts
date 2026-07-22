@@ -17,6 +17,11 @@ export interface Theme {
   name: string
   scheme: 'dark' | 'light'
   tokens: ThemeTokens
+  /**
+   * Optional stylesheet applied with the theme, for looks that tokens cannot express
+   * (fonts, widget-frame structure). Admin-authored, like the rest of the config.
+   */
+  css?: string
 }
 
 export const BUILTIN_THEMES: Theme[] = [
@@ -87,6 +92,7 @@ export const BUILTIN_THEMES: Theme[] = [
 ]
 
 const CACHE_KEY = 'neohab:themeCache'
+const CSS_STYLE_ID = 'nh-theme-css'
 
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement
@@ -96,6 +102,19 @@ export function applyTheme(theme: Theme): void {
     else root.style.removeProperty('--nh-' + key)
   }
   root.style.colorScheme = theme.scheme
+
+  // Per-theme stylesheet: appended to <head> so it cascades after the app stylesheet.
+  let styleEl = document.getElementById(CSS_STYLE_ID)
+  if (theme.css) {
+    if (!styleEl) {
+      styleEl = document.createElement('style')
+      styleEl.id = CSS_STYLE_ID
+      document.head.appendChild(styleEl)
+    }
+    if (styleEl.textContent !== theme.css) styleEl.textContent = theme.css
+  } else if (styleEl) {
+    styleEl.remove()
+  }
 }
 
 export function cacheTheme(theme: Theme): void {

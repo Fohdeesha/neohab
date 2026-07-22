@@ -62,6 +62,7 @@ export function SettingsView() {
       name: 'My theme',
       scheme: activeTheme.scheme,
       tokens: { ...activeTheme.tokens },
+      css: activeTheme.css,
     })
   }
 
@@ -575,6 +576,21 @@ function ThemeEditor({
             value={parseInt(theme.tokens.radius ?? '12', 10)}
             onChange={(e) => setToken('radius', e.target.value + 'px')}
           />
+        </label>
+        <label className="nh-field" htmlFor="theme-css">
+          <span className="nh-field__label">Custom CSS</span>
+          <textarea
+            id="theme-css"
+            className="nh-defeditor__code"
+            rows={10}
+            spellCheck={false}
+            value={theme.css ?? ''}
+            onChange={(e) => onChange({ ...theme, css: e.target.value || undefined })}
+          />
+          <span className="nh-field__hint">
+            Advanced: a stylesheet applied together with this theme, for looks the colors above
+            cannot express (fonts, widget-frame styling). Applied when the theme is saved.
+          </span>
         </label>
       </div>
       <div className="nh-settings__row">
