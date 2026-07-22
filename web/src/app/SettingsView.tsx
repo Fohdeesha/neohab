@@ -34,6 +34,8 @@ import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
 import { refreshAuthStatus, useAuthStore, useEditingAllowed, useIsAdmin } from '../store/auth'
+import { collectUnusedBackgrounds } from '../store/config'
+import { BackgroundField } from '../components/BackgroundField'
 import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
@@ -117,6 +119,25 @@ export function SettingsView() {
             <button type="button" className="nh-btn nh-btn--ghost" onClick={newFromCurrent}>
               {t('New theme from current')}
             </button>
+          ) : null}
+
+          {canEdit ? (
+            <div className="nh-field">
+              <span className="nh-field__label">{t('Background image')}</span>
+              <BackgroundField
+                id="nh-set-bg"
+                value={settings.background}
+                onChange={async (ref) => {
+                  setNotice(null)
+                  const err = await saveSettings({ background: ref })
+                  if (err) setNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+                  void collectUnusedBackgrounds()
+                }}
+              />
+              <span className="nh-field__hint">
+                {t('Shown behind the Home screen and every dashboard that has no background of its own.')}
+              </span>
+            </div>
           ) : null}
 
           {canEdit ? (

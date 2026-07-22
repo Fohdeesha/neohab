@@ -13,6 +13,8 @@
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
 import type { UIComponent } from '../api/types'
+import type { CustomBackground } from '../model/background'
+import { BG_REF_PREFIX, isUploadedBackground } from '../model/background'
 import type { CustomIcon } from '../model/customIcon'
 import type { Dashboard } from '../model/dashboard'
 import type { CustomWidgetDef } from '../model/widgetdef'
@@ -22,12 +24,14 @@ const DASHBOARD_PREFIX = 'dashboard:'
 const THEME_PREFIX = 'theme:'
 const WIDGETDEF_PREFIX = 'widgetdef:'
 const ICON_PREFIX = 'icon:'
+const BACKGROUND_PREFIX = 'background:'
 const SETTINGS_UID = 'settings'
 
 const DASHBOARD_COMPONENT = 'neohab:dashboard'
 const THEME_COMPONENT = 'neohab:theme'
 const WIDGETDEF_COMPONENT = 'neohab:widgetdef'
 const ICON_COMPONENT = 'neohab:icon'
+const BACKGROUND_COMPONENT = 'neohab:background'
 const SETTINGS_COMPONENT = 'neohab:settings'
 
 export interface AppSettings {
@@ -56,6 +60,11 @@ export interface AppSettings {
    * still sign in via Settings > Account. Off by default so a fresh install can be edited.
    */
   lockEditing?: boolean
+  /**
+   * Default background image behind every dashboard and the Home screen - a URL, or
+   * `bg:<id>` for an uploaded one. A dashboard's own `background` overrides it.
+   */
+  background?: string
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })
@@ -65,6 +74,7 @@ interface ConfigState {
   customThemes: Theme[]
   widgetDefs: CustomWidgetDef[]
   customIcons: CustomIcon[]
+  backgrounds: CustomBackground[]
   settings: AppSettings
   /** Component uids that exist on the server (decides create vs update on save). */
   serverUids: Set<string>
@@ -78,6 +88,7 @@ export const useConfigStore = create<ConfigState>(() => ({
   customThemes: [],
   widgetDefs: [],
   customIcons: [],
+  backgrounds: [],
   settings: defaultSettings(),
   serverUids: new Set<string>(),
   loading: false,
@@ -115,24 +126,32 @@ const iconComponent = (i: CustomIcon): UIComponent<CustomIcon> => ({
   config: i,
 })
 
+const backgroundComponent = (b: CustomBackground): UIComponent<CustomBackground> => ({
+  uid: BACKGROUND_PREFIX + b.id,
+  component: BACKGROUND_COMPONENT,
+  config: b,
+})
+
 function parseComponents(components: UIComponent[]) {
   const dashboards: Dashboard[] = []
   const customThemes: Theme[] = []
   const widgetDefs: CustomWidgetDef[] = []
   const customIcons: CustomIcon[] = []
+  const backgrounds: CustomBackground[] = []
   let settings = defaultSettings()
   for (const c of components) {
     if (c.uid.startsWith(DASHBOARD_PREFIX)) dashboards.push(c.config as unknown as Dashboard)
     else if (c.uid.startsWith(THEME_PREFIX)) customThemes.push(c.config as unknown as Theme)
     else if (c.uid.startsWith(WIDGETDEF_PREFIX)) widgetDefs.push(c.config as unknown as CustomWidgetDef)
     else if (c.uid.startsWith(ICON_PREFIX)) customIcons.push(c.config as unknown as CustomIcon)
+    else if (c.uid.startsWith(BACKGROUND_PREFIX)) backgrounds.push(c.config as unknown as CustomBackground)
     else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
   }
   // stable, predictable ordering: component list order is storage-arbitrary
   widgetDefs.sort(byName)
   customIcons.sort(byName)
   dashboards.sort(byName)
-  return { dashboards, customThemes, widgetDefs, customIcons, settings }
+  return { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings }
 }
 
 /**
@@ -148,12 +167,13 @@ export async function loadConfig(): Promise<void> {
   try {
     const components = await listComponents()
     const serverUids = new Set(components.map((c) => c.uid))
-    const { dashboards, customThemes, widgetDefs, customIcons, settings } = parseComponents(components)
+    const { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings } = parseComponents(components)
     useConfigStore.setState({
       dashboards,
       customThemes,
       widgetDefs,
       customIcons,
+      backgrounds,
       settings,
       serverUids,
       loading: false,
@@ -166,6 +186,7 @@ export async function loadConfig(): Promise<void> {
       customThemes: [],
       widgetDefs: [],
       customIcons: [],
+      backgrounds: [],
       settings: defaultSettings(),
       serverUids: new Set<string>(),
       loading: false,
@@ -275,6 +296,41 @@ export async function deleteCustomIcon(id: string): Promise<void> {
   }))
 }
 
+export async function saveBackground(bg: CustomBackground): Promise<void> {
+  await upsert(backgroundComponent(bg))
+  useConfigStore.setState((s) => {
+    const others = s.backgrounds.filter((b) => b.id !== bg.id)
+    return { backgrounds: [...others, bg] }
+  })
+}
+
+/**
+ * Delete uploaded backgrounds nothing references anymore. References live in the global
+ * setting and on each saved dashboard (plus the refs the caller knows are about to be used,
+ * e.g. an unsaved editor draft) - anything else is a leftover from a replaced upload, and at
+ * hundreds of KB each they must not pile up in the config store. Failures are ignored: a
+ * missed collection is retried by the next call, and viewing must never break over cleanup.
+ */
+export async function collectUnusedBackgrounds(alsoKeep: (string | undefined)[] = []): Promise<void> {
+  const s = useConfigStore.getState()
+  const referenced = new Set<string>()
+  for (const ref of [s.settings.background, ...s.dashboards.map((d) => d.background), ...alsoKeep]) {
+    if (ref && isUploadedBackground(ref)) referenced.add(ref.slice(BG_REF_PREFIX.length))
+  }
+  for (const bg of s.backgrounds) {
+    if (referenced.has(bg.id)) continue
+    try {
+      await deleteComponent(BACKGROUND_PREFIX + bg.id)
+      useConfigStore.setState((st) => ({
+        backgrounds: st.backgrounds.filter((b) => b.id !== bg.id),
+        serverUids: new Set([...st.serverUids].filter((u) => u !== BACKGROUND_PREFIX + bg.id)),
+      }))
+    } catch {
+      /* not signed in or transient - the next collection gets it */
+    }
+  }
+}
+
 /* ------------------------------- backup / restore ------------------------------- */
 
 export interface ExportBundle {
@@ -299,6 +355,7 @@ export async function buildExportBundle(): Promise<ExportBundle> {
       ...s.customThemes.map((t) => themeComponent(t)),
       ...s.widgetDefs.map((d) => widgetDefComponent(d)),
       ...s.customIcons.map((i) => iconComponent(i)),
+      ...s.backgrounds.map((b) => backgroundComponent(b)),
       settingsComponent(s.settings),
     ] as unknown as UIComponent[]
   }

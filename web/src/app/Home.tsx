@@ -10,6 +10,7 @@ import { SidebarTrigger } from './Sidebar'
 import { Icon } from '../components/Icon'
 import { NewDashboardSheet } from '../editor/NewDashboardSheet'
 import { SignInSheet } from '../editor/SignInSheet'
+import { useBackgroundStyle } from '../components/useBackground'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
   const { t } = useTranslation()
@@ -20,9 +21,10 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const [signInOpen, setSignInOpen] = useState(false)
 
   const createFirst = () => (isLoggedIn() ? setNewOpen(true) : setSignInOpen(true))
+  const backgroundStyle = useBackgroundStyle()
 
   return (
-    <div className="nh-home">
+    <div className="nh-home" style={backgroundStyle}>
       <SidebarTrigger className="nh-iconbtn nh-home__menu" />
       <Wordmark />
       <p className="nh-home__status">

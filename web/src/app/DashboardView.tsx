@@ -29,6 +29,7 @@ import { useAuthStore, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
+import { useBackgroundStyle } from '../components/useBackground'
 import { SettingsPanel } from '../editor/SettingsPanel'
 import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
 import { PaletteSheet } from '../editor/PaletteSheet'
@@ -57,6 +58,7 @@ export function DashboardView({ id }: { id: string }) {
 
   const editing = editor.editing && editor.draft?.id === id
   const dashboard = editing ? editor.draft! : saved
+  const backgroundStyle = useBackgroundStyle(dashboard)
   const selectedIds = editor.selectedIds
   // The settings panel is for one widget at a time, and only when the selection was an explicit
   // single-select (panelOpen). Ctrl/Shift-click, marquee and long-press never open it, even at
@@ -192,7 +194,7 @@ export function DashboardView({ id }: { id: string }) {
   }
 
   return (
-    <div className="nh-dash">
+    <div className="nh-dash" style={backgroundStyle}>
       {/* Kiosk mode is a full-screen dashboard: no header at all (edit mode cannot start while
           it is on, but a draft in progress keeps its toolbar if kiosk flips mid-edit). */}
       {kiosk && !editing ? null : (

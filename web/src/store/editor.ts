@@ -12,7 +12,7 @@ import { clampRect, collides, findFreeSpot, rectOf, type BumpPlan } from '../mod
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
 import type { ClipboardWidget } from './clipboard'
-import { saveDashboard } from './config'
+import { collectUnusedBackgrounds, saveDashboard } from './config'
 
 const UNDO_LIMIT = 50
 
@@ -224,7 +224,9 @@ export function setDashSettingsOpen(open: boolean): void {
  * for the user to resolve (undo restores the previous layout in one step).
  */
 export function updateDashboardMeta(
-  patch: Partial<Pick<Dashboard, 'name' | 'icon' | 'hideInSidebar' | 'columns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder'>>,
+  patch: Partial<
+    Pick<Dashboard, 'name' | 'icon' | 'hideInSidebar' | 'background' | 'columns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder'>
+  >,
   coalesceKey: string | null = null,
 ): void {
   applyChange((draft) => {
@@ -368,6 +370,8 @@ export async function saveDraft(keepEditing = false): Promise<boolean> {
   useEditorStore.setState({ saving: true, saveError: null })
   try {
     await saveDashboard(clone(s.draft))
+    // A background upload replaced during this edit is unreferenced now that the save landed.
+    void collectUnusedBackgrounds([s.draft.background])
     if (keepEditing) useEditorStore.setState({ saving: false, dirty: false })
     else stopEditing()
     return true

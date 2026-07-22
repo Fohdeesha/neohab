@@ -4,6 +4,7 @@
  * openHAB server. Shows an honest per-import report of what was mapped and approximated.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listComponentsIn } from '../api/components'
 import type { UIComponent } from '../api/types'
 import {
@@ -17,6 +18,7 @@ import { saveDashboard, saveRawComponent, saveSettings, useConfigStore } from '.
 import { navigate } from '../app/router'
 
 export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
   const [serverConfigs, setServerConfigs] = useState<UIComponent[]>([])
   const [busy, setBusy] = useState(false)
@@ -38,11 +40,17 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
 
     const warnCount = converted.notes.filter((n) => n.level !== 'info').length
     const proceed = window.confirm(
-      `Import ${converted.dashboards.length} dashboards (${converted.widgetCount} widgets` +
-        (converted.widgetDefs.length ? `, ${converted.widgetDefs.length} custom widgets` : '') +
-        `) from ${sourceName}?` +
-        (warnCount ? ` ${warnCount} thing(s) will need attention — a report is shown afterwards.` : '') +
-        ' Existing dashboards are kept.'
+      t('Import {{dashboards}} dashboards ({{widgets}} widgets{{defs}}) from {{source}}?', {
+        dashboards: converted.dashboards.length,
+        widgets: converted.widgetCount,
+        defs: converted.widgetDefs.length
+          ? ', ' + t('{{count}} custom widgets', { count: converted.widgetDefs.length })
+          : '',
+        source: sourceName,
+      }) +
+        (warnCount ? ' ' + t('{{count}} things will need attention — a report is shown afterwards.', { count: warnCount }) : '') +
+        ' ' +
+        t('Existing dashboards are kept.')
     )
     if (!proceed) return
 
@@ -54,15 +62,18 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       for (const def of converted.widgetDefs) {
         await saveRawComponent(def)
       }
-      if (converted.themeId) {
-        await saveSettings({ theme: converted.themeId })
+      if (converted.themeId || converted.background) {
+        await saveSettings({
+          ...(converted.themeId ? { theme: converted.themeId } : {}),
+          ...(converted.background ? { background: converted.background } : {}),
+        })
       }
       setResult(converted)
     } catch (err) {
       onNotice(
-        'Import failed: ' +
-          (err instanceof Error ? err.message : String(err)) +
-          ' — are you signed in as an administrator?'
+        t('Import failed: {{error}} — are you signed in as an administrator?', {
+          error: err instanceof Error ? err.message : String(err),
+        })
       )
     } finally {
       setBusy(false)
@@ -74,21 +85,21 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       const parsed = parseHabpanelFile(JSON.parse(await file.text()))
       await runImport(parsed, `“${file.name}”`)
     } catch (err) {
-      onNotice('Could not read that file: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Could not read that file: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   const importServer = async (component: UIComponent) => {
-    await runImport(panelConfigFromComponent(component), `panel configuration “${component.uid}”`)
+    await runImport(panelConfigFromComponent(component), t('panel configuration “{{uid}}”', { uid: component.uid }))
   }
 
   return (
     <section>
-      <h2 className="nh-settings__h">Migrate from HABPanel</h2>
+      <h2 className="nh-settings__h">{t('Migrate from HABPanel')}</h2>
       <p className="nh-settings__text">
-        Bring your HABPanel dashboards into neohab. Widgets are mapped to their closest neohab
-        equivalents and a report shows anything that needs attention. Your HABPanel configuration
-        is never modified.
+        {t(
+          'Bring your HABPanel dashboards into neohab. Widgets are mapped to their closest neohab equivalents and a report shows anything that needs attention. Your HABPanel configuration is never modified.'
+        )}
       </p>
 
       {serverConfigs.length > 0 ? (
@@ -98,11 +109,13 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
             return (
               <div key={c.uid} className="nh-hpimport__row">
                 <span>
-                  HABPanel configuration <strong>“{c.uid}”</strong> found on this server — {dashCount}{' '}
-                  dashboards
+                  {t('HABPanel configuration “{{uid}}” found on this server — {{count}} dashboards', {
+                    uid: c.uid,
+                    count: dashCount,
+                  })}
                 </span>
                 <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => void importServer(c)}>
-                  {busy ? 'Importing…' : 'Import'}
+                  {busy ? t('Importing…') : t('Import')}
                 </button>
               </div>
             )
@@ -112,7 +125,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
 
       <div className="nh-settings__row">
         <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
-          Import habpanel-config.json…
+          {t('Import habpanel-config.json…')}
         </button>
         <input
           ref={fileRef}
@@ -133,29 +146,40 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
 }
 
 function ImportReport({ result }: { result: HabpanelImportResult }) {
+  const { t } = useTranslation()
   return (
     <div className="nh-report">
       <div className="nh-report__head">
-        ✓ Imported {result.dashboards.length} dashboards with {result.widgetCount} widgets
-        {result.widgetDefs.length ? ` and ${result.widgetDefs.length} custom widget definitions` : ''}.{' '}
+        {'✓ '}
+        {t('Imported {{dashboards}} dashboards with {{widgets}} widgets', {
+          dashboards: result.dashboards.length,
+          widgets: result.widgetCount,
+        })}
+        {result.widgetDefs.length
+          ? ' ' + t('and {{count}} custom widget definitions', { count: result.widgetDefs.length })
+          : ''}
+        {'. '}
         <button type="button" className="nh-report__link" onClick={() => navigate({ name: 'home' })}>
-          View them →
+          {t('View them →')}
         </button>
       </div>
       {result.notes.length > 0 ? (
         <ul className="nh-report__list">
           {result.notes.map((note) => (
-            <li key={note.message} className={'nh-report__item nh-report__item--' + note.level}>
+            <li
+              key={note.message + JSON.stringify(note.params ?? {})}
+              className={'nh-report__item nh-report__item--' + note.level}
+            >
               <span className="nh-report__chip">
-                {note.level === 'skip' ? 'skipped' : note.level === 'warn' ? 'attention' : 'note'}
+                {note.level === 'skip' ? t('skipped') : note.level === 'warn' ? t('attention') : t('note')}
               </span>
-              {note.message}
+              {t(note.message, note.params)}
               {note.count > 1 ? <span className="nh-report__count"> ×{note.count}</span> : null}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="nh-settings__text">Everything mapped cleanly.</p>
+        <p className="nh-settings__text">{t('Everything mapped cleanly.')}</p>
       )}
     </div>
   )

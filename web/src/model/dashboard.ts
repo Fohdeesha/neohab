@@ -39,6 +39,11 @@ export interface Dashboard {
   icon?: string
   /** Keep this dashboard out of the sidebar list (HABPanel's `drawer.hide`). */
   hideInSidebar?: boolean
+  /**
+   * Background image for this dashboard, overriding the global one from settings.
+   * A URL, or `bg:<id>` referencing an uploaded `background:<id>` component.
+   */
+  background?: string
   /** Grid columns at the `lg` breakpoint (narrower breakpoints scale down). */
   columns: number
   /**

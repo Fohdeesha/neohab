@@ -46,16 +46,19 @@ export interface HPPanelConfig {
 export type NoteLevel = 'info' | 'warn' | 'skip'
 export interface ImportNote {
   level: NoteLevel
+  /** English text, translated at render time; dynamic parts ride in `params`. */
   message: string
+  params?: Record<string, string>
 }
 
 class Report {
   notes = new Map<string, ImportNote & { count: number }>()
 
-  add(level: NoteLevel, message: string): void {
-    const existing = this.notes.get(message)
+  add(level: NoteLevel, message: string, params?: Record<string, string>): void {
+    const key = message + (params ? JSON.stringify(params) : '')
+    const existing = this.notes.get(key)
     if (existing) existing.count++
-    else this.notes.set(message, { level, message, count: 1 })
+    else this.notes.set(key, { level, message, params, count: 1 })
   }
 
   list(): (ImportNote & { count: number })[] {
@@ -70,6 +73,8 @@ export interface HabpanelImportResult {
   widgetDefs: UIComponent[]
   /** Suggested neohab theme id mapped from the HABPanel theme, if any. */
   themeId: string | null
+  /** HABPanel's panel-wide background image URL, mapped to the global background setting. */
+  background: string | null
   widgetCount: number
   notes: (ImportNote & { count: number })[]
 }
@@ -475,7 +480,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
       ? CONVERTERS[hpWidget.type]
       : undefined
     if (!converter) {
-      report.add('skip', `Unknown HABPanel widget type “${hpWidget.type}” was skipped`)
+      report.add('skip', 'Unknown HABPanel widget type “{{type}}” was skipped', { type: String(hpWidget.type) })
       continue
     }
     const converted = converter(hpWidget, report)
@@ -541,16 +546,17 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   if (hpTheme) {
     themeId = THEME_MAP[hpTheme] ?? null
     if (themeId && hpTheme !== 'default') {
-      report.add('info', `HABPanel theme “${hpTheme}” was mapped to the closest neohab theme`)
+      report.add('info', 'HABPanel theme “{{theme}}” was mapped to the closest neohab theme', { theme: hpTheme })
     }
   }
-  if (str(cfg.settings.background_image)) {
-    report.add('info', 'Panel background images are not supported yet')
+  const background = str(cfg.settings.background_image) || null
+  if (background) {
+    report.add('info', 'The panel background image was imported as the global background')
   }
   if (str(cfg.settings.additional_stylesheet_url)) {
     report.add('info', 'Additional stylesheets are replaced by neohab themes')
   }
 
   const widgetCount = dashboards.reduce((sum, d) => sum + d.widgets.length, 0)
-  return { dashboards, widgetDefs, themeId, widgetCount, notes: report.list() }
+  return { dashboards, widgetDefs, themeId, background, widgetCount, notes: report.list() }
 }

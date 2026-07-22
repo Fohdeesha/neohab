@@ -3,26 +3,31 @@
  * Edits apply to the draft immediately — live preview, coalesced undo, persisted on Save —
  * exactly like the widget settings panel.
  */
+import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { IconPicker } from '../components/IconPicker'
+import { BackgroundField } from '../components/BackgroundField'
 import type { Dashboard } from '../model/dashboard'
 import { setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
-import { deleteDashboard, useConfigStore } from '../store/config'
+import { collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
+  const { t } = useTranslation()
   const fixed = dashboard.rowHeight !== 'match'
   const sidebarOn = useConfigStore((s) => s.settings.sidebar !== false)
 
   const remove = async () => {
-    if (!window.confirm(`Delete dashboard “${dashboard.name}” and all its widgets? This cannot be undone.`)) return
+    if (!window.confirm(t('Delete dashboard “{{name}}” and all its widgets? This cannot be undone.', { name: dashboard.name })))
+      return
     stopEditing()
     try {
       await deleteDashboard(dashboard.id)
     } catch (err) {
-      window.alert('Delete failed: ' + (err instanceof Error ? err.message : String(err)))
+      window.alert(t('Delete failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
       return
     }
+    void collectUnusedBackgrounds()
     navigate({ name: 'home' })
   }
 
@@ -32,10 +37,10 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
   }
 
   return (
-    <Sheet side title="Dashboard settings" onClose={() => setDashSettingsOpen(false)}>
+    <Sheet side title={t('Dashboard settings')} onClose={() => setDashSettingsOpen(false)}>
       <div className="nh-form">
         <label className="nh-field" htmlFor="nh-dash-name">
-          <span className="nh-field__label">Name</span>
+          <span className="nh-field__label">{t('Name')}</span>
           <input
             id="nh-dash-name"
             value={dashboard.name}
@@ -44,18 +49,28 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         </label>
 
         <div className="nh-field">
-          <span className="nh-field__label">Icon</span>
+          <span className="nh-field__label">{t('Icon')}</span>
           <IconPicker
             id="nh-dash-icon"
             value={dashboard.icon ?? ''}
             onChange={(icon) => updateDashboardMeta({ icon: icon || undefined }, 'dash:icon')}
           />
-          <span className="nh-field__hint">Shown on the Home tile and in the sidebar.</span>
+          <span className="nh-field__hint">{t('Shown on the Home tile and in the sidebar.')}</span>
+        </div>
+
+        <div className="nh-field">
+          <span className="nh-field__label">{t('Background image')}</span>
+          <BackgroundField
+            id="nh-dash-bg"
+            value={dashboard.background}
+            onChange={(ref) => updateDashboardMeta({ background: ref }, 'dash:bg')}
+          />
+          <span className="nh-field__hint">{t('Overrides the global background from Settings on this dashboard.')}</span>
         </div>
 
         {sidebarOn ? (
           <label className="nh-field nh-field--row" htmlFor="nh-dash-hide">
-            <span className="nh-field__label">Hide from the sidebar</span>
+            <span className="nh-field__label">{t('Hide from the sidebar')}</span>
             <input
               id="nh-dash-hide"
               type="checkbox"
@@ -66,7 +81,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         ) : null}
 
         <label className="nh-field" htmlFor="nh-dash-columns">
-          <span className="nh-field__label">Grid columns</span>
+          <span className="nh-field__label">{t('Grid columns')}</span>
           <input
             id="nh-dash-columns"
             type="number"
@@ -81,7 +96,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         </label>
 
         <label className="nh-field" htmlFor="nh-dash-rowmode">
-          <span className="nh-field__label">Row height</span>
+          <span className="nh-field__label">{t('Row height')}</span>
           <select
             id="nh-dash-rowmode"
             value={fixed ? 'fixed' : 'match'}
@@ -89,14 +104,14 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
               updateDashboardMeta({ rowHeight: e.target.value === 'match' ? 'match' : 80 }, 'dash:rowheight')
             }
           >
-            <option value="match">Square cells (match column width)</option>
-            <option value="fixed">Fixed height</option>
+            <option value="match">{t('Square cells (match column width)')}</option>
+            <option value="fixed">{t('Fixed height')}</option>
           </select>
         </label>
 
         {fixed ? (
           <label className="nh-field" htmlFor="nh-dash-rowpx">
-            <span className="nh-field__label">Row height (px)</span>
+            <span className="nh-field__label">{t('Row height (px)')}</span>
             <input
               id="nh-dash-rowpx"
               type="number"
@@ -112,7 +127,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         ) : null}
 
         <label className="nh-field" htmlFor="nh-dash-gap">
-          <span className="nh-field__label">Grid gap (px)</span>
+          <span className="nh-field__label">{t('Grid gap (px)')}</span>
           <input
             id="nh-dash-gap"
             type="number"
@@ -127,7 +142,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         </label>
 
         <label className="nh-field" htmlFor="nh-dash-textsize">
-          <span className="nh-field__label">Text size (%)</span>
+          <span className="nh-field__label">{t('Text size (%)')}</span>
           <input
             id="nh-dash-textsize"
             type="number"
@@ -141,19 +156,19 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
             }}
           />
           <span className="nh-field__hint">
-            Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.
+            {t('Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.')}
           </span>
         </label>
 
         {dashboard.stackOrder && dashboard.stackOrder.length > 0 ? (
           <div className="nh-field">
-            <span className="nh-field__label">Phone layout</span>
+            <span className="nh-field__label">{t('Phone layout')}</span>
             <button
               type="button"
               className="nh-btn nh-btn--ghost"
               onClick={() => updateDashboardMeta({ stackOrder: undefined })}
             >
-              Reset stack order to follow the grid
+              {t('Reset stack order to follow the grid')}
             </button>
           </div>
         ) : null}
@@ -161,7 +176,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
 
       <div className="nh-form__footer">
         <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
-          Delete dashboard…
+          {t('Delete dashboard…')}
         </button>
       </div>
     </Sheet>
