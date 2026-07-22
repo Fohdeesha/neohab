@@ -51,7 +51,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users.
 - **First-class theming** — theme editor with live preview, light/dark themes, and custom
-  themes that travel with your backups.
+  themes that travel with your backups. Every theme can carry its own CSS on top of the color
+  tokens, so a theme can change fonts and widget styling too — the bundled Swiss Sheet themes
+  (dark and light, in the International Typographic Style) are built that way, and ship with
+  [Instrument Sans](https://github.com/Instrument/instrument-sans)
+  (© Instrument, [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
 - **HABPanel migration** — import your existing HABPanel panels (from a `habpanel-config.json`
   export or directly from your server) with best-effort widget mapping and a detailed report.
 

@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
           // Precache the app shell only. The bundled icon packs (7k files) load on demand, and
           // /rest, /icon etc. are deliberately never cached: on a dashboard, stale item states
           // are worse than an offline error.
-          globPatterns: ['index.html', 'assets/*.{js,css}', 'tile.png', 'pwa-*.png'],
+          globPatterns: ['index.html', 'assets/*.{js,css}', 'tile.png', 'pwa-*.png', 'fonts/*.woff2'],
           navigateFallback: null,
         },
       }),

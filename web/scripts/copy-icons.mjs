@@ -124,3 +124,18 @@ stageIconifyPack({
 })
 stageIconifyPack({ pkg: 'flat-color-icons', dir: 'fc' })
 stageIconifyPack({ pkg: 'meteocons', dir: 'meteo' })
+
+/* ------------------------------ Fonts ------------------------------ */
+
+// Instrument Sans (OFL-1.1) - the Swiss Sheet themes' grotesque, declared via @font-face in
+// the theme's own CSS, so it is only ever downloaded when one of those themes is active.
+const fontSrc = join(root, 'node_modules', '@fontsource-variable', 'instrument-sans')
+if (!existsSync(fontSrc)) {
+  console.error('copy-icons: @fontsource-variable/instrument-sans is not installed')
+  process.exit(1)
+}
+const fontsDir = join(root, 'public', 'fonts')
+mkdirSync(fontsDir, { recursive: true })
+cpSync(join(fontSrc, 'files', 'instrument-sans-latin-wght-normal.woff2'), join(fontsDir, 'instrument-sans.woff2'))
+cpSync(join(fontSrc, 'LICENSE'), join(fontsDir, 'instrument-sans-LICENSE.txt'))
+console.log('copy-icons: fonts: Instrument Sans staged')

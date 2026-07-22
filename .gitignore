@@ -3,6 +3,7 @@ node_modules/
 web/dist/
 # generated at build time from @mdi/svg
 web/public/icons/
+web/public/fonts/
 *.local
 npm-debug.log*
 yarn-error.log*
