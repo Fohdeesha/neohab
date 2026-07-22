@@ -2,6 +2,7 @@
  * Chart-specific settings editors: the series list and the thresholds list. Registered as
  * SettingField types 'chartseries'/'chartthresholds' and rendered by SettingsPanel.
  */
+import { useTranslation } from 'react-i18next'
 import { ItemPicker } from '../components/ItemPicker'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
@@ -16,6 +17,7 @@ import { chartScheme, seriesColor } from '../widgets/chart/palette'
 const CHART_ITEM_TYPES = ['Number', 'Dimmer', 'Switch', 'Contact', 'Rollershutter']
 
 export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
+  const { t } = useTranslation()
   // Show the RAW stored list - a just-added row has an empty item and must stay editable,
   // so this can't go through effectiveSeries (the renderer filters empty rows, not the form).
   // A legacy single-`item` config shows up as its implied series; any change writes `series`.
@@ -34,16 +36,16 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
 
   return (
     <div className="nh-field">
-      <span className="nh-field__label">Series</span>
+      <span className="nh-field__label">{t('Series')}</span>
       {rows.map((s, i) => (
         <div className="nh-chartcard" key={i}>
           <div className="nh-chartcard__head">
             <span className="nh-chart__dot" style={{ background: s.color || seriesColor(i, scheme) }} />
-            <span className="nh-chartcard__title">Series {i + 1}</span>
+            <span className="nh-chartcard__title">{t('Series {{n}}', { n: i + 1 })}</span>
             <button
               type="button"
               className="nh-chartcard__btn"
-              aria-label={`Move series ${i + 1} up`}
+              aria-label={t('Move series {{n}} up', { n: i + 1 })}
               disabled={i === 0}
               onClick={() => move(i, -1)}
             >
@@ -52,7 +54,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
             <button
               type="button"
               className="nh-chartcard__btn"
-              aria-label={`Move series ${i + 1} down`}
+              aria-label={t('Move series {{n}} down', { n: i + 1 })}
               disabled={i === rows.length - 1}
               onClick={() => move(i, 1)}
             >
@@ -61,7 +63,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
             <button
               type="button"
               className="nh-chartcard__btn"
-              aria-label={`Remove series ${i + 1}`}
+              aria-label={t('Remove series {{n}}', { n: i + 1 })}
               onClick={() => write(rows.filter((_, j) => j !== i))}
             >
               ✕
@@ -75,20 +77,20 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
           />
           <input
             type="text"
-            placeholder="Label (optional)"
+            placeholder={t('Label (optional)')}
             value={s.label ?? ''}
             onChange={(e) => patch(i, { label: e.target.value || undefined })}
           />
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
-              <span>Color</span>
+              <span>{t('Color')}</span>
               <span className="nh-colorfield">
                 {s.color ? (
                   <button type="button" className="nh-colorfield__clear" onClick={() => patch(i, { color: undefined })}>
-                    Auto
+                    {t('Auto')}
                   </button>
                 ) : (
-                  <span className="nh-colorfield__hint">auto</span>
+                  <span className="nh-colorfield__hint">{t('auto')}</span>
                 )}
                 <input
                   type="color"
@@ -98,32 +100,32 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               </span>
             </label>
             <label className="nh-chartcard__cell">
-              <span>Axis</span>
+              <span>{t('Axis')}</span>
               <select
                 value={s.axis === 'y2' ? 'y2' : 'y'}
                 onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}
               >
-                <option value="y">Left</option>
-                <option value="y2">Right</option>
+                <option value="y">{t('Left')}</option>
+                <option value="y2">{t('Right')}</option>
               </select>
             </label>
             <label className="nh-chartcard__cell">
-              <span>Style</span>
+              <span>{t('Style')}</span>
               <select
                 value={s.mode ?? 'smooth'}
                 onChange={(e) =>
                   patch(i, { mode: e.target.value === 'smooth' ? undefined : (e.target.value as ChartSeries['mode']) })
                 }
               >
-                <option value="smooth">Smooth</option>
-                <option value="linear">Linear</option>
-                <option value="step">Step</option>
+                <option value="smooth">{t('Smooth')}</option>
+                <option value="linear">{t('Linear')}</option>
+                <option value="step">{t('Step')}</option>
               </select>
             </label>
           </div>
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
-              <span>Line width</span>
+              <span>{t('Line width')}</span>
               <input
                 type="number"
                 min={0}
@@ -134,7 +136,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               />
             </label>
             <label className="nh-chartcard__cell">
-              <span>Fill %</span>
+              <span>{t('Fill %')}</span>
               <input
                 type="number"
                 min={0}
@@ -145,7 +147,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               />
             </label>
             <label className="nh-chartcard__cell nh-chartcard__cell--check">
-              <span>Points</span>
+              <span>{t('Points')}</span>
               <input
                 type="checkbox"
                 checked={s.points === true}
@@ -156,13 +158,14 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
         </div>
       ))}
       <button type="button" className="nh-btn" onClick={() => write([...rows, { item: '' }])}>
-        Add series
+        {t('Add series')}
       </button>
     </div>
   )
 }
 
 export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
+  const { t } = useTranslation()
   const rows = Array.isArray(widget.config.thresholds)
     ? (widget.config.thresholds as ChartThreshold[])
     : []
@@ -171,7 +174,7 @@ export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
     write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
   const numField = (i: number, key: 'from' | 'to', value: number | undefined) => (
     <label className="nh-chartcard__cell">
-      <span>{key === 'from' ? 'From' : 'To (band)'}</span>
+      <span>{key === 'from' ? t('From') : t('To (band)')}</span>
       <input
         type="number"
         value={typeof value === 'number' ? value : ''}
@@ -182,57 +185,57 @@ export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
 
   return (
     <div className="nh-field">
-      <span className="nh-field__label">Thresholds</span>
-      {rows.map((t, i) => (
+      <span className="nh-field__label">{t('Thresholds')}</span>
+      {rows.map((th, i) => (
         <div className="nh-chartcard" key={i}>
           <div className="nh-chartcard__head">
-            <span className="nh-chart__dot" style={{ background: t.color || '#d03b3b' }} />
-            <span className="nh-chartcard__title">Threshold {i + 1}</span>
+            <span className="nh-chart__dot" style={{ background: th.color || '#d03b3b' }} />
+            <span className="nh-chartcard__title">{t('Threshold {{n}}', { n: i + 1 })}</span>
             <button
               type="button"
               className="nh-chartcard__btn"
-              aria-label={`Remove threshold ${i + 1}`}
+              aria-label={t('Remove threshold {{n}}', { n: i + 1 })}
               onClick={() => write(rows.filter((_, j) => j !== i))}
             >
               ✕
             </button>
           </div>
           <div className="nh-chartcard__row">
-            {numField(i, 'from', typeof t.from === 'number' ? t.from : undefined)}
-            {numField(i, 'to', typeof t.to === 'number' ? t.to : undefined)}
+            {numField(i, 'from', typeof th.from === 'number' ? th.from : undefined)}
+            {numField(i, 'to', typeof th.to === 'number' ? th.to : undefined)}
             <label className="nh-chartcard__cell">
-              <span>Color</span>
+              <span>{t('Color')}</span>
               <input
                 type="color"
-                value={/^#[0-9a-f]{6}$/i.test(t.color ?? '') ? (t.color as string) : '#d03b3b'}
+                value={/^#[0-9a-f]{6}$/i.test(th.color ?? '') ? (th.color as string) : '#d03b3b'}
                 onChange={(e) => patch(i, { color: e.target.value })}
               />
             </label>
           </div>
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
-              <span>Label</span>
+              <span>{t('Label')}</span>
               <input
                 type="text"
-                value={t.label ?? ''}
+                value={th.label ?? ''}
                 onChange={(e) => patch(i, { label: e.target.value || undefined })}
               />
             </label>
             <label className="nh-chartcard__cell">
-              <span>Axis</span>
+              <span>{t('Axis')}</span>
               <select
-                value={t.axis === 'y2' ? 'y2' : 'y'}
+                value={th.axis === 'y2' ? 'y2' : 'y'}
                 onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}
               >
-                <option value="y">Left</option>
-                <option value="y2">Right</option>
+                <option value="y">{t('Left')}</option>
+                <option value="y2">{t('Right')}</option>
               </select>
             </label>
           </div>
         </div>
       ))}
       <button type="button" className="nh-btn" onClick={() => write([...rows, { from: undefined }])}>
-        Add threshold
+        {t('Add threshold')}
       </button>
     </div>
   )

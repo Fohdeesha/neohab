@@ -6,6 +6,7 @@
  * Deleting is deliberately not confirmed: it only touches the draft, and both undo and Discard
  * bring the widget back.
  */
+import { useTranslation } from 'react-i18next'
 import { removeWidget } from '../store/editor'
 
 export function CellHandle({
@@ -17,6 +18,7 @@ export function CellHandle({
   type: string
   onDragStart: (e: React.PointerEvent) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="nh-cell__handle" onPointerDown={onDragStart}>
       <span className="nh-cell__grip">⋮⋮</span>
@@ -24,8 +26,8 @@ export function CellHandle({
       <button
         type="button"
         className="nh-cell__delete"
-        aria-label="Delete widget"
-        title="Delete widget"
+        aria-label={t('Delete widget')}
+        title={t('Delete widget')}
         // the strip starts a drag on pointerdown; pressing delete must not begin one
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {

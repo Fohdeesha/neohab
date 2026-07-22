@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { dismissNotice, useNotifyStore } from '../store/notify'
 
 /**
@@ -6,6 +7,7 @@ import { dismissNotice, useNotifyStore } from '../store/notify'
  * dashboard underneath.
  */
 export function Toast() {
+  const { t } = useTranslation()
   const notices = useNotifyStore((s) => s.notices)
   if (notices.length === 0) return null
 
@@ -17,7 +19,7 @@ export function Toast() {
           <button
             type="button"
             className="nh-toast__close"
-            aria-label="Dismiss"
+            aria-label={t('Dismiss')}
             onClick={() => dismissNotice(n.id)}
           >
             ✕

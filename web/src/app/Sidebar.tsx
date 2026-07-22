@@ -16,6 +16,7 @@
  * disagreed about their order would be a puzzle to use.
  */
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import { useEditorStore } from '../store/editor'
 import { closeSidebar, setSidebarPinned, toggleSidebar, useSidebarLayout } from '../store/sidebar'
@@ -24,6 +25,7 @@ import { navigate, useRoute } from './router'
 import { Icon } from '../components/Icon'
 
 export function Sidebar() {
+  const { t } = useTranslation()
   const dashboards = useConfigStore((s) => s.dashboards)
   const layout = useSidebarLayout()
   const route = useRoute()
@@ -54,7 +56,7 @@ export function Sidebar() {
   const go = (to: Parameters<typeof navigate>[0]) => {
     // Navigating away drops an unsaved draft (the editor resets on route change), and from here
     // that is one stray click away - so ask first rather than silently discarding the work.
-    if (useEditorStore.getState().dirty && !window.confirm('Discard all unsaved changes?')) return
+    if (useEditorStore.getState().dirty && !window.confirm(t('Discard all unsaved changes?'))) return
     if (!pinned) closeSidebar()
     navigate(to)
   }
@@ -76,7 +78,7 @@ export function Sidebar() {
       ) : null}
       <aside
         className={'nh-side' + (open ? ' nh-side--open' : '') + (layout.canPush ? '' : ' nh-side--overlay')}
-        aria-label="Dashboards"
+        aria-label={t('Dashboards')}
         aria-hidden={!open}
       >
         <nav className="nh-side__list">
@@ -88,7 +90,7 @@ export function Sidebar() {
             <span className="nh-side__glyph" aria-hidden="true">
               ⌂
             </span>
-            <span className="nh-side__label">Home</span>
+            <span className="nh-side__label">{t('Home')}</span>
           </button>
 
           <div className="nh-side__sep" />
@@ -119,8 +121,8 @@ export function Sidebar() {
               className={'nh-iconbtn nh-side__pin' + (pinned ? ' nh-side__pin--on' : '')}
               onClick={() => setSidebarPinned(!pinned)}
               aria-pressed={pinned}
-              aria-label={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
-              title={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+              aria-label={pinned ? t('Unpin sidebar') : t('Pin sidebar open')}
+              title={pinned ? t('Unpin sidebar') : t('Pin sidebar open')}
             >
               {/* One icon in both states: the dim/lit styling says whether it is pinned, where a
                   swap to pin-off would read as "currently unpinned" rather than "click to unpin". */}
@@ -135,7 +137,7 @@ export function Sidebar() {
             <span className="nh-side__glyph" aria-hidden="true">
               ⚙
             </span>
-            <span className="nh-side__label">Settings</span>
+            <span className="nh-side__label">{t('Settings')}</span>
           </button>
         </footer>
       </aside>
@@ -149,12 +151,13 @@ export function Sidebar() {
  * since both destinations are already on screen.
  */
 export function NavButton() {
+  const { t } = useTranslation()
   const { enabled } = useSidebarLayout()
   const kiosk = useKioskMode()
   if (kiosk) return null
   if (enabled) return <SidebarTrigger />
   return (
-    <button type="button" className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label="Home">
+    <button type="button" className="nh-iconbtn" onClick={() => navigate({ name: 'home' })} aria-label={t('Home')}>
       ‹
     </button>
   )
@@ -165,6 +168,7 @@ export function NavButton() {
  * when it is pinned - the list is already on screen, so a button to summon it would do nothing.
  */
 export function SidebarTrigger({ className = 'nh-iconbtn' }: { className?: string }) {
+  const { t } = useTranslation()
   const { enabled, pinned } = useSidebarLayout()
   if (!enabled || pinned) return null
   return (
@@ -172,8 +176,8 @@ export function SidebarTrigger({ className = 'nh-iconbtn' }: { className?: strin
       type="button"
       className={className + ' nh-side__trigger'}
       onClick={toggleSidebar}
-      aria-label="Dashboards"
-      title="Dashboards"
+      aria-label={t('Dashboards')}
+      title={t('Dashboards')}
     >
       ☰
     </button>

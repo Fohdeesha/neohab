@@ -20,6 +20,7 @@ import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { commandItem } from '../common/command'
 import { resolveTheme } from '../../themes/themes'
+import i18n from '../../i18n'
 import type { CustomWidgetDef } from '../../model/widgetdef'
 
 interface JsWidgetProps {
@@ -211,7 +212,9 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
         <div className="nh-template">
           <span className="nh-template__badge">javascript</span>
           <span className="nh-template__text">
-            “{def.name}” is a JavaScript widget. An administrator has disabled these in Settings.
+            {i18n.t('“{{name}}” is a JavaScript widget. An administrator has disabled these in Settings.', {
+              name: def.name,
+            })}
           </span>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { displayValue } from '../common/format'
@@ -9,6 +10,7 @@ interface RollershutterConfig {
 
 /** Rollershutter - UP / STOP / DOWN controls with the current position. */
 function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) {
+  const { t } = useTranslation()
   const state = ctx.getItem(config.item)
   const send = (command: string) => {
     if (!ctx.editing && config.item) ctx.sendCommand(config.item, command)
@@ -17,13 +19,13 @@ function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) 
   return (
     <WidgetFrame label={config.label} center>
       <div className="nh-roller">
-        <button type="button" className="nh-roller__btn" aria-label="Up" onClick={() => send('UP')}>
+        <button type="button" className="nh-roller__btn" aria-label={t('Up')} onClick={() => send('UP')}>
           ▲
         </button>
-        <button type="button" className="nh-roller__btn" aria-label="Stop" onClick={() => send('STOP')}>
+        <button type="button" className="nh-roller__btn" aria-label={t('Stop')} onClick={() => send('STOP')}>
           ■
         </button>
-        <button type="button" className="nh-roller__btn" aria-label="Down" onClick={() => send('DOWN')}>
+        <button type="button" className="nh-roller__btn" aria-label={t('Down')} onClick={() => send('DOWN')}>
           ▼
         </button>
         <span className="nh-roller__pos">{displayValue(state)}</span>

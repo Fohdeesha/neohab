@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
@@ -50,6 +51,7 @@ function numOpt(v: unknown): number | undefined {
  * demand so dashboards without charts don't pay for it.
  */
 function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
+  const { t } = useTranslation()
   const scheme = chartScheme()
   const series = effectiveSeries(config)
   const resolved = series.map((s, i) => ({
@@ -298,7 +300,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
           className="nh-chart__chip nh-chart__chip--reset"
           onClick={() => handleRef.current?.resetZoom()}
         >
-          reset zoom
+          {t('reset zoom')}
         </button>
       ) : null}
     </div>
@@ -313,12 +315,12 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
           {status !== 'ready' ? (
             <span className="nh-chart__status">
               {status === 'loading'
-                ? 'Loading history…'
+                ? t('Loading history…')
                 : status === 'empty'
                   ? resolved.length === 0
-                    ? 'No series configured'
-                    : 'No history data'
-                  : 'Could not load history'}
+                    ? t('No series configured')
+                    : t('No history data')
+                  : t('Could not load history')}
             </span>
           ) : null}
         </div>

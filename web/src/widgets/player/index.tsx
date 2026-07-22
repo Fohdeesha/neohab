@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 
@@ -8,6 +9,7 @@ interface PlayerConfig {
 
 /** Player - previous / play-pause / next transport controls for Player items. */
 function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
+  const { t } = useTranslation()
   const state = ctx.getItem(config.item)
   const playing = state?.state === 'PLAY'
   const send = (command: string) => {
@@ -17,18 +19,18 @@ function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
   return (
     <WidgetFrame label={config.label} center>
       <div className="nh-player">
-        <button type="button" className="nh-player__btn" aria-label="Previous" onClick={() => send('PREVIOUS')}>
+        <button type="button" className="nh-player__btn" aria-label={t('Previous')} onClick={() => send('PREVIOUS')}>
           ⏮
         </button>
         <button
           type="button"
           className="nh-player__btn nh-player__btn--main"
-          aria-label={playing ? 'Pause' : 'Play'}
+          aria-label={playing ? t('Pause') : t('Play')}
           onClick={() => send(playing ? 'PAUSE' : 'PLAY')}
         >
           {playing ? '⏸' : '▶'}
         </button>
-        <button type="button" className="nh-player__btn" aria-label="Next" onClick={() => send('NEXT')}>
+        <button type="button" className="nh-player__btn" aria-label={t('Next')} onClick={() => send('NEXT')}>
           ⏭
         </button>
       </div>

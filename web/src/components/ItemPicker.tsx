@@ -8,6 +8,7 @@
  * escapes any scrolling/clipping ancestor such as the settings sheet.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
 import { ensureCatalog, useCatalogStore } from '../store/catalog'
 
@@ -38,6 +39,7 @@ const MAX_RESULTS = 200
 const MARGIN = 8
 
 export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: ItemPickerProps) {
+  const { t } = useTranslation()
   const items = useCatalogStore((s) => s.items)
   const loaded = useCatalogStore((s) => s.loaded)
   const [open, setOpen] = useState(false)
@@ -159,7 +161,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           aria-controls={id + '-list'}
           autoComplete="off"
           value={query ?? value}
-          placeholder={placeholder ?? 'Search or pick an item…'}
+          placeholder={placeholder ?? t('Search or pick an item…')}
           onChange={(e) => {
             setQuery(e.target.value)
             if (!open) openList()
@@ -174,7 +176,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
         <button
           type="button"
           className={'nh-picker__toggle' + (open ? ' nh-picker__toggle--open' : '')}
-          aria-label={open ? 'Close item list' : 'Show item list'}
+          aria-label={open ? t('Close item list') : t('Show item list')}
           tabIndex={-1}
           onPointerDown={(e) => {
             // pointerdown (not click) so the outside-close handler doesn't race us
@@ -225,10 +227,10 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
             </li>
           ))}
           {truncated > 0 ? (
-            <li className="nh-picker__empty">…and {truncated} more — type to narrow the list</li>
+            <li className="nh-picker__empty">{t('…and {{count}} more — type to narrow the list', { count: truncated })}</li>
           ) : null}
           {matches.length === 0 ? (
-            <li className="nh-picker__empty">{loaded ? 'No matching items' : 'Loading items…'}</li>
+            <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li>
           ) : null}
         </ul>
       ) : null}

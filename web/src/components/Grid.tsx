@@ -14,6 +14,7 @@
  * component reads the same layout schema they will, so adding them needs no data change.
  */
 import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import {
   cellMetrics,
@@ -36,6 +37,7 @@ function rectOf(widget: WidgetInstance): Rect {
 }
 
 export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; editing?: boolean }) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
 
@@ -45,7 +47,7 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
   }
 
   if (dashboard.widgets.length === 0) {
-    return <p className="nh-dash__empty">This dashboard has no widgets yet — tap ✎ to start adding some.</p>
+    return <p className="nh-dash__empty">{t('This dashboard has no widgets yet — tap ✎ to start adding some.')}</p>
   }
 
   if (width < STACK_BELOW) {

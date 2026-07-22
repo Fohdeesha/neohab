@@ -13,6 +13,7 @@
 import { sendCommand } from '../../api/items'
 import { ApiError } from '../../api/client'
 import { notify } from '../../store/notify'
+import i18n from '../../i18n'
 
 /** Send a command, reporting failure to the user. Resolves true when the server accepted it. */
 export async function commandItem(item: string, command: string): Promise<boolean> {
@@ -21,9 +22,9 @@ export async function commandItem(item: string, command: string): Promise<boolea
     return true
   } catch (err) {
     if (err instanceof ApiError) {
-      notify(`${item} rejected “${command}” (${err.status})`)
+      notify(i18n.t('{{item}} rejected “{{command}}” ({{status}})', { item, command, status: err.status }))
     } else {
-      notify(`${item}: “${command}” could not be sent`)
+      notify(i18n.t('{{item}}: “{{command}}” could not be sent', { item, command }))
     }
     return false
   }

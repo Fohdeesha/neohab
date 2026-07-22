@@ -1,0 +1,20 @@
+{
+  "{{count}} widgets selected_one": "{{count}} widget selected",
+  "{{count}} widgets selected_other": "{{count}} widgets selected",
+  "{{count}} widgets_one": "{{count}} widget",
+  "{{count}} widgets_other": "{{count}} widgets",
+  "{{count}} custom widgets_one": "{{count}} custom widget",
+  "{{count}} custom widgets_other": "{{count}} custom widgets",
+  "{{count}} things will need attention — a report is shown afterwards._one": "{{count}} thing will need attention — a report is shown afterwards.",
+  "{{count}} things will need attention — a report is shown afterwards._other": "{{count}} things will need attention — a report is shown afterwards.",
+  "and {{count}} custom widget definitions_one": "and {{count}} custom widget definition",
+  "and {{count}} custom widget definitions_other": "and {{count}} custom widget definitions",
+  "HABPanel configuration “{{uid}}” found on this server — {{count}} dashboards_one": "HABPanel configuration “{{uid}}” found on this server — {{count}} dashboard",
+  "HABPanel configuration “{{uid}}” found on this server — {{count}} dashboards_other": "HABPanel configuration “{{uid}}” found on this server — {{count}} dashboards",
+  "Using {{kb}} KB across {{count}} icons._one": "Using {{kb}} KB across {{count}} icon.",
+  "Using {{kb}} KB across {{count}} icons._other": "Using {{kb}} KB across {{count}} icons.",
+  "…and {{count}} more — type to narrow_one": "…and {{count}} more — type to narrow",
+  "…and {{count}} more — type to narrow_other": "…and {{count}} more — type to narrow",
+  "…and {{count}} more — type to narrow the list_one": "…and {{count}} more — type to narrow the list",
+  "…and {{count}} more — type to narrow the list_other": "…and {{count}} more — type to narrow the list"
+}

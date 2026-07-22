@@ -48,6 +48,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   year, drag-to-zoom, and live updating as item states change.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
   restore by replacing everything or merging a backup into what you have.
+- **Your language** — the UI ships in English, German, Spanish, French, Italian, Dutch and
+  Polish (the translations are machine-drafted and welcome native review), picked automatically
+  from the browser language with a per-device override in Settings. Your own dashboard text is
+  never touched.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users.
 - **First-class theming** — theme editor with live preview, light/dark themes, and custom

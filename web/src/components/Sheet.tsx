@@ -4,6 +4,7 @@
  * (used by pickers that are transient rather than persistent).
  */
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface SheetProps {
   title: string
@@ -13,11 +14,12 @@ interface SheetProps {
 }
 
 export function Sheet({ title, onClose, side = false, children }: SheetProps) {
+  const { t } = useTranslation()
   return (
     <div className={'nh-sheet' + (side ? ' nh-sheet--side' : '')}>
       <div className="nh-sheet__head">
         <span className="nh-sheet__title">{title}</span>
-        <button type="button" className="nh-iconbtn nh-sheet__close" onClick={onClose} aria-label="Close">
+        <button type="button" className="nh-iconbtn nh-sheet__close" onClick={onClose} aria-label={t('Close')}>
           ×
         </button>
       </div>

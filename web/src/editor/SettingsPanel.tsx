@@ -3,6 +3,7 @@
  * schema. Edits apply to the draft immediately (live preview on the dashboard); same-field
  * changes coalesce into one undo entry.
  */
+import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
@@ -52,6 +53,7 @@ const LABEL_POSITION_FIELD: SettingField = {
 }
 
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
+  const { t } = useTranslation()
   const def = getWidgetDefinition(widget.type)
   if (!def) return null
 
@@ -61,7 +63,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const customwidget = widget.type === 'template' ? (effective.customwidget as string | undefined) : undefined
 
   return (
-    <Sheet side title={def.name + ' settings'} onClose={() => selectWidget(null)}>
+    <Sheet side title={t('{{name}} settings', { name: t(def.name) })} onClose={() => selectWidget(null)}>
       <div className="nh-form">
         {def.settings
           // an instance driven by a custom widget definition ignores its inline template
@@ -88,7 +90,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             removeWidget(widget.id)
           }}
         >
-          Delete widget
+          {t('Delete widget')}
         </button>
       </div>
     </Sheet>
@@ -97,13 +99,14 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
 
 /** Settings declared by a custom widget definition, writing into the instance's config map. */
 function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: string }) {
+  const { t } = useTranslation()
   const def = useConfigStore((s) => s.widgetDefs.find((d) => d.id === defId))
   if (!def) {
-    return <p className="nh-settings__text">Custom widget “{defId}” was not found on this server.</p>
+    return <p className="nh-settings__text">{t('Custom widget “{{id}}” was not found on this server.', { id: defId })}</p>
   }
   const schema = defSettings(def)
   if (schema.length === 0) {
-    return <p className="nh-settings__text">“{def.name}” has no settings.</p>
+    return <p className="nh-settings__text">{t('“{{name}}” has no settings.', { name: def.name })}</p>
   }
   const values = mergedSettingValues(def, (widget.config.config as Record<string, unknown>) ?? {})
   const setValue = (id: string, v: unknown) =>
@@ -111,7 +114,7 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
 
   return (
     <>
-      <h3 className="nh-form__section">“{def.name}” settings</h3>
+      <h3 className="nh-form__section">{t('“{{name}}” settings', { name: def.name })}</h3>
       {schema.map((s) => (
         <CustomField key={s.id} setting={s} value={values[s.id]} onChange={(v) => setValue(s.id, v)} />
       ))}
@@ -191,15 +194,22 @@ function CustomField({
 }
 
 function Field(props: { field: SettingField; widget: WidgetInstance; value: unknown }) {
+  const { t } = useTranslation()
   return (
     <>
       <FieldInput {...props} />
-      {props.field.hint ? <p className="nh-field__hint">{props.field.hint}</p> : null}
+      {props.field.hint ? <p className="nh-field__hint">{t(props.field.hint)}</p> : null}
     </>
   )
 }
 
+/**
+ * Schema labels, hints, option labels and placeholders are authored in English in each
+ * widget's `settings[]` and translated here at render time, so definitions stay plain data
+ * and adding a widget needs no i18n plumbing.
+ */
 function FieldInput({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
+  const { t } = useTranslation()
   const set = (v: unknown) => updateWidgetConfig(widget.id, field.key, v)
   const id = `f-${widget.id}-${field.key}`
 
@@ -207,14 +217,14 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
     case 'boolean':
       return (
         <label className="nh-field nh-field--row" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <input id={id} type="checkbox" checked={value === true} onChange={(e) => set(e.target.checked)} />
         </label>
       )
     case 'number':
       return (
         <label className="nh-field" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <input
             id={id}
             type="number"
@@ -230,13 +240,13 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       const current = typeof value === 'string' ? value : ''
       return (
         <label className="nh-field" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <select id={id} value={current} onChange={(e) => set(e.target.value)}>
             {/* placeholder row only when nothing (not even a default) resolves */}
             {field.options.some((o) => o.value === current) ? null : <option value={current} />}
             {field.options.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </option>
             ))}
           </select>
@@ -247,14 +257,14 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       const hasValue = typeof value === 'string' && value !== ''
       return (
         <label className="nh-field nh-field--row" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <span className="nh-colorfield">
             {hasValue ? (
               <button type="button" className="nh-colorfield__clear" onClick={() => set(undefined)}>
-                Auto
+                {t('Auto')}
               </button>
             ) : (
-              <span className="nh-colorfield__hint">theme</span>
+              <span className="nh-colorfield__hint">{t('theme')}</span>
             )}
             <input
               id={id}
@@ -269,12 +279,12 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
     case 'multiline':
       return (
         <label className="nh-field" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <textarea
             id={id}
             rows={4}
             value={typeof value === 'string' ? value : ''}
-            placeholder={field.placeholder}
+            placeholder={translatablePlaceholder(field.placeholder, t)}
             onChange={(e) => set(e.target.value)}
           />
         </label>
@@ -283,7 +293,7 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return (
         <div className="nh-field">
           <label className="nh-field__label" htmlFor={id}>
-            {field.label}
+            {t(field.label)}
           </label>
           <ItemPicker
             id={id}
@@ -297,7 +307,7 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return (
         <div className="nh-field">
           <label className="nh-field__label" htmlFor={id}>
-            {field.label}
+            {t(field.label)}
           </label>
           <IconPicker id={id} value={typeof value === 'string' ? value : ''} onChange={set} />
         </div>
@@ -309,16 +319,26 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
     default:
       return (
         <label className="nh-field" htmlFor={id}>
-          <span className="nh-field__label">{field.label}</span>
+          <span className="nh-field__label">{t(field.label)}</span>
           <input
             id={id}
             type="text"
             value={typeof value === 'string' ? value : ''}
-            placeholder={'placeholder' in field ? field.placeholder : undefined}
+            placeholder={translatablePlaceholder('placeholder' in field ? field.placeholder : undefined, t)}
             onChange={(e) => set(e.target.value)}
           />
         </label>
       )
   }
+}
+
+/**
+ * Schema placeholders that are syntax examples (template snippets with {{ }}, command lists)
+ * must not go through i18next - it would treat the braces as interpolation and eat them.
+ */
+function translatablePlaceholder(placeholder: string | undefined, t: (k: string) => string): string | undefined {
+  if (!placeholder) return undefined
+  if (placeholder.includes('{{') || placeholder.includes('=')) return placeholder
+  return t(placeholder)
 }
 

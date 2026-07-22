@@ -76,11 +76,7 @@ export const frameWidget: WidgetDefinition<FrameConfig> = {
       key: 'sandbox',
       type: 'boolean',
       label: 'Sandbox the embedded page',
-      hint:
-        'A page served by openHAB itself can otherwise read this dashboard and your session token. Sandboxing ' +
-        'walls it off, but it can then no longer reach openHAB at all: Basic UI, Main UI and HABPanel still draw ' +
-        'themselves and quietly stop updating. Pages on any other address are already isolated by the browser, so ' +
-        'this does nothing for them.',
+      hint: 'A page served by openHAB itself can otherwise read this dashboard and your session token. Sandboxing walls it off, but it can then no longer reach openHAB at all: Basic UI, Main UI and HABPanel still draw themselves and quietly stop updating. Pages on any other address are already isolated by the browser, so this does nothing for them.',
     },
   ],
   Component: FrameWidget,

@@ -13,6 +13,7 @@ import { useEditorStore } from '../store/editor'
 import { subscribeItems, useItemState } from '../store/items'
 import { setKioskSettings, useKioskMode, useKioskStore } from '../store/kiosk'
 import { syncWakeLock } from './wakeLock'
+import i18n from '../i18n'
 
 /** Corner hot-zone size for the exit gesture: the extreme corner, where grid padding lives. */
 const CORNER_PX = 48
@@ -112,7 +113,7 @@ export function KioskRuntime() {
       if (count >= TAPS_TO_EXIT) {
         corner = null
         count = 0
-        if (window.confirm('Exit kiosk mode on this device?')) setKioskSettings({ kiosk: false })
+        if (window.confirm(i18n.t('Exit kiosk mode on this device?'))) setKioskSettings({ kiosk: false })
       }
     }
     window.addEventListener('pointerdown', onDown, true)

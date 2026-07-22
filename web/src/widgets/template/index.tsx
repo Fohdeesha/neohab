@@ -19,6 +19,7 @@ import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 import { commandItem } from '../common/command'
+import i18n from '../../i18n'
 import { resolveTheme } from '../../themes/themes'
 import { defTemplate, mergedSettingValues, type CustomWidgetDef } from '../../model/widgetdef'
 import type { Scope } from '../../template/evaluator'
@@ -121,7 +122,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
     let alive = true
     loadEngine().then(
       (m) => alive && setEngine(m),
-      (err) => alive && setError('Template engine failed to load: ' + String(err))
+      (err) => alive && setError(i18n.t('Template engine failed to load: {{error}}', { error: String(err) }))
     )
     return () => {
       alive = false
@@ -172,9 +173,9 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
   }
 
   const notice = missingDef
-    ? `Custom widget “${config.customwidget}” was not found.`
+    ? i18n.t('Custom widget “{{id}}” was not found.', { id: config.customwidget })
     : !template.trim()
-      ? 'Empty template — configure this widget.'
+      ? i18n.t('Empty template — configure this widget.')
       : error
 
   const body = notice ? (

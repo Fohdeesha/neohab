@@ -3,12 +3,14 @@
  * immediately (creation is gated on being signed in, like entering edit mode).
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { createDashboard, slugifyDashboardId } from '../model/dashboard'
 import { saveDashboard, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 
 export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,14 +33,14 @@ export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Sheet title="New dashboard" onClose={onClose}>
+    <Sheet title={t('New dashboard')} onClose={onClose}>
       <div className="nh-form">
         <label className="nh-field" htmlFor="nh-newdash-name">
-          <span className="nh-field__label">Name</span>
+          <span className="nh-field__label">{t('Name')}</span>
           <input
             id="nh-newdash-name"
             value={name}
-            placeholder="Living room"
+            placeholder={t('Living room')}
             autoFocus
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -47,7 +49,7 @@ export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
           />
         </label>
         {error ? (
-          <p className="nh-form__error">Could not create: {error} — are you signed in as an administrator?</p>
+          <p className="nh-form__error">{t('Could not create: {{error}} — are you signed in as an administrator?', { error })}</p>
         ) : null}
         <button
           type="button"
@@ -55,7 +57,7 @@ export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
           disabled={!name.trim() || busy}
           onClick={() => void create()}
         >
-          {busy ? 'Creating…' : 'Create dashboard'}
+          {busy ? t('Creating…') : t('Create dashboard')}
         </button>
       </div>
     </Sheet>

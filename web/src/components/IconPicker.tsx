@@ -9,6 +9,7 @@
  * Same fixed-position, viewport-sized popover pattern as the item picker.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Icon } from './Icon'
 import { CLASSIC_ICONS } from './classicIcons'
 import { saveCustomIcon, useConfigStore } from '../store/config'
@@ -104,6 +105,7 @@ interface ListPos {
 }
 
 export function IconPicker({ id, value, onChange }: IconPickerProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>(tabForValue(value))
   const [query, setQuery] = useState('')
@@ -214,7 +216,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     } catch (err) {
       setUploadError(
         (err instanceof Error ? err.message : String(err)) +
-          (/40[13]/.test(String(err)) ? ' — sign in as an administrator to upload icons.' : '')
+          (/40[13]/.test(String(err)) ? ' ' + t('— sign in as an administrator to upload icons.') : '')
       )
     } finally {
       setUploading(false)
@@ -233,7 +235,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           id={id}
           type="text"
           autoComplete="off"
-          placeholder="No icon — browse or type mdi:name / oh:name"
+          placeholder={t('No icon — browse or type mdi:name / oh:name')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={openList}
@@ -241,7 +243,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
         <button
           type="button"
           className={'nh-picker__toggle' + (open ? ' nh-picker__toggle--open' : '')}
-          aria-label={open ? 'Close icon list' : 'Browse icons'}
+          aria-label={open ? t('Close icon list') : t('Browse icons')}
           tabIndex={-1}
           onPointerDown={(e) => {
             e.preventDefault()
@@ -260,14 +262,14 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
         >
           <div className="nh-iconpicker__tabs">
-            {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+            {(Object.keys(TAB_LABELS) as Tab[]).map((tb) => (
               <button
-                key={t}
+                key={tb}
                 type="button"
-                className={'nh-iconpicker__tab' + (tab === t ? ' nh-iconpicker__tab--on' : '')}
-                onClick={() => setTab(t)}
+                className={'nh-iconpicker__tab' + (tab === tb ? ' nh-iconpicker__tab--on' : '')}
+                onClick={() => setTab(tb)}
               >
-                {TAB_LABELS[t]}
+                {t(TAB_LABELS[tb])}
               </button>
             ))}
             {value ? (
@@ -279,14 +281,14 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
                   close()
                 }}
               >
-                Remove icon
+                {t('Remove icon')}
               </button>
             ) : null}
           </div>
           <input
             type="text"
             className="nh-iconpicker__search"
-            placeholder={SEARCH_HINTS[tab]}
+            placeholder={t(SEARCH_HINTS[tab])}
             value={query}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
@@ -300,7 +302,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
-                {uploading ? 'Uploading…' : 'Upload icon…'}
+                {uploading ? t('Uploading…') : t('Upload icon…')}
               </button>
               <span className="nh-iconpicker__uploadhint">PNG, JPG, GIF, WebP, BMP or SVG</span>
               <input
@@ -318,7 +320,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           ) : null}
           {uploadError ? <div className="nh-iconpicker__error">{uploadError}</div> : null}
           <div className="nh-iconpicker__grid">
-            {!packsReady ? <span className="nh-picker__empty">Loading icon library…</span> : null}
+            {!packsReady ? <span className="nh-picker__empty">{t('Loading icon library…')}</span> : null}
             {matches.map((entry) => (
               <button
                 key={entry.ref}
@@ -333,13 +335,13 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
             {matches.length === 0 && packsReady ? (
               <span className="nh-picker__empty">
                 {tab === 'custom' && customIcons.length === 0
-                  ? 'No custom icons yet — upload one above'
-                  : 'No matching icons'}
+                  ? t('No custom icons yet — upload one above')
+                  : t('No matching icons')}
               </span>
             ) : null}
           </div>
           {truncated > 0 ? (
-            <div className="nh-iconpicker__more">…and {truncated} more — type to narrow</div>
+            <div className="nh-iconpicker__more">{t('…and {{count}} more — type to narrow', { count: truncated })}</div>
           ) : null}
         </div>
       ) : null}
