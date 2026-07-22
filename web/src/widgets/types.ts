@@ -59,9 +59,14 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'boolean'; label: string }
     | { key: string; type: 'color'; label: string }
     | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
-    /* chart-only list editors, rendered by dedicated components in editor/ChartFields */
+    /** Pick one of the existing dashboards (stores its id). */
+    | { key: string; type: 'dashboard'; label: string }
+    /* list editors rendered by dedicated components in editor/ */
+    | { key: string; type: 'stateicons'; label: string }
     | { key: string; type: 'chartseries'; label: string }
     | { key: string; type: 'chartthresholds'; label: string }
+    | { key: string; type: 'statecolors'; label: string }
+    | { key: string; type: 'timelineseries'; label: string }
   )
 
 export interface WidgetDefinition<C = Record<string, unknown>> {

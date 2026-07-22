@@ -39,6 +39,7 @@ const SAFE_SUITES = [
   'e2e-audit2',
   'e2e-audit3',
   'e2e-voiceaudio',
+  'e2e-timeclock',
 ]
 
 const only = process.argv.slice(2)

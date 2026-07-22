@@ -17,7 +17,7 @@ function SwitchWidget({ config, ctx }: WidgetProps<SwitchConfig>) {
   const on = isOn(state)
   const onCmd = config.onCommand ?? 'ON'
   const offCmd = config.offCommand ?? 'OFF'
-  const { icon, color } = resolveStateIcon(config, on)
+  const { icon, color } = resolveStateIcon(config, on, state?.state)
 
   const toggle = () => {
     if (ctx.editing) return

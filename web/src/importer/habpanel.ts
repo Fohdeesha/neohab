@@ -367,12 +367,17 @@ const CONVERTERS: Record<string, Converter> = {
     }
   },
 
-  clock: (w, report) => {
-    if (str(w.mode) === 'analog') report.add('info', 'Analog clocks are shown as digital for now')
+  clock: (w) => {
+    // HABPanel stores the mode capitalized ('Analog'/'Digital'); compare case-insensitively.
+    const analog = (str(w.mode) ?? '').toLowerCase() === 'analog'
     const format = str(w.digital_format) ?? ''
     return {
       type: 'clock',
-      config: { showDate: true, showSeconds: /s/.test(format) },
+      config: {
+        mode: analog ? 'analog' : undefined,
+        showDate: true,
+        showSeconds: analog ? undefined : /s/.test(format),
+      },
     }
   },
 
@@ -411,16 +416,25 @@ const CONVERTERS: Record<string, Converter> = {
     }
   },
 
-  timeline: (w, report) => {
-    report.add('warn', 'Timeline widgets were imported as charts (a timeline widget is planned)')
+  timeline: (w) => {
     const hpSeries = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
     const series = hpSeries
       .filter((s) => str(s.item))
-      .map((s) => ({ item: str(s.item), label: str(s.name), mode: 'step' }))
+      .map((s) => ({ item: str(s.item), label: str(s.name) }))
+    const hpMaps = Array.isArray(w.colorMaps) ? (w.colorMaps as Record<string, unknown>[]) : []
+    const colorMaps = hpMaps
+      .filter((m) => m && m.state !== undefined && m.state !== '' && str(m.color))
+      .map((m) => ({ state: String(m.state), color: str(m.color) }))
     const p = PERIOD_MAP[str(w.period) ?? 'D'] ?? { period: '24h', exact: false }
     return {
-      type: 'chart',
-      config: { series, label: str(w.name), period: p.period, service: str(w.service), refresh: 300 },
+      type: 'timeline',
+      config: {
+        series,
+        colorMaps: colorMaps.length > 0 ? colorMaps : undefined,
+        label: str(w.name),
+        period: p.period,
+        service: str(w.service),
+      },
     }
   },
 

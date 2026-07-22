@@ -2,7 +2,7 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
 import { Icon } from '../../components/Icon'
-import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
+import { resolveStateIcon, stateMatches, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 
 interface ButtonConfig extends StateIconConfig {
   item?: string
@@ -17,23 +17,6 @@ interface ButtonConfig extends StateIconConfig {
   navigateUrl?: string
   iconSize?: number
   hideLabel?: boolean
-}
-
-/**
- * HABPanel toggle semantics: a toggle button is "active" exactly when the raw item
- * state equals the command, and only then sends the alternate command. isOn()-style
- * heuristics must NOT be used here — for a Rollershutter at an intermediate position
- * (e.g. a half-stopped garage door at 50) they invert the imported button's behavior.
- * Numeric-tolerant so a stored '100' still matches a server '100.0'.
- */
-function stateMatches(command: string | number | undefined, raw: string | undefined): boolean {
-  if (command == null || raw == null) return false
-  const cmd = String(command)
-  if (raw === cmd) return true
-  if (cmd.trim() === '' || raw.trim() === '') return false
-  const a = Number(raw)
-  const b = Number(cmd)
-  return !Number.isNaN(a) && !Number.isNaN(b) && a === b
 }
 
 function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
@@ -53,7 +36,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   }
 
   const showLabel = !config.hideLabel && config.label
-  const { icon, color } = resolveStateIcon(config, active)
+  const { icon, color } = resolveStateIcon(config, active, state?.state)
 
   return (
     <WidgetFrame center>
@@ -102,7 +85,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     { key: 'command', type: 'text', label: 'Command' },
     { key: 'commandAlt', type: 'text', label: 'Alternate command', showIf: isCommand },
     { key: 'toggle', type: 'boolean', label: 'Toggle with state' },
-    { key: 'navigateDashboard', type: 'text', label: 'Go to dashboard (id)', showIf: isNavigate },
+    { key: 'navigateDashboard', type: 'dashboard', label: 'Go to dashboard', showIf: isNavigate },
     { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate },
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),

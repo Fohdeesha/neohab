@@ -8,6 +8,7 @@ import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
 import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
+import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -316,6 +317,14 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <ChartSeriesField widget={widget} />
     case 'chartthresholds':
       return <ChartThresholdsField widget={widget} />
+    case 'stateicons':
+      return <StateIconsField widget={widget} />
+    case 'statecolors':
+      return <StateColorsField widget={widget} />
+    case 'timelineseries':
+      return <TimelineSeriesField widget={widget} />
+    case 'dashboard':
+      return <DashboardField field={field} widget={widget} value={value} />
     default:
       return (
         <label className="nh-field" htmlFor={id}>
@@ -330,6 +339,43 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
         </label>
       )
   }
+}
+
+/**
+ * Dashboard picker: a select over the dashboards that actually exist. A stored id that no
+ * longer resolves stays visible as its raw id rather than being silently dropped.
+ */
+function DashboardField({
+  field,
+  widget,
+  value,
+}: {
+  field: Extract<SettingField, { type: 'dashboard' }>
+  widget: WidgetInstance
+  value: unknown
+}) {
+  const { t } = useTranslation()
+  const dashboards = useConfigStore((s) => s.dashboards)
+  const current = typeof value === 'string' ? value : ''
+  const id = `f-${widget.id}-${field.key}`
+  return (
+    <label className="nh-field" htmlFor={id}>
+      <span className="nh-field__label">{t(field.label)}</span>
+      <select
+        id={id}
+        value={current}
+        onChange={(e) => updateWidgetConfig(widget.id, field.key, e.target.value || undefined)}
+      >
+        <option value="">{t('None')}</option>
+        {current && !dashboards.some((d) => d.id === current) ? <option value={current}>{current}</option> : null}
+        {dashboards.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }
 
 /**

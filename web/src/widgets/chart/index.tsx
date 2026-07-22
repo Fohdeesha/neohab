@@ -144,7 +144,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     async function load() {
       const since = new Date(Date.now() - periodMs)
       const results = await Promise.all(
-        resolved.map((s) => getItemHistory(s.item, since, config.service || undefined))
+        resolved.map((s) => getItemHistory(s.item, since, { serviceId: config.service || undefined }))
       )
       if (disposed) return
       const maxPoints = numOpt(config.maxPoints) ?? DEFAULT_MAX_POINTS

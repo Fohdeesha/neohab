@@ -14,6 +14,7 @@ import { colorWidget } from './color'
 import { selectionWidget } from './selection'
 import { dialWidget } from './dial'
 import { chartWidget } from './chart'
+import { timelineWidget } from './timeline'
 import { frameWidget } from './frame'
 import { rollershutterWidget } from './rollershutter'
 import { playerWidget } from './player'
@@ -37,6 +38,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(clockWidget)
   registerWidget(imageWidget)
   registerWidget(chartWidget)
+  registerWidget(timelineWidget)
   registerWidget(frameWidget)
   registerWidget(templateWidget)
 }

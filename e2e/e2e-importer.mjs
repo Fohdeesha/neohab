@@ -135,8 +135,8 @@ try {
   const synthDash = await (await fetch(NS + '/dashboard:synth')).json()
   const synthTypes = synthDash?.config?.widgets?.map((w) => w.type).sort()
   ok(
-    'file import mapping: switch/dial/chart',
-    JSON.stringify(synthTypes) === JSON.stringify(['chart', 'dial', 'switch']),
+    'file import mapping: switch/dial/timeline',
+    JSON.stringify(synthTypes) === JSON.stringify(['dial', 'switch', 'timeline']),
     JSON.stringify(synthTypes)
   )
 

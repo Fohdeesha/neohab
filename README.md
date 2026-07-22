@@ -45,7 +45,9 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   per-series colors and styles (smooth/linear/stepped lines, gradient fills, points), left and
   right y-axes with fixed or automatic ranges, threshold lines and shaded bands, a legend that
   toggles series on and off, a crosshair tooltip, quick time-range switching from an hour to a
-  year, drag-to-zoom, and live updating as item states change.
+  year, drag-to-zoom, and live updating as item states change. A timeline widget shows the
+  same history as colored state bands — one row per item, with configurable state colors —
+  which is the right shape for switches, presence and modes.
 - **Voice & audio** — every open dashboard can be a speaker: sounds your rules play through
   openHAB's Web Audio sink come out of the browser, a speech item announces its changes out
   loud (voice picked per device), and a microphone button sends spoken commands to openHAB's
@@ -108,9 +110,11 @@ openHAB server's own icon sets and your own uploads:
   transparency and GIF animation survive, and uploads are stored in your openHAB config so
   backups and exports include them
 
-Stateful widgets (switches, toggle buttons) can show a different icon — and a different mono
-tint — for their active state. Icon sizes are authored against a desktop-width dashboard and
-scale automatically with the actual cell size, so the same config looks right on any screen.
+Stateful widgets (switches, toggle buttons, value readouts) can show a different icon — and a
+different mono tint — for their active state, or per state beyond that: rules map exact states
+or numeric ranges (a dimmer at `0`, `1-49` and `50-100` can be three different bulbs). Icon
+sizes are authored against a desktop-width dashboard and scale automatically with the actual
+cell size, so the same config looks right on any screen.
 
 ## License
 

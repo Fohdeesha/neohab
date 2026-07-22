@@ -225,13 +225,13 @@ try {
   ok('a config without `action` still resolves to Send command', (await page.inputValue('#f-w-e-action')) === 'command', await page.inputValue('#f-w-e-action'))
 
   const shown = async (label) => (await page.locator(`.nh-sheet--side .nh-field__label:text-is("${label}")`).count()) > 0
-  ok('command mode hides "Go to dashboard (id)"', !(await shown('Go to dashboard (id)')))
+  ok('command mode hides "Go to dashboard"', !(await shown('Go to dashboard')))
   ok('command mode hides "Open URL"', !(await shown('Open URL')))
   ok('command mode shows "Alternate command"', await shown('Alternate command'))
 
   await page.selectOption('#f-w-e-action', 'navigate')
   await sleep(200)
-  ok('navigate mode shows "Go to dashboard (id)"', await shown('Go to dashboard (id)'))
+  ok('navigate mode shows "Go to dashboard"', await shown('Go to dashboard'))
   ok('navigate mode shows "Open URL"', await shown('Open URL'))
   ok('navigate mode hides "Alternate command"', !(await shown('Alternate command')))
   ok('navigate mode keeps Item (drives the active icon)', await shown('openHAB Item'))
