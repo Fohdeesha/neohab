@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import {
   clearSelection,
@@ -24,6 +25,7 @@ import {
   useClipboardStore,
 } from '../store/clipboard'
 import { isLoggedIn } from '../api/auth'
+import { useAuthStore, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
@@ -43,12 +45,14 @@ function isTyping(): boolean {
 }
 
 export function DashboardView({ id }: { id: string }) {
+  const { t } = useTranslation()
   // subscribed, not read once: a save, an import or a reload replaces the stored dashboard, and
   // the view must follow it on its own rather than relying on an editor render to carry it in.
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const editor = useEditorStore()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
   const kiosk = useKioskMode()
+  const canEdit = useEditingAllowed()
   const [signInOpen, setSignInOpen] = useState(false)
 
   const editing = editor.editing && editor.draft?.id === id
@@ -150,20 +154,22 @@ export function DashboardView({ id }: { id: string }) {
       <div className="nh-dash">
         <header className="nh-dash__bar">
           <NavButton />
-          <span className="nh-dash__title">Not found</span>
+          <span className="nh-dash__title">{t('Not found')}</span>
         </header>
-        <p className="nh-dash__empty">Dashboard “{id}” does not exist.</p>
+        <p className="nh-dash__empty">{t('Dashboard “{{id}}” does not exist.', { id })}</p>
       </div>
     )
   }
 
   const enterEdit = () => {
-    if (isLoggedIn()) startEditing(dashboard)
+    // Signed in but definitively not an administrator: the save would only ever fail, so ask
+    // for admin credentials up front. An 'unknown' probe result never blocks a signed-in user.
+    if (isLoggedIn() && useAuthStore.getState().status !== 'user') startEditing(dashboard)
     else setSignInOpen(true)
   }
 
   const cancel = () => {
-    if (editor.dirty && !window.confirm('Discard all unsaved changes?')) return
+    if (editor.dirty && !window.confirm(t('Discard all unsaved changes?'))) return
     stopEditing()
   }
 
@@ -193,25 +199,25 @@ export function DashboardView({ id }: { id: string }) {
       <header className="nh-dash__bar">
         {editing ? (
           <>
-            <span className="nh-dash__title">Editing — {dashboard.name}</span>
+            <span className="nh-dash__title">{t('Editing — {{name}}', { name: dashboard.name })}</span>
             <span className="nh-dash__spacer" />
             <button
               className="nh-iconbtn"
               onClick={() => setDashSettingsOpen(true)}
-              aria-label="Dashboard settings"
-              title="Dashboard settings"
+              aria-label={t('Dashboard settings')}
+              title={t('Dashboard settings')}
             >
               ⚙
             </button>
-            <button className="nh-iconbtn" onClick={() => setPaletteOpen(true)} aria-label="Add widget" title="Add widget">
+            <button className="nh-iconbtn" onClick={() => setPaletteOpen(true)} aria-label={t('Add widget')} title={t('Add widget')}>
               +
             </button>
             <button
               className="nh-iconbtn"
               onClick={undo}
               disabled={editor.undoStack.length === 0}
-              aria-label="Undo"
-              title="Undo (Ctrl+Z)"
+              aria-label={t('Undo')}
+              title={t('Undo (Ctrl+Z)')}
             >
               ↩
             </button>
@@ -219,21 +225,21 @@ export function DashboardView({ id }: { id: string }) {
               className="nh-iconbtn"
               onClick={redo}
               disabled={editor.redoStack.length === 0}
-              aria-label="Redo"
-              title="Redo (Ctrl+Shift+Z)"
+              aria-label={t('Redo')}
+              title={t('Redo (Ctrl+Shift+Z)')}
             >
               ↪
             </button>
-            <button className="nh-btn nh-btn--ghost" onClick={cancel} title="Exit edit mode (unsaved changes are discarded)">
-              Exit
+            <button className="nh-btn nh-btn--ghost" onClick={cancel} title={t('Exit edit mode (unsaved changes are discarded)')}>
+              {t('Exit')}
             </button>
             <button
               className="nh-btn nh-btn--primary"
               onClick={() => void saveDraft()}
               disabled={!editor.dirty || editor.saving}
-              title="Save changes and exit edit mode"
+              title={t('Save changes and exit edit mode')}
             >
-              {editor.saving ? 'Saving…' : 'Save'}
+              {editor.saving ? t('Saving…') : t('Save')}
             </button>
           </>
         ) : (
@@ -241,9 +247,11 @@ export function DashboardView({ id }: { id: string }) {
             <NavButton />
             <span className="nh-dash__title">{dashboard.name}</span>
             <span className="nh-dash__spacer" />
-            <button className="nh-iconbtn" onClick={enterEdit} aria-label="Edit dashboard" title="Edit dashboard">
-              ✎
-            </button>
+            {canEdit ? (
+              <button className="nh-iconbtn" onClick={enterEdit} aria-label={t('Edit dashboard')} title={t('Edit dashboard')}>
+                ✎
+              </button>
+            ) : null}
           </>
         )}
       </header>
@@ -251,36 +259,39 @@ export function DashboardView({ id }: { id: string }) {
 
       {/* Contextual selection/clipboard actions (also the touch path — no Ctrl keys there). */}
       {editing && (selectedIds.length > 0 || clipboardCount > 0) ? (
-        <div className="nh-selbar" role="toolbar" aria-label="Selection actions">
+        <div className="nh-selbar" role="toolbar" aria-label={t('Selection actions')}>
           {selectedIds.length > 0 ? (
             <>
               <span className="nh-selbar__count">
-                {selectedIds.length} widget{selectedIds.length === 1 ? '' : 's'} selected
+                {t('{{count}} widgets selected', { count: selectedIds.length })}
               </span>
               <button className="nh-btn nh-btn--ghost" onClick={copySelected}>
-                Copy
+                {t('Copy')}
               </button>
               <button className="nh-btn nh-btn--ghost" onClick={cutSelected}>
-                Cut
+                {t('Cut')}
               </button>
               <button className="nh-btn nh-btn--danger" onClick={deleteSelected}>
-                Delete
+                {t('Delete')}
               </button>
               <button className="nh-btn nh-btn--ghost" onClick={clearSelection}>
-                Deselect
+                {t('Deselect')}
               </button>
             </>
           ) : null}
           {clipboardCount > 0 ? (
             <button className="nh-btn nh-btn--ghost" onClick={pasteClipboard}>
-              Paste{selectedIds.length === 0 ? ` ${clipboardCount}` : ''}
+              {t('Paste')}
+              {selectedIds.length === 0 ? ` ${clipboardCount}` : ''}
             </button>
           ) : null}
         </div>
       ) : null}
 
       {editing && editor.saveError ? (
-        <div className="nh-dash__error">Save failed: {editor.saveError} — are you signed in as an administrator?</div>
+        <div className="nh-dash__error">
+          {t('Save failed: {{error}} — are you signed in as an administrator?', { error: editor.saveError })}
+        </div>
       ) : null}
 
       <div
@@ -292,8 +303,9 @@ export function DashboardView({ id }: { id: string }) {
         {editing ? <EditableGrid dashboard={dashboard} /> : <Grid dashboard={dashboard} />}
         {editing ? (
           <p className="nh-dash__edithint">
-            Drag by the handle · tap to configure · Ctrl/Cmd- or Shift-click, drag a box, or long-press to
-            select several · Ctrl+C / Ctrl+V to copy and paste
+            {t(
+              'Drag by the handle · tap to configure · Ctrl/Cmd- or Shift-click, drag a box, or long-press to select several · Ctrl+C / Ctrl+V to copy and paste'
+            )}
           </p>
         ) : null}
       </div>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { registerBuiltinWidgets } from './widgets'
 import { startItemTracking } from './store/items'
 import { loadConfig, useConfigStore } from './store/config'
 import { getRootInfo } from './api/items'
 import { completeLogin } from './api/auth'
+import { refreshAuthStatus } from './store/auth'
 import { applyTheme, cacheTheme, resolveTheme } from './themes/themes'
 import { useRoute } from './app/router'
 import { Home } from './app/Home'
@@ -18,6 +20,7 @@ import { Screensaver } from './kiosk/Screensaver'
 registerBuiltinWidgets()
 
 export default function App() {
+  const { t } = useTranslation()
   const route = useRoute()
   const sidebar = useSidebarLayout()
   const loaded = useConfigStore((s) => s.loaded)
@@ -48,6 +51,7 @@ export default function App() {
 
       startItemTracking()
       void loadConfig()
+      void refreshAuthStatus()
 
       try {
         const info = await getRootInfo()
@@ -66,7 +70,7 @@ export default function App() {
   if (!loaded) {
     return (
       <main className="nh-app nh-app--center">
-        <p className="nh-home__status">loading…</p>
+        <p className="nh-home__status">{t('loading…')}</p>
       </main>
     )
   }

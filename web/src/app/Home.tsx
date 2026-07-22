@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import { useKioskMode } from '../store/kiosk'
 import { isLoggedIn } from '../api/auth'
+import { useEditingAllowed } from '../store/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
@@ -10,8 +12,10 @@ import { NewDashboardSheet } from '../editor/NewDashboardSheet'
 import { SignInSheet } from '../editor/SignInSheet'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
+  const { t } = useTranslation()
   const { dashboards, error } = useConfigStore()
   const kiosk = useKioskMode()
+  const canEdit = useEditingAllowed()
   const [newOpen, setNewOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
 
@@ -24,35 +28,38 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
       <p className="nh-home__status">
         {ohVersion ? (
           <>
-            connected to openHAB <strong>{ohVersion}</strong>
+            {t('connected to openHAB')} <strong>{ohVersion}</strong>
           </>
         ) : (
-          'connecting to openHAB…'
+          t('connecting to openHAB…')
         )}
       </p>
 
       {dashboards.length === 0 ? (
         <div className="nh-welcome">
-          <h2 className="nh-welcome__title">Welcome to neohab</h2>
+          <h2 className="nh-welcome__title">{t('Welcome to neohab')}</h2>
           {error ? (
-            <p className="nh-welcome__text">The configuration could not be loaded: {error}</p>
+            <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
           ) : (
             <p className="nh-welcome__text">
-              There are no dashboards yet. Create your first one, bring your HABPanel setup along,
-              or restore a neohab backup.
+              {t(
+                'There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.'
+              )}
             </p>
           )}
-          <div className="nh-welcome__actions">
-            <button type="button" className="nh-btn nh-btn--primary" onClick={createFirst}>
-              Create your first dashboard
-            </button>
-            <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
-              Import from HABPanel
-            </button>
-            <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
-              Restore a backup
-            </button>
-          </div>
+          {canEdit ? (
+            <div className="nh-welcome__actions">
+              <button type="button" className="nh-btn nh-btn--primary" onClick={createFirst}>
+                {t('Create your first dashboard')}
+              </button>
+              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
+                {t('Import from HABPanel')}
+              </button>
+              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
+                {t('Restore a backup')}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="nh-tiles">
@@ -60,15 +67,15 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
             <button key={d.id} className="nh-tile" onClick={() => navigate({ name: 'dashboard', id: d.id })}>
               {d.icon ? <Icon icon={d.icon} size={28} className="nh-tile__icon" /> : null}
               <span className="nh-tile__name">{d.name}</span>
-              <span className="nh-tile__meta">{d.widgets.length} widgets</span>
+              <span className="nh-tile__meta">{t('{{count}} widgets', { count: d.widgets.length })}</span>
             </button>
           ))}
-          {kiosk ? null : (
+          {kiosk || !canEdit ? null : (
             <button type="button" className="nh-tile nh-tile--new" onClick={createFirst}>
               <span className="nh-tile__plus" aria-hidden="true">
                 +
               </span>
-              <span className="nh-tile__name">New dashboard</span>
+              <span className="nh-tile__name">{t('New dashboard')}</span>
             </button>
           )}
         </div>
@@ -80,7 +87,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           className="nh-btn nh-btn--ghost nh-home__settings"
           onClick={() => navigate({ name: 'settings' })}
         >
-          ⚙ Settings
+          ⚙ {t('Settings')}
         </button>
       )}
 

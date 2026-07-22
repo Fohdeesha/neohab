@@ -4,27 +4,30 @@
  *  - pasting an API token (kiosks / headless setups), stored locally.
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { authorize, setApiToken } from '../api/auth'
+import { refreshAuthStatus } from '../store/auth'
 
 export function SignInSheet({ onClose, onToken }: { onClose: () => void; onToken: () => void }) {
+  const { t } = useTranslation()
   const [token, setToken] = useState('')
   const [showToken, setShowToken] = useState(false)
 
   return (
-    <Sheet title="Sign in to edit" onClose={onClose}>
+    <Sheet title={t('Sign in to edit')} onClose={onClose}>
       <div className="nh-signin">
         <p className="nh-signin__text">
-          Editing dashboards requires an openHAB administrator account.
+          {t('Editing dashboards requires an openHAB administrator account.')}
         </p>
         <button type="button" className="nh-btn nh-btn--primary" onClick={() => void authorize()}>
-          Log in with openHAB
+          {t('Log in with openHAB')}
         </button>
 
         {showToken ? (
           <div className="nh-form">
             <label className="nh-field" htmlFor="nh-token">
-              <span className="nh-field__label">API token</span>
+              <span className="nh-field__label">{t('API token')}</span>
               <input
                 id="nh-token"
                 type="password"
@@ -39,15 +42,18 @@ export function SignInSheet({ onClose, onToken }: { onClose: () => void; onToken
               disabled={!token.trim()}
               onClick={() => {
                 setApiToken(token)
+                // Establish whether the new token is an admin one (the PKCE path re-probes on
+                // the post-redirect boot instead).
+                void refreshAuthStatus()
                 onToken()
               }}
             >
-              Use token
+              {t('Use token')}
             </button>
           </div>
         ) : (
           <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setShowToken(true)}>
-            Use an API token instead
+            {t('Use an API token instead')}
           </button>
         )}
       </div>

@@ -52,6 +52,9 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   Polish (the translations are machine-drafted and welcome native review), picked automatically
   from the browser language with a per-device override in Settings. Your own dashboard text is
   never touched.
+- **View-only devices** — an editing lock hides every editing control from devices that are not
+  signed in as an administrator, so wall panels and guests get a clean, read-only dashboard;
+  administrator devices are never affected, and a locked device can still sign in from Settings.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users.
 - **First-class theming** — theme editor with live preview, light/dark themes, and custom

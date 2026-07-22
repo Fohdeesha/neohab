@@ -50,6 +50,12 @@ export interface AppSettings {
    * per-device choice (kiosk-mode devices follow by default).
    */
   controlItem?: string
+  /**
+   * Hide all editing affordances from devices that are not signed in as an administrator
+   * (wall panels, guests). Administrator devices are never affected; a locked device can
+   * still sign in via Settings > Account. Off by default so a fresh install can be edited.
+   */
+  lockEditing?: boolean
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })

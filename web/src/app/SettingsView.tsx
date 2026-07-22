@@ -3,6 +3,8 @@
  * Theme changes apply instantly; persisting them (and importing) needs an admin login.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { LANGUAGES, setLanguage, storedLanguage } from '../i18n'
 import {
   buildExportBundle,
   deleteTheme,
@@ -29,37 +31,43 @@ import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
 import { ItemPicker } from '../components/ItemPicker'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
+import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
+import { refreshAuthStatus, useAuthStore, useEditingAllowed, useIsAdmin } from '../store/auth'
 import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 
 export function SettingsView() {
+  const { t } = useTranslation()
   const { settings, customThemes } = useConfigStore()
   const [notice, setNotice] = useState<string | null>(null)
   const [editing, setEditing] = useState<Theme | null>(null)
   const textPct = useTextSizeStore((s) => s.percent)
+  // With the editing lock on, non-admin devices get a viewer's Settings: appearance and
+  // per-device options stay, everything that changes the server configuration goes away.
+  const canEdit = useEditingAllowed()
 
   const activeTheme = resolveTheme(settings.theme, customThemes)
 
   const choose = async (id: string) => {
     setNotice(null)
     const err = await saveSettings({ theme: id })
-    if (err) setNotice('Theme applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
+    if (err) setNotice(t('Theme applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
   }
 
   const toggleSidebarSetting = async (on: boolean) => {
     setNotice(null)
     const err = await saveSettings({ sidebar: on })
-    if (err) setNotice('Applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
+    if (err) setNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
   }
 
   const newFromCurrent = () => {
     const id = 'custom-' + Math.random().toString(36).slice(2, 8)
     setEditing({
       id,
-      name: 'My theme',
+      name: t('My theme'),
       scheme: activeTheme.scheme,
       tokens: { ...activeTheme.tokens },
       css: activeTheme.css,
@@ -70,14 +78,14 @@ export function SettingsView() {
     <div className="nh-dash">
       <header className="nh-dash__bar">
         <NavButton />
-        <span className="nh-dash__title">Settings</span>
+        <span className="nh-dash__title">{t('Settings')}</span>
       </header>
 
       <div className="nh-settings">
         {notice ? <div className="nh-settings__notice">{notice}</div> : null}
 
         <section>
-          <h2 className="nh-settings__h">Appearance</h2>
+          <h2 className="nh-settings__h">{t('Appearance')}</h2>
           <div className="nh-themes">
             {[...BUILTIN_THEMES, ...customThemes].map((theme) => (
               <div
@@ -92,11 +100,11 @@ export function SettingsView() {
                   </span>
                   <span className="nh-theme__name">{theme.name}</span>
                 </button>
-                {customThemes.includes(theme) ? (
+                {canEdit && customThemes.includes(theme) ? (
                   <button
                     type="button"
                     className="nh-theme__edit"
-                    aria-label={'Edit theme ' + theme.name}
+                    aria-label={t('Edit theme {{name}}', { name: theme.name })}
                     onClick={() => setEditing(structuredClone(theme))}
                   >
                     ✎
@@ -105,27 +113,35 @@ export function SettingsView() {
               </div>
             ))}
           </div>
-          <button type="button" className="nh-btn nh-btn--ghost" onClick={newFromCurrent}>
-            New theme from current
-          </button>
+          {canEdit ? (
+            <button type="button" className="nh-btn nh-btn--ghost" onClick={newFromCurrent}>
+              {t('New theme from current')}
+            </button>
+          ) : null}
 
-          <label className="nh-field nh-field--row" htmlFor="nh-set-sidebar">
-            <span className="nh-field__label">Dashboard sidebar</span>
-            <input
-              id="nh-set-sidebar"
-              type="checkbox"
-              checked={settings.sidebar !== false}
-              onChange={(e) => void toggleSidebarSetting(e.target.checked)}
-            />
-          </label>
-          <p className="nh-settings__text">
-            Adds a ☰ to the top-left of every screen that slides out the dashboard list, so you can
-            switch dashboards without going back Home. Turn it off to navigate from the Home screen
-            only.
-          </p>
+          {canEdit ? (
+            <>
+              <label className="nh-field nh-field--row" htmlFor="nh-set-sidebar">
+                <span className="nh-field__label">{t('Dashboard sidebar')}</span>
+                <input
+                  id="nh-set-sidebar"
+                  type="checkbox"
+                  checked={settings.sidebar !== false}
+                  onChange={(e) => void toggleSidebarSetting(e.target.checked)}
+                />
+              </label>
+              <p className="nh-settings__text">
+                {t(
+                  'Adds a ☰ to the top-left of every screen that slides out the dashboard list, so you can switch dashboards without going back Home. Turn it off to navigate from the Home screen only.'
+                )}
+              </p>
+            </>
+          ) : null}
+
+          <LanguageField />
 
           <label className="nh-field" htmlFor="nh-set-textsize">
-            <span className="nh-field__label">Text size on this device (%)</span>
+            <span className="nh-field__label">{t('Text size on this device (%)')}</span>
             <input
               id="nh-set-textsize"
               type="number"
@@ -139,8 +155,9 @@ export function SettingsView() {
               }}
             />
             <span className="nh-field__hint">
-              Scales dashboard text on this device only — other devices and the dashboards
-              themselves are unchanged. 100 = normal.
+              {t(
+                'Scales dashboard text on this device only — other devices and the dashboards themselves are unchanged. 100 = normal.'
+              )}
             </span>
           </label>
         </section>
@@ -156,13 +173,19 @@ export function SettingsView() {
 
         <KioskSection onNotice={setNotice} />
 
-        <WidgetDefManager onNotice={setNotice} />
+        {canEdit ? (
+          <>
+            <WidgetDefManager onNotice={setNotice} />
 
-        <CustomIconsSection onNotice={setNotice} />
+            <CustomIconsSection onNotice={setNotice} />
 
-        <HabpanelImport onNotice={setNotice} />
+            <HabpanelImport onNotice={setNotice} />
 
-        <BackupSection onNotice={setNotice} />
+            <BackupSection onNotice={setNotice} />
+          </>
+        ) : null}
+
+        <EditingLockSection onNotice={setNotice} />
 
         <AccountSection onNotice={setNotice} />
       </div>
@@ -171,14 +194,78 @@ export function SettingsView() {
 }
 
 /**
+ * The editing lock. Admin-only: a non-admin device could never flip it back, and a locked-out
+ * viewer should not even learn the switch exists.
+ */
+function EditingLockSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const { t } = useTranslation()
+  const isAdmin = useIsAdmin()
+  const locked = useConfigStore((s) => s.settings.lockEditing === true)
+
+  if (!isAdmin) return null
+
+  const toggle = async (on: boolean) => {
+    onNotice(null)
+    const err = await saveSettings({ lockEditing: on || undefined })
+    if (err) onNotice(t('Saving failed: {{error}}', { error: err }))
+  }
+
+  return (
+    <section>
+      <h2 className="nh-settings__h">{t('Editing lock')}</h2>
+      <label className="nh-field nh-field--row" htmlFor="nh-set-lock">
+        <span className="nh-field__label">{t('Lock editing for non-administrators')}</span>
+        <input id="nh-set-lock" type="checkbox" checked={locked} onChange={(e) => void toggle(e.target.checked)} />
+      </label>
+      <p className="nh-settings__text">
+        {t(
+          'Hides the edit pencil, dashboard creation and the configuration sections of this screen on every device that is not signed in as an administrator — wall panels and guests get a clean, view-only dashboard. Administrator devices (like this one) are never affected, and a locked device can still sign in under Account below.'
+        )}
+      </p>
+    </section>
+  )
+}
+
+/**
+ * Per-device language choice. 'auto' follows the browser; a concrete pick is stored in
+ * localStorage, like the text size - a wall panel and a phone can disagree.
+ */
+function LanguageField() {
+  const { t, i18n } = useTranslation()
+  const value = storedLanguage() ?? 'auto'
+  return (
+    <label className="nh-field" htmlFor="nh-set-lang">
+      <span className="nh-field__label">{t('Language')}</span>
+      <select id="nh-set-lang" value={value} onChange={(e) => void setLanguage(e.target.value)}>
+        <option value="auto">
+          {t('Auto (browser language)')}
+          {value === 'auto' ? ` — ${LANGUAGES.find((l) => l.code === i18n.language)?.name ?? i18n.language}` : ''}
+        </option>
+        {LANGUAGES.map((l) => (
+          <option key={l.code} value={l.code}>
+            {l.name}
+          </option>
+        ))}
+      </select>
+      <span className="nh-field__hint">
+        {t('Applies to this device only. Dashboard content is your own text and stays as you wrote it.')}
+      </span>
+    </label>
+  )
+}
+
+/**
  * Kiosk / wall-panel settings. Everything here is per-device (localStorage) except the
  * dashboard-control item, which is part of the server configuration.
  */
 function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const { t } = useTranslation()
   const kioskSettings = useKioskStore((s) => s.settings)
   const sessionKiosk = useKioskStore((s) => s.sessionKiosk)
   const dashboards = useConfigStore((s) => s.dashboards)
   const controlItem = useConfigStore((s) => s.settings.controlItem) ?? ''
+  // The control item is server configuration, so it follows the editing lock like the rest.
+  const canEdit = useEditingAllowed()
   const wakeActive = useWakeLockStore((s) => s.active)
   const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement)
 
@@ -203,33 +290,34 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const setControlItem = async (name: string) => {
     onNotice(null)
     const err = await saveSettings({ controlItem: name || undefined })
-    if (err) onNotice('Applied on this device, but saving failed: ' + err + ' — sign in as an administrator.')
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
   }
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen()
     } else {
-      document.documentElement.requestFullscreen().catch(() => onNotice('Fullscreen was blocked by the browser.'))
+      document.documentElement.requestFullscreen().catch(() => onNotice(t('Fullscreen was blocked by the browser.')))
     }
   }
 
   return (
     <section>
-      <h2 className="nh-settings__h">Kiosk &amp; wall panel</h2>
+      <h2 className="nh-settings__h">{t('Kiosk & wall panel')}</h2>
       <p className="nh-settings__text">
-        These settings apply to this device only, so a wall panel and a phone can each have their
-        own. The dashboard-control item at the bottom is the exception — it is shared.
+        {t(
+          'These settings apply to this device only, so a wall panel and a phone can each have their own. The dashboard-control item at the bottom is the exception — it is shared.'
+        )}
       </p>
 
       <label className="nh-field" htmlFor="kiosk-pinned">
-        <span className="nh-field__label">Open this dashboard at start</span>
+        <span className="nh-field__label">{t('Open this dashboard at start')}</span>
         <select
           id="kiosk-pinned"
           value={kioskSettings.pinnedDashboard ?? ''}
           onChange={(e) => setKioskSettings({ pinnedDashboard: e.target.value || undefined })}
         >
-          <option value="">Home screen (default)</option>
+          <option value="">{t('Home screen (default)')}</option>
           {dashboards.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
@@ -239,7 +327,7 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
       </label>
 
       <label className="nh-field nh-field--row" htmlFor="kiosk-wake">
-        <span className="nh-field__label">Keep the screen awake</span>
+        <span className="nh-field__label">{t('Keep the screen awake')}</span>
         <input
           id="kiosk-wake"
           type="checkbox"
@@ -250,30 +338,31 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
       </label>
       {!wakeLockSupported() ? (
         <p className="nh-settings__text">
-          Not available here: browsers only offer the wake lock over HTTPS (or on localhost).
-          Kiosk-browser apps usually keep the screen on themselves instead.
+          {t(
+            'Not available here: browsers only offer the wake lock over HTTPS (or on localhost). Kiosk-browser apps usually keep the screen on themselves instead.'
+          )}
         </p>
       ) : kioskSettings.wakeLock ? (
         <p className="nh-settings__text">
-          {wakeActive ? 'The screen is being kept awake.' : 'Waiting for the browser to grant the wake lock…'}
+          {wakeActive ? t('The screen is being kept awake.') : t('Waiting for the browser to grant the wake lock…')}
         </p>
       ) : null}
 
       <label className="nh-field" htmlFor="kiosk-saver">
-        <span className="nh-field__label">Screensaver</span>
+        <span className="nh-field__label">{t('Screensaver')}</span>
         <select
           id="kiosk-saver"
           value={kioskSettings.screensaver}
           onChange={(e) => setKioskSettings({ screensaver: e.target.value as ScreensaverMode })}
         >
-          <option value="off">Off</option>
-          <option value="blank">Blank screen</option>
-          <option value="clock">Clock</option>
+          <option value="off">{t('Off')}</option>
+          <option value="blank">{t('Blank screen')}</option>
+          <option value="clock">{t('Clock')}</option>
         </select>
       </label>
       {kioskSettings.screensaver !== 'off' ? (
         <label className="nh-field nh-field--row" htmlFor="kiosk-saver-min">
-          <span className="nh-field__label">Start after (minutes)</span>
+          <span className="nh-field__label">{t('Start after (minutes)')}</span>
           <input
             id="kiosk-saver-min"
             type="number"
@@ -290,23 +379,23 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
 
       <div className="nh-settings__row">
         <button type="button" className="nh-btn nh-btn--ghost" onClick={toggleFullscreen}>
-          {fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          {fullscreen ? t('Exit fullscreen') : t('Enter fullscreen')}
         </button>
       </div>
 
       <label className="nh-field nh-field--row" htmlFor="kiosk-mode">
-        <span className="nh-field__label">Kiosk mode</span>
+        <span className="nh-field__label">{t('Kiosk mode')}</span>
         <input id="kiosk-mode" type="checkbox" checked={kioskOn} onChange={(e) => setKioskMode(e.target.checked)} />
       </label>
       <p className="nh-settings__text">
-        Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap
-        any screen corner five times in a row, or open the app with <code>?kiosk=off</code> in the
-        address. <code>?kiosk=on</code> turns it on for one session — handy as the pinned address
-        in a kiosk-browser app.
+        {t(
+          'Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap any screen corner five times in a row, or open the app with {{off}} in the address. {{on}} turns it on for one session — handy as the pinned address in a kiosk-browser app.',
+          { off: '?kiosk=off', on: '?kiosk=on' }
+        )}
       </p>
 
       <label className="nh-field nh-field--row" htmlFor="kiosk-follow">
-        <span className="nh-field__label">Follow the dashboard-control item</span>
+        <span className="nh-field__label">{t('Follow the dashboard-control item')}</span>
         <input
           id="kiosk-follow"
           type="checkbox"
@@ -315,35 +404,39 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
         />
       </label>
 
-      <label className="nh-field" htmlFor="kiosk-controlitem">
-        <span className="nh-field__label">Dashboard-control item (all devices)</span>
-        <ItemPicker
-          id="kiosk-controlitem"
-          value={controlItem}
-          onChange={(n) => void setControlItem(n)}
-          itemTypes={['String']}
-          placeholder="No control item"
-        />
-      </label>
-      {controlItem ? (
-        <div className="nh-settings__row">
-          <button type="button" className="nh-btn nh-btn--ghost" onClick={() => void setControlItem('')}>
-            Clear control item
-          </button>
-        </div>
+      {canEdit ? (
+        <>
+          <label className="nh-field" htmlFor="kiosk-controlitem">
+            <span className="nh-field__label">{t('Dashboard-control item (all devices)')}</span>
+            <ItemPicker
+              id="kiosk-controlitem"
+              value={controlItem}
+              onChange={(n) => void setControlItem(n)}
+              itemTypes={['String']}
+              placeholder={t('No control item')}
+            />
+          </label>
+          {controlItem ? (
+            <div className="nh-settings__row">
+              <button type="button" className="nh-btn nh-btn--ghost" onClick={() => void setControlItem('')}>
+                {t('Clear control item')}
+              </button>
+            </div>
+          ) : null}
+          <p className="nh-settings__text">
+            {t(
+              'A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard — the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device\'s own choice above (kiosk-mode devices follow by default).'
+            )}
+          </p>
+        </>
       ) : null}
-      <p className="nh-settings__text">
-        A String item whose state names a dashboard (by id, or by name). When a rule changes it,
-        every device that follows it switches to that dashboard — the classic way to drive wall
-        panels remotely. Saving it needs an administrator sign-in; whether a device follows it is
-        that device's own choice above (kiosk-mode devices follow by default).
-      </p>
     </section>
   )
 }
 
 /** Manager for user-uploaded icons: upload, rename, delete, and the upload size limit. */
 function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const { t } = useTranslation()
   const { customIcons, settings } = useConfigStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -361,9 +454,9 @@ function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void
       await saveCustomIcon({ version: 1, id, name, ...processed })
     } catch (err) {
       onNotice(
-        'Upload failed: ' +
-          (err instanceof Error ? err.message : String(err)) +
-          ' — uploads need an administrator sign-in.'
+        t('Upload failed: {{error}} — uploads need an administrator sign-in.', {
+          error: err instanceof Error ? err.message : String(err),
+        })
       )
     } finally {
       setUploading(false)
@@ -371,23 +464,25 @@ function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void
   }
 
   const remove = async (icon: CustomIcon) => {
-    if (!window.confirm(`Delete icon “${icon.name}”? Widgets using it will show no icon.`)) return
+    if (!window.confirm(t('Delete icon “{{name}}”? Widgets using it will show no icon.', { name: icon.name }))) return
     onNotice(null)
     try {
       await deleteCustomIcon(icon.id)
     } catch (err) {
-      onNotice('Deleting the icon failed: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Deleting the icon failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   return (
     <section>
-      <h2 className="nh-settings__h">Custom icons</h2>
+      <h2 className="nh-settings__h">{t('Custom icons')}</h2>
       <p className="nh-settings__text">
-        Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG — transparency and GIF animation
-        survive) and pick them from the icon picker's Custom tab on any widget. They are stored in
-        the openHAB configuration, so backups and exports include them.
-        {customIcons.length > 0 ? ` Using ${totalKB} KB across ${customIcons.length} icon(s).` : ''}
+        {t(
+          'Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG — transparency and GIF animation survive) and pick them from the icon picker\'s Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them.'
+        )}
+        {customIcons.length > 0
+          ? ' ' + t('Using {{kb}} KB across {{count}} icons.', { kb: totalKB, count: customIcons.length })
+          : ''}
       </p>
       {customIcons.length > 0 ? (
         <div className="nh-iconman">
@@ -398,7 +493,7 @@ function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void
       ) : null}
       <div className="nh-settings__row">
         <button type="button" className="nh-btn nh-btn--ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
-          {uploading ? 'Uploading…' : 'Upload icon…'}
+          {uploading ? t('Uploading…') : t('Upload icon…')}
         </button>
         <input
           ref={fileRef}
@@ -412,7 +507,7 @@ function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void
           }}
         />
         <label className="nh-iconman__limit" htmlFor="icon-maxkb">
-          Upload limit (KB)
+          {t('Upload limit (KB)')}
           <input
             id="icon-maxkb"
             type="number"
@@ -439,6 +534,7 @@ function CustomIconRow({
   onNotice: (m: string | null) => void
   onDelete: () => void
 }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(icon.name)
 
   const commitRename = async () => {
@@ -450,7 +546,7 @@ function CustomIconRow({
     try {
       await saveCustomIcon({ ...icon, name: trimmed })
     } catch (err) {
-      onNotice('Renaming the icon failed: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Renaming the icon failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
       setName(icon.name)
     }
   }
@@ -462,7 +558,7 @@ function CustomIconRow({
         type="text"
         className="nh-iconman__name"
         value={name}
-        aria-label={'Rename icon ' + icon.name}
+        aria-label={t('Rename icon {{name}}', { name: icon.name })}
         onChange={(e) => setName(e.target.value)}
         onBlur={() => void commitRename()}
         onKeyDown={(e) => {
@@ -473,31 +569,59 @@ function CustomIconRow({
         custom:{icon.id} · {Math.max(1, Math.round((icon.bytes || 0) / 1024))} KB
       </span>
       <button type="button" className="nh-btn nh-btn--danger" onClick={onDelete}>
-        Delete
+        {t('Delete')}
       </button>
     </div>
   )
 }
 
 function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) {
-  if (!isLoggedIn()) return null
+  const { t } = useTranslation()
+  // Subscribing to the auth status keeps this section current after a sign-in or sign-out
+  // (refreshAuthStatus updates the store, which re-renders us and re-evaluates isLoggedIn).
+  const status = useAuthStore((s) => s.status)
+  const [signInOpen, setSignInOpen] = useState(false)
+
+  const signedIn = isLoggedIn()
+  const statusText = !signedIn
+    ? t('This device is not signed in. Viewing works without an account; editing needs an openHAB administrator sign-in.')
+    : status === 'admin'
+      ? t('This device is signed in as an administrator.')
+      : status === 'user'
+        ? t('This device is signed in, but the account has no administrator rights, so it cannot save changes.')
+        : t('This device is signed in for editing (openHAB login or a stored API token).')
+
   return (
     <section>
-      <h2 className="nh-settings__h">Account</h2>
-      <p className="nh-settings__text">
-        This device is signed in for editing (openHAB login or a stored API token).
-      </p>
-      <button
-        type="button"
-        className="nh-btn nh-btn--ghost"
-        onClick={() => {
-          logout()
-          clearApiToken()
-          onNotice('Signed out on this device.')
-        }}
-      >
-        Sign out on this device
-      </button>
+      <h2 className="nh-settings__h">{t('Account')}</h2>
+      <p className="nh-settings__text">{statusText}</p>
+      {signedIn ? (
+        <button
+          type="button"
+          className="nh-btn nh-btn--ghost"
+          onClick={() => {
+            logout()
+            clearApiToken()
+            void refreshAuthStatus()
+            onNotice(t('Signed out on this device.'))
+          }}
+        >
+          {t('Sign out on this device')}
+        </button>
+      ) : (
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setSignInOpen(true)}>
+          {t('Sign in')}
+        </button>
+      )}
+      {signInOpen ? (
+        <SignInSheet
+          onClose={() => setSignInOpen(false)}
+          onToken={() => {
+            setSignInOpen(false)
+            onNotice(t('Signed in on this device.'))
+          }}
+        />
+      ) : null}
     </section>
   )
 }
@@ -513,6 +637,7 @@ function ThemeEditor({
   onClose: () => void
   onNotice: (msg: string | null) => void
 }) {
+  const { t } = useTranslation()
   const setToken = (key: keyof ThemeTokens, value: string) =>
     onChange({ ...theme, tokens: { ...theme.tokens, [key]: value } })
 
@@ -523,31 +648,31 @@ function ThemeEditor({
       await saveSettings({ theme: theme.id })
       onClose()
     } catch (err) {
-      onNotice('Saving the theme failed: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Saving the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   const remove = async () => {
-    if (!window.confirm(`Delete theme “${theme.name}”?`)) return
+    if (!window.confirm(t('Delete theme “{{name}}”?', { name: theme.name }))) return
     onNotice(null)
     try {
       await deleteTheme(theme.id)
       onClose()
     } catch (err) {
-      onNotice('Deleting the theme failed: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Deleting the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   return (
     <section className="nh-themeeditor">
-      <h2 className="nh-settings__h">Theme editor</h2>
+      <h2 className="nh-settings__h">{t('Theme editor')}</h2>
       <div className="nh-form">
         <label className="nh-field" htmlFor="theme-name">
-          <span className="nh-field__label">Name</span>
+          <span className="nh-field__label">{t('Name')}</span>
           <input id="theme-name" type="text" value={theme.name} onChange={(e) => onChange({ ...theme, name: e.target.value })} />
         </label>
         <label className="nh-field nh-field--row" htmlFor="theme-scheme">
-          <span className="nh-field__label">Dark scheme</span>
+          <span className="nh-field__label">{t('Dark scheme')}</span>
           <input
             id="theme-scheme"
             type="checkbox"
@@ -567,7 +692,7 @@ function ThemeEditor({
           </label>
         ))}
         <label className="nh-field nh-field--row" htmlFor="tok-radius">
-          <span className="nh-field__label">Corner radius (px)</span>
+          <span className="nh-field__label">{t('Corner radius (px)')}</span>
           <input
             id="tok-radius"
             type="number"
@@ -578,7 +703,7 @@ function ThemeEditor({
           />
         </label>
         <label className="nh-field" htmlFor="theme-css">
-          <span className="nh-field__label">Custom CSS</span>
+          <span className="nh-field__label">{t('Custom CSS')}</span>
           <textarea
             id="theme-css"
             className="nh-defeditor__code"
@@ -588,21 +713,22 @@ function ThemeEditor({
             onChange={(e) => onChange({ ...theme, css: e.target.value || undefined })}
           />
           <span className="nh-field__hint">
-            Advanced: a stylesheet applied together with this theme, for looks the colors above
-            cannot express (fonts, widget-frame styling). Applied when the theme is saved.
+            {t(
+              'Advanced: a stylesheet applied together with this theme, for looks the colors above cannot express (fonts, widget-frame styling). Applied when the theme is saved.'
+            )}
           </span>
         </label>
       </div>
       <div className="nh-settings__row">
         <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
-          Delete
+          {t('Delete')}
         </button>
         <span className="nh-dash__spacer" />
         <button type="button" className="nh-btn nh-btn--ghost" onClick={onClose}>
-          Close
+          {t('Close')}
         </button>
         <button type="button" className="nh-btn nh-btn--primary" onClick={() => void save()}>
-          Save theme
+          {t('Save theme')}
         </button>
       </div>
     </section>
@@ -610,6 +736,7 @@ function ThemeEditor({
 }
 
 function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+  const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<ExportBundle | null>(null)
@@ -625,7 +752,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
       a.click()
       URL.revokeObjectURL(a.href)
     } catch (err) {
-      onNotice('Export failed: ' + (err instanceof Error ? err.message : String(err)))
+      onNotice(t('Export failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
@@ -636,12 +763,12 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
     try {
       bundle = JSON.parse(await file.text()) as ExportBundle
     } catch {
-      onNotice('Import failed: that file is not valid JSON.')
+      onNotice(t('Import failed: that file is not valid JSON.'))
       return
     }
     const invalid = validateBundle(bundle)
     if (invalid) {
-      onNotice('Import failed: ' + invalid)
+      onNotice(t('Import failed: {{error}}', { error: invalid }))
       return
     }
     setPending(bundle)
@@ -651,7 +778,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
     if (!pending) return
     if (
       mode === 'replace' &&
-      !window.confirm('Replace the entire configuration with this backup? This cannot be undone.')
+      !window.confirm(t('Replace the entire configuration with this backup? This cannot be undone.'))
     ) {
       return
     }
@@ -659,12 +786,12 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
     try {
       await importBundle(pending, mode)
       setPending(null)
-      onNotice(mode === 'replace' ? 'Backup imported.' : 'Backup merged into the current configuration.')
+      onNotice(mode === 'replace' ? t('Backup imported.') : t('Backup merged into the current configuration.'))
     } catch (err) {
       onNotice(
-        'Import failed: ' +
-          (err instanceof Error ? err.message : String(err)) +
-          ' — are you signed in as an administrator?'
+        t('Import failed: {{error}} — are you signed in as an administrator?', {
+          error: err instanceof Error ? err.message : String(err),
+        })
       )
     } finally {
       setBusy(false)
@@ -673,17 +800,18 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
 
   return (
     <section>
-      <h2 className="nh-settings__h">Backup</h2>
+      <h2 className="nh-settings__h">{t('Backup')}</h2>
       <p className="nh-settings__text">
-        Export your complete configuration (dashboards, themes, settings) as a JSON file to back it
-        up or share it. Importing can replace everything or merge the backup into what you have.
+        {t(
+          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have.'
+        )}
       </p>
       <div className="nh-settings__row">
         <button type="button" className="nh-btn" onClick={() => void exportConfig()}>
-          Export configuration
+          {t('Export configuration')}
         </button>
         <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
-          {busy ? 'Importing…' : 'Import configuration…'}
+          {busy ? t('Importing…') : t('Import configuration…')}
         </button>
         <input
           ref={fileRef}
@@ -700,20 +828,23 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
       {pending ? (
         <div className="nh-settings__importchoice">
           <p className="nh-settings__text">
-            Backup contains {pending.components.filter((c) => c.uid.startsWith('dashboard:')).length}{' '}
-            dashboard(s), {pending.components.length} components. Merge keeps your current
-            configuration and overwrites only what the backup also contains; replace deletes
-            everything first.
+            {t(
+              'Backup contains {{dashboards}} dashboard(s), {{components}} components. Merge keeps your current configuration and overwrites only what the backup also contains; replace deletes everything first.',
+              {
+                dashboards: pending.components.filter((c) => c.uid.startsWith('dashboard:')).length,
+                components: pending.components.length,
+              }
+            )}
           </p>
           <div className="nh-settings__row">
             <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => void runImport('merge')}>
-              Merge into current
+              {t('Merge into current')}
             </button>
             <button type="button" className="nh-btn" disabled={busy} onClick={() => void runImport('replace')}>
-              Replace everything
+              {t('Replace everything')}
             </button>
             <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => setPending(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>
