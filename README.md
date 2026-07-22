@@ -64,8 +64,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   [Instrument Sans](https://github.com/Instrument/instrument-sans)
   (© Instrument, [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
   Dashboards can also carry background images — one global default plus per-dashboard
-  overrides, set by URL or uploaded (uploads are stored in your openHAB config, so backups
-  include them).
+  overrides, set by URL or uploaded. Uploads are stored losslessly as PNG at up to 5K (no
+  compression artifacts) in your openHAB config, so backups include them; exports keep the
+  image data at the end of the file to stay readable, and can leave it out entirely to stay
+  small.
 - **HABPanel migration** — import your existing HABPanel panels (from a `habpanel-config.json`
   export or directly from your server) with best-effort widget mapping and a detailed report.
 

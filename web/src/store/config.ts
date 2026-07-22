@@ -343,7 +343,7 @@ export interface ExportBundle {
 }
 
 /** Build a full-configuration backup. Uses live server components when they exist. */
-export async function buildExportBundle(): Promise<ExportBundle> {
+export async function buildExportBundle(includeBackgrounds = true): Promise<ExportBundle> {
   const s = useConfigStore.getState()
   let components: UIComponent[]
   if (s.serverUids.size > 0) {
@@ -351,14 +351,35 @@ export async function buildExportBundle(): Promise<ExportBundle> {
   } else {
     // Nothing saved yet - export the current in-memory configuration.
     components = [
+      settingsComponent(s.settings) as unknown as UIComponent,
       ...s.dashboards.map((d) => dashboardComponent(d)),
       ...s.customThemes.map((t) => themeComponent(t)),
       ...s.widgetDefs.map((d) => widgetDefComponent(d)),
       ...s.customIcons.map((i) => iconComponent(i)),
       ...s.backgrounds.map((b) => backgroundComponent(b)),
-      settingsComponent(s.settings),
     ] as unknown as UIComponent[]
   }
+  if (!includeBackgrounds) {
+    components = components.filter((c) => !c.uid.startsWith(BACKGROUND_PREFIX))
+  }
+  // Readable file order: the human-editable components first, the base64 blobs (icons, then
+  // the far bigger backgrounds) at the very end, so the file stays browsable in a text editor.
+  const rank = (c: UIComponent) =>
+    c.uid === SETTINGS_UID
+      ? 0
+      : c.uid.startsWith(DASHBOARD_PREFIX)
+        ? 1
+        : c.uid.startsWith(BACKGROUND_PREFIX)
+          ? 5
+          : c.uid.startsWith(ICON_PREFIX)
+            ? 4
+            : c.uid.startsWith(WIDGETDEF_PREFIX)
+              ? 3
+              : 2
+  components = components
+    .map((c, i) => [c, i] as const)
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+    .map(([c]) => c)
   return {
     manifest: { app: 'neohab', formatVersion: 1, exportedAt: new Date().toISOString() },
     components,

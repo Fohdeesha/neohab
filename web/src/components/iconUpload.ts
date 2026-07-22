@@ -77,15 +77,19 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
 }
 
 /**
- * Backgrounds go through their own pipeline: much larger dimensions than icons, re-encoded as
- * JPEG (a 1920px photo as PNG would be several MB; any transparency flattens to black, which
- * photos never carry anyway). SVGs are sanitized and kept as vectors, like icons.
+ * Backgrounds go through their own pipeline: stored LOSSLESSLY as PNG (dashboards are looked
+ * at all day — compression artifacts would show), at up to 5K, transparency preserved. The
+ * byte ceiling only guards against pathological images: the server takes components this size
+ * comfortably (measured: an 18 MB component writes in ~0.5 s on openHAB 4.3), and when a PNG
+ * busts the ceiling the image is downscaled - resolution is the only lossless lever - never
+ * re-encoded lossily. SVGs are sanitized and kept as vectors, like icons.
  */
-export const MAX_BACKGROUND_KB = 800
+export const MAX_BACKGROUND_DIMENSION = 5120
+const MAX_BACKGROUND_BYTES = 24 * 1024 * 1024
 
 export async function processBackgroundFile(file: File): Promise<ProcessedIcon> {
   if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-    return processSvg(file, MAX_BACKGROUND_KB)
+    return processSvg(file, Math.round(MAX_BACKGROUND_BYTES / 1024))
   }
   if (!file.type.startsWith('image/')) throw new Error(i18n.t('That file is not an image.'))
   const url = URL.createObjectURL(file)
@@ -95,33 +99,15 @@ export async function processBackgroundFile(file: File): Promise<ProcessedIcon> 
     await img.decode().catch(() => {
       throw new Error(i18n.t('That image could not be decoded by the browser.'))
     })
-    // Full size first, then progressively smaller/rougher until it fits the cap.
-    for (const [dimension, quality] of [
-      [1920, 0.85],
-      [1280, 0.75],
-      [960, 0.6],
-    ] as const) {
-      const dataUri = drawToJpeg(img, dimension, quality)
+    for (const dimension of [MAX_BACKGROUND_DIMENSION, 3840, 2560, 1920]) {
+      const dataUri = drawToPng(img, dimension)
       const bytes = Math.round((dataUri.length - dataUri.indexOf(',') - 1) * 0.75)
-      if (bytes <= MAX_BACKGROUND_KB * 1024) return { dataUri, bytes }
+      if (bytes <= MAX_BACKGROUND_BYTES) return { dataUri, bytes }
     }
-    throw new Error(i18n.t('That image could not be compressed under {{max}} KB.', { max: MAX_BACKGROUND_KB }))
+    throw new Error(i18n.t('That image is too large to store even after downscaling.'))
   } finally {
     URL.revokeObjectURL(url)
   }
-}
-
-function drawToJpeg(img: HTMLImageElement, maxDimension: number, quality: number): string {
-  const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight))
-  const w = Math.max(1, Math.round(img.naturalWidth * scale))
-  const h = Math.max(1, Math.round(img.naturalHeight * scale))
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error(i18n.t('Canvas is unavailable in this browser.'))
-  ctx.drawImage(img, 0, 0, w, h)
-  return canvas.toDataURL('image/jpeg', quality)
 }
 
 function drawToPng(img: HTMLImageElement, maxDimension: number): string {

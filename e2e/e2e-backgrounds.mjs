@@ -8,6 +8,10 @@
  * dashboard-settings panel edits the per-dashboard background with live preview and persists
  * on Save; the HABPanel importer maps settings.background_image to the global background.
  *
+ * Also: uploads are stored losslessly as PNG; the export puts base64 blobs (icons, then
+ * backgrounds) at the end of the file and the Backup section can exclude backgrounds
+ * entirely for a small, readable export.
+ *
  * SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2 (+ dashboard:synthbg via the
  * import check) and its own background:* uploads; the `settings` component is snapshotted and
  * restored VERBATIM; exact-uid cleanup; commands NOTHING (clock/label widgets only).
@@ -63,7 +67,7 @@ const seed = async (id, name, config = {}) => {
 const bgOf = (page, sel) => page.$eval(sel, (el) => getComputedStyle(el).backgroundImage)
 
 const browser = await launch()
-const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
+const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, acceptDownloads: true })
 const page = await ctx.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -109,11 +113,44 @@ try {
   ok('upload stored as a bg: reference', /^bg:/.test(afterUpload.config.background ?? ''), String(afterUpload.config.background))
   const uploaded = await bgUids()
   ok('one background component created', uploaded.length === bgUidsBefore.length + 1, uploaded.join(','))
+  const newBgUid = uploaded.find((u) => !bgUidsBefore.includes(u))
+  const storedBg = await (await fetch(NS + '/' + encodeURIComponent(newBgUid), { headers: AUTH })).json()
+  ok('upload stored losslessly as PNG', (storedBg.config.dataUri ?? '').startsWith('data:image/png'), (storedBg.config.dataUri ?? '').slice(0, 24))
   ok('field shows a preview thumbnail', (await page.locator('.nh-bgfield__thumb').count()) === 1)
 
   await page.goto(APP + '#/')
   await page.waitForSelector('.nh-tile', { timeout: 20000 })
-  ok('Home paints the uploaded image (data URI)', (await bgOf(page, '.nh-home')).includes('data:image/'))
+  ok('Home paints the uploaded image (data URI)', (await bgOf(page, '.nh-home')).includes('data:image/png'))
+
+  /* ---------------- export: blobs last, and the include toggle ---------------- */
+  await page.goto(APP + '#/settings')
+  await page.waitForSelector('#nh-export-bg', { timeout: 20000 })
+  ok('export toggle appears once a background exists, default on', await page.isChecked('#nh-export-bg'))
+
+  const grabExport = async () => {
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('button:has-text("Export configuration")'),
+    ])
+    const path = await download.path()
+    return JSON.parse((await import('node:fs')).readFileSync(path, 'utf8'))
+  }
+
+  const full = await grabExport()
+  const uidsInOrder = full.components.map((c) => c.uid)
+  ok('full export contains the background', uidsInOrder.includes(newBgUid), '')
+  ok('full export: settings first', uidsInOrder[0] === 'settings', uidsInOrder[0])
+  const firstBlob = uidsInOrder.findIndex((u) => u.startsWith('icon:') || u.startsWith('background:'))
+  const lastNonBlob = uidsInOrder.map((u) => !u.startsWith('icon:') && !u.startsWith('background:')).lastIndexOf(true)
+  ok('full export: base64 blobs come after everything else', firstBlob === -1 || firstBlob > lastNonBlob, `firstBlob=${firstBlob} lastNonBlob=${lastNonBlob}`)
+  ok('full export: backgrounds are the very last components', uidsInOrder[uidsInOrder.length - 1].startsWith('background:'), uidsInOrder[uidsInOrder.length - 1])
+
+  await page.uncheck('#nh-export-bg')
+  const slim = await grabExport()
+  const slimUids = slim.components.map((c) => c.uid)
+  ok('toggle off: no background components in the export', !slimUids.some((u) => u.startsWith('background:')), '')
+  ok('toggle off: everything else still exported', slimUids.length === uidsInOrder.length - uidsInOrder.filter((u) => u.startsWith('background:')).length, `${slimUids.length} vs ${uidsInOrder.length}`)
+  await page.check('#nh-export-bg')
 
   // replacing the upload with a URL must garbage-collect the orphaned component
   await page.goto(APP + '#/settings')

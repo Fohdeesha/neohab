@@ -55,7 +55,13 @@ export function BackgroundField({
           id={id}
           type="text"
           value={uploaded ? '' : (value ?? '')}
-          placeholder={uploaded ? t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) }) : t('Image URL, or upload one')}
+          placeholder={
+            !uploaded
+              ? t('Image URL, or upload one')
+              : (uploadedBytes ?? 0) >= 1024 * 1024
+                ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
+                : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })
+          }
           onChange={(e) => void onChange(e.target.value || undefined)}
         />
         <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => fileRef.current?.click()}>

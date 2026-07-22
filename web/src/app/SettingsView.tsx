@@ -758,14 +758,16 @@ function ThemeEditor({
 
 function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
+  const backgrounds = useConfigStore((s) => s.backgrounds)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [withBackgrounds, setWithBackgrounds] = useState(true)
   const [pending, setPending] = useState<ExportBundle | null>(null)
 
   const exportConfig = async () => {
     onNotice(null)
     try {
-      const bundle = await buildExportBundle()
+      const bundle = await buildExportBundle(withBackgrounds)
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
@@ -827,6 +829,24 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
           'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have.'
         )}
       </p>
+      {backgrounds.length > 0 ? (
+        <>
+          <label className="nh-field nh-field--row" htmlFor="nh-export-bg">
+            <span className="nh-field__label">{t('Include background images')}</span>
+            <input
+              id="nh-export-bg"
+              type="checkbox"
+              checked={withBackgrounds}
+              onChange={(e) => setWithBackgrounds(e.target.checked)}
+            />
+          </label>
+          <p className="nh-settings__text">
+            {t(
+              'Uploaded background images can make the export large. Turn this off for a smaller, easier-to-read file — dashboards will then reference images the export does not contain.'
+            )}
+          </p>
+        </>
+      ) : null}
       <div className="nh-settings__row">
         <button type="button" className="nh-btn" onClick={() => void exportConfig()}>
           {t('Export configuration')}
