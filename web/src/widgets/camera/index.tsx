@@ -164,9 +164,15 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   else if (status.phase === 'connecting') overlay = t('Connecting…')
   else if (status.phase === 'failed') overlay = t('No stream. Tried: {{list}}', { list: status.failed.map((f) => TRANSPORT_LABEL[f]).join(', ') || '—' })
 
+  const labelMode = config.labelMode ?? 'header'
+  const name = (config.label ?? '').trim()
+
   return (
-    <WidgetFrame label={config.label} bare>
+    <WidgetFrame label={labelMode === 'header' ? config.label : undefined} bare>
       <div className="nh-camera" ref={wrapRef}>
+        {/* Placement follows the cell's --nh-labelalign / .nh-labelbottom, the same pair the
+            header row obeys, so the Name alignment and position settings drive both modes. */}
+        {labelMode === 'overlay' && name ? <div className="nh-camera__name">{name}</div> : null}
         {/* The player appends its own <video>/<img>/<iframe> here and owns its teardown. */}
         <div className="nh-camera__host" ref={hostRef} />
 
@@ -239,9 +245,22 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
     snapshotInterval: 5,
     tapAction: 'fullscreen',
     offscreen: 'stop',
+    labelMode: 'header',
   }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
+    {
+      key: 'labelMode',
+      type: 'select',
+      label: 'Show the name',
+      options: [
+        { value: 'header', label: 'In the title bar' },
+        { value: 'overlay', label: 'Over the picture' },
+        { value: 'none', label: 'Not at all' },
+      ],
+      hint: 'Over the picture puts the name on the video itself, so the whole cell stays picture. It sits wherever Name alignment and Name position put it.',
+      showIf: (c) => !!String(c.label ?? '').trim(),
+    },
     {
       key: 'source',
       type: 'select',

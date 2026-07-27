@@ -1819,6 +1819,34 @@ button {
   opacity: 0.55;
 }
 
+/* Name written over the picture instead of in a title bar. Placement reuses the cell's
+   --nh-labelalign / .nh-labelbottom, so the per-widget Name alignment and Name position
+   settings drive it exactly as they drive the header row. White with a shadow rather than a
+   themed colour or a solid chip: it has to stay readable over arbitrary video, and the point
+   of the mode is that the picture keeps the whole cell. */
+.nh-camera__name {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: var(--nh-labelalign, flex-start);
+  padding: 6px 10px;
+  color: #fff;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1.3;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.9),
+    0 0 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.nh-labelbottom .nh-camera__name {
+  top: auto;
+  bottom: 0;
+}
+
 .nh-camera__status {
   position: absolute;
   inset: 0;

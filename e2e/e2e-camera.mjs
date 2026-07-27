@@ -243,6 +243,46 @@ try {
     ok('off-screen "keep": streams even out of view', (await state()).child !== null, JSON.stringify(await state()))
   }
 
+  // ---------- 5b. how the name is shown ----------
+  // Three modes, and the overlay deliberately has no placement settings of its own: it follows
+  // the same per-widget Name alignment / Name position the title bar obeys.
+  const named = (over) => cell(camConfig({ label: 'Front Door', transport: 'snapshot', ...over }))
+
+  ok('seed name/header', await seed([named({ labelMode: 'header' })]))
+  await open()
+  await sleep(1500)
+  ok('name "header": drawn in the title bar', (await page.locator('.nh-widget__labeltext').first().textContent()) === 'Front Door')
+  ok('name "header": nothing over the picture', (await page.locator('.nh-camera__name').count()) === 0)
+
+  ok('seed name/overlay', await seed([named({ labelMode: 'overlay' })]))
+  await open()
+  await sleep(1500)
+  ok('name "overlay": drawn over the picture', (await page.locator('.nh-camera__name').first().textContent()) === 'Front Door')
+  ok('name "overlay": no title bar taking cell height', (await page.locator('.nh-widget__labeltext').count()) === 0)
+  const overlayBox = await page.locator('.nh-camera__name').first().boundingBox()
+  const camBox = await page.locator('.nh-camera').first().boundingBox()
+  ok('name "overlay": sits inside the picture area', overlayBox && camBox && overlayBox.y >= camBox.y - 1 && overlayBox.y < camBox.y + camBox.height, JSON.stringify({ overlayBox, camBox }))
+  ok('name "overlay": does not swallow taps', (await page.evaluate(() => getComputedStyle(document.querySelector('.nh-camera__name')).pointerEvents)) === 'none')
+
+  // placement comes from the shared alignment/position settings
+  ok('seed name/overlay bottom-right', await seed([named({ labelMode: 'overlay', labelAlign: 'right', labelPosition: 'bottom' })]))
+  await open()
+  await sleep(1500)
+  const placed = await page.evaluate(() => {
+    const el = document.querySelector('.nh-camera__name')
+    const cs = getComputedStyle(el)
+    const cam = document.querySelector('.nh-camera').getBoundingClientRect()
+    const box = el.getBoundingClientRect()
+    return { justify: cs.justifyContent, fromBottom: Math.round(cam.bottom - box.bottom), fromTop: Math.round(box.top - cam.top) }
+  })
+  ok('name "overlay": right alignment follows the Name alignment setting', placed.justify === 'flex-end', JSON.stringify(placed))
+  ok('name "overlay": bottom position follows the Name position setting', placed.fromBottom < placed.fromTop, JSON.stringify(placed))
+
+  ok('seed name/none', await seed([named({ labelMode: 'none' })]))
+  await open()
+  await sleep(1500)
+  ok('name "none": drawn nowhere', (await page.locator('.nh-camera__name').count()) === 0 && (await page.locator('.nh-widget__labeltext').count()) === 0)
+
   // ---------- 6. tap actions ----------
   ok('seed tap none', await seed([cell(camConfig({ tapAction: 'none' }))]))
   await open()
@@ -272,12 +312,13 @@ try {
   ok('settings: direct-URL field hidden for a server source', !(await labelled('Stream URL').isVisible().catch(() => false)))
 
   // switching to a direct URL swaps which fields apply
-  await page.selectOption('.nh-sheet select >> nth=0', 'url')
+  // by label, not by position: the schema gains fields over time and nth=0 silently drifts
+  await labelled('Camera server').locator('select').selectOption('url')
   await sleep(400)
   ok('settings: URL field appears for a direct source', await labelled('Stream URL').isVisible())
   ok('settings: server address hidden for a direct source', !(await labelled('Server address').isVisible().catch(() => false)))
 
-  await page.selectOption('.nh-sheet select >> nth=0', 'go2rtc')
+  await labelled('Camera server').locator('select').selectOption('go2rtc')
   await sleep(400)
 
   // Discovery against the real server. Whether it can answer depends on that server allowing

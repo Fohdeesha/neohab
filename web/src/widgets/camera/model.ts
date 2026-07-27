@@ -27,6 +27,15 @@ export type CameraSourceKind = 'go2rtc' | 'frigate' | 'url'
 
 export interface CameraConfig {
   label?: string
+  /**
+   * Where the name goes. 'header' is the shared title bar every other widget uses; 'overlay'
+   * writes it over the picture instead, so the video keeps the whole cell; 'none' keeps the name
+   * for the editor and the tap target's accessible label without drawing it.
+   *
+   * Overlay placement is not a separate setting: it follows the same per-widget Name alignment
+   * and Name position the header obeys, so all six positions come from the fields already there.
+   */
+  labelMode?: 'header' | 'overlay' | 'none'
   /** Which URL scheme to build from. Default 'go2rtc'. */
   source?: CameraSourceKind
   /** Base URL of the camera server, e.g. `http://192.168.1.17:1984`. */
