@@ -1,0 +1,102 @@
+name: Release
+
+# Cutting a release is deliberate: push a tag whose version matches pom.xml
+#
+#   git tag -a v1.1.0 -m "neohab 1.1.0" && git push origin v1.1.0
+#
+# and this builds the add-on jar and attaches it to a GitHub release of the same name.
+#
+# A tag-triggered run uses the workflow file FROM THE TAGGED COMMIT, so a tag only produces a
+# release if this file exists at that commit - move the tag forward if it does not. Running it
+# by hand against an existing tag does the same thing and replaces the attached jar, which is
+# the way to redo a release whose build failed.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build the release from (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write # create the release, upload the jar
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0 # release notes are generated from the history since the last tag
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Check the tag matches the version in pom.xml
+        id: version
+        run: |
+          tag='${{ inputs.tag || github.ref_name }}'
+          version="${tag#v}"
+          pom="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' pom.xml | head -1)"
+          if [ "$version" != "$pom" ]; then
+            echo "::error::tag $tag means version $version, but pom.xml says $pom - one of them needs updating"
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+          # A version with a suffix (1.1.0-rc1, 1.1.0-beta) ships as a pre-release.
+          if [ "$version" != "${version%%-*}" ]; then
+            echo 'prerelease=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'prerelease=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build add-on
+        run: ./mvnw -B -ntp clean install
+
+      - name: Check the jar is complete
+        id: jar
+        run: |
+          jar="$(ls target/org.openhab.ui.neohab-*.jar)"
+          # A jar whose frontend failed to pack still installs, and then serves nothing at all -
+          # so never publish one without checking the web app and the bundle headers are in it.
+          if ! unzip -l "$jar" | grep -q 'web/index.html'; then
+            echo '::error::the built jar contains no frontend'
+            exit 1
+          fi
+          if ! unzip -p "$jar" META-INF/MANIFEST.MF | grep -q 'Bundle-SymbolicName: org.openhab.ui.neohab'; then
+            echo '::error::the built jar is not the neohab OSGi bundle'
+            exit 1
+          fi
+          echo "path=$jar" >> "$GITHUB_OUTPUT"
+          echo "Publishing $(basename "$jar") ($(du -h "$jar" | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag='${{ steps.version.outputs.tag }}'
+          jar='${{ steps.jar.outputs.path }}'
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Re-run against a tag that already has a release: replace the jar, keep the notes.
+            gh release upload "$tag" "$jar" --clobber
+          else
+            gh release create "$tag" "$jar" \
+              --title 'neohab ${{ steps.version.outputs.version }}' \
+              --generate-notes \
+              ${{ steps.version.outputs.prerelease == 'true' && '--prerelease' || '' }}
+          fi
+          gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
