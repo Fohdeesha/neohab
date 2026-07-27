@@ -12,9 +12,25 @@
  * connection has actually produced a heartbeat (`alive` events, observed every ~10s on
  * openHAB 4.3) - a server that never heartbeats must not be "rescued" into a reconnect loop.
  */
+import { api } from './client'
 
 const TOPIC = 'openhab/webaudio/playurl'
 const STALE_AFTER_MS = 35_000
+
+/**
+ * Whether this server has the web audio sink at all. Without it no PlayURLEvent can ever be
+ * published, and holding a permanent connection open for events that cannot happen wastes one
+ * of the browser's six per-origin sockets. Asked once per session; on any doubt (endpoint
+ * missing, request failed) we assume it is there and behave as before.
+ */
+let sinkProbe: Promise<boolean> | null = null
+export function hasWebAudioSink(): Promise<boolean> {
+  sinkProbe ??= api
+    .get<{ id?: string }[]>('/rest/audio/sinks')
+    .then((sinks) => (Array.isArray(sinks) ? sinks.some((s) => s.id === 'webaudio') : true))
+    .catch(() => true)
+  return sinkProbe
+}
 
 interface SseEnvelope {
   topic?: string

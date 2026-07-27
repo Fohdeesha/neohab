@@ -9,10 +9,11 @@
  * dashboard-control item: the state that was already current at page load is history, not an
  * announcement.
  */
-import { useEffect, useRef } from 'react'
-import { AudioEventSource } from '../api/audioEvents'
+import { useEffect, useRef, useState } from 'react'
+import { AudioEventSource, hasWebAudioSink } from '../api/audioEvents'
+import { getTabLink } from '../api/tabLink'
 import { useConfigStore } from '../store/config'
-import { subscribeItems, useItemState } from '../store/items'
+import { audioWanted, onAudioWanted, setWantsAudio, subscribeItems, useItemState } from '../store/items'
 import { useAudioStore } from '../store/audio'
 import { playAudioUrl, stopAudio } from './playback'
 import { speak, ttsSupported } from './speech'
@@ -20,15 +21,53 @@ import { speak, ttsSupported } from './speech'
 export function AudioRuntime() {
   /* ---- web-audio sink ---- */
   const playAudio = useAudioStore((s) => s.settings.playAudio !== false)
+  const link = getTabLink()
+  const [leader, setLeader] = useState(() => link.isLeader())
+  useEffect(() => link.onRole(setLeader), [link])
+
+  // The leader holds this connection for the whole browser (see api/tabLink), so it stays open
+  // whenever ANY tab wants audio - not just when the leader itself is unmuted - and every tab
+  // plays what comes through, subject to its own mute. Muted everywhere, or a server with no
+  // web audio sink, means no connection at all: one socket of six back.
   useEffect(() => {
-    if (!playAudio) return
-    const source = new AudioEventSource((url) => void playAudioUrl(url))
-    source.start()
+    setWantsAudio(playAudio)
+  }, [playAudio])
+
+  const [wanted, setWanted] = useState(() => audioWanted())
+  useEffect(() => {
+    // Read on subscribe as well as on change: this tab's own setting is published by the effect
+    // above, which has already run by now, and that change would otherwise be missed.
+    setWanted(audioWanted())
+    return onAudioWanted(setWanted)
+  }, [])
+
+  useEffect(() => {
+    if (!leader || !wanted) return
+    let source: AudioEventSource | null = null
+    let cancelled = false
+    void hasWebAudioSink().then((present) => {
+      if (cancelled || !present) return
+      source = new AudioEventSource((url) => {
+        link.post({ t: 'playurl', url })
+        void playAudioUrl(url)
+      })
+      source.start()
+    })
     return () => {
-      source.stop()
+      cancelled = true
+      source?.stop()
       stopAudio()
     }
-  }, [playAudio])
+  }, [leader, wanted, link])
+
+  // Follower tabs play what the leader relays, each honouring its own mute setting.
+  useEffect(() => {
+    if (leader) return
+    return link.onMessage((msg) => {
+      if (msg.t !== 'playurl' || typeof msg.url !== 'string') return
+      if (playAudio) void playAudioUrl(msg.url)
+    })
+  }, [leader, playAudio, link])
 
   /* ---- speech item ---- */
   const speechItem = useConfigStore((s) => s.settings.speechItem)
