@@ -1881,15 +1881,28 @@ button {
   pointer-events: none;
 }
 
+/* The edit-mode diagnostics take whichever end of the cell the name is not using, so an
+   overlaid name is never hidden behind them. Both follow .nh-labelbottom, the same class the
+   name's own position comes from, which keeps them apart for all six name placements. */
 .nh-camera__badge {
-  top: 6px;
+  bottom: 6px;
 }
 
 .nh-camera__hint {
   right: 6px;
-  bottom: 6px;
+  bottom: 32px;
   left: 6px;
   line-height: 1.35;
+}
+
+.nh-labelbottom .nh-camera__badge {
+  top: 6px;
+  bottom: auto;
+}
+
+.nh-labelbottom .nh-camera__hint {
+  top: 32px;
+  bottom: auto;
 }
 
 /* Transparent tap target over the picture: the video itself is not interactive, so this is

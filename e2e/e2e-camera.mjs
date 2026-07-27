@@ -295,6 +295,29 @@ try {
   const black = await inkOf()
   ok('name "overlay": black ink on a light shadow', /rgb\(0, 0, 0\)/.test(black.color) && /rgba?\(255, 255, 255/.test(black.shadow), JSON.stringify(black))
 
+  // The name must preview while editing. It used to render there but sit underneath the
+  // edit-mode transport badge, which is drawn at the same corner with an opaque background —
+  // so switching to overlay looked like it had done nothing until you left edit mode.
+  ok('seed name/overlay edit', await seed([named({ labelMode: 'overlay' })]))
+  await open()
+  await page.click('[aria-label="Edit dashboard"]')
+  await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
+  await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 5000 })
+  await sleep(2500)
+  const editPreview = await page.evaluate(() => {
+    const n = document.querySelector('.nh-camera__name')
+    const b = document.querySelector('.nh-camera__badge')
+    if (!n) return { name: false }
+    const nb = n.getBoundingClientRect()
+    const bb = b ? b.getBoundingClientRect() : null
+    const overlap = bb && !(nb.right < bb.left || bb.right < nb.left || nb.bottom < bb.top || bb.bottom < nb.top)
+    return { name: true, text: n.textContent, badge: !!b, overlap: !!overlap }
+  })
+  ok('edit mode: the overlaid name previews', editPreview.name && editPreview.text === 'Front Door', JSON.stringify(editPreview))
+  ok('edit mode: the transport badge does not cover it', editPreview.badge && !editPreview.overlap, JSON.stringify(editPreview))
+  await page.click('button:has-text("Exit")')
+  await sleep(600)
+
   ok('seed name/none', await seed([named({ labelMode: 'none' })]))
   await open()
   await sleep(1500)
