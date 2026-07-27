@@ -15,24 +15,51 @@ import type { ItemState } from './types'
 
 export type StateMap = Record<string, ItemState>
 type Listener = (states: StateMap) => void
+type StatusListener = (live: boolean) => void
 
 /** The server heartbeats every ~10s; treat a socket silent for longer than this as dead. */
 const STALE_AFTER_MS = 35_000
+/**
+ * Give up on a tracked-items POST after this long. It is not enough for the stream to be open:
+ * until this request lands the server does not know which items to send, so a POST left pending
+ * forever (a socket-starved origin never rejects, it just queues) means permanently dead
+ * widgets. Timing out lets the retry take a fresh place in the queue.
+ */
+const PUSH_TIMEOUT_MS = 15_000
 
 export class StatesTracker {
   private source: EventSource | null = null
   private connectionId: string | null = null
   private tracked = new Set<string>()
   private listeners = new Set<Listener>()
+  private statusListeners = new Set<StatusListener>()
+  private live = false
   private reconnectDelay = 1000
   private closed = false
   private lastEventAt = 0
+  private contacted = false
   private watchdog: ReturnType<typeof setInterval> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   onStates(listener: Listener): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  /**
+   * Whether item states are actually flowing: the stream is up AND the server has been told
+   * what to track. Drives the "live updates unavailable" notice.
+   */
+  onStatus(listener: StatusListener): () => void {
+    this.statusListeners.add(listener)
+    listener(this.live)
+    return () => this.statusListeners.delete(listener)
+  }
+
+  private setLive(live: boolean): void {
+    if (this.live === live) return
+    this.live = live
+    for (const l of this.statusListeners) l(live)
   }
 
   private pushTimer: ReturnType<typeof setTimeout> | null = null
@@ -56,11 +83,16 @@ export class StatesTracker {
     // A dropped connection does not always fire onerror (e.g. network path dies silently);
     // the heartbeat watchdog forces a reconnect so wall panels never show stale-but-live data.
     this.watchdog ??= setInterval(() => {
-      if (this.closed || !this.source) return
+      // Only rescue a stream that has actually produced something. A connection still queued
+      // behind the browser's per-origin socket limit has never been alive, and tearing it down
+      // every 35s only sends it to the back of that queue again.
+      if (this.closed || !this.source || !this.contacted) return
       if (Date.now() - this.lastEventAt > STALE_AFTER_MS) {
         this.source.close()
         this.source = null
         this.connectionId = null
+        this.contacted = false
+        this.setLive(false)
         this.connect()
       }
     }, 10_000)
@@ -85,6 +117,8 @@ export class StatesTracker {
     this.source?.close()
     this.source = null
     this.connectionId = null
+    this.contacted = false
+    this.setLive(false)
   }
 
   private connect(): void {
@@ -95,6 +129,7 @@ export class StatesTracker {
 
     source.addEventListener('ready', (e) => {
       this.lastEventAt = Date.now()
+      this.contacted = true
       this.connectionId = (e as MessageEvent<string>).data
       this.reconnectDelay = 1000
       void this.pushTracked()
@@ -102,10 +137,12 @@ export class StatesTracker {
 
     source.addEventListener('alive', () => {
       this.lastEventAt = Date.now()
+      this.contacted = true
     })
 
     source.onmessage = (e) => {
       this.lastEventAt = Date.now()
+      this.contacted = true
       if (!e.data) return
       try {
         const states = JSON.parse(e.data) as StateMap
@@ -117,8 +154,14 @@ export class StatesTracker {
 
     source.onerror = () => {
       source.close()
+      // A late error from a stream the watchdog already replaced must not clear the live one's
+      // connection id: the replacement would keep receiving events the tracker no longer knows
+      // how to configure, and no state would ever arrive again.
+      if (this.source !== source) return
       this.source = null
       this.connectionId = null
+      this.contacted = false
+      this.setLive(false)
       if (this.closed || this.reconnectTimer) return
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null
@@ -129,23 +172,30 @@ export class StatesTracker {
   }
 
   private async pushTracked(): Promise<void> {
-    if (!this.connectionId) return
+    if (!this.connectionId) return // the ready handler pushes as soon as there is one
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), PUSH_TIMEOUT_MS)
     try {
       const res = await fetch('/rest/events/states/' + this.connectionId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([...this.tracked]),
+        signal: controller.signal,
       })
       if (!res.ok) throw new Error(String(res.status))
+      this.setLive(true)
     } catch {
       // A widget would silently never get updates if this were dropped - retry shortly
       // (unless something else already queued a push).
+      this.setLive(false)
       if (!this.closed && !this.pushTimer) {
         this.pushTimer = setTimeout(() => {
           this.pushTimer = null
           void this.pushTracked()
         }, 2000)
       }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 }
