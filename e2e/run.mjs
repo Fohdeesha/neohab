@@ -42,6 +42,7 @@ const SAFE_SUITES = [
   'e2e-timeclock',
   'e2e-stateicons',
   'e2e-signin',
+  'e2e-multitab',
 ]
 
 const only = process.argv.slice(2)

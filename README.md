@@ -53,6 +53,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   loud (voice picked per device), and a microphone button sends spoken commands to openHAB's
   interpreter where the browser supports it. Each device decides for itself whether it plays
   along, so the wall panel chimes and your desk stays quiet.
+- **As many tabs and windows as you like** — browsers only allow a handful of connections per
+  server, and a live dashboard holds one open permanently, so several tabs would normally leave
+  one of them frozen on stale values. neohab keeps a single connection for the whole browser and
+  shares live item states between its tabs. If updates ever do stop arriving, the dashboard says
+  so instead of quietly showing you old readings.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
   restore by replacing everything or merging a backup into what you have.
 - **Your language** — the UI ships in English, German, Spanish, French, Italian, Dutch and

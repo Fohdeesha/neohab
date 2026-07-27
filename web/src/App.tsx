@@ -14,6 +14,7 @@ import { SettingsView } from './app/SettingsView'
 import { Sidebar } from './app/Sidebar'
 import { useSidebarLayout } from './store/sidebar'
 import { Toast } from './components/Toast'
+import { LiveStatus } from './components/LiveStatus'
 import { KioskRuntime } from './kiosk/KioskRuntime'
 import { Screensaver } from './kiosk/Screensaver'
 import { AudioRuntime } from './audio/AudioRuntime'
@@ -94,6 +95,7 @@ export default function App() {
           <DashboardView id={route.id} />
         )}
         <Toast />
+        <LiveStatus />
       </main>
       <KioskRuntime />
       <AudioRuntime />

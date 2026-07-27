@@ -2122,6 +2122,29 @@ button {
   color: var(--nh-text);
 }
 
+/* Live-connection notice: a standing condition rather than a transient notice, so it sits in
+   its own corner and stays until the stream comes back. Below the toasts, and never
+   interactive - a wall panel showing stale values must say so without blocking anything. */
+.nh-live {
+  position: fixed;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: calc(12px + env(safe-area-inset-left));
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(340px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border: 1px solid var(--nh-border);
+  border-left: 3px solid #e5a52b;
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
+  color: var(--nh-text-dim);
+  font-size: 12px;
+  pointer-events: none;
+}
+
 /* ============================================================================
    Navigation sidebar
    ============================================================================ */
