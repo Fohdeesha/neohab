@@ -62,6 +62,7 @@ export type SettingField = SettingCommon &
     /** Pick one of the existing dashboards (stores its id). */
     | { key: string; type: 'dashboard'; label: string }
     /* list editors rendered by dedicated components in editor/ */
+    | { key: string; type: 'camerastream'; label: string }
     | { key: string; type: 'stateicons'; label: string }
     | { key: string; type: 'chartseries'; label: string }
     | { key: string; type: 'chartthresholds'; label: string }

@@ -49,6 +49,9 @@ export default defineConfig(({ mode }) => {
           // /rest, /icon etc. are deliberately never cached: on a dashboard, stale item states
           // are worse than an offline error.
           globPatterns: ['index.html', 'assets/*.{js,css}', 'tile.png', 'pwa-*.png', 'fonts/*.woff2'],
+          // hls.js is half a megabyte that only a camera widget falling back to HLS ever needs,
+          // and a camera needs the network anyway - there is nothing for an offline copy to do.
+          globIgnores: ['**/hls-*.js'],
           navigateFallback: null,
         },
       }),

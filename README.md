@@ -50,6 +50,14 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   year, drag-to-zoom, and live updating as item states change. A timeline widget shows the
   same history as colored state bands — one row per item, with configurable state colors —
   which is the right shape for switches, presence and modes.
+- **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
+  or any camera that serves its own stream. Point it at a camera server and pick a camera, or
+  paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
+  neohab tries the lowest-latency route first and falls back until one works, so a camera shows
+  up without you having to know which of them your server speaks — and you can pin a specific
+  one if you would rather it never varied. Streams stop when nobody is looking at them (a
+  dashboard that is scrolled away or in a background tab), tapping a camera can go fullscreen,
+  jump to another dashboard, open a URL or send a command, and each camera can carry audio.
 - **Voice & audio** — every open dashboard can be a speaker: sounds your rules play through
   openHAB's Web Audio sink come out of the browser, a speech item announces its changes out
   loud (voice picked per device), and a microphone button sends spoken commands to openHAB's

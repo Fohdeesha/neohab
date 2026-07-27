@@ -16,6 +16,7 @@ import { dialWidget } from './dial'
 import { chartWidget } from './chart'
 import { timelineWidget } from './timeline'
 import { frameWidget } from './frame'
+import { cameraWidget } from './camera'
 import { rollershutterWidget } from './rollershutter'
 import { playerWidget } from './player'
 import { templateWidget } from './template'
@@ -39,6 +40,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(imageWidget)
   registerWidget(chartWidget)
   registerWidget(timelineWidget)
+  registerWidget(cameraWidget)
   registerWidget(frameWidget)
   registerWidget(templateWidget)
 }

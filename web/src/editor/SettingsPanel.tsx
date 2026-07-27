@@ -9,6 +9,7 @@ import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
 import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
 import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
+import { CameraStreamField } from './CameraStreamField'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -323,6 +324,8 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <StateColorsField widget={widget} />
     case 'timelineseries':
       return <TimelineSeriesField widget={widget} />
+    case 'camerastream':
+      return <CameraStreamField field={field} widget={widget} value={value} />
     case 'dashboard':
       return <DashboardField field={field} widget={widget} value={value} />
     default:

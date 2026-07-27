@@ -1785,6 +1785,140 @@ button {
   background: #fff;
 }
 
+/* Camera */
+.nh-camera {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--nh-radius) - 2px);
+  background: #000;
+}
+
+.nh-camera__host {
+  width: 100%;
+  height: 100%;
+}
+
+/* The player appends exactly one of these; object-fit is set per instance. */
+.nh-camera__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+}
+
+/* A still under the live layer: the cell shows the last known picture rather than a black
+   hole while the stream is stopped or still connecting. */
+.nh-camera__poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+
+.nh-camera__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--nh-text-dim);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.nh-camera__badge,
+.nh-camera__hint {
+  position: absolute;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7em;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  pointer-events: none;
+}
+
+.nh-camera__badge {
+  top: 6px;
+}
+
+.nh-camera__hint {
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  line-height: 1.35;
+}
+
+/* Transparent tap target over the picture: the video itself is not interactive, so this is
+   what carries the widget's on-tap action without stealing the pointer from edit mode. */
+.nh-camera__tap {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Real fullscreen (grid cells are size containers, so a fixed overlay could never escape one). */
+.nh-camera:fullscreen {
+  border-radius: 0;
+  background: #000;
+}
+
+.nh-camera:fullscreen .nh-camera__media {
+  object-fit: contain;
+}
+
+/* Camera name field with its discovery accelerator */
+.nh-camerafield {
+  display: flex;
+  gap: 6px;
+}
+
+.nh-camerafield input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nh-camerafield__find {
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  color: var(--nh-text);
+  cursor: pointer;
+}
+
+.nh-camerafield__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.nh-camerafield__pick {
+  padding: 4px 8px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  color: var(--nh-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.nh-camerafield__pick--on {
+  border-color: var(--nh-primary);
+  color: var(--nh-primary);
+}
+
 /* Rollershutter */
 .nh-roller {
   display: flex;
