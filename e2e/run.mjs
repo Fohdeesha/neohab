@@ -28,6 +28,7 @@ const SAFE_SUITES = [
   'e2e-hue',
   'e2e-cmdfail',
   'e2e-charts',
+  'e2e-camera',
   'e2e-resizefix',
   'e2e-responsive',
   'e2e-portrait',

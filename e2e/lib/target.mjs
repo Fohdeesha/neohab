@@ -77,3 +77,20 @@ for (const key of ['dimmer', 'color', 'switch', 'temperature', 'player']) {
 const userName = process.env.NEOHAB_E2E_USER ?? cfg.user?.name
 const userPassword = process.env.NEOHAB_E2E_PASSWORD ?? cfg.user?.password
 export const TEST_USER = userName && userPassword ? { name: String(userName), password: String(userPassword) } : null
+
+/**
+ * Optional camera server for the camera suite (e2e-camera): a go2rtc or Frigate server
+ * reachable from the machine running the suites, plus the name of a stream on it. Without one
+ * the live-video sections self-skip; URL building, the settings form and the failure paths are
+ * covered either way. Env overrides: NEOHAB_E2E_CAMERA_SERVER / NEOHAB_E2E_CAMERA_STREAM.
+ */
+const cameraServer = process.env.NEOHAB_E2E_CAMERA_SERVER ?? cfg.camera?.server
+const cameraStream = process.env.NEOHAB_E2E_CAMERA_STREAM ?? cfg.camera?.stream
+export const CAMERA =
+  cameraServer && cameraStream
+    ? {
+        server: String(cameraServer).replace(/\/+$/, ''),
+        stream: String(cameraStream),
+        kind: cfg.camera?.kind === 'frigate' ? 'frigate' : 'go2rtc',
+      }
+    : null

@@ -35,6 +35,23 @@ administrator` and remove it with `openhab:users remove e2e-throwaway` when done
 this the exchange section self-skips; everything up to the server's login form is still
 covered. Never point it at a real account.
 
+### Optional: a camera server
+
+`e2e-camera` checks live video when the target configuration names a camera server reachable
+from the machine running the suites:
+
+```json
+"camera": { "kind": "go2rtc", "server": "http://go2rtc.local:1984", "stream": "my_camera" }
+```
+
+`kind` is `go2rtc` or `frigate`. Nothing is ever written to that server — the suite only views
+the stream. Without this block the live-video sections self-skip and the rest (chain failure
+handling, off-screen policy, tap actions, settings form) still runs.
+
+Note that a stock go2rtc refuses cross-origin WebSocket upgrades, so the suite expects the
+chain to land on the embedded player rather than native WebRTC. Set `api: {origin: "*"}` in
+`go2rtc.yaml` to exercise the native WebRTC and MSE transports instead.
+
 ### Test items
 
 Some suites send **real commands** to three of the items, so do not point these at anything
