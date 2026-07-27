@@ -172,7 +172,11 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
       <div className="nh-camera" ref={wrapRef}>
         {/* Placement follows the cell's --nh-labelalign / .nh-labelbottom, the same pair the
             header row obeys, so the Name alignment and position settings drive both modes. */}
-        {labelMode === 'overlay' && name ? <div className="nh-camera__name">{name}</div> : null}
+        {labelMode === 'overlay' && name ? (
+          <div className={'nh-camera__name' + (config.overlayColor === 'black' ? ' nh-camera__name--dark' : '')}>
+            {name}
+          </div>
+        ) : null}
         {/* The player appends its own <video>/<img>/<iframe> here and owns its teardown. */}
         <div className="nh-camera__host" ref={hostRef} />
 
@@ -246,6 +250,7 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
     tapAction: 'fullscreen',
     offscreen: 'stop',
     labelMode: 'header',
+    overlayColor: 'white',
   }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
@@ -260,6 +265,17 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
       ],
       hint: 'Over the picture puts the name on the video itself, so the whole cell stays picture. It sits wherever Name alignment and Name position put it.',
       showIf: (c) => !!String(c.label ?? '').trim(),
+    },
+    {
+      key: 'overlayColor',
+      type: 'select',
+      label: 'Name colour over the picture',
+      options: [
+        { value: 'white', label: 'White' },
+        { value: 'black', label: 'Black' },
+      ],
+      hint: 'Each is carried on a shadow of the opposite colour. White suits most scenes; black reads better against snow, pale ground or a bright sky.',
+      showIf: (c) => c.labelMode === 'overlay' && !!String(c.label ?? '').trim(),
     },
     {
       key: 'source',

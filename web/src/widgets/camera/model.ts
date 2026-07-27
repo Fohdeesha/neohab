@@ -36,6 +36,12 @@ export interface CameraConfig {
    * and Name position the header obeys, so all six positions come from the fields already there.
    */
   labelMode?: 'header' | 'overlay' | 'none'
+  /**
+   * Ink for the overlaid name. White carried on a dark shadow is the broadcast convention and
+   * survives most scenes; black on a light shadow is legible where white is not - a camera
+   * pointed at snow, pale gravel or a blown-out sky.
+   */
+  overlayColor?: 'white' | 'black'
   /** Which URL scheme to build from. Default 'go2rtc'. */
   source?: CameraSourceKind
   /** Base URL of the camera server, e.g. `http://192.168.1.17:1984`. */

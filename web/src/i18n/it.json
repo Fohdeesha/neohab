@@ -60,6 +60,7 @@
   "Backup contains {{dashboards}} dashboard(s), {{components}} components. Merge keeps your current configuration and overwrites only what the backup also contains; replace deletes everything first.": "Il backup contiene {{dashboards}} dashboard, {{components}} componenti. Unisci mantiene la configurazione attuale e sovrascrive solo ciò che il backup contiene a sua volta; sostituisci prima cancella tutto.",
   "Backup imported.": "Backup importato.",
   "Backup merged into the current configuration.": "Backup unito alla configurazione attuale.",
+  "Black": "Nero",
   "Blank screen": "Schermo nero",
   "Bottom": "In basso",
   "Bring your HABPanel dashboards into neohab. Widgets are mapped to their closest neohab equivalents and a report shows anything that needs attention. Your HABPanel configuration is never modified.": "Porta le tue dashboard HABPanel in neohab. I widget vengono convertiti nel loro equivalente neohab più vicino e un resoconto mostra ciò che richiede attenzione. La configurazione HABPanel non viene mai modificata.",
@@ -136,6 +137,7 @@
   "Display an item value as text": "Mostra il valore di un item come testo",
   "Down": "Giù",
   "Drag by the handle · tap to configure · Ctrl/Cmd- or Shift-click, drag a box, or long-press to select several · Ctrl+C / Ctrl+V to copy and paste": "Trascina dalla maniglia · tocca per configurare · Ctrl/Cmd- o Maiusc-clic, traccia un riquadro o tieni premuto per selezionarne più di uno · Ctrl+C / Ctrl+V per copiare e incollare",
+  "Each is carried on a shadow of the opposite colour. White suits most scenes; black reads better against snow, pale ground or a bright sky.": "Ciascuno è sostenuto da un’ombra del colore opposto. Il bianco va bene per quasi tutte le scene; il nero si legge meglio su neve, terreno chiaro o cielo luminoso.",
   "Edit": "Modifica",
   "Edit dashboard": "Modifica dashboard",
   "Edit JavaScript widget": "Modifica widget JavaScript",
@@ -262,6 +264,7 @@
   "My widget": "Il mio widget",
   "Name": "Nome",
   "Name alignment": "Allineamento del nome",
+  "Name colour over the picture": "Colore del nome sopra l’immagine",
   "Name position": "Posizione del nome",
   "Navigate (neohab)": "Naviga (neohab)",
   "New dashboard": "Nuova dashboard",
@@ -505,6 +508,7 @@
   "WebRTC (lowest latency)": "WebRTC (latenza più bassa)",
   "Welcome to neohab": "Benvenuto in neohab",
   "When not visible": "Quando non è visibile",
+  "White": "Bianco",
   "Y axis max": "Asse Y max",
   "Y axis min": "Asse Y min"
 }

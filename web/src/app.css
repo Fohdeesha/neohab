@@ -1847,6 +1847,15 @@ button {
   bottom: 0;
 }
 
+/* Black ink on a light shadow, for cameras looking at snow, pale ground or a bright sky, where
+   white on dark is the harder pair to read. */
+.nh-camera__name--dark {
+  color: #000;
+  text-shadow:
+    0 1px 3px rgba(255, 255, 255, 0.95),
+    0 0 8px rgba(255, 255, 255, 0.75);
+}
+
 .nh-camera__status {
   position: absolute;
   inset: 0;

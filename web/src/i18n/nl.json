@@ -60,6 +60,7 @@
   "Backup contains {{dashboards}} dashboard(s), {{components}} components. Merge keeps your current configuration and overwrites only what the backup also contains; replace deletes everything first.": "De back-up bevat {{dashboards}} dashboard(s), {{components}} componenten. Samenvoegen behoudt de huidige configuratie en overschrijft alleen wat de back-up ook bevat; vervangen wist eerst alles.",
   "Backup imported.": "Back-up geïmporteerd.",
   "Backup merged into the current configuration.": "Back-up samengevoegd met de huidige configuratie.",
+  "Black": "Zwart",
   "Blank screen": "Zwart scherm",
   "Bottom": "Onder",
   "Bring your HABPanel dashboards into neohab. Widgets are mapped to their closest neohab equivalents and a report shows anything that needs attention. Your HABPanel configuration is never modified.": "Breng je HABPanel-dashboards naar neohab. Widgets worden omgezet naar hun dichtstbijzijnde neohab-tegenhanger en een rapport toont alles wat aandacht vraagt. Je HABPanel-configuratie wordt nooit gewijzigd.",
@@ -136,6 +137,7 @@
   "Display an item value as text": "Toon een itemwaarde als tekst",
   "Down": "Omlaag",
   "Drag by the handle · tap to configure · Ctrl/Cmd- or Shift-click, drag a box, or long-press to select several · Ctrl+C / Ctrl+V to copy and paste": "Sleep aan de greep · tik om te configureren · Ctrl/Cmd- of Shift-klik, trek een kader of houd lang ingedrukt om er meerdere te selecteren · Ctrl+C / Ctrl+V om te kopiëren en plakken",
+  "Each is carried on a shadow of the opposite colour. White suits most scenes; black reads better against snow, pale ground or a bright sky.": "Beide krijgen een schaduw in de tegenovergestelde kleur. Wit past bij de meeste beelden; zwart leest beter tegen sneeuw, lichte grond of een felle lucht.",
   "Edit": "Bewerken",
   "Edit dashboard": "Dashboard bewerken",
   "Edit JavaScript widget": "JavaScript-widget bewerken",
@@ -262,6 +264,7 @@
   "My widget": "Mijn widget",
   "Name": "Naam",
   "Name alignment": "Uitlijning van de naam",
+  "Name colour over the picture": "Naamkleur over het beeld",
   "Name position": "Positie van de naam",
   "Navigate (neohab)": "Navigeren (neohab)",
   "New dashboard": "Nieuw dashboard",
@@ -505,6 +508,7 @@
   "WebRTC (lowest latency)": "WebRTC (laagste vertraging)",
   "Welcome to neohab": "Welkom bij neohab",
   "When not visible": "Wanneer niet zichtbaar",
+  "White": "Wit",
   "Y axis max": "Y-as max",
   "Y axis min": "Y-as min"
 }

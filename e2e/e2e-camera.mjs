@@ -278,6 +278,23 @@ try {
   ok('name "overlay": right alignment follows the Name alignment setting', placed.justify === 'flex-end', JSON.stringify(placed))
   ok('name "overlay": bottom position follows the Name position setting', placed.fromBottom < placed.fromTop, JSON.stringify(placed))
 
+  // overlay ink: each colour carried on a shadow of the opposite one
+  const inkOf = () => page.evaluate(() => {
+    const cs = getComputedStyle(document.querySelector('.nh-camera__name'))
+    return { color: cs.color, shadow: cs.textShadow }
+  })
+  ok('seed name/overlay white', await seed([named({ labelMode: 'overlay', overlayColor: 'white' })]))
+  await open()
+  await sleep(1200)
+  const white = await inkOf()
+  ok('name "overlay": white ink on a dark shadow', /255, 255, 255/.test(white.color) && /rgba?\(0, 0, 0/.test(white.shadow), JSON.stringify(white))
+
+  ok('seed name/overlay black', await seed([named({ labelMode: 'overlay', overlayColor: 'black' })]))
+  await open()
+  await sleep(1200)
+  const black = await inkOf()
+  ok('name "overlay": black ink on a light shadow', /rgb\(0, 0, 0\)/.test(black.color) && /rgba?\(255, 255, 255/.test(black.shadow), JSON.stringify(black))
+
   ok('seed name/none', await seed([named({ labelMode: 'none' })]))
   await open()
   await sleep(1500)
