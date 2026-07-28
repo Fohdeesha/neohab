@@ -30,6 +30,12 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   off entirely.
 - **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
   browser and stored on your openHAB server. Zero config files.
+- **Dashboards it builds for you** — point neohab at your items and it lays out dashboards from
+  them. It reads your semantic model when you have one (a dashboard per location, a section per
+  piece of equipment, icons from the tags), and works just as well without one: it clusters items
+  by their naming convention or by group membership, or you can simply tick the items you want.
+  Every widget it chose is listed for review first — drop any row, or swap it for a different
+  widget — and nothing is written until you say so.
 - **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
   resize, delete them from a button on the widget, undo/redo anything, and save when you are
   ready (Save returns you to the live dashboard). Dropping onto an occupied spot rejects by

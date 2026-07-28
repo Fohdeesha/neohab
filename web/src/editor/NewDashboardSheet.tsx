@@ -9,7 +9,7 @@ import { createDashboard, slugifyDashboardId } from '../model/dashboard'
 import { saveDashboard, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 
-export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
+export function NewDashboardSheet({ onClose, onGenerate }: { onClose: () => void; onGenerate?: () => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -59,6 +59,14 @@ export function NewDashboardSheet({ onClose }: { onClose: () => void }) {
         >
           {busy ? t('Creating…') : t('Create dashboard')}
         </button>
+        {onGenerate ? (
+          <>
+            <p className="nh-form__hint">{t('Or let neohab lay one out from the items this server already has.')}</p>
+            <button type="button" className="nh-btn" disabled={busy} onClick={onGenerate}>
+              {t('Generate from my items…')}
+            </button>
+          </>
+        ) : null}
       </div>
     </Sheet>
   )

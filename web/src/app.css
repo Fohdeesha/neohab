@@ -2697,6 +2697,125 @@ button {
 }
 
 /* ============================================================================
+   Dashboard generator (wizard sheet)
+   ============================================================================ */
+.nh-gen__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 42vh;
+  overflow-y: auto;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+}
+
+.nh-gen__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--nh-border);
+  cursor: pointer;
+}
+
+.nh-gen__row:last-child {
+  border-bottom: none;
+}
+
+.nh-gen__row--off {
+  opacity: 0.45;
+}
+
+.nh-gen__rowname {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-gen__meta {
+  flex: 0 0 auto;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+}
+
+.nh-gen__note {
+  margin-left: 8px;
+  color: var(--nh-text-dim);
+  font-size: 0.8em;
+}
+
+.nh-gen__type {
+  flex: 0 0 auto;
+  max-width: 40%;
+}
+
+.nh-gen__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.nh-gen__modes {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nh-gen__mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.nh-gen__cluster {
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  overflow: hidden;
+}
+
+.nh-gen__cluster--off {
+  opacity: 0.45;
+}
+
+.nh-gen__clusterhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 10px;
+  font-weight: 600;
+  background: var(--nh-surface-2);
+  cursor: pointer;
+}
+
+.nh-gen__section {
+  padding: 6px 10px 2px;
+  color: var(--nh-text-dim);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nh-gen__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.nh-form__hint {
+  margin: 6px 0 0;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+}
+
+/* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable
    instead of clipping. Older browsers ignore @container and keep the defaults.

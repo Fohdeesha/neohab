@@ -9,6 +9,7 @@ import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
 import { Icon } from '../components/Icon'
 import { NewDashboardSheet } from '../editor/NewDashboardSheet'
+import { GenerateSheet } from '../editor/GenerateSheet'
 import { SignInSheet } from '../editor/SignInSheet'
 import { useBackgroundStyle } from '../components/useBackground'
 
@@ -18,9 +19,11 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [newOpen, setNewOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
 
   const createFirst = () => (isLoggedIn() ? setNewOpen(true) : setSignInOpen(true))
+  const generateFirst = () => (isLoggedIn() ? setGenerateOpen(true) : setSignInOpen(true))
   const backgroundStyle = useBackgroundStyle()
 
   return (
@@ -53,6 +56,9 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
             <div className="nh-welcome__actions">
               <button type="button" className="nh-btn nh-btn--primary" onClick={createFirst}>
                 {t('Create your first dashboard')}
+              </button>
+              <button type="button" className="nh-btn" onClick={generateFirst}>
+                {t('Generate from my items')}
               </button>
               <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
                 {t('Import from HABPanel')}
@@ -93,7 +99,16 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
         </button>
       )}
 
-      {newOpen ? <NewDashboardSheet onClose={() => setNewOpen(false)} /> : null}
+      {newOpen ? (
+        <NewDashboardSheet
+          onClose={() => setNewOpen(false)}
+          onGenerate={() => {
+            setNewOpen(false)
+            setGenerateOpen(true)
+          }}
+        />
+      ) : null}
+      {generateOpen ? <GenerateSheet onClose={() => setGenerateOpen(false)} /> : null}
       {signInOpen ? (
         <SignInSheet
           onClose={() => setSignInOpen(false)}
