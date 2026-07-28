@@ -21,9 +21,18 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const [newOpen, setNewOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
+  /** Which sheet the sign-in prompt was standing in for, so signing in resumes what was asked. */
+  const [afterSignIn, setAfterSignIn] = useState<'new' | 'generate'>('new')
 
-  const createFirst = () => (isLoggedIn() ? setNewOpen(true) : setSignInOpen(true))
-  const generateFirst = () => (isLoggedIn() ? setGenerateOpen(true) : setSignInOpen(true))
+  const start = (what: 'new' | 'generate') => {
+    if (!isLoggedIn()) {
+      setAfterSignIn(what)
+      setSignInOpen(true)
+    } else if (what === 'new') setNewOpen(true)
+    else setGenerateOpen(true)
+  }
+  const createFirst = () => start('new')
+  const generateFirst = () => start('generate')
   const backgroundStyle = useBackgroundStyle()
 
   return (
@@ -114,7 +123,8 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           onClose={() => setSignInOpen(false)}
           onToken={() => {
             setSignInOpen(false)
-            setNewOpen(true)
+            if (afterSignIn === 'generate') setGenerateOpen(true)
+            else setNewOpen(true)
           }}
         />
       ) : null}

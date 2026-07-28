@@ -330,6 +330,43 @@ try {
     await page.close()
   }
 
+  /* ---------------- 6. the first-run screen, signed out ---------------- */
+  {
+    // A server with no dashboards yet, without wiping anything: the component list is mocked
+    // empty, and the page starts with no token so the sign-in gate is the one under test.
+    const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
+    page.on('pageerror', (e) => errs.push(String(e.message)))
+    page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
+    // The app requests the namespace with a literal colon, so this has to be a regex rather
+    // than an encoded glob.
+    await page.route(/\/rest\/ui\/components\/neohab:config(\?|$)/, (route) =>
+      route.request().method() === 'GET'
+        ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+        : route.abort()
+    )
+    await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-welcome', { timeout: 15000 })
+    ok(
+      'the first-run screen offers generating',
+      (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 1
+    )
+
+    // Signed out, the gate asks for a sign-in and must resume the action that was asked for.
+    await page.click('.nh-welcome__actions .nh-btn:has-text("Generate from my items")')
+    await page.waitForSelector('.nh-signin', { timeout: 5000 })
+    ok('generating signed out asks for a sign-in first', true)
+    await page.click('button:has-text("Use an API token instead")')
+    await page.fill('#nh-token', TOKEN)
+    await page.click('button:has-text("Use token")')
+    await page.waitForSelector('[data-source="prefix"], #nh-newdash-name', { timeout: 10000 })
+    ok(
+      'signing in resumes the generator, not the empty-dashboard form',
+      (await page.locator('[data-source="prefix"]').count()) === 1 &&
+        (await page.locator('#nh-newdash-name').count()) === 0
+    )
+    await page.close()
+  }
+
   ok('no console errors anywhere', errs.length === 0, errs.slice(0, 4).join(' | '))
 } catch (err) {
   ok('suite ran to completion', false, String(err && err.message ? err.message : err))
