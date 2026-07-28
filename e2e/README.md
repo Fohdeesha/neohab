@@ -82,6 +82,12 @@ The suites fall into two classes:
 component verbatim when they touch it, and restore item states. They are designed to run
 against a server with a real configuration on it without disturbing it.
 
+One deliberate exception: `e2e-generate.mjs` exercises "one dashboard per group", where the
+generator names the dashboards after the groups it found, so their ids are not `nh-e2e-*`. It
+records the namespace immediately before creating and deletes exactly the uids that appeared.
+An existing dashboard of the same name is never overwritten — the generator de-duplicates the
+id (`kitchen` -> `kitchen-2`), which is one of the things that suite checks.
+
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
 `e2e-importer.mjs`): these test the empty-server flows (onboarding, first import, full
 backup restore) and their cleanup **deletes the entire `neohab:config` namespace**. Each one

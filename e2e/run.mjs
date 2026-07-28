@@ -17,6 +17,7 @@ const SAFE_SUITES = [
   'e2e-copypaste',
   'e2e-lassoarea',
   'e2e-dashmgmt',
+  'e2e-generate',
   'e2e-newfeat',
   'e2e-sidebar',
   'e2e-lock',
