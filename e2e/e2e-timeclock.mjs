@@ -142,10 +142,16 @@ try {
   ok('numerals shown', (await page.locator('.nh-clock__face text').count()) === 12)
   const strokes = await page.locator('.nh-clock__face line').last().getAttribute('stroke')
   ok('hands colored by theme tokens', String(strokes).includes('var(--nh-'), String(strokes))
-  const x1 = await page.locator('.nh-clock__face line').last().getAttribute('x2')
+  // Both coordinates, not just x: the hand's x is mirror-symmetric about the vertical axis, so
+  // seconds 44 and 46 (say) share it exactly and a moving hand can look stopped.
+  const tip = async () => {
+    const hand = page.locator('.nh-clock__face line').last()
+    return (await hand.getAttribute('x2')) + ',' + (await hand.getAttribute('y2'))
+  }
+  const tipBefore = await tip()
   await sleep(1600)
-  const x2 = await page.locator('.nh-clock__face line').last().getAttribute('x2')
-  ok('second hand moves', x1 !== x2, `${x1} -> ${x2}`)
+  const tipAfter = await tip()
+  ok('second hand moves', tipBefore !== tipAfter, `${tipBefore} -> ${tipAfter}`)
   ok('digital clock unchanged beside it', (await page.locator('.nh-clock__time').count()) === 1)
   void face
 

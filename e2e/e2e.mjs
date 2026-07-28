@@ -89,8 +89,12 @@ try {
   await page.waitForSelector('.nh-welcome', { timeout: 10000 })
   ok('first-run welcome shows on empty config', true)
   ok(
-    'welcome offers create/import/restore',
-    (await page.locator('.nh-welcome__actions .nh-btn').count()) === 3
+    'welcome offers create/generate/import/restore',
+    (await page.locator('.nh-welcome__actions .nh-btn').count()) === 4
+  )
+  ok(
+    'welcome offers generating from the server’s items',
+    (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 1
   )
   ok('no dashboard tiles yet', (await page.locator('.nh-tile').count()) === 0)
 
