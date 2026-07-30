@@ -193,6 +193,54 @@ try {
     await ctx2.close()
   }
 
+  // ---------- 3c. a transport that fails AFTER its first-frame watcher exists ----------
+  // The watcher is armed before the signalling work, so a throw in that work (an offer that
+  // cannot be created, a socket that closes mid-handshake) left the watcher running with nobody
+  // awaiting it: its own 8s connect timeout then rejected into nothing, surfacing as an unhandled
+  // rejection in the console long after the chain had already moved on. Making createOffer reject
+  // is a deterministic stand-in for that whole class.
+  if (!CAMERA) {
+    skip('a mid-handshake failure leaves nothing dangling', 'no "camera" in target configuration')
+  } else {
+    const ctx3 = await browser.newContext({ viewport: { width: 1400, height: 950 } })
+    const p3 = await ctx3.newPage()
+    const late = []
+    p3.on('pageerror', (e) => late.push('pageerror: ' + e.message))
+    p3.on('console', (m) => {
+      if (m.type() !== 'error') return
+      const t = m.text()
+      if (/WebSocket connection to .* failed/.test(t)) return
+      late.push('console: ' + t)
+    })
+    await p3.addInitScript((t) => {
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+      } catch {}
+      // Fail the offer, so WebRTC dies after its watcher is already armed.
+      if (window.RTCPeerConnection) {
+        window.RTCPeerConnection.prototype.createOffer = () => Promise.reject(new Error('e2e: no offer'))
+      }
+    }, TOKEN)
+
+    await seed([cell(camConfig({ transport: 'auto' }))])
+    await p3.goto(APP + '#/d/' + UID.split(':')[1], { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await p3.waitForSelector('.nh-camera', { timeout: 15000 })
+    // Long enough to cover the abandoned watcher's own 8s connect timeout.
+    await sleep(12000)
+    const phase = await p3.evaluate(() => document.querySelector('.nh-camera__status')?.textContent ?? null)
+    ok(
+      'a mid-handshake failure leaves nothing dangling (no late unhandled rejection)',
+      late.length === 0,
+      late.slice(0, 3).join(' | ')
+    )
+    ok(
+      'and the chain still moved past the broken transport',
+      phase === null || !/Connecting/.test(phase),
+      String(phase)
+    )
+    await ctx3.close()
+  }
+
   // ---------- 4. a transport that cannot work ends the chain (no infinite retry) ----------
   // Counts how many times a <video> is inserted: a demoted transport is tried once, whereas the
   // pre-fix build restarted the whole chain every few seconds forever.

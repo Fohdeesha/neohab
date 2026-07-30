@@ -6,10 +6,12 @@
  * no catalog at all, a German one fetches exactly de-*.js); the explicit per-device choice in
  * Settings applies live without a reload, persists across reloads, and 'Auto' returns to
  * detection; plural forms (1 Widget / 3 Widgets); widget-schema labels translate in the
- * settings panel while the user's own widget labels stay untouched; <html lang> follows.
+ * settings panel while the user's own widget labels stay untouched; <html lang> follows; and the
+ * empty-state text widgets render when they are unconfigured, which used to be hardcoded English
+ * (a widget's own strings are as much UI as the chrome around it).
  *
- * SAFE with a live config: creates only dashboard:nh-e2e-i18n-a/-b (clock/label widgets,
- * commands nothing), exact-uid cleanup.
+ * SAFE with a live config: creates only dashboard:nh-e2e-i18n-a/-b/-c (clock/label/selection/
+ * image/frame widgets, all unbound - commands nothing), exact-uid cleanup.
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
@@ -40,7 +42,7 @@ const seed = async (comp) => {
   return r.ok
 }
 
-const UIDS = ['dashboard:nh-e2e-i18n-a', 'dashboard:nh-e2e-i18n-b']
+const UIDS = ['dashboard:nh-e2e-i18n-a', 'dashboard:nh-e2e-i18n-b', 'dashboard:nh-e2e-i18n-c']
 
 const browser = await launch()
 try {
@@ -51,6 +53,12 @@ try {
     { id: 'w1', type: 'clock', config: {}, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
     { id: 'w2', type: 'label', config: { text: 'mein eigener text' }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
     { id: 'w3', type: 'label', config: { text: 'zzz' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+  ])))
+  // Three widgets left deliberately unconfigured, so each shows its empty-state text.
+  ok('seed c (unconfigured widgets)', await seed(dash('nh-e2e-i18n-c', 'E2E I18N C', [
+    { id: 'w1', type: 'selection', config: { label: 'Sel', item: '', choices: '' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
+    { id: 'w2', type: 'image', config: { label: 'Img', url: '' }, layout: { lg: { x: 4, y: 0, w: 4, h: 3 } } },
+    { id: 'w3', type: 'frame', config: { label: 'Frm', url: '' }, layout: { lg: { x: 8, y: 0, w: 4, h: 3 } } },
   ])))
 
   const openCtx = async (locale, withToken = true) => {
@@ -98,6 +106,37 @@ try {
     const metaB = await page.locator('.nh-tile:has(.nh-tile__name:text-is("E2E I18N B")) .nh-tile__meta').textContent()
     ok('de: singular tile meta', metaA === '1 Widget', String(metaA))
     ok('de: plural tile meta', metaB === '3 Widgets', String(metaB))
+
+    // A widget's own empty-state text is UI too: these three were hardcoded English, which is
+    // invisible in an English session and the only English left on the screen in any other.
+    await page.goto(APP + '#/d/nh-e2e-i18n-c')
+    await page.waitForSelector('.nh-widget', { timeout: 20000 })
+    const emptyStates = await page.evaluate(() => ({
+      selection: document.querySelector('.nh-selection__empty')?.textContent ?? '',
+      placeholders: [...document.querySelectorAll('.nh-image__placeholder')].map((e) => e.textContent ?? ''),
+    }))
+    ok(
+      'de: the selection widget says so in German',
+      emptyStates.selection.includes('Auswahlmöglichkeiten'),
+      emptyStates.selection
+    )
+    ok(
+      'de: the image widget says so in German',
+      emptyStates.placeholders.some((p) => p.includes('Keine Bild-URL')),
+      JSON.stringify(emptyStates.placeholders)
+    )
+    ok(
+      'de: the frame widget says so in German',
+      emptyStates.placeholders.some((p) => p.includes('Keine URL konfiguriert')),
+      JSON.stringify(emptyStates.placeholders)
+    )
+    ok(
+      'de: no English empty-state text is left on the screen',
+      !/No choices|No image URL|No URL configured/.test(
+        emptyStates.selection + emptyStates.placeholders.join(' ')
+      ),
+      emptyStates.selection + ' | ' + emptyStates.placeholders.join(' | ')
+    )
 
     // schema labels translate in the settings panel; the user's own widget text does not
     await page.goto(APP + '#/d/nh-e2e-i18n-b')

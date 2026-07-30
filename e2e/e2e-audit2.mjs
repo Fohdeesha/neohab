@@ -1,8 +1,14 @@
 /**
- * Second-pass audit fixes:
+ * Audit fixes for configuration that did not come from the editor.
+ *
+ * The editor validates what it writes, but a dashboard component can also arrive from a backup, a
+ * shared partial export or a hand edit, and is then stored verbatim. Everything here is that kind
+ * of input:
  *   - importer survives a widget type that names an Object.prototype member ("constructor")
  *   - a nameless dashboard component no longer takes down the whole config load
  *   - backup import writes before deleting (a failed replace cannot leave you with nothing)
+ *   - a nonsensical column count (0) still renders, instead of dividing the cell size to Infinity
+ *   - a stored tablet rect wider than the tablet grid is clamped into it
  *   - label widget font size scales with the cell like everything else
  *   - ItemPicker: does selecting an item leave the list open? (behaviour probe)
  *
@@ -44,6 +50,41 @@ await put({
   tags: [],
   config: { version: 1, id: 'nh-e2e-a2-nameless', columns: 4, rowHeight: 'match', widgets: [] },
 })
+// columns: 0 divided the column width to Infinity, which took the row height and the icon scale
+// with it. It only bites a 'match' dashboard - a numeric rowHeight was returned as-is and hid the
+// divide, which is why that is a SEPARATE case below rather than the same one.
+await put({
+  uid: 'dashboard:nh-e2e-a2-nocols',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-nocols', name: 'E2E Audit2 NoCols', columns: 0, rowHeight: 'match', gap: 5,
+    widgets: [{ id: 'a2-v', type: 'label', config: { text: 'Survives' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+  },
+})
+// a zero fixed row height, from the same unvalidated config
+await put({
+  uid: 'dashboard:nh-e2e-a2-norow',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-norow', name: 'E2E Audit2 NoRow', columns: 12, rowHeight: 0, gap: 5,
+    widgets: [{ id: 'a2-r', type: 'label', config: { text: 'Floored' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+  },
+})
+// a stored tablet rect wider than the tablet grid it lands in
+await put({
+  uid: 'dashboard:nh-e2e-a2-mdwide',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-mdwide', name: 'E2E Audit2 MdWide', columns: 12, mdColumns: 4, rowHeight: 'match', gap: 5,
+    widgets: [
+      { id: 'a2-md', type: 'label', config: { text: 'Wide' }, layout: { lg: { x: 0, y: 0, w: 12, h: 1 }, md: { x: 0, y: 0, w: 9, h: 1 } } },
+      { id: 'a2-md2', type: 'label', config: { text: 'Edge' }, layout: { lg: { x: 0, y: 1, w: 12, h: 1 }, md: { x: 3, y: 1, w: 2, h: 1 } } },
+    ],
+  },
+})
 
 const browser = await launchBrowser()
 try {
@@ -61,6 +102,95 @@ try {
     // the live count varies - what matters is that this suite's own two tiles made it through
     ok('config loads despite a nameless dashboard', tiles >= 2, 'tiles=' + tiles)
     ok('no page error from the nameless dashboard', errs.length === 0, errs.join('|'))
+    await ctx.close()
+  }
+
+  /* --------- a nonsensical column count still renders --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    const errs = []
+    page.on('pageerror', (e) => errs.push(String(e)))
+    page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-nocols')
+    await page.waitForSelector('.nh-grid', { timeout: 15000 })
+    await page.waitForTimeout(600)
+    const geom = await page.evaluate(() => {
+      const grid = document.querySelector('.nh-grid')
+      const cell = document.querySelector('.nh-gcell')
+      const cs = getComputedStyle(grid)
+      const r = cell?.getBoundingClientRect()
+      return {
+        rows: cs.gridAutoRows,
+        cols: cs.gridTemplateColumns,
+        scale: cs.getPropertyValue('--nh-iconscale'),
+        cellW: r ? Math.round(r.width) : -1,
+        cellH: r ? Math.round(r.height) : -1,
+        label: document.querySelector('.nh-label')?.textContent ?? '',
+      }
+    })
+    // The row height is the tell: 'match' derives it from the column width, so a zero column
+    // count used to make it Infinity - a cell taller than any screen, with nothing readable in it.
+    const rowPx = parseFloat(geom.rows)
+    ok('columns=0: the row height is finite and sane', Number.isFinite(rowPx) && rowPx > 0 && rowPx < 4000, geom.rows)
+    ok('columns=0: the widget renders at a finite height', geom.cellH > 0 && geom.cellH < 4000, JSON.stringify(geom))
+    ok('columns=0: the column template is valid CSS', /px|fr/.test(geom.cols) && !/Infinity|NaN/.test(geom.cols), geom.cols)
+    ok('columns=0: the icon scale is a number', Number.isFinite(parseFloat(geom.scale)), geom.scale)
+    ok('columns=0: the widget is still there', geom.label === 'Survives', geom.label)
+    ok('columns=0: no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
+    await ctx.close()
+  }
+
+  /* --------- a zero fixed row height is floored rather than collapsed --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-norow')
+    await page.waitForSelector('.nh-grid', { timeout: 15000 })
+    await page.waitForTimeout(600)
+    const rowH = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.nh-grid')).gridAutoRows))
+    const cellH = await page.evaluate(() => Math.round(document.querySelector('.nh-gcell').getBoundingClientRect().height))
+    ok('rowHeight=0 is floored to something visible', rowH >= 8, String(rowH))
+    ok('rowHeight=0: the cell has height', cellH > 0, String(cellH))
+    await ctx.close()
+  }
+
+  /* --------- an oversized stored tablet rect is clamped into the tablet grid --------- */
+  {
+    // 1000px is inside the tablet band (>= 840, < 1200), so the tablet layout is what renders.
+    const ctx = await browser.newContext({ viewport: { width: 1000, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-mdwide')
+    await page.waitForSelector('.nh-gcell', { timeout: 15000 })
+    await page.waitForTimeout(600)
+    const placed = await page.evaluate(() => {
+      const grid = document.querySelector('.nh-grid')
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').length
+      const gridRight = grid.getBoundingClientRect().right
+      return [...document.querySelectorAll('.nh-gcell')].map((c) => {
+        const cs = getComputedStyle(c)
+        const start = parseInt(cs.gridColumnStart, 10)
+        const span = parseInt(String(cs.gridColumnEnd).replace(/\D+/g, ''), 10) || 1
+        return {
+          text: c.querySelector('.nh-label')?.textContent ?? '',
+          col: cs.gridColumnStart,
+          colEnd: start + span,
+          cols,
+          overflowPx: Math.round(c.getBoundingClientRect().right - gridRight),
+        }
+      })
+    })
+    // The 9-wide stored rect used to create five implicit columns, so the grid was 9 columns
+    // rather than the 4 the dashboard asked for and every other widget was laid out against.
+    ok('tablet layout renders with its own column count', placed.every((p) => p.cols === 4), JSON.stringify(placed))
+    ok(
+      'no tablet cell spans past the last column',
+      placed.length === 2 && placed.every((p) => p.colEnd <= 5),
+      JSON.stringify(placed)
+    )
     await ctx.close()
   }
 

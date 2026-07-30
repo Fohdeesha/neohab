@@ -1,6 +1,8 @@
 // Version history suite: capture before a change, coalescing, the diff view, renaming,
-// restoring, retention, hash-shared images, turning it off, and a failed capture not failing
-// the save it protects.
+// restoring (including that the Restore button stays disabled for the whole of it, and a second
+// restore is refused), retention, hash-shared images, the retention fields committing on blur
+// rather than per keystroke, turning it off, and a failed capture not failing the save it
+// protects.
 //
 // Assumes EMPTY namespaces (wipe→restore cycle); creates everything it needs via REST/the app.
 import { chromium } from 'playwright-core'
@@ -292,8 +294,66 @@ try {
   // The oldest point: one dashboard, one widget.
   await page.locator('.nh-hist__row').last().click()
   await page.waitForSelector('.nh-histdetail')
-  await page.click('button:has-text("Restore everything to this point")')
-  await page.waitForSelector('.nh-settings__notice', { timeout: 20000 })
+
+  // A restore is a long run of writes and deletes, and the disabled button is what stops a second
+  // one starting on top of it. Slow the configuration writes down so the button's state can be
+  // read WHILE the restore is working: the nested "undo point" capture used to hand the flag back
+  // as false, re-enabling the button for the whole write/delete phase.
+  // A RegExp, not a glob: the writes go to BOTH the collection url (POST, for a component that
+  // does not exist yet) and the per-uid url (PUT/DELETE), and Playwright's `*` does not cross a
+  // `/` while `**` does - a glob that matched only one of the two shapes slowed almost nothing
+  // and the restore outran the sampler entirely.
+  const CONFIG_URLS = /\/rest\/ui\/components\/neohab:config/
+  let configWrites = 0
+  let lastWriteAt = 0
+  const slowWrites = async (route) => {
+    if (['PUT', 'POST', 'DELETE'].includes(route.request().method())) {
+      configWrites++
+      await sleep(400)
+      await route.continue()
+      lastWriteAt = Date.now()
+      return
+    }
+    await route.continue()
+  }
+  await page.route(CONFIG_URLS, slowWrites)
+  // Sampled from INSIDE the page, and armed before the click: polling over the wire costs a
+  // round trip per sample, which was enough to miss the window entirely and read nothing but the
+  // finished state. The button's label flips to "Working…" while busy, so the finder matches both.
+  await page.evaluate(() => {
+    const w = window
+    w.__nhSamples = []
+    const btn = () =>
+      [...document.querySelectorAll('button')].find((b) =>
+        /Restore everything to this point|Working/.test(b.textContent || '')
+      )
+    w.__nhTimer = setInterval(() => {
+      const b = btn()
+      if (b) w.__nhSamples.push({ t: Date.now(), d: b.disabled })
+    }, 20)
+  })
+  const restoreBtn = page.locator('button:has-text("Restore everything to this point")')
+  await restoreBtn.click()
+  await page.waitForFunction(() => /Restored|Restore failed/.test(document.querySelector('.nh-settings__notice')?.textContent ?? ''), { timeout: 30000 })
+  const disabledSamples = await page.evaluate(() => {
+    const w = window
+    clearInterval(w.__nhTimer)
+    return w.__nhSamples
+  })
+  await page.unroute(CONFIG_URLS, slowWrites)
+  // The invariant is not "always disabled" - it is legitimately enabled again once the restore
+  // has finished, and the sampler catches that tail. What must never happen is the button going
+  // live while the restore is STILL WRITING, which is exactly what the nested capture used to do.
+  const firstLive = disabledSamples.find((s) => !s.d)
+  ok(
+    'the Restore button stays disabled until the restore has finished writing',
+    disabledSamples.length > 5 && (!firstLive || firstLive.t >= lastWriteAt),
+    `${disabledSamples.length} samples; ` +
+      (firstLive ? `went live ${firstLive.t - lastWriteAt}ms after the last write` : 'never went live')
+  )
+  // ...and that the samples covered real work, not an instant no-op.
+  ok('the restore was still writing while that was sampled', configWrites >= 2, `${configWrites} config writes`)
+  await page.waitForSelector('.nh-settings__notice', { timeout: 30000 })
   const notice = await page.locator('.nh-settings__notice').innerText()
   ok('the restore reports what it did', /Restored/.test(notice), notice)
 
@@ -408,6 +468,36 @@ try {
     consoleErrors.length === 0,
     consoleErrors.slice(0, 3).join(' | ') + (badResponses.length ? '  responses: ' + badResponses.slice(0, 5).join(' | ') : '')
   )
+
+  /* ============ 7b. the retention fields commit on blur, not per keystroke ============
+   * openHAB rewrites a whole namespace file per component write, and every write also takes a
+   * restore point, so typing "120" into a field that saved per keystroke was three of each. */
+  await openSettings()
+  await page.waitForSelector('#nh-hist-window')
+  const windowBefore = (await getJson(NS + '/settings'))?.config?.historyWindowMin ?? 5
+  await page.fill('#nh-hist-window', '120')
+  await sleep(900)
+  const windowMid = (await getJson(NS + '/settings'))?.config?.historyWindowMin ?? 5
+  ok(
+    'typing into the retention field writes nothing yet',
+    windowMid === windowBefore,
+    `stored ${JSON.stringify(windowMid)} while typing (was ${JSON.stringify(windowBefore)})`
+  )
+  ok('the field still shows what was typed', (await page.locator('#nh-hist-window').inputValue()) === '120')
+  await page.locator('#nh-hist-window').press('Tab')
+  await sleep(1200)
+  ok(
+    'blurring commits it',
+    (await getJson(NS + '/settings'))?.config?.historyWindowMin === 120,
+    JSON.stringify((await getJson(NS + '/settings'))?.config?.historyWindowMin)
+  )
+  // out-of-range input is clamped to the field's own range rather than stored as typed
+  await page.fill('#nh-hist-window', '99999')
+  await page.locator('#nh-hist-window').press('Tab')
+  await sleep(1200)
+  const clamped = (await getJson(NS + '/settings'))?.config?.historyWindowMin
+  ok('an out-of-range value is clamped, not stored as typed', clamped === 1440, JSON.stringify(clamped))
+  ok('and the field shows the clamped value', (await page.locator('#nh-hist-window').inputValue()) === '1440')
 
   /* ================================ 8. turning it off ================================ */
   await openSettings()

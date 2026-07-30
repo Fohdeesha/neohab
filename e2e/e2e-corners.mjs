@@ -77,7 +77,12 @@ await section('1', async () => {
   const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
   const errs = []
   page.on('pageerror', (e) => errs.push(String(e.message)))
-  page.on('dialog', (d) => d.accept())
+  // Recorded as well as accepted: a rejected import must never get as far as asking.
+  const dialogs = []
+  page.on('dialog', (d) => {
+    dialogs.push(d.message())
+    void d.accept()
+  })
   await initToken(page, TOKEN)
 
   await page.goto(APP + '#/d/does-not-exist-xyz', { waitUntil: 'domcontentloaded' })
@@ -106,6 +111,20 @@ await section('1', async () => {
   await hpInput.setInputFiles({ name: 'z.json', mimeType: 'application/json', buffer: Buffer.from('[[]]') })
   await sleep(600)
   ok('1. malformed habpanel file rejected', /Could not read|Not a HABPanel/.test(await page.locator('.nh-settings__notice').textContent()))
+  // An empty list is not a configuration: accepting it offered a confirm dialog with nothing in
+  // it and, once accepted, spent a restore point recording that nothing happened.
+  for (const [what, body] of [
+    ['a bare empty array', '[]'],
+    ['an empty dashboards list', '{"dashboards":[],"settings":{},"customwidgets":{}}'],
+  ]) {
+    await hpInput.setInputFiles({ name: 'e.json', mimeType: 'application/json', buffer: Buffer.from(body) })
+    await sleep(900)
+    // A build that ACCEPTS the file shows no notice at all, so the read has to tolerate that and
+    // let this check be the thing that fails.
+    const notice = (await page.locator('.nh-settings__notice').textContent().catch(() => null)) ?? '(no notice)'
+    ok(`1. ${what} is rejected, not offered as an import`, /Could not read|Not a HABPanel/.test(notice), notice)
+  }
+  ok('1. no confirm dialog was raised by an empty file', dialogs.length === 0, dialogs.join(' | '))
   const after = (await (await fetch(NS)).json()).length
   ok('1. server config untouched by failed imports', before === after, `before=${before} after=${after}`)
   ok('1. no page errors', errs.length === 0, errs.join(' | '))

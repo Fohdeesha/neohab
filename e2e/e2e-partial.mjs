@@ -196,6 +196,43 @@ try {
   ok('unknown file version is refused', /Unsupported file version/.test(versionNotice ?? ''), String(versionNotice))
   ok('refusing a file offers no import buttons', (await page.locator('button:has-text("Import as a copy")').count()) === 0)
 
+  /* ------------------- a file may only carry the kinds it is allowed to -------------------
+   * A partial file is offered as a copy that "touches nothing of yours", but the copy path derives
+   * a free id from the uid's prefix - so a prefix-less uid like `settings` resolves back to itself
+   * and would be written straight over the global settings. Nothing neohab exports contains one;
+   * a hand-made or mis-generated file can. */
+  // The waits below tolerate a notice that never comes: a build that ACCEPTS the file shows the
+  // import card instead, and the real check has to be the one that fails - not a timeout that
+  // takes every later check in this suite with it.
+  const noticeOrCard = async () => {
+    await page
+      .waitForSelector('.nh-settings__notice, .nh-settings__importchoice', { timeout: 10000 })
+      .catch(() => {})
+    return (await page.locator('.nh-settings__notice').textContent().catch(() => null)) ?? ''
+  }
+
+  const settingsBefore = await get('settings')
+  await importFile({
+    ...dashFile,
+    components: [
+      ...dashFile.components,
+      { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'oled', lockEditing: true } },
+    ],
+  })
+  const strayNotice = await noticeOrCard()
+  ok('a file carrying a settings component is refused', /may not carry/.test(strayNotice), String(strayNotice))
+  ok('refusing it offers no import at all', (await page.locator('.nh-settings__importchoice').count()) === 0)
+  const settingsAfter = await get('settings')
+  ok(
+    'the global settings were not touched',
+    JSON.stringify(settingsBefore?.config) === JSON.stringify(settingsAfter?.config),
+    JSON.stringify(settingsAfter?.config)
+  )
+
+  await importFile({ ...dashFile, manifest: { ...dashFile.manifest, kind: 'theme' } })
+  const kindNotice = await noticeOrCard()
+  ok('a file whose kind and primary disagree is refused', /but describes/.test(kindNotice), String(kindNotice))
+
   /* ------------------- the file matches what is stored: nothing to do ------------------- */
   await importFile(dashFile)
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 15000 })
@@ -343,7 +380,9 @@ try {
   for (const c of await list()) {
     if (MINE.test(c.uid)) await del(c.uid)
   }
-  const left = (await list()).map((c) => c.uid).filter((u) => MINE.test(u) || u.includes('nh-e2e'))
+  // Scoped to what THIS suite made (MINE): asserting on every `nh-e2e` component made one
+  // suite's stray leftover fail three unrelated suites in the same battery run.
+  const left = (await list()).map((c) => c.uid).filter((u) => MINE.test(u))
   ok('cleanup: no leftovers', left.length === 0, left.join(','))
 
   // importing writes a restore point; put the history namespaces back exactly as they were

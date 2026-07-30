@@ -1,15 +1,25 @@
 /**
  * Runs the full safe-additive battery in sequence and summarizes.
  *
- * Deliberately does NOT include the wipe-cycle suites (e2e, e2e-editor, e2e-widgets,
- * e2e-settings, e2e-importer) - those need the snapshot/wipe/restore dance described in
- * README.md and each aborts on its own if the namespace is not empty.
+ * Deliberately does NOT include the SIX wipe-cycle suites - e2e, e2e-editor, e2e-widgets,
+ * e2e-settings, e2e-importer and e2e-history. Those need the snapshot/wipe/restore dance
+ * described in README.md, and each aborts on its own if the namespaces are not empty.
+ * e2e-history goes FIRST of the six: it is the only one that guards all three namespaces, and
+ * every suite that saves configuration leaves restore points behind.
  */
 import { spawnSync } from 'node:child_process'
+import { readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * The wipe-cycle suites, named here so the split is enforced rather than merely documented: a new
+ * suite that lands in neither list stops the battery instead of being silently skipped.
+ * e2e-history first - see the comment above and README.md.
+ */
+const WIPE_CYCLE = ['e2e-history', 'e2e', 'e2e-editor', 'e2e-widgets', 'e2e-settings', 'e2e-importer']
 
 const SAFE_SUITES = [
   'e2e-corners',
@@ -52,6 +62,27 @@ const SAFE_SUITES = [
   'e2e-proxyauth',
   'e2e-multitab',
 ]
+
+// Every suite file must be classified. A suite added to the directory and forgotten here would
+// otherwise never run, and one mis-sorted into the battery would delete a live configuration.
+const onDisk = readdirSync(here)
+  .filter((f) => /^e2e.*\.mjs$/.test(f))
+  .map((f) => f.replace(/\.mjs$/, ''))
+const unclassified = onDisk.filter((s) => !SAFE_SUITES.includes(s) && !WIPE_CYCLE.includes(s))
+const missing = [...SAFE_SUITES, ...WIPE_CYCLE].filter((s) => !onDisk.includes(s))
+if (unclassified.length > 0 || missing.length > 0) {
+  if (unclassified.length > 0) {
+    console.error(`run.mjs: these suites are in neither list - add them to SAFE_SUITES or WIPE_CYCLE:`)
+    for (const s of unclassified) console.error('  ' + s)
+  }
+  if (missing.length > 0) console.error(`run.mjs: listed but not on disk: ${missing.join(', ')}`)
+  process.exit(2)
+}
+const overlap = SAFE_SUITES.filter((s) => WIPE_CYCLE.includes(s))
+if (overlap.length > 0) {
+  console.error(`run.mjs: a wipe-cycle suite must never be in the battery: ${overlap.join(', ')}`)
+  process.exit(2)
+}
 
 const only = process.argv.slice(2)
 const suites = only.length > 0 ? only.map((s) => s.replace(/\.mjs$/, '')) : SAFE_SUITES

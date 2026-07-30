@@ -67,7 +67,9 @@ async function makeContext(initScript) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
   const seen = []
   ctx.on('request', (req) => {
-    if (req.url().includes('/rest/')) seen.push({ url: req.url(), headers: req.headers() })
+    if (req.url().includes('/rest/')) {
+      seen.push({ url: req.url(), headers: req.headers(), type: req.resourceType(), method: req.method() })
+    }
   })
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -120,9 +122,30 @@ try {
     await page.waitForSelector('.nh-widget', { timeout: 20000 })
     await page.waitForFunction(() => !document.querySelector('.nh-chart__status'), { timeout: 30000 }).catch(() => {})
     await sleep(1200)
-    const rest = seen.filter((r) => r.url.includes('/rest/'))
+    // EventSource cannot carry request headers at all - a browser limitation, documented in
+    // api/auth.ts, and the reason live states behind such a proxy depend on the browser's own
+    // credential caching. Whether one of those connections happens to (re)open inside this
+    // window is timing, so they are separated out rather than left to fail the check at random.
+    // Deliberately narrow: the tracked-items POST goes to /rest/events/states/<id> and is an
+    // ordinary fetch that MUST carry the header (its own check below), so only the two GET
+    // subscriptions count as streams.
+    const isStream = (r) =>
+      r.method === 'GET' &&
+      (r.type === 'eventsource' || /\/rest\/events\/states$/.test(r.url) || /\/rest\/events\?topics=/.test(r.url))
+    const rest = seen.filter((r) => r.url.includes('/rest/') && !isStream(r))
+    const streams = seen.filter(isStream)
     const expected = 'Basic ' + Buffer.from('proxyuser:proxypass').toString('base64')
-    ok('requests go out with the proxy credentials', rest.length > 0 && rest.every((r) => /^Basic /.test(r.headers.authorization ?? '')), `${rest.length}: ` + rest.filter((r) => !/^Basic /.test(r.headers.authorization ?? '')).map((r) => r.url.split('/rest/')[1]).join(','))
+    ok(
+      'requests go out with the proxy credentials',
+      rest.length > 0 && rest.every((r) => /^Basic /.test(r.headers.authorization ?? '')),
+      `${rest.length}: ` +
+        rest.filter((r) => !/^Basic /.test(r.headers.authorization ?? '')).map((r) => r.url.split('/rest/')[1]).join(',')
+    )
+    ok(
+      'event streams carry no header, as the browser requires (known limitation)',
+      streams.every((r) => (r.headers.authorization ?? '') === ''),
+      `${streams.length} stream request(s)`
+    )
     ok('base64 encoded as the proxy expects', rest.some((r) => r.headers.authorization === expected), String(rest[0]?.headers.authorization))
     ok('the token moved to X-OPENHAB-TOKEN', rest.some((r) => (r.headers['x-openhab-token'] ?? '').startsWith('oh.')), Object.keys(rest[0]?.headers ?? {}).join(','))
     ok('no Bearer header remains', rest.every((r) => !/^Bearer /.test(r.headers.authorization ?? '')))

@@ -530,7 +530,10 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e'))
+  // Scoped to what THIS suite made: asserting on every `nh-e2e` component made one suite's
+  // stray leftover fail three unrelated suites in the same battery run.
+  const mine = new Set(created)
+  const left = (await (await fetch(NS)).json()).filter((c) => mine.has(c.uid))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 }
 

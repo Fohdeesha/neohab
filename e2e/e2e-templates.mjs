@@ -207,8 +207,10 @@ await sendCmd(ITEMS.dimmer, origLevel)
 await sleep(1500)
 const finalSettings = await (await fetch(NS + '/settings')).json()
 ok('settings restored', JSON.stringify(finalSettings.config) === JSON.stringify(origSettings.config), JSON.stringify(finalSettings.config))
-const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e'))
-ok('temp components removed', left.length === 0, `left=${left.length}`)
+// Scoped to what THIS suite made: asserting on every `nh-e2e` component made one suite's stray
+// leftover fail three unrelated suites in the same battery run.
+const left = (await (await fetch(NS)).json()).filter((c) => TEMP_UIDS.includes(c.uid))
+ok('temp components removed', left.length === 0, `left=${left.map((c) => c.uid).join(',')}`)
 ok('item states restored', (await getState(ITEMS.switch)) === origSwitch && (await getState(ITEMS.dimmer)) === origLevel)
 
 let allPass = true
