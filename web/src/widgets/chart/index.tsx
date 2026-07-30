@@ -3,83 +3,34 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
-import { getItemHistory } from '../../api/persistence'
-import {
-  DEFAULT_MAX_POINTS,
-  PERIODS,
-  PERIOD_CHIPS,
-  decimate,
-  effectiveSeries,
-  type ChartConfig,
-} from './model'
-import { chartScheme, seriesColor } from './palette'
-import type { ChartHandle, SeriesTable } from './plot'
-
-// ON/OFF-style histories plot as 1/0 (persistence stores them as text). A Map, so a state
-// that happens to name an Object.prototype member isn't mistaken for a hit.
-const BINARY = new Map([
-  ['ON', 1],
-  ['OFF', 0],
-  ['OPEN', 1],
-  ['CLOSED', 0],
-])
+import { categoryLabels, heatmapMatrix } from './aggregate'
+import { DEFAULT_MAX_POINTS, PERIODS, PERIOD_CHIPS, effectiveSeries, type ChartConfig } from './model'
+import { loadChartData, parseState, type SeriesTable } from './data'
+import { numOpt, plotSeries, resolveChart } from './resolve'
+import { navigate, useRoute } from '../../app/router'
+import type { ChartHandle } from './plot'
+import type { HeatmapHandle } from './heatmap'
 
 /** Chip selection per widget instance; survives the run/edit remount. Session-scoped. */
 const periodMemory = new Map<string, string>()
 
-function parseState(s: string): number | null {
-  const b = BINARY.get(s)
-  if (b !== undefined) return b
-  const v = parseFloat(s)
-  return Number.isFinite(v) ? v : null
-}
-
-/** Optional numeric config value; imported configs sometimes store numbers as strings. */
-function numOpt(v: unknown): number | undefined {
-  if (typeof v === 'number' && Number.isFinite(v)) return v
-  if (typeof v === 'string' && v.trim() !== '') {
-    const n = Number(v)
-    if (Number.isFinite(n)) return n
-  }
-  return undefined
-}
-
 /**
- * History chart backed by openHAB persistence: multi-series, gradient fills, crosshair
- * tooltip, legend with series toggling, quick period chips, drag-zoom (double-click resets),
- * threshold lines/bands, and live SSE appending. All uPlot work lives in ./plot, loaded on
- * demand so dashboards without charts don't pay for it.
+ * History chart backed by openHAB persistence: multi-series, gradient fills, crosshair tooltip,
+ * legend with series toggling, quick period chips, drag-zoom (double-click resets), threshold
+ * lines/bands, and live SSE appending. It can also group the history into buckets (per hour/day,
+ * or by hour of day / day of week) with a per-series aggregate function, and show an
+ * hour-by-weekday heatmap instead of a plot. All uPlot and canvas work lives in ./plot and
+ * ./heatmap, loaded on demand so dashboards without charts don't pay for it.
  */
 function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const { t } = useTranslation()
-  const scheme = chartScheme()
-  const series = effectiveSeries(config)
-  const resolved = series.map((s, i) => ({
-    item: s.item,
-    label: s.label || s.item,
-    color: s.color || seriesColor(i, scheme),
-    axis: s.axis === 'y2' ? ('y2' as const) : ('y' as const),
-    width: numOpt(s.width) ?? 2,
-    fill: numOpt(s.fill) ?? 20,
-    mode: s.mode === 'linear' ? ('linear' as const) : s.mode === 'step' ? ('step' as const) : ('smooth' as const),
-    points: s.points === true,
-  }))
-  const thresholds = (config.thresholds ?? [])
-    .map((t) => ({
-      from: numOpt(t.from),
-      to: numOpt(t.to),
-      axis: t.axis === 'y2' ? ('y2' as const) : ('y' as const),
-      color: t.color || '#d03b3b',
-      label: t.label,
-    }))
-    .filter((t) => t.from !== undefined || t.to !== undefined)
+  const route = useRoute()
+  const { series: resolved, thresholds, groupBy, grouped, categorical, heatmap } = resolveChart(config)
 
   // The picked period outlives this component: entering/leaving edit mode remounts the whole
   // widget tree, and losing the chip selection there means you can't tweak a chart while
   // looking at the range you care about. Session-scoped, keyed by widget instance id.
-  const [period, setPeriodState] = useState(
-    () => periodMemory.get(ctx.widgetId) ?? config.period ?? '24h'
-  )
+  const [period, setPeriodState] = useState(() => periodMemory.get(ctx.widgetId) ?? config.period ?? '24h')
   const setPeriod = (p: string) => {
     periodMemory.set(ctx.widgetId, p)
     setPeriodState(p)
@@ -101,6 +52,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
 
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<ChartHandle | null>(null)
+  const heatRef = useRef<HeatmapHandle | null>(null)
   const tablesRef = useRef<SeriesTable[]>([])
   const zoomedRef = useRef(false)
   const hiddenRef = useRef<number[]>([])
@@ -117,7 +69,11 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     '|' +
     [numOpt(config.yMin), numOpt(config.yMax), numOpt(config.y2Min), numOpt(config.y2Max), numOpt(config.maxPoints)].join(
       ','
-    )
+    ) +
+    '|' +
+    groupBy +
+    '|' +
+    (heatmap ? 'heat' : 'plot')
 
   useEffect(() => {
     if (resolved.length === 0) {
@@ -141,27 +97,58 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       return unit ? out + ' ' + unit : out
     }
 
-    async function load() {
-      const since = new Date(Date.now() - periodMs)
-      const results = await Promise.all(
-        resolved.map((s) => getItemHistory(s.item, since, { serviceId: config.service || undefined }))
-      )
-      if (disposed) return
-      const maxPoints = numOpt(config.maxPoints) ?? DEFAULT_MAX_POINTS
-      const tables: SeriesTable[] = results.map((points) => {
-        const xs: number[] = []
-        const ys: (number | null)[] = []
-        for (const pt of points) {
-          xs.push(pt.time / 1000)
-          ys.push(parseState(pt.state))
-        }
-        return decimate(xs, ys, maxPoints)
+    /** Hour-by-weekday matrix of the first series - a different picture, not a different plot. */
+    async function loadHeatmap() {
+      const to = Date.now() / 1000
+      const from = to - periodMs / 1000
+      const [table] = await loadChartData({
+        items: [resolved[0].item],
+        aggregates: [resolved[0].aggregate],
+        from,
+        to,
+        groupBy: 'none',
+        service: config.service || undefined,
+        maxPoints: 0, // the matrix does the reducing; decimating first would blur the cells
       })
+      if (disposed) return
+      const matrix = heatmapMatrix(table[0], table[1], to, resolved[0].aggregate)
+      if (matrix.cells.flat().every((c) => c === null)) {
+        heatRef.current?.destroy()
+        heatRef.current = null
+        setStatus('empty')
+        return
+      }
+      const hm = await import('./heatmap')
+      if (disposed || !hostRef.current) return
+      if (!heatRef.current) {
+        heatRef.current = hm.createHeatmap({
+          host: hostRef.current,
+          weekdays: categoryLabels('dayOfWeek'),
+          formatValue: (v) => fmtValue(0, v),
+          title: t('Heatmap of {{name}} by hour and weekday', { name: resolved[0].label }),
+        })
+      }
+      heatRef.current.setData(matrix)
+      setStatus('ready')
+    }
+
+    async function load() {
+      const to = Date.now() / 1000
+      const tables = await loadChartData({
+        items: resolved.map((s) => s.item),
+        aggregates: resolved.map((s) => s.aggregate),
+        from: to - periodMs / 1000,
+        to,
+        groupBy,
+        service: config.service || undefined,
+        maxPoints: numOpt(config.maxPoints) ?? DEFAULT_MAX_POINTS,
+      })
+      if (disposed) return
       tablesRef.current = tables
       // A refetch answering after live points arrived would rewind the chart; the live
       // effect re-appends current values because the last-appended memory is cleared.
       lastLiveRef.current.clear()
-      if (tables.every((t) => t[0].length === 0)) {
+      if (tables.every((tbl) => tbl[0].length === 0)) {
         handleRef.current?.destroy()
         handleRef.current = null
         setStatus('empty')
@@ -172,8 +159,10 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       if (!handleRef.current) {
         handleRef.current = plot.createChart({
           host: hostRef.current,
-          series: resolved.map(({ item: _item, ...rest }) => rest),
+          series: plotSeries(resolved),
           thresholds,
+          xMode: categorical ? 'category' : 'time',
+          categoryLabels: categorical ? categoryLabels(groupBy) : undefined,
           yMin: numOpt(config.yMin),
           yMax: numOpt(config.yMax),
           y2Min: numOpt(config.y2Min),
@@ -193,13 +182,14 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       setStatus('ready')
     }
 
+    const run = () => (heatmap ? loadHeatmap() : load())
     setStatus('loading')
-    load().catch(() => {
+    run().catch(() => {
       if (!disposed) setStatus('error')
     })
     const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : 300
     const timer = setInterval(() => {
-      if (!zoomedRef.current) void load().catch(() => {})
+      if (!zoomedRef.current) void run().catch(() => {})
     }, refreshSec * 1000)
 
     return () => {
@@ -211,16 +201,20 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       }
       handleRef.current?.destroy()
       handleRef.current = null
+      heatRef.current?.destroy()
+      heatRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesKey, optionsKey, period, config.service, config.refresh])
 
   // Live appending: WidgetHost re-renders on subscribed item changes; coalesce into one
   // appended row per 500ms so a fading dimmer doesn't spam one point per SSE frame.
-  const liveKey =
-    config.live === false ? '' : JSON.stringify(resolved.map((s) => ctx.getItem(s.item)?.state))
+  // Only for ungrouped plots: pushing a raw reading into an aggregated bucket, or into a
+  // category, would misstate the aggregate until the next refetch.
+  const liveTracked = config.live !== false && !grouped && !heatmap
+  const liveKey = liveTracked ? JSON.stringify(resolved.map((s) => ctx.getItem(s.item)?.state)) : ''
   useEffect(() => {
-    if (config.live === false || status !== 'ready') return
+    if (!liveTracked || status !== 'ready') return
     for (let i = 0; i < resolved.length; i++) {
       const st = ctx.getItem(resolved[i].item)
       if (!st) continue
@@ -245,12 +239,12 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         tables[i][1].push(v)
       }
       pendingRef.current.clear()
-      for (const t of tables) {
+      for (const tbl of tables) {
         let drop = 0
-        while (drop < t[0].length && t[0][drop] < cutoff) drop++
+        while (drop < tbl[0].length && tbl[0][drop] < cutoff) drop++
         if (drop > 0) {
-          t[0].splice(0, drop)
-          t[1].splice(0, drop)
+          tbl[0].splice(0, drop)
+          tbl[1].splice(0, drop)
         }
       }
       handleRef.current.setData(tables)
@@ -275,43 +269,70 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   }, [config.period, period])
 
   const showChips = config.picker !== false
-  const showLegend = config.legend !== false && resolved.length >= 2
+  const showLegend = config.legend !== false && resolved.length >= 2 && !heatmap
   const label = config.label ?? (resolved.length === 1 ? resolved[0].label : undefined)
+  // The route is where the dashboard id comes from: a widget knows nothing about its dashboard,
+  // and this button only exists while one is on screen in run mode.
+  const onDashboard = route.name === 'dashboard' ? route.id : null
+  const canExpand = config.expand !== false && !ctx.editing && onDashboard !== null
 
   // With a header and enough width, the chips sit beside the name instead of stacking above
   // the plot (measured live: the threshold leaves the label room to ellipsize gracefully).
   const wrapRef = useRef<HTMLDivElement>(null)
   const wrapWidth = useContainerWidth(wrapRef)
-  const chipsNode = showChips ? (
-    <div className="nh-chart__chips">
-      {chips.map((c) => (
-        <button
-          key={c}
-          type="button"
-          className={'nh-chart__chip' + (c === period ? ' nh-chart__chip--on' : '')}
-          onClick={() => setPeriod(c)}
-        >
-          {c}
-        </button>
-      ))}
-      {zoomed ? (
-        <button
-          type="button"
-          className="nh-chart__chip nh-chart__chip--reset"
-          onClick={() => handleRef.current?.resetZoom()}
-        >
-          {t('reset zoom')}
-        </button>
-      ) : null}
-    </div>
+  const expandNode = canExpand ? (
+    <button
+      type="button"
+      className="nh-chart__expand"
+      aria-label={t('Open this chart full screen')}
+      title={t('Open full screen, with calendar navigation')}
+      onClick={() => navigate({ name: 'chart', dashboard: onDashboard ?? '', widget: ctx.widgetId })}
+    >
+      ⤢
+    </button>
   ) : null
-  const chipsInline = chipsNode !== null && !!label && wrapWidth >= 480
+  // The chip row and the full-screen button are separate: turning the period selector off must
+  // leave no chip row behind (and the button has a toggle of its own).
+  const chipsNode =
+    showChips || zoomed ? (
+      <div className="nh-chart__chips">
+        {showChips
+          ? chips.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={'nh-chart__chip' + (c === period ? ' nh-chart__chip--on' : '')}
+                onClick={() => setPeriod(c)}
+              >
+                {c}
+              </button>
+            ))
+          : null}
+        {zoomed ? (
+          <button
+            type="button"
+            className="nh-chart__chip nh-chart__chip--reset"
+            onClick={() => handleRef.current?.resetZoom()}
+          >
+            {t('reset zoom')}
+          </button>
+        ) : null}
+      </div>
+    ) : null
+  const toolsNode =
+    chipsNode || expandNode ? (
+      <div className="nh-chart__tools">
+        {chipsNode}
+        {expandNode}
+      </div>
+    ) : null
+  const chipsInline = toolsNode !== null && !!label && wrapWidth >= 480
 
   return (
-    <WidgetFrame label={label} aside={chipsInline ? chipsNode : undefined}>
+    <WidgetFrame label={label} aside={chipsInline ? toolsNode : undefined}>
       <div className="nh-chartwrap" ref={wrapRef}>
-        {chipsInline ? null : chipsNode}
-        <div className="nh-chart" ref={hostRef}>
+        {chipsInline ? null : toolsNode}
+        <div className={'nh-chart' + (heatmap ? ' nh-heatmap' : '')} ref={hostRef}>
           {status !== 'ready' ? (
             <span className="nh-chart__status">
               {status === 'loading'
@@ -344,10 +365,13 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   )
 }
 
-const y2InUse = (c: Record<string, unknown>) =>
-  effectiveSeries(c as ChartConfig).some((s) => s.axis === 'y2')
-const yInUse = (c: Record<string, unknown>) =>
-  effectiveSeries(c as ChartConfig).some((s) => s.axis !== 'y2')
+const y2InUse = (c: Record<string, unknown>) => effectiveSeries(c as ChartConfig).some((s) => s.axis === 'y2')
+const yInUse = (c: Record<string, unknown>) => effectiveSeries(c as ChartConfig).some((s) => s.axis !== 'y2')
+const isPlot = (c: Record<string, unknown>) => (c as ChartConfig).mode !== 'heatmap'
+const isGrouped = (c: Record<string, unknown>) => {
+  const g = (c as ChartConfig).groupBy
+  return g !== undefined && g !== 'none'
+}
 
 export const chartWidget: WidgetDefinition<ChartConfig> = {
   type: 'chart',
@@ -365,10 +389,40 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
     live: true,
     thresholds: [],
     maxPoints: DEFAULT_MAX_POINTS,
+    groupBy: 'none',
+    mode: 'series',
+    expand: true,
   }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'series', type: 'chartseries', label: 'Series' },
+    {
+      key: 'mode',
+      type: 'select',
+      label: 'Chart type',
+      options: [
+        { value: 'series', label: 'Time series' },
+        { value: 'heatmap', label: 'Heatmap (hour by weekday)' },
+      ],
+      hint: 'A heatmap shows the first series only, coloured by its aggregate for each hour of each weekday.',
+    },
+    {
+      key: 'groupBy',
+      type: 'select',
+      label: 'Group by',
+      options: [
+        { value: 'none', label: 'Nothing (raw history)' },
+        { value: 'hour', label: 'Hour' },
+        { value: 'day', label: 'Day' },
+        { value: 'week', label: 'Week' },
+        { value: 'month', label: 'Month' },
+        { value: 'hourOfDay', label: 'Hour of day' },
+        { value: 'dayOfWeek', label: 'Day of week' },
+        { value: 'monthOfYear', label: 'Month of year' },
+      ],
+      showIf: isPlot,
+      hint: 'Buckets the history before plotting. Each series reduces its bucket with its own function (set per series above). Live updates pause while grouping, since a raw reading cannot be added to a finished bucket.',
+    },
     {
       key: 'period',
       type: 'select',
@@ -382,22 +436,30 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       hint: 'Quick range chips on the widget. Dragging on the chart zooms in; double-click resets.',
     },
     {
+      key: 'expand',
+      type: 'boolean',
+      label: 'Full-screen button',
+      hint: 'Adds ⤢ to the chart, opening it full screen with calendar navigation (a day, week, month or year at a time).',
+    },
+    {
       key: 'legend',
       type: 'boolean',
       label: 'Legend',
       hint: 'Shown when the chart has two or more series; clicking an entry hides its series.',
+      showIf: isPlot,
     },
     {
       key: 'live',
       type: 'boolean',
       label: 'Live updates',
       hint: 'Append item changes as they happen, between history refreshes.',
+      showIf: (c) => isPlot(c) && !isGrouped(c),
     },
-    { key: 'thresholds', type: 'chartthresholds', label: 'Thresholds' },
-    { key: 'yMin', type: 'number', label: 'Y axis min', showIf: yInUse },
-    { key: 'yMax', type: 'number', label: 'Y axis max', showIf: yInUse },
-    { key: 'y2Min', type: 'number', label: 'Right Y axis min', showIf: y2InUse },
-    { key: 'y2Max', type: 'number', label: 'Right Y axis max', showIf: y2InUse },
+    { key: 'thresholds', type: 'chartthresholds', label: 'Thresholds', showIf: isPlot },
+    { key: 'yMin', type: 'number', label: 'Y axis min', showIf: (c) => isPlot(c) && yInUse(c) },
+    { key: 'yMax', type: 'number', label: 'Y axis max', showIf: (c) => isPlot(c) && yInUse(c) },
+    { key: 'y2Min', type: 'number', label: 'Right Y axis min', showIf: (c) => isPlot(c) && y2InUse(c) },
+    { key: 'y2Max', type: 'number', label: 'Right Y axis max', showIf: (c) => isPlot(c) && y2InUse(c) },
     { key: 'service', type: 'text', label: 'Persistence service (optional)' },
     { key: 'refresh', type: 'number', label: 'Refresh (seconds)', min: 10 },
     {
@@ -409,6 +471,8 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
     },
   ],
   itemKeys: (config) =>
-    config.live === false ? [] : [...new Set(effectiveSeries(config).map((s) => s.item))],
+    config.live === false || (config.groupBy !== undefined && config.groupBy !== 'none') || config.mode === 'heatmap'
+      ? []
+      : [...new Set(effectiveSeries(config).map((s) => s.item))],
   Component: ChartWidget,
 }

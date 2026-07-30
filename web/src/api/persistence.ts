@@ -15,6 +15,8 @@ export interface HistoryOptions {
   serviceId?: string
   /** Also return one value just outside the window, so the state AT the start is known. */
   boundary?: boolean
+  /** End of the window; omitted means "up to now" (a closed window for calendar navigation). */
+  endTime?: Date
   signal?: AbortSignal
 }
 
@@ -25,6 +27,7 @@ export async function getItemHistory(
   opts: HistoryOptions = {}
 ): Promise<HistoryPoint[]> {
   const params = new URLSearchParams({ starttime: startTime.toISOString() })
+  if (opts.endTime) params.set('endtime', opts.endTime.toISOString())
   if (opts.serviceId) params.set('serviceId', opts.serviceId)
   if (opts.boundary) params.set('boundary', 'true')
   const dto = await api.get<ItemHistory>(

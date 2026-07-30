@@ -125,6 +125,39 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
           </div>
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
+              <span>{t('Draw as')}</span>
+              <select
+                value={s.kind === 'bar' ? 'bar' : 'line'}
+                onChange={(e) => patch(i, { kind: e.target.value === 'bar' ? 'bar' : undefined })}
+              >
+                <option value="line">{t('Line')}</option>
+                <option value="bar">{t('Bars')}</option>
+              </select>
+            </label>
+            <label className="nh-chartcard__cell">
+              <span>{t('Aggregate')}</span>
+              <select
+                value={s.aggregate ?? 'average'}
+                onChange={(e) =>
+                  patch(i, {
+                    aggregate:
+                      e.target.value === 'average' ? undefined : (e.target.value as ChartSeries['aggregate']),
+                  })
+                }
+              >
+                <option value="average">{t('Average (time-weighted)')}</option>
+                <option value="min">{t('Minimum')}</option>
+                <option value="max">{t('Maximum')}</option>
+                <option value="first">{t('First')}</option>
+                <option value="last">{t('Last')}</option>
+                <option value="sum">{t('Sum of readings')}</option>
+                <option value="count">{t('Number of readings')}</option>
+              </select>
+              <span className="nh-chartcard__hint">{t('Used when the chart groups by a period or a category.')}</span>
+            </label>
+          </div>
+          <div className="nh-chartcard__row">
+            <label className="nh-chartcard__cell">
               <span>{t('Line width')}</span>
               <input
                 type="number"

@@ -18,6 +18,8 @@ export interface PlotSeries {
   fill: number
   mode: 'smooth' | 'linear' | 'step'
   points: boolean
+  /** Bars suit aggregated buckets (a sum per day); lines suit a continuous reading. */
+  kind?: 'line' | 'bar'
 }
 
 export interface PlotThreshold {
@@ -32,6 +34,12 @@ export interface PlotParams {
   host: HTMLElement
   series: PlotSeries[]
   thresholds: PlotThreshold[]
+  /**
+   * 'time' plots timestamps; 'category' plots bucket indexes (hour of day, day of week) with
+   * `categoryLabels` on the ticks and in the tooltip, since 3 means "03:00", not a moment.
+   */
+  xMode?: 'time' | 'category'
+  categoryLabels?: string[]
   yMin?: number
   yMax?: number
   y2Min?: number
@@ -79,12 +87,18 @@ export function createChart(p: PlotParams): ChartHandle {
   const scaleFor = (axis: 'y' | 'y2'): 'y' | 'y2' =>
     axis === 'y2' ? (hasY2 ? 'y2' : 'y') : hasY ? 'y' : 'y2'
 
+  const category = p.xMode === 'category'
+  const labels = p.categoryLabels ?? []
   const paths = {
     smooth: uPlot.paths.spline!(),
     linear: uPlot.paths.linear!(),
     // align 1 = step-after: an item holds its state until the next change
     step: uPlot.paths.stepped!({ align: 1 }),
+    // 0.85 of the slot, capped so a two-bucket chart doesn't draw two enormous slabs
+    bar: uPlot.paths.bars!({ size: [0.85, 60] }),
   }
+  /** A bucket index as its label ("Mon", "14"), or the raw value if there is no label for it. */
+  const categoryLabel = (v: number): string => labels[Math.round(v)] ?? String(v)
 
   const gradient =
     (color: string, peak: number): uPlot.Series.Fill =>
@@ -140,7 +154,8 @@ export function createChart(p: PlotParams): ChartHandle {
         `<span class="nh-chart__tt-val">${esc(p.formatValue(i - 1, v))}</span></div>`
     }
     if (!rows) return hideTooltip()
-    tt.innerHTML = `<div class="nh-chart__tt-time">${esc(timeFmt.format(new Date(x * 1000)))}</div>` + rows
+    const header = category ? categoryLabel(x) : timeFmt.format(new Date(x * 1000))
+    tt.innerHTML = `<div class="nh-chart__tt-time">${esc(header)}</div>` + rows
     tt.classList.add('nh-chart__tt--show')
     const overRect = u.over.getBoundingClientRect()
     const hostRect = host.getBoundingClientRect()
@@ -231,12 +246,25 @@ export function createChart(p: PlotParams): ChartHandle {
     },
     focus: { alpha: 0.35 },
     scales: {
-      x: { time: true },
+      x: { time: !category },
       ...(hasY ? { y: { range: range(p.yMin, p.yMax) } } : {}),
       ...(hasY2 ? { y2: { range: range(p.y2Min, p.y2Max) } } : {}),
     },
     axes: [
-      { ...axisStyle },
+      {
+        ...axisStyle,
+        ...(category
+          ? {
+              // one tick per bucket, named; uPlot's numeric splits would read 0, 5, 10…
+              splits: (_u: uPlot, _ax: number, min: number, max: number) => {
+                const out: number[] = []
+                for (let v = Math.ceil(min); v <= Math.floor(max); v++) out.push(v)
+                return out
+              },
+              values: (_u: uPlot, splits: number[]) => splits.map(categoryLabel),
+            }
+          : {}),
+      },
       ...(hasY ? [{ ...axisStyle, scale: 'y' } as uPlot.Axis] : []),
       // the horizontal gridlines belong to whichever y axis exists; never draw them twice
       ...(hasY2
@@ -252,9 +280,15 @@ export function createChart(p: PlotParams): ChartHandle {
           stroke: s.color,
           width: s.width,
           spanGaps: true,
-          paths: paths[s.mode],
+          paths: s.kind === 'bar' ? paths.bar : paths[s.mode],
           points: { show: s.points, size: 6, stroke: s.color, fill: s.color },
-          fill: s.fill > 0 ? gradient(s.color, Math.min(1, s.fill / 100)) : undefined,
+          // bars are filled solid: a gradient that fades to nothing would erase their base
+          fill:
+            s.kind === 'bar'
+              ? alpha(s.color, Math.min(1, (s.fill > 0 ? s.fill : 70) / 100))
+              : s.fill > 0
+                ? gradient(s.color, Math.min(1, s.fill / 100))
+                : undefined,
         })
       ),
     ],

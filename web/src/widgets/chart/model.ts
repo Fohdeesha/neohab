@@ -2,10 +2,19 @@
  * Chart widget config model. Kept free of uPlot imports so the settings editors and importer
  * can use it without pulling the chart chunk into the main bundle.
  */
+import type { AggregateFunction, GroupBy } from './aggregate'
 
 export interface ChartSeries {
   item: string
   label?: string
+  /**
+   * How this series' samples are reduced inside each bucket when the chart groups (see
+   * ChartConfig.groupBy). Two series on the same item with `average` and `max` are a normal and
+   * useful pairing, which is why this is per series while the grouping is per chart.
+   */
+  aggregate?: AggregateFunction
+  /** Bars suit aggregated buckets; lines suit a continuous reading. Default line. */
+  kind?: 'line' | 'bar'
   /** CSS color; empty/undefined = automatic palette slot by series position. */
   color?: string
   /** Which y axis the series plots on. Default left ('y'); 'y2' adds a right axis. */
@@ -32,6 +41,19 @@ export interface ChartThreshold {
 export interface ChartConfig {
   /** Legacy single-item shape; used only when `series` is absent or empty. */
   item?: string
+  /**
+   * Bucket the history before plotting: fixed periods (per hour/day/week/month) or categories
+   * (hour of day, day of week, month of year). Chart-level, not per series: two series on
+   * different axes of time would make the x axis meaningless.
+   */
+  groupBy?: GroupBy
+  /**
+   * 'heatmap' replaces the plot with an hour-by-weekday matrix of the FIRST series, aggregated
+   * with that series' function - the one view a time-series plot cannot give.
+   */
+  mode?: 'series' | 'heatmap'
+  /** Offer the full-screen view with calendar navigation (default on). */
+  expand?: boolean
   series?: ChartSeries[]
   label?: string
   period?: string

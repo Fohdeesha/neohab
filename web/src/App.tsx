@@ -11,6 +11,7 @@ import { useRoute } from './app/router'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
 import { SettingsView } from './app/SettingsView'
+import { ChartView } from './app/ChartView'
 import { Sidebar } from './app/Sidebar'
 import { useSidebarLayout } from './store/sidebar'
 import { Toast } from './components/Toast'
@@ -91,6 +92,8 @@ export default function App() {
           <Home ohVersion={ohVersion} />
         ) : route.name === 'settings' ? (
           <SettingsView />
+        ) : route.name === 'chart' ? (
+          <ChartView dashboardId={route.dashboard} widgetId={route.widget} />
         ) : (
           <DashboardView id={route.id} />
         )}

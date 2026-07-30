@@ -53,9 +53,15 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   per-series colors and styles (smooth/linear/stepped lines, gradient fills, points), left and
   right y-axes with fixed or automatic ranges, threshold lines and shaded bands, a legend that
   toggles series on and off, a crosshair tooltip, quick time-range switching from an hour to a
-  year, drag-to-zoom, and live updating as item states change. A timeline widget shows the
-  same history as colored state bands — one row per item, with configurable state colors —
-  which is the right shape for switches, presence and modes.
+  year, drag-to-zoom, and live updating as item states change. History can also be grouped
+  before it is drawn — per hour, day, week or month, or by hour of day, day of week or month of
+  year — with each series reducing its bucket its own way (time-weighted average, min, max,
+  first, last, sum or count of readings), drawn as lines or bars. A heatmap mode shows one
+  series as an hour-by-weekday matrix, which is how you see *when* something happens. Any chart
+  opens full screen from a ⤢ button, where you can walk backwards and forwards a day, week,
+  month or year at a time. A timeline widget shows the same history as colored state bands —
+  one row per item, with configurable state colors — which is the right shape for switches,
+  presence and modes.
 - **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
   or any camera that serves its own stream. Point it at a camera server and pick a camera, or
   paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
