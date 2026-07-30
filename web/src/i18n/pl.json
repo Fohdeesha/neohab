@@ -648,6 +648,7 @@
   "tablets": "tabletach",
   "Tablets": "Tablety",
   "Tablets then show the desktop layout again, as they do without a tablet layout.": "Tablety pokażą wtedy ponownie układ komputerowy, tak jak bez układu na tablet.",
+  "Tap to add, or drag onto the dashboard to place it.": "Dotknij, aby dodać, albo przeciągnij na pulpit, aby umieścić w wybranym miejscu.",
   "Template": "Szablon",
   "Template (HTML)": "Szablon (HTML)",
   "Template engine failed to load: {{error}}": "Nie udało się wczytać silnika szablonów: {{error}}",

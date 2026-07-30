@@ -35,6 +35,8 @@ import {
 } from '../model/layout'
 import {
   addToSelection,
+  addWidgetAt,
+  cancelPlacing,
   clearSelection,
   selectWidget,
   setSelection,
@@ -122,10 +124,12 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const bp = useEditorStore((s) => s.bp)
+  const placing = useEditorStore((s) => s.placing)
   // Editing the tablet layout works on the projection: that breakpoint's rects and column count
   // sit in the lg slots, so the drag, bump and free-spot maths below need no special case. The
   // store writes every rect back into the breakpoint it came from.
   const dashboard = projectDashboard(draft, bp)
+  const [placeTarget, setPlaceTarget] = useState<{ rect: Rect; valid: boolean } | null>(null)
   const containerWidth = useContainerWidth(containerRef)
   const gridSurface = useGridEditSurface()
   const dwellRef = useRef<number | null>(null)
@@ -161,6 +165,48 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     clearLongPress()
   }, [])
 
+  /**
+   * Palette drag-to-place. The press began on a palette card, so those pointer events are not
+   * ours: follow them at window level, preview the drop cell, and place on release. A release
+   * outside the grid (or on an occupied cell) cancels instead of guessing a spot.
+   */
+  useEffect(() => {
+    if (!placing) {
+      setPlaceTarget(null)
+      return
+    }
+    const targetFor = (clientX: number, clientY: number): { rect: Rect; valid: boolean } | null => {
+      const el = containerRef.current
+      if (!el) return null
+      const box = el.getBoundingClientRect()
+      if (clientX < box.left || clientX > box.right || clientY < box.top || clientY > box.bottom) return null
+      const m = cellMetrics(dashRef.current, el.clientWidth)
+      const rect = clampRect(
+        {
+          x: Math.floor((clientX - box.left) / (m.colWidth + m.gap)),
+          y: Math.floor((clientY - box.top) / (m.rowHeight + m.gap)),
+          w: placing.w,
+          h: placing.h,
+        },
+        dashRef.current.columns
+      )
+      return { rect, valid: !overlapsAny(dashRef.current, rect) }
+    }
+    const onMove = (e: PointerEvent) => setPlaceTarget(targetFor(e.clientX, e.clientY))
+    const onUp = (e: PointerEvent) => {
+      const hit = targetFor(e.clientX, e.clientY)
+      if (hit?.valid) addWidgetAt(hit.rect)
+      else cancelPlacing()
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', cancelPlacing)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', cancelPlacing)
+    }
+  }, [placing])
 
   if (gridSurface !== true) {
     // The phone surface edits the stack itself (and its order), which has no breakpoints.
@@ -431,6 +477,18 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
         />
       ) : null}
 
+      {/* palette drag-to-place preview: where the new widget would land */}
+      {placeTarget ? (
+        <div
+          className={'nh-drop nh-drop--place' + (placeTarget.valid ? '' : ' nh-drop--invalid')}
+          style={{
+            gridColumn: `${placeTarget.rect.x + 1} / span ${placeTarget.rect.w}`,
+            gridRow: `${placeTarget.rect.y + 1} / span ${placeTarget.rect.h}`,
+          }}
+        >
+          <span className="nh-drop__label">{placing?.name}</span>
+        </div>
+      ) : null}
 
       {/* rubber-band selection box */}
       {marquee ? (

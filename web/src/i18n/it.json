@@ -592,6 +592,7 @@
   "tablets": "tablet",
   "Tablets": "Tablet",
   "Tablets then show the desktop layout again, as they do without a tablet layout.": "I tablet mostreranno di nuovo il layout desktop, come quando non ne esiste uno per tablet.",
+  "Tap to add, or drag onto the dashboard to place it.": "Tocca per aggiungere, oppure trascina sulla dashboard per posizionarlo.",
   "Template": "Template",
   "Template (HTML)": "Template (HTML)",
   "Template engine failed to load: {{error}}": "Impossibile caricare il motore dei template: {{error}}",

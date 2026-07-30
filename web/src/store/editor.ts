@@ -46,6 +46,23 @@ interface EditorState {
    * this breakpoint's slot.
    */
   bp: 'lg' | 'md'
+  /**
+   * A widget being dragged out of the palette onto the grid. Set once the press on a palette
+   * card has clearly moved; the grid then previews where it would land and places it on release.
+   * Null the rest of the time, so nothing about the normal editor path changes.
+   */
+  placing: PlacingWidget | null
+}
+
+/** The widget a palette drag is carrying: what to create, and how big it is on the grid. */
+export interface PlacingWidget {
+  type: string
+  /** Config the palette wants on the new instance (a custom widget's definition reference). */
+  configOverrides?: Record<string, unknown>
+  /** Name shown in the drop placeholder, so the target is identifiable under a finger. */
+  name: string
+  w: number
+  h: number
 }
 
 export const useEditorStore = create<EditorState>(() => ({
@@ -63,6 +80,7 @@ export const useEditorStore = create<EditorState>(() => ({
   paletteOpen: false,
   dashSettingsOpen: false,
   bp: 'lg',
+  placing: null,
 }))
 
 const clone = <T>(value: T): T => structuredClone(value)
@@ -83,6 +101,7 @@ export function startEditing(dashboard: Dashboard): void {
     paletteOpen: false,
     dashSettingsOpen: false,
     bp: 'lg',
+    placing: null,
   })
 }
 
@@ -102,6 +121,7 @@ export function stopEditing(): void {
     paletteOpen: false,
     dashSettingsOpen: false,
     bp: 'lg',
+    placing: null,
   })
 }
 
@@ -290,6 +310,41 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
   useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false })
 }
 
+/**
+ * Palette drag-to-place. The palette starts it, the grid previews it, and `addWidgetAt` finishes
+ * it - the same `applyChange` path as any other edit, so it is one undo step and Save persists it
+ * like everything else.
+ */
+export function startPlacing(placing: PlacingWidget): void {
+  useEditorStore.setState({ placing })
+}
+
+export function cancelPlacing(): void {
+  if (useEditorStore.getState().placing) useEditorStore.setState({ placing: null })
+}
+
+/** Drop the widget being placed at an exact grid rect. Returns false if there was nothing to do. */
+export function addWidgetAt(rect: Rect): boolean {
+  const s = useEditorStore.getState()
+  const placing = s.placing
+  if (!placing || !s.draft) return false
+  const def = getWidgetDefinition(placing.type)
+  if (!def) {
+    useEditorStore.setState({ placing: null })
+    return false
+  }
+  const id = newWidgetId()
+  applyChange((draft) => {
+    draft.widgets.push({
+      id,
+      type: placing.type,
+      config: { ...(def.defaultConfig() as Record<string, unknown>), ...placing.configOverrides },
+      layout: layoutForNew(draft, s.bp, rect),
+    })
+  })
+  useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false, placing: null })
+  return true
+}
 
 export function removeWidget(id: string): void {
   removeWidgets([id])
@@ -403,7 +458,7 @@ export function setEditBreakpoint(bp: 'lg' | 'md'): void {
       for (const w of draft.widgets) w.layout = { ...w.layout, md: rects.get(w.id) ?? rectOf(w) }
     })
   }
-  useEditorStore.setState({ bp, selectedIds: [], panelOpen: false })
+  useEditorStore.setState({ bp, selectedIds: [], panelOpen: false, placing: null })
 }
 
 /**

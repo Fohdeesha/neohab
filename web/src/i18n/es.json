@@ -592,6 +592,7 @@
   "tablets": "tabletas",
   "Tablets": "Tabletas",
   "Tablets then show the desktop layout again, as they do without a tablet layout.": "Las tabletas volverán a mostrar el diseño de escritorio, como cuando no hay uno de tableta.",
+  "Tap to add, or drag onto the dashboard to place it.": "Toca para añadir, o arrastra al panel para colocarlo.",
   "Template": "Plantilla",
   "Template (HTML)": "Plantilla (HTML)",
   "Template engine failed to load: {{error}}": "No se pudo cargar el motor de plantillas: {{error}}",

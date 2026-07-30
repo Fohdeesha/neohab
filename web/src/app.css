@@ -1086,6 +1086,28 @@ button {
   background: color-mix(in srgb, #e53935 12%, transparent);
 }
 
+/* Palette drag-to-place: the target cell, named so it is identifiable under a finger. */
+.nh-drop--place {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.nh-drop__label {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-primary);
+  color: var(--nh-text);
+  font-size: 0.8rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /*
  * A widget that is hidden on some screen size still shows here in edit mode - dimmed, with a ◌ on
  * its handle - because a widget you cannot see is a widget you cannot un-hide.
@@ -1348,6 +1370,32 @@ button {
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
   border-radius: 10px;
+}
+
+/* A card is dragged with the pointer, so the browser must not treat the move as a scroll. */
+.nh-palette__card {
+  touch-action: none;
+}
+
+.nh-palette__hint {
+  margin: 0 0 10px;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+}
+
+/*
+ * A sheet that has stepped aside: the palette does this while a card is being dragged onto the
+ * grid, which the sheet would otherwise cover. Still mounted (the drag's pointer events belong
+ * to a card inside it) but out of the way and untouchable.
+ */
+.nh-sheet--collapsed {
+  transform: translateY(calc(100% - 44px));
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.nh-sheet--side.nh-sheet--collapsed {
+  transform: translateX(calc(100% - 44px));
 }
 
 .nh-palette__card:hover {

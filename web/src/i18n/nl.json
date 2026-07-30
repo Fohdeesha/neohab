@@ -592,6 +592,7 @@
   "tablets": "tablets",
   "Tablets": "Tablets",
   "Tablets then show the desktop layout again, as they do without a tablet layout.": "Tablets tonen dan weer de desktopindeling, net als zonder tabletindeling.",
+  "Tap to add, or drag onto the dashboard to place it.": "Tik om toe te voegen, of sleep naar het dashboard om het te plaatsen.",
   "Template": "Sjabloon",
   "Template (HTML)": "Sjabloon (HTML)",
   "Template engine failed to load: {{error}}": "De sjabloon-engine kon niet worden geladen: {{error}}",

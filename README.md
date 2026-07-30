@@ -40,7 +40,8 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   widget — and nothing is written until you say so.
 - **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
   resize, delete them from a button on the widget, undo/redo anything, and save when you are
-  ready (Save returns you to the live dashboard). Dropping onto an occupied spot rejects by
+  ready (Save returns you to the live dashboard). New widgets can be tapped into the first free
+  spot or dragged out of the palette straight onto the cell you want. Dropping onto an occupied spot rejects by
   default; hold there for a moment and the widgets in the way step aside — swapping with a
   same-size neighbour, or shuffling down. Select several widgets at once (Ctrl/Cmd- or
   Shift-click, a drag-a-box marquee, or long-press on touch) to copy, cut or delete them

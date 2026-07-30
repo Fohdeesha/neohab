@@ -592,6 +592,7 @@
   "tablets": "tablettes",
   "Tablets": "Tablettes",
   "Tablets then show the desktop layout again, as they do without a tablet layout.": "Les tablettes réafficheront la disposition bureau, comme lorsqu'il n'y a pas de disposition tablette.",
+  "Tap to add, or drag onto the dashboard to place it.": "Touchez pour ajouter, ou faites glisser sur le tableau de bord pour le placer.",
   "Template": "Modèle",
   "Template (HTML)": "Modèle (HTML)",
   "Template engine failed to load: {{error}}": "Le moteur de modèles n'a pas pu se charger : {{error}}",
