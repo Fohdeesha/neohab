@@ -36,6 +36,20 @@ if (!BASE) {
 
 export const APP = BASE + '/neohab/index.html'
 export const NS = BASE + '/rest/ui/components/neohab:config'
+/**
+ * The version history's own namespaces: the index, and the snapshots plus shared image bodies.
+ * Separate from the configuration, and just as much a user's data - the snapshot/wipe/restore
+ * tools cover all three, so a wipe cycle cannot destroy someone's restore points.
+ */
+export const HISTORY_NS = BASE + '/rest/ui/components/neohab:history'
+export const HISTORY_DATA_NS = BASE + '/rest/ui/components/neohab:historydata'
+
+/** Every namespace neohab owns, in the order a restore should write them. */
+export const ALL_NS = [
+  ['config', NS],
+  ['history', HISTORY_NS],
+  ['historydata', HISTORY_DATA_NS],
+]
 
 function loadToken() {
   if (process.env.NEOHAB_E2E_TOKEN) return process.env.NEOHAB_E2E_TOKEN.trim()

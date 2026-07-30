@@ -89,17 +89,26 @@ An existing dashboard of the same name is never overwritten — the generator de
 id (`kitchen` -> `kitchen-2`), which is one of the things that suite checks.
 
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
-`e2e-importer.mjs`): these test the empty-server flows (onboarding, first import, full
-backup restore) and their cleanup **deletes the entire `neohab:config` namespace**. Each one
-carries a guard that aborts before touching anything if the namespace is not empty, so they
-cannot eat a live configuration by accident — but the intended way to run them is:
+`e2e-importer.mjs`, `e2e-history.mjs`): these test the empty-server flows (onboarding, first
+import, full backup restore, the first restore point) and their cleanup **deletes every neohab
+namespace**. Each one carries a guard that aborts before touching anything if the namespaces are
+not empty, so they cannot eat a live configuration by accident — but the intended way to run them
+is:
 
 ```
-node tools/config-snapshot.mjs snapshot.json   # save the live configuration
-node tools/config-wipe.mjs --yes               # empty the namespace
-node e2e.mjs && node e2e-editor.mjs && ...     # run the wipe-cycle suites
-node tools/config-restore.mjs snapshot.json    # put the configuration back (verifies content)
+node tools/config-snapshot.mjs snapshot.json          # save the live configuration
+node tools/config-wipe.mjs --yes --snapshot snapshot.json   # empty the namespaces
+node e2e.mjs && node e2e-editor.mjs && ...            # run the wipe-cycle suites
+node tools/config-restore.mjs snapshot.json           # put it back (verifies content)
 ```
+
+The tools cover all three namespaces neohab owns — `neohab:config`, plus `neohab:history` (the
+version-history index) and `neohab:historydata` (its snapshots and shared images). Restore points
+are a user's data too, so a wipe that dropped them could not be undone.
+
+Note that every suite that saves configuration through the app now also leaves restore points
+behind, since that is what the history is for. They are pruned to the retention limit like any
+other, and a wipe-cycle run starts from an empty history by definition.
 
 Never take the snapshot while a suite is running — you would capture its temporary
 components and restore them as if they were yours.

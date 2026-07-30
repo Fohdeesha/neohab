@@ -1,41 +1,25 @@
 /**
- * Restores a namespace snapshot taken with config-snapshot.mjs and verifies the result
- * content-matches it: `node tools/config-restore.mjs snapshot.json`.
+ * Restores a snapshot taken with config-snapshot.mjs and verifies the result content-matches it:
+ * `node tools/config-restore.mjs snapshot.json`.
+ *
+ * Covers every neohab namespace (`neohab:config`, and the version history in `neohab:history`
+ * and `neohab:historydata`); a bare array is accepted as a configuration-only snapshot from
+ * before the history existed.
  *
  * Numbers are normalized before comparing (the server's JSON round-trip echoes 1 as 1.0)
  * and the server-managed timestamp is ignored.
  */
 import { readFileSync } from 'node:fs'
-import { AUTH, NS } from '../lib/target.mjs'
+import { ALL_NS, AUTH } from '../lib/target.mjs'
 
 const file = process.argv[2]
 if (!file) {
   console.error('usage: node tools/config-restore.mjs <file.json>')
   process.exit(2)
 }
-const snapshot = JSON.parse(readFileSync(file, 'utf8'))
+const raw = JSON.parse(readFileSync(file, 'utf8'))
+const snapshot = Array.isArray(raw) ? { config: raw } : raw
 
-const existing = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
-const existingSet = new Set(existing)
-
-let failed = 0
-for (const c of snapshot) {
-  const { timestamp, ...body } = c
-  const url = existingSet.has(c.uid) ? NS + '/' + encodeURIComponent(c.uid) : NS
-  const method = existingSet.has(c.uid) ? 'PUT' : 'POST'
-  const res = await fetch(url, {
-    method,
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    console.error(method, 'failed for', c.uid, res.status)
-    failed++
-  }
-}
-
-// verify: every snapshot component exists with identical content (timestamp excluded,
-// numbers normalized so 1 == 1.0)
 const normalize = (v) => {
   if (Array.isArray(v)) return v.map(normalize)
   if (v && typeof v === 'object') {
@@ -49,22 +33,53 @@ const normalize = (v) => {
   if (typeof v === 'number') return Number(v)
   return v
 }
-const live = await (await fetch(NS, { headers: AUTH })).json()
-const liveByUid = new Map(live.map((c) => [c.uid, c]))
+
+let failed = 0
 let mismatches = 0
-for (const c of snapshot) {
-  const found = liveByUid.get(c.uid)
-  const same = found && JSON.stringify(normalize(found)) === JSON.stringify(normalize(c))
-  if (!same) {
-    console.error('MISMATCH after restore:', c.uid)
-    mismatches++
+let extras = 0
+let written = 0
+let expected = 0
+
+for (const [kind, url] of ALL_NS) {
+  const want = snapshot[kind] ?? []
+  expected += want.length
+  const existingSet = new Set((await (await fetch(url, { headers: AUTH })).json()).map((c) => c.uid))
+
+  for (const c of want) {
+    const { timestamp, ...body } = c
+    const exists = existingSet.has(c.uid)
+    const res = await fetch(exists ? url + '/' + encodeURIComponent(c.uid) : url, {
+      method: exists ? 'PUT' : 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (res.ok) written++
+    else {
+      console.error(kind, exists ? 'PUT' : 'POST', 'failed for', c.uid, res.status)
+      failed++
+    }
+  }
+
+  // verify: every snapshot component exists with identical content (timestamp excluded,
+  // numbers normalized so 1 == 1.0), and nothing else is left behind
+  const live = await (await fetch(url, { headers: AUTH })).json()
+  const liveByUid = new Map(live.map((c) => [c.uid, c]))
+  for (const c of want) {
+    const found = liveByUid.get(c.uid)
+    if (!(found && JSON.stringify(normalize(found)) === JSON.stringify(normalize(c)))) {
+      console.error(`MISMATCH after restore (${kind}):`, c.uid)
+      mismatches++
+    }
+  }
+  for (const c of live) {
+    if (!want.some((s) => s.uid === c.uid)) {
+      console.error(`EXTRA ${kind} component not in snapshot:`, c.uid)
+      extras++
+    }
   }
 }
-const extras = live.filter((c) => !snapshot.some((s) => s.uid === c.uid))
-for (const c of extras) console.error('EXTRA component not in snapshot:', c.uid)
 
 console.log(
-  `restore: ${snapshot.length - failed}/${snapshot.length} written, ` +
-    `${snapshot.length - mismatches}/${snapshot.length} verified identical, ${extras.length} extras`
+  `restore: ${written}/${expected} written, ${expected - mismatches}/${expected} verified identical, ${extras} extras`
 )
-process.exitCode = failed === 0 && mismatches === 0 && extras.length === 0 ? 0 : 1
+process.exitCode = failed === 0 && mismatches === 0 && extras === 0 ? 0 : 1
