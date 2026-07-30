@@ -81,7 +81,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   shares live item states between its tabs. If updates ever do stop arriving, the dashboard says
   so instead of quietly showing you old readings.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
-  restore by replacing everything or merging a backup into what you have.
+  restore by replacing everything or merging a backup into what you have. A single dashboard,
+  custom widget or theme can also be exported on its own, and it takes the things it uses with
+  it (the custom widgets, uploaded icons and background it references), so it works on someone
+  else's server. Importing one offers it as a numbered copy, leaving anything of yours with the
+  same name untouched — or overwrites it deliberately, if that is what you meant.
 - **Version history** — every change is preceded by a restore point, so you can look back through
   a dated list, see exactly what changed at each one (down to the individual fields, before and
   after), and put the whole configuration back to any of them. Points are named by date and can

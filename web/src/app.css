@@ -1449,7 +1449,8 @@ button {
   font-size: 0.9rem;
 }
 
-.nh-theme__edit {
+.nh-theme__edit,
+.nh-theme__export {
   position: absolute;
   right: 6px;
   top: 6px;
@@ -1460,6 +1461,11 @@ button {
   border: 1px solid var(--nh-border);
   border-radius: 7px;
   color: var(--nh-text);
+}
+
+/* sits to the left of the pencil, same size, so both stay reachable on a narrow card */
+.nh-theme__export {
+  right: 40px;
 }
 
 .nh-themeeditor {

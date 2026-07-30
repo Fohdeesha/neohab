@@ -7,9 +7,12 @@ import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { IconPicker } from '../components/IconPicker'
 import { BackgroundField } from '../components/BackgroundField'
+import { downloadJson } from '../components/download'
 import type { Dashboard } from '../model/dashboard'
+import { partialFileName } from '../model/partial'
 import { setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
-import { collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
+import { buildDashboardExport, collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
+import { notify } from '../store/notify'
 import { navigate } from '../app/router'
 
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
@@ -29,6 +32,29 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
     }
     void collectUnusedBackgrounds()
     navigate({ name: 'home' })
+  }
+
+  /**
+   * Export this dashboard alone, with the custom widgets, icons and background it uses, so it
+   * can be shared or kept aside. The draft is exported, not the saved version, so what you see
+   * is what lands in the file.
+   */
+  const exportDashboard = async () => {
+    try {
+      const out = await buildDashboardExport(dashboard)
+      if (!out) return
+      downloadJson(partialFileName('dashboard', dashboard.id), out.bundle)
+      if (out.missing.length > 0) {
+        notify(
+          t('Exported, but {{count}} referenced item(s) no longer exist and were left out: {{list}}', {
+            count: out.missing.length,
+            list: out.missing.join(', '),
+          })
+        )
+      }
+    } catch (err) {
+      notify(t('Export failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+    }
   }
 
   const num = (raw: string, min: number, max: number): number | null => {
@@ -175,6 +201,9 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
       </div>
 
       <div className="nh-form__footer">
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => void exportDashboard()}>
+          {t('Export this dashboard…')}
+        </button>
         <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
           {t('Delete dashboard…')}
         </button>

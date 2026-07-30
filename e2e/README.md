@@ -88,6 +88,13 @@ records the namespace immediately before creating and deletes exactly the uids t
 An existing dashboard of the same name is never overwritten — the generator de-duplicates the
 id (`kitchen` -> `kitchen-2`), which is one of the things that suite checks.
 
+One more deliberate exception, for the same reason — the feature under test decides the id, so
+the suite cannot invent one:
+
+- `e2e-partial.mjs` imports partial exports, which can create a numbered copy
+  (`dashboard:nh-e2e-pdash-2`); it deletes its own prefixes, and because importing legitimately
+  writes a restore point it also snapshots and restores the two version-history namespaces.
+
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
 `e2e-importer.mjs`, `e2e-history.mjs`): these test the empty-server flows (onboarding, first
 import, full backup restore, the first restore point) and their cleanup **deletes every neohab

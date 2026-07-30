@@ -9,6 +9,8 @@ import {
   buildExportBundle,
   deleteTheme,
   importBundle,
+  importPartialBundle,
+  planPartialImportOnServer,
   saveSettings,
   saveTheme,
   useConfigStore,
@@ -16,6 +18,13 @@ import {
   type ExportBundle,
   type ImportMode,
 } from '../store/config'
+import {
+  looksPartial,
+  validatePartialBundle,
+  type PartialBundle,
+  type PartialImportMode,
+  type PartialPlan,
+} from '../model/partial'
 import {
   BUILTIN_THEMES,
   COLOR_TOKENS,
@@ -44,6 +53,7 @@ import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
+import { exportComponent } from '../editor/exportComponent'
 
 export function SettingsView() {
   const { t } = useTranslation()
@@ -107,14 +117,25 @@ export function SettingsView() {
                   <span className="nh-theme__name">{theme.name}</span>
                 </button>
                 {canEdit && customThemes.includes(theme) ? (
-                  <button
-                    type="button"
-                    className="nh-theme__edit"
-                    aria-label={t('Edit theme {{name}}', { name: theme.name })}
-                    onClick={() => setEditing(structuredClone(theme))}
-                  >
-                    ✎
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="nh-theme__export"
+                      aria-label={t('Export theme {{name}}', { name: theme.name })}
+                      title={t('Export this theme as a file')}
+                      onClick={() => void exportComponent('theme', theme.id, setNotice)}
+                    >
+                      ⭳
+                    </button>
+                    <button
+                      type="button"
+                      className="nh-theme__edit"
+                      aria-label={t('Edit theme {{name}}', { name: theme.name })}
+                      onClick={() => setEditing(structuredClone(theme))}
+                    >
+                      ✎
+                    </button>
+                  </>
                 ) : null}
               </div>
             ))}
@@ -949,6 +970,71 @@ function ThemeEditor({
   )
 }
 
+/**
+ * Confirmation card for a single-dashboard / widget / theme file. A copy never touches anything
+ * that is already here; overwrite is only offered when something would actually be replaced, and
+ * says exactly how much.
+ */
+function PartialImportCard({
+  state,
+  busy,
+  onRun,
+  onCancel,
+}: {
+  state: { bundle: PartialBundle; plan: PartialPlan }
+  busy: boolean
+  onRun: (mode: PartialImportMode) => void
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const { plan } = state
+  const kindLabel =
+    plan.kind === 'dashboard' ? t('Dashboard') : plan.kind === 'widgetdef' ? t('Custom widget') : t('Theme')
+  const deps = plan.dependencies.length
+  const conflicts = plan.conflicts.length
+  // Everything in the file is already here, byte for byte: there is nothing an import could do,
+  // so offering one would be a dead end that reports "nothing to import" after the round trip.
+  const nothingToDo =
+    plan.primary.status === 'identical' && plan.dependencies.every((d) => d.status === 'identical')
+
+  return (
+    <div className="nh-settings__importchoice">
+      <p className="nh-settings__text">
+        {t('{{kind}} “{{name}}” from a file, with {{count}} thing(s) it references.', {
+          kind: kindLabel,
+          name: plan.name,
+          count: deps,
+        })}
+      </p>
+      <p className="nh-settings__text">
+        {nothingToDo
+          ? t('This file matches what you already have, so there is nothing to import.')
+          : conflicts > 0
+            ? t(
+                'Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} item(s).',
+                { count: conflicts }
+              )
+            : t('Nothing here has these names, so nothing of yours is touched.')}
+      </p>
+      <div className="nh-settings__row">
+        {nothingToDo ? null : (
+          <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => onRun('copy')}>
+            {conflicts > 0 ? t('Import as a copy') : t('Import')}
+          </button>
+        )}
+        {conflicts > 0 ? (
+          <button type="button" className="nh-btn" disabled={busy} onClick={() => onRun('overwrite')}>
+            {t('Overwrite existing')}
+          </button>
+        ) : null}
+        <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={onCancel}>
+          {nothingToDo ? t('Close') : t('Cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
   const backgrounds = useConfigStore((s) => s.backgrounds)
@@ -956,6 +1042,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const [busy, setBusy] = useState(false)
   const [withBackgrounds, setWithBackgrounds] = useState(true)
   const [pending, setPending] = useState<ExportBundle | null>(null)
+  const [pendingPartial, setPendingPartial] = useState<{ bundle: PartialBundle; plan: PartialPlan } | null>(null)
 
   const exportConfig = async () => {
     onNotice(null)
@@ -975,19 +1062,71 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const importConfig = async (file: File) => {
     onNotice(null)
     setPending(null)
-    let bundle: ExportBundle
+    setPendingPartial(null)
+    let parsed: unknown
     try {
-      bundle = JSON.parse(await file.text()) as ExportBundle
+      parsed = JSON.parse(await file.text())
     } catch {
       onNotice(t('Import failed: that file is not valid JSON.'))
       return
     }
+    // One import button for both kinds of file: a single dashboard/widget/theme is offered as a
+    // copy or an overwrite, a whole-configuration backup as merge or replace.
+    if (looksPartial(parsed)) {
+      const invalid = validatePartialBundle(parsed)
+      if (invalid) {
+        onNotice(t('Import failed: {{error}}', { error: invalid }))
+        return
+      }
+      const bundle = parsed as PartialBundle
+      try {
+        setPendingPartial({ bundle, plan: await planPartialImportOnServer(bundle) })
+      } catch (err) {
+        onNotice(t('Import failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      }
+      return
+    }
+    const bundle = parsed as ExportBundle
     const invalid = validateBundle(bundle)
     if (invalid) {
       onNotice(t('Import failed: {{error}}', { error: invalid }))
       return
     }
     setPending(bundle)
+  }
+
+  const runPartialImport = async (mode: PartialImportMode) => {
+    if (!pendingPartial) return
+    if (
+      mode === 'overwrite' &&
+      !window.confirm(
+        t('Overwrite {{count}} existing item(s) with this file? The version history keeps a restore point.', {
+          count: pendingPartial.plan.conflicts.length,
+        })
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await importPartialBundle(pendingPartial.bundle, mode)
+      setPendingPartial(null)
+      onNotice(
+        result.written === 0
+          ? t('Nothing to import — that file matches what you already have.')
+          : result.renamed.length > 0
+            ? t('Imported as a copy: {{name}}.', { name: result.primaryUid.slice(result.primaryUid.indexOf(':') + 1) })
+            : t('Imported {{count}} item(s).', { count: result.written })
+      )
+    } catch (err) {
+      onNotice(
+        t('Import failed: {{error}} — are you signed in as an administrator?', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   const runImport = async (mode: ImportMode) => {
@@ -1019,7 +1158,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
       <h2 className="nh-settings__h">{t('Backup')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have.'
+          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have. The same Import button also takes a single dashboard, custom widget or theme file — those are offered as a copy so nothing of yours is replaced.'
         )}
       </p>
       {backgrounds.length > 0 ? (
@@ -1059,6 +1198,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
           }}
         />
       </div>
+      {pendingPartial ? <PartialImportCard state={pendingPartial} busy={busy} onRun={runPartialImport} onCancel={() => setPendingPartial(null)} /> : null}
       {pending ? (
         <div className="nh-settings__importchoice">
           <p className="nh-settings__text">

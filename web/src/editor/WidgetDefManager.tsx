@@ -18,6 +18,7 @@ import {
   type CustomWidgetDef,
   type WidgetDefSetting,
 } from '../model/widgetdef'
+import { exportComponent } from './exportComponent'
 
 const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
 
@@ -87,6 +88,14 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
                   {def.kind === 'js' ? t('JavaScript') : t('Template')}
                   {def.source ? ' · ' + t('imported from {{source}}', { source: def.source }) : ''}
                 </span>
+                <button
+                  type="button"
+                  className="nh-btn nh-btn--ghost"
+                  title={t('Export this widget as a file')}
+                  onClick={() => void exportComponent('widgetdef', def.id, onNotice)}
+                >
+                  {t('Export')}
+                </button>
                 <button type="button" className="nh-btn nh-btn--ghost" onClick={() => edit(def)}>
                   {t('Edit')}
                 </button>

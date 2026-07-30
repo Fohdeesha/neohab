@@ -68,6 +68,15 @@ export interface Dashboard {
   widgets: WidgetInstance[]
 }
 
+/**
+ * Fresh, collision-unlikely widget instance id. Ids double as keys for per-instance UI state
+ * (a chart's picked period), so anything creating widgets - the editor, a paste, an imported
+ * copy of a dashboard - mints them here.
+ */
+export function newWidgetId(): string {
+  return 'w-' + Math.random().toString(36).slice(2, 10)
+}
+
 export function createDashboard(id: string, name: string): Dashboard {
   return { version: MODEL_VERSION, id, name, columns: 12, rowHeight: 'match', widgets: [] }
 }

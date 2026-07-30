@@ -19,23 +19,32 @@ import type { UIComponent } from '../api/types'
 import type { CustomBackground } from '../model/background'
 import { BG_REF_PREFIX, isUploadedBackground } from '../model/background'
 import type { CustomIcon } from '../model/customIcon'
-import type { Dashboard } from '../model/dashboard'
+import { newWidgetId, type Dashboard } from '../model/dashboard'
+import {
+  buildPartialBundle,
+  planPartialImport,
+  resolvePartialImport,
+  type PartialBundle,
+  type PartialImportMode,
+  type PartialPlan,
+} from '../model/partial'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import type { Theme } from '../themes/themes'
 
-const DASHBOARD_PREFIX = 'dashboard:'
-const THEME_PREFIX = 'theme:'
-const WIDGETDEF_PREFIX = 'widgetdef:'
-const ICON_PREFIX = 'icon:'
-const BACKGROUND_PREFIX = 'background:'
-const SETTINGS_UID = 'settings'
-
-const DASHBOARD_COMPONENT = 'neohab:dashboard'
-const THEME_COMPONENT = 'neohab:theme'
-const WIDGETDEF_COMPONENT = 'neohab:widgetdef'
-const ICON_COMPONENT = 'neohab:icon'
-const BACKGROUND_COMPONENT = 'neohab:background'
-const SETTINGS_COMPONENT = 'neohab:settings'
+import {
+  BACKGROUND_COMPONENT,
+  BACKGROUND_PREFIX,
+  DASHBOARD_COMPONENT,
+  DASHBOARD_PREFIX,
+  ICON_COMPONENT,
+  ICON_PREFIX,
+  SETTINGS_COMPONENT,
+  SETTINGS_UID,
+  THEME_COMPONENT,
+  THEME_PREFIX,
+  WIDGETDEF_COMPONENT,
+  WIDGETDEF_PREFIX,
+} from '../model/components'
 
 export interface AppSettings {
   version: number
@@ -514,4 +523,89 @@ export async function importBundle(bundle: ExportBundle, mode: ImportMode): Prom
     }
   }
   await loadConfig()
+}
+
+/* --------------------------- partial export / import --------------------------- */
+
+/**
+ * All configuration components as they would be written: the live server list when there is one,
+ * otherwise the in-memory configuration (a fresh install that has never saved). Shared by the
+ * whole-configuration backup and the partial exports so both see the same thing.
+ */
+async function allComponents(): Promise<UIComponent[]> {
+  const s = useConfigStore.getState()
+  if (s.serverUids.size > 0) return listComponents()
+  return [
+    settingsComponent(s.settings) as unknown as UIComponent,
+    ...s.dashboards.map((d) => dashboardComponent(d)),
+    ...s.customThemes.map((t) => themeComponent(t)),
+    ...s.widgetDefs.map((d) => widgetDefComponent(d)),
+    ...s.customIcons.map((i) => iconComponent(i)),
+    ...s.backgrounds.map((b) => backgroundComponent(b)),
+  ] as unknown as UIComponent[]
+}
+
+export type PartialExport = { bundle: PartialBundle; missing: string[] }
+
+/**
+ * Build a one-widget-definition or one-theme export, with everything it references.
+ * Returns null when the component isn't there anymore.
+ */
+export async function buildComponentExport(kind: 'widgetdef' | 'theme', id: string): Promise<PartialExport | null> {
+  return buildPartialBundle(kind, id, await allComponents(), new Date().toISOString())
+}
+
+/**
+ * Build a one-dashboard export. The dashboard is passed in rather than looked up so the editor
+ * can export the draft it is showing - exporting a dashboard while it has unsaved changes must
+ * produce the dashboard on screen, not the last saved version. Dependencies are still resolved
+ * against the stored configuration, since that is where widget definitions and icons live.
+ */
+export async function buildDashboardExport(dashboard: Dashboard): Promise<PartialExport | null> {
+  const uid = DASHBOARD_PREFIX + dashboard.id
+  const rest = (await allComponents()).filter((c) => c.uid !== uid)
+  const components = [dashboardComponent(dashboard) as unknown as UIComponent, ...rest]
+  return buildPartialBundle('dashboard', dashboard.id, components, new Date().toISOString())
+}
+
+/**
+ * What a partial import would do, against what is actually stored (not this tab's cached idea
+ * of it): which incoming components are new, unchanged, or would collide.
+ */
+export async function planPartialImportOnServer(bundle: PartialBundle): Promise<PartialPlan> {
+  return planPartialImport(bundle, await listComponents())
+}
+
+export interface PartialImportResult {
+  primaryUid: string
+  renamed: [string, string][]
+  reused: string[]
+  written: number
+}
+
+/**
+ * Import a partial export. `copy` never touches an existing component (colliding ones are
+ * written under a free id with every reference rewritten); `overwrite` replaces them.
+ *
+ * One restore point covers the whole import ('bulk'), like the other multi-component writes.
+ */
+export async function importPartialBundle(
+  bundle: PartialBundle,
+  mode: PartialImportMode
+): Promise<PartialImportResult> {
+  await beforeConfigWrite('bulk')
+  const existing = await listComponents()
+  const resolved = resolvePartialImport(bundle, existing, mode, newWidgetId)
+  const have = new Set(existing.map((c) => c.uid))
+  for (const c of resolved.components) {
+    if (have.has(c.uid)) await updateComponent(c)
+    else await addComponent(c)
+  }
+  await loadConfig()
+  return {
+    primaryUid: resolved.primaryUid,
+    renamed: resolved.renamed,
+    reused: resolved.reused,
+    written: resolved.components.length,
+  }
 }
