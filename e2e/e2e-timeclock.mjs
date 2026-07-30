@@ -40,8 +40,25 @@ const settingsOrig = await (async () => {
 })()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
-const dimmerNow = Math.round(Number(dimmerOrig))
 console.log(`snapshot: ${dimmer}=${dimmerOrig}, settings ${settingsOrig ? 'present' : 'absent'}`)
+
+// Put the dimmer on a value of our own choosing and wait for it to settle, rather than reading
+// whatever it happens to hold. Run inside the battery, the item is driven by neighbouring suites
+// and by the server's own rules, which keep firing after a suite has exited - a colour map built
+// from a value read a moment earlier could then describe a band that is already history.
+const dimmerNow = Math.round(Number(dimmerOrig)) === 44 ? 46 : 44
+await postItem(dimmer, dimmerNow)
+{
+  const until = Date.now() + 10000
+  for (;;) {
+    if (Math.round(Number((await getItem(dimmer)).state)) === dimmerNow) break
+    if (Date.now() > until) {
+      console.log(`WARNING: ${dimmer} did not settle at ${dimmerNow}`)
+      break
+    }
+    await new Promise((r) => setTimeout(r, 200))
+  }
+}
 
 // The color map targets the dimmer's CURRENT value, so the current (rightmost) band must be
 // red whatever the item happens to sit at - and '64' must match a stored '64.0' band.
@@ -97,9 +114,20 @@ try {
   ok('temperature row has bands', tempBands > 0, `bands=${tempBands}`)
   ok('axis has four tick labels', (await page.locator('.nh-tl__axis span').count()) === 4)
 
-  // the current run (rightmost band) matches the numeric-tolerant color map -> red
+  // The current run (rightmost band) matches the numeric-tolerant color map -> red. Waited for
+  // rather than sampled: the band for a value set moments ago arrives either with the next
+  // persistence read or over the live stream, and sampling once races both. A map that did not
+  // work still fails here, it just takes the timeout to say so.
   const lastBand = page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').last()
-  const lastColor = await lastBand.evaluate((el) => getComputedStyle(el).backgroundColor)
+  const lastColor = await (async () => {
+    const until = Date.now() + 20000
+    let seen = ''
+    for (;;) {
+      seen = await lastBand.evaluate((el) => getComputedStyle(el).backgroundColor)
+      if (seen === 'rgb(255, 0, 0)' || Date.now() > until) return seen
+      await new Promise((r) => setTimeout(r, 500))
+    }
+  })()
   ok('color map (numeric-tolerant) colors the current band red', lastColor === 'rgb(255, 0, 0)', lastColor)
 
   // unmapped states get palette colors, not the explicit red
@@ -122,7 +150,7 @@ try {
 
   // ---------- live band extension ----------
   const before = await page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').count()
-  const target = dimmerNow === 57 ? 62 : 57
+  const target = dimmerNow === 57 ? 62 : 57 // a different value, so the band genuinely changes
   await postItem(dimmer, target)
   await page
     .waitForFunction(
