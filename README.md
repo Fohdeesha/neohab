@@ -21,7 +21,9 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   clipping. Stacked rows are full-width, so there they size their text to the room the row has
   rather than shrinking it to match a desktop. On top of the automatic sizing, text size is
   adjustable at every level: per dashboard, per widget, and per device (so a wall panel across
-  the room can run bigger text than your desk's monitor).
+  the room can run bigger text than your desk's monitor). Tablets can have a grid layout of
+  their own — a second arrangement, with its own column count, that starts as a copy of the
+  desktop one — and any widget can be left out on phones, tablets or desktops entirely.
 - **Navigate from anywhere** — a pull-out sidebar lists every dashboard, so switching is one tap
   from wherever you are. It slides the dashboard aside on desktop and overlays it on phones, and
   stays put until you pick something or click away — that click only dismisses it, so you never

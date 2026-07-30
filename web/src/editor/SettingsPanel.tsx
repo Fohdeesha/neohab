@@ -13,6 +13,7 @@ import { CameraStreamField } from './CameraStreamField'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
+import type { Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig } from '../store/editor'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
@@ -23,6 +24,13 @@ import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../mode
  * alignment/position pair only on widgets whose definition says the Name renders as the
  * shared frame's header row (`hasHeader`).
  */
+const HIDE_ON_FIELD: SettingField = {
+  key: 'hideOn',
+  type: 'hideon',
+  label: 'Hide on',
+  hint: 'Leave this widget out at the chosen screen sizes. It always stays visible while editing.',
+}
+
 const TEXT_SIZE_FIELD: SettingField = {
   key: 'textSize',
   type: 'number',
@@ -83,6 +91,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
           </>
         ) : null}
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
+        <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
       </div>
       <div className="nh-form__footer">
         <button
@@ -96,6 +105,47 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         </button>
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * Per-surface visibility. Three toggles rather than three boolean settings: it is one decision
+ * ("where does this not belong?"), and three separate rows of chrome in every widget's settings
+ * would drown the fields that matter.
+ */
+function HideOnField({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
+  const { t } = useTranslation()
+  const current = (Array.isArray(value) ? value : typeof value === 'string' ? [value] : []).filter(
+    (s): s is Surface => s === 'phone' || s === 'tablet' || s === 'desktop'
+  )
+  const toggle = (surface: Surface) => {
+    const next = current.includes(surface) ? current.filter((s) => s !== surface) : [...current, surface]
+    // Absent rather than an empty array for the common case, so a widget that is never hidden
+    // carries no key at all.
+    updateWidgetConfig(widget.id, field.key, next.length > 0 ? next : undefined)
+  }
+  const labels: [Surface, string][] = [
+    ['phone', 'Phones'],
+    ['tablet', 'Tablets'],
+    ['desktop', 'Desktops'],
+  ]
+  return (
+    <div className="nh-field">
+      <span className="nh-field__label">{t(field.label)}</span>
+      <div className="nh-hideon">
+        {labels.map(([surface, label]) => (
+          <button
+            key={surface}
+            type="button"
+            className={'nh-chip' + (current.includes(surface) ? ' nh-chip--on' : '')}
+            aria-pressed={current.includes(surface)}
+            onClick={() => toggle(surface)}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -328,6 +378,8 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <CameraStreamField field={field} widget={widget} value={value} />
     case 'dashboard':
       return <DashboardField field={field} widget={widget} value={value} />
+    case 'hideon':
+      return <HideOnField field={field} widget={widget} value={value} />
     default:
       return (
         <label className="nh-field" htmlFor={id}>

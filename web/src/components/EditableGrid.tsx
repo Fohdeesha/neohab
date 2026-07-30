@@ -21,15 +21,16 @@ import type { Dashboard, Rect } from '../model/dashboard'
 import {
   cellMetrics,
   clampRect,
+  hiddenSurfaces,
   iconScale,
   overlapsAny,
   planBump,
+  projectDashboard,
   rectOf,
   textScale,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
-  STACK_BELOW,
   type BumpPlan,
 } from '../model/layout'
 import {
@@ -41,12 +42,11 @@ import {
   toggleWidgetSelection,
   useEditorStore,
 } from '../store/editor'
-import { useSidebarLayout } from '../store/sidebar'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
 import { useContainerWidth } from './useContainerWidth'
-import { useViewportWidth } from './useViewportWidth'
+import { useGridEditSurface } from './useEditSurface'
 
 /**
  * How long a move must rest on an occupied target before the widgets there are bumped aside.
@@ -116,14 +116,18 @@ function boxesOverlap(
   return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 }
 
-export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
+export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
   const selectedIds = useEditorStore((s) => s.selectedIds)
+  const bp = useEditorStore((s) => s.bp)
+  // Editing the tablet layout works on the projection: that breakpoint's rects and column count
+  // sit in the lg slots, so the drag, bump and free-spot maths below need no special case. The
+  // store writes every rect back into the breakpoint it came from.
+  const dashboard = projectDashboard(draft, bp)
   const containerWidth = useContainerWidth(containerRef)
-  const viewportWidth = useViewportWidth()
-  const sidebarInset = useSidebarLayout().inset
+  const gridSurface = useGridEditSurface()
   const dwellRef = useRef<number | null>(null)
   // Touch long-press → multi-select. One press at a time; the ref survives re-renders.
   const longPressRef = useRef<number | null>(null)
@@ -157,13 +161,12 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
     clearLongPress()
   }, [])
 
-  if (viewportWidth - sidebarInset < STACK_BELOW) {
+
+  if (gridSurface !== true) {
+    // The phone surface edits the stack itself (and its order), which has no breakpoints.
     // Phones edit the stack they actually see: reorder + settings, not grid geometry.
-    // (Viewport width, not container width: the side panel shrinking the container on a
-    // desktop must not flip the editor to the stacked surface mid-edit. The sidebar's inset is
-    // subtracted because it is standing chrome rather than a transient panel - leaving it out
-    // would show a grid here while the runtime Grid, which measures its container, stacked.)
-    return <StackedEditGrid dashboard={dashboard} />
+    // (See useEditSurface for why this is keyed on the viewport rather than the container.)
+    return <StackedEditGrid dashboard={draft} />
   }
 
   /** Pixel size of one grid cell (content, excluding gap), measured live. */
@@ -428,6 +431,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
         />
       ) : null}
 
+
       {/* rubber-band selection box */}
       {marquee ? (
         <div
@@ -447,6 +451,9 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
         const r = bumpedTo ?? rectOf(widget)
         const isDragging = drag?.id === widget.id
         const isSelected = selectedIds.includes(widget.id)
+        // A widget hidden somewhere still has to be visible HERE, or there would be no way to
+        // select it and un-hide it. Dimmed, with the surfaces it is hidden on named on the handle.
+        const hiddenOn = hiddenSurfaces(widget)
         return (
           <div
             key={widget.id}
@@ -455,6 +462,7 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
               (isSelected ? ' nh-cell--selected' : '') +
               (isDragging ? ' nh-cell--dragging' : '') +
               (bumpedTo ? ' nh-cell--bumped' : '') +
+              (hiddenOn.length > 0 ? ' nh-cell--hidden' : '') +
               (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
             }
             style={
@@ -484,7 +492,12 @@ export function EditableGrid({ dashboard }: { dashboard: Dashboard }) {
               onPointerUp={clearLongPress}
               onPointerCancel={clearLongPress}
             />
-            <CellHandle id={widget.id} type={widget.type} onDragStart={beginDrag(widget.id, 'move')} />
+            <CellHandle
+              id={widget.id}
+              type={widget.type}
+              hiddenOn={hiddenOn}
+              onDragStart={beginDrag(widget.id, 'move')}
+            />
             <div className="nh-cell__resize" onPointerDown={beginDrag(widget.id, 'resize')} />
           </div>
         )

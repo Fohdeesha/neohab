@@ -1086,6 +1086,20 @@ button {
   background: color-mix(in srgb, #e53935 12%, transparent);
 }
 
+/*
+ * A widget that is hidden on some screen size still shows here in edit mode - dimmed, with a ◌ on
+ * its handle - because a widget you cannot see is a widget you cannot un-hide.
+ */
+.nh-cell--hidden .nh-widget {
+  opacity: 0.45;
+}
+
+.nh-cell__hidden {
+  flex-shrink: 0;
+  color: var(--nh-text-dim);
+  font-size: 0.8rem;
+}
+
 /* ============================================================================
    Widget gallery cards (Settings)
    ============================================================================ */
@@ -1150,6 +1164,35 @@ button {
   white-space: nowrap;
   color: var(--nh-text-dim);
   font-size: 0.75rem;
+}
+
+/* Per-surface visibility toggles in the widget settings panel. */
+.nh-hideon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nh-chip {
+  padding: 6px 12px;
+  min-height: 36px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  color: var(--nh-text);
+  font-size: 0.85rem;
+}
+
+.nh-chip--on {
+  background: var(--nh-primary);
+  border-color: var(--nh-primary);
+  color: #fff;
+}
+
+/* Which layout the editor is editing. The tablet state is marked, since it is the unusual one. */
+.nh-bpswitch--md {
+  border-color: var(--nh-primary);
+  color: var(--nh-primary);
 }
 
 /* Widgets an armed bump will relocate, previewed at the spot the drop would put them. */

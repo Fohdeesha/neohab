@@ -10,7 +10,8 @@ import { BackgroundField } from '../components/BackgroundField'
 import { downloadJson } from '../components/download'
 import type { Dashboard } from '../model/dashboard'
 import { partialFileName } from '../model/partial'
-import { setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
+import { hasTabletLayout, mdColumnsOf } from '../model/layout'
+import { clearTabletLayout, setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
 import { buildDashboardExport, collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
 import { notify } from '../store/notify'
 import { navigate } from '../app/router'
@@ -18,6 +19,9 @@ import { navigate } from '../app/router'
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
   const { t } = useTranslation()
   const fixed = dashboard.rowHeight !== 'match'
+  // The tablet fields only exist once a tablet layout does - offering a column count for a layout
+  // that is not there would be a setting with no effect.
+  const tablet = hasTabletLayout(dashboard)
   const sidebarOn = useConfigStore((s) => s.settings.sidebar !== false)
 
   const remove = async () => {
@@ -185,6 +189,37 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
             {t('Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.')}
           </span>
         </label>
+
+        {tablet ? (
+          <>
+            <label className="nh-field" htmlFor="nh-dash-mdcolumns">
+              <span className="nh-field__label">{t('Columns on tablets')}</span>
+              <input
+                id="nh-dash-mdcolumns"
+                type="number"
+                min={1}
+                max={60}
+                value={mdColumnsOf(dashboard)}
+                onChange={(e) => {
+                  const n = num(e.target.value, 1, 60)
+                  if (n !== null) updateDashboardMeta({ mdColumns: n }, 'dash:mdcolumns')
+                }}
+              />
+              <span className="nh-field__hint">
+                {t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.')}
+              </span>
+            </label>
+            <div className="nh-field">
+              <span className="nh-field__label">{t('Tablet layout')}</span>
+              <button type="button" className="nh-btn nh-btn--ghost" onClick={() => clearTabletLayout()}>
+                {t('Remove the tablet layout')}
+              </button>
+              <span className="nh-field__hint">
+                {t('Tablets then show the desktop layout again, as they do without a tablet layout.')}
+              </span>
+            </div>
+          </>
+        ) : null}
 
         {dashboard.stackOrder && dashboard.stackOrder.length > 0 ? (
           <div className="nh-field">

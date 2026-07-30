@@ -61,6 +61,8 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
     /** Pick one of the existing dashboards (stores its id). */
     | { key: string; type: 'dashboard'; label: string }
+    /** Which screen sizes this widget is hidden on (phone / tablet / desktop). */
+    | { key: string; type: 'hideon'; label: string }
     /* list editors rendered by dedicated components in editor/ */
     | { key: string; type: 'camerastream'; label: string }
     | { key: string; type: 'stateicons'; label: string }

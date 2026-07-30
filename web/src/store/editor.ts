@@ -7,8 +7,8 @@
  * so they collapse into a single undo entry.
  */
 import { create } from 'zustand'
-import type { Dashboard, WidgetInstance } from '../model/dashboard'
-import { clampRect, collides, findFreeSpot, rectOf, type BumpPlan } from '../model/layout'
+import { newWidgetId, type Dashboard, type WidgetInstance } from '../model/dashboard'
+import { clampRect, collides, findFreeSpot, projectDashboard, rectOf, tabletRects, type BumpPlan } from '../model/layout'
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
 import type { ClipboardWidget } from './clipboard'
@@ -40,6 +40,12 @@ interface EditorState {
   panelOpen: boolean
   paletteOpen: boolean
   dashSettingsOpen: boolean
+  /**
+   * Which layout the grid edits: the desktop one, or the tablet one (see MD_BELOW). Only ever
+   * 'md' while the user has explicitly switched to the tablet layout; every rect written goes to
+   * this breakpoint's slot.
+   */
+  bp: 'lg' | 'md'
 }
 
 export const useEditorStore = create<EditorState>(() => ({
@@ -56,6 +62,7 @@ export const useEditorStore = create<EditorState>(() => ({
   panelOpen: false,
   paletteOpen: false,
   dashSettingsOpen: false,
+  bp: 'lg',
 }))
 
 const clone = <T>(value: T): T => structuredClone(value)
@@ -75,6 +82,7 @@ export function startEditing(dashboard: Dashboard): void {
     panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
+    bp: 'lg',
   })
 }
 
@@ -93,6 +101,7 @@ export function stopEditing(): void {
     panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
+    bp: 'lg',
   })
 }
 
@@ -225,7 +234,19 @@ export function setDashSettingsOpen(open: boolean): void {
  */
 export function updateDashboardMeta(
   patch: Partial<
-    Pick<Dashboard, 'name' | 'icon' | 'hideInSidebar' | 'background' | 'columns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder'>
+    Pick<
+      Dashboard,
+      | 'name'
+      | 'icon'
+      | 'hideInSidebar'
+      | 'background'
+      | 'columns'
+      | 'mdColumns'
+      | 'rowHeight'
+      | 'gap'
+      | 'textSize'
+      | 'stackOrder'
+    >
   >,
   coalesceKey: string | null = null,
 ): void {
@@ -234,6 +255,15 @@ export function updateDashboardMeta(
     if (patch.columns !== undefined) {
       for (const w of draft.widgets) {
         w.layout = { ...w.layout, lg: clampRect(rectOf(w), draft.columns) }
+      }
+    }
+    if (patch.mdColumns !== undefined) {
+      // Same rule as the desktop column count: rects are clamped into the narrower grid and any
+      // resulting overlap is the user's to resolve (one undo restores the previous arrangement).
+      const rects = tabletRects(draft)
+      const columns = projectDashboard(draft, 'md').columns
+      for (const w of draft.widgets) {
+        w.layout = { ...w.layout, md: clampRect(rects.get(w.id) ?? rectOf(w), columns) }
       }
     }
   }, coalesceKey)
@@ -247,12 +277,12 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
 
   const id = newWidgetId()
   applyChange((draft) => {
-    const rect = findFreeSpot(draft, def.defaultSize.w, def.defaultSize.h)
+    const rect = findFreeSpot(projectDashboard(draft, s.bp), def.defaultSize.w, def.defaultSize.h)
     const widget: WidgetInstance = {
       id,
       type,
       config: { ...(def.defaultConfig() as Record<string, unknown>), ...configOverrides },
-      layout: { lg: rect },
+      layout: layoutForNew(draft, s.bp, rect),
     }
     draft.widgets.push(widget)
   })
@@ -260,10 +290,6 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
   useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false })
 }
 
-/** Fresh, collision-unlikely widget id. */
-function newWidgetId(): string {
-  return 'w-' + Math.random().toString(36).slice(2, 10)
-}
 
 export function removeWidget(id: string): void {
   removeWidgets([id])
@@ -298,16 +324,14 @@ export function pasteWidgets(items: ClipboardWidget[]): void {
   const bboxH = Math.max(...items.map((i) => i.rect.y - minY + i.rect.h))
 
   const newIds: string[] = []
+  const bp = useEditorStore.getState().bp
   applyChange((draft) => {
-    const base = findFreeSpot(draft, bboxW, bboxH)
+    const base = findFreeSpot(projectDashboard(draft, bp), bboxW, bboxH)
     for (const item of items) {
       const id = newWidgetId()
       newIds.push(id)
-      const rect = clampRect(
-        { x: base.x + (item.rect.x - minX), y: base.y + (item.rect.y - minY), w: item.rect.w, h: item.rect.h },
-        draft.columns
-      )
-      draft.widgets.push({ id, type: item.type, config: clone(item.config), layout: { lg: rect } })
+      const rect = { x: base.x + (item.rect.x - minX), y: base.y + (item.rect.y - minY), w: item.rect.w, h: item.rect.h }
+      draft.widgets.push({ id, type: item.type, config: clone(item.config), layout: layoutForNew(draft, bp, rect) })
     }
   })
   // Pasted widgets are selected for an immediate move/delete, without popping the panel.
@@ -331,10 +355,14 @@ export function updateWidgetConfig(id: string, key: string, value: unknown): voi
 export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boolean {
   const s = useEditorStore.getState()
   if (!s.draft) return false
-  const clamped = clampRect(rect, s.draft.columns)
+  const bp = s.bp
+  // Collisions and clamping are judged on the layout being edited, which the projection puts in
+  // the lg slots; the write below goes back into that breakpoint's own slot.
+  const view = projectDashboard(s.draft, bp)
+  const clamped = clampRect(rect, view.columns)
   const plannedRect = (w: WidgetInstance): Rect => displaced?.get(w.id) ?? rectOf(w)
-  if (s.draft.widgets.some((w) => w.id !== id && collides(clamped, plannedRect(w)))) return false
-  const current = s.draft.widgets.find((w) => w.id === id)
+  if (view.widgets.some((w) => w.id !== id && collides(clamped, plannedRect(w)))) return false
+  const current = view.widgets.find((w) => w.id === id)
   if (!current) return false
   const cur = rectOf(current)
   if (
@@ -349,14 +377,60 @@ export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boo
   applyChange((draft) => {
     for (const widget of draft.widgets) {
       if (widget.id === id) {
-        widget.layout = { ...widget.layout, lg: clamped }
+        widget.layout = { ...widget.layout, [bp]: clamped }
         continue
       }
       const to = displaced?.get(widget.id)
-      if (to) widget.layout = { ...widget.layout, lg: to }
+      if (to) widget.layout = { ...widget.layout, [bp]: to }
     }
   })
   return true
+}
+
+/**
+ * Switch which layout the grid edits.
+ *
+ * Turning the tablet layout on for the first time materialises it for every widget in one undo
+ * step: from then on the tablet rects are explicit, so editing one widget cannot silently reflow
+ * the others, and the dashboard renders the same thing before and after the switch.
+ */
+export function setEditBreakpoint(bp: 'lg' | 'md'): void {
+  const s = useEditorStore.getState()
+  if (s.bp === bp) return
+  if (bp === 'md' && s.draft && !s.draft.widgets.every((w) => w.layout.md)) {
+    const rects = tabletRects(s.draft)
+    applyChange((draft) => {
+      for (const w of draft.widgets) w.layout = { ...w.layout, md: rects.get(w.id) ?? rectOf(w) }
+    })
+  }
+  useEditorStore.setState({ bp, selectedIds: [], panelOpen: false })
+}
+
+/**
+ * The layout slots a newly created widget gets. A widget added while editing the tablet layout
+ * still has to exist on the desktop one, or it would be invisible there - so both are written,
+ * each clamped to its own grid.
+ */
+function layoutForNew(draft: Dashboard, bp: 'lg' | 'md', rect: Rect): WidgetInstance['layout'] {
+  if (bp === 'lg') return { lg: clampRect(rect, draft.columns) }
+  return {
+    lg: clampRect(rect, draft.columns),
+    md: clampRect(rect, projectDashboard(draft, 'md').columns),
+  }
+}
+
+/** Drop the tablet layout entirely: every width above the phone stack goes back to the desktop one. */
+export function clearTabletLayout(): void {
+  applyChange((draft) => {
+    draft.mdColumns = undefined
+    for (const w of draft.widgets) {
+      if (w.layout.md) {
+        const { md: _md, ...rest } = w.layout
+        w.layout = rest
+      }
+    }
+  })
+  useEditorStore.setState({ bp: 'lg' })
 }
 
 /**

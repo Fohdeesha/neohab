@@ -60,6 +60,11 @@ export interface Dashboard {
    */
   textSize?: number
   /**
+   * Columns for the tablet layout (see MD_BELOW). Absent = the same count as `columns`.
+   * Only meaningful once a tablet layout exists at all (`hasTabletLayout`).
+   */
+  mdColumns?: number
+  /**
    * Explicit widget order for the single-column (phone) stack, set the first time the user
    * reorders it. Absent = derived from the grid layout (row by row). Widgets missing from the
    * list (added later) stack after the listed ones; stale ids are ignored.

@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
+  hiddenSurfaces,
   iconScale,
   stackedOrder,
   stackedTextScale,
@@ -170,6 +171,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 'nh-cell' +
                 (selectedIds.includes(widget.id) ? ' nh-cell--selected' : '') +
                 (isDragging ? ' nh-cell--dragging' : '') +
+                (hiddenSurfaces(widget).length > 0 ? ' nh-cell--hidden' : '') +
                 (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
               }
               style={
@@ -191,7 +193,12 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 onPointerUp={clearLongPress}
                 onPointerCancel={clearLongPress}
               />
-              <CellHandle id={widget.id} type={widget.type} onDragStart={beginDrag(widget.id)} />
+              <CellHandle
+                id={widget.id}
+                type={widget.type}
+                hiddenOn={hiddenSurfaces(widget)}
+                onDragStart={beginDrag(widget.id)}
+              />
             </div>
           </div>
         )

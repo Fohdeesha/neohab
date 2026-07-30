@@ -17,6 +17,87 @@ export const STACK_BELOW = 840 // px
 export const STACK_REFERENCE_WIDTH = 1280
 
 /**
+ * Below this container width (and at or above STACK_BELOW) a dashboard that has a tablet layout
+ * renders it instead of the desktop one. A dashboard without one keeps rendering the desktop
+ * layout at every width above STACK_BELOW, exactly as before - the tablet layout is opt-in.
+ */
+export const MD_BELOW = 1200 // px
+
+/** The three surfaces a dashboard can render on, in the order they appear as the screen grows. */
+export type Surface = 'phone' | 'tablet' | 'desktop'
+
+export function surfaceFor(containerWidth: number): Surface {
+  if (containerWidth < STACK_BELOW) return 'phone'
+  return containerWidth < MD_BELOW ? 'tablet' : 'desktop'
+}
+
+/** True once anything about a tablet layout has been authored. */
+export function hasTabletLayout(dashboard: Dashboard): boolean {
+  return dashboard.mdColumns !== undefined || dashboard.widgets.some((w) => w.layout.md !== undefined)
+}
+
+export function mdColumnsOf(dashboard: Dashboard): number {
+  const v = dashboard.mdColumns
+  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : dashboard.columns
+}
+
+/**
+ * Where each widget sits on the tablet grid: its stored `layout.md` when it has one, otherwise
+ * derived. Deriving copies the desktop rect when the tablet grid is the same width (so opting in
+ * starts from exactly what is on screen), and otherwise reflows the widgets in stacked order into
+ * the narrower grid - which is what the narrower grid is for, and never overlaps.
+ */
+export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
+  const columns = mdColumnsOf(dashboard)
+  const out = new Map<string, Rect>()
+  if (columns === dashboard.columns) {
+    for (const w of dashboard.widgets) out.set(w.id, w.layout.md ?? rectOf(w))
+    return out
+  }
+  // Reflow: place each widget, in the order a phone would stack them, at the first free spot of
+  // the narrower grid. `placed` is a scratch dashboard so findFreeSpot sees what is already down.
+  const placed: Dashboard = { ...dashboard, columns, widgets: [] }
+  for (const w of stackedOrder(dashboard)) {
+    const stored = w.layout.md
+    const source = rectOf(w)
+    const rect = stored ?? findFreeSpot(placed, Math.min(source.w, columns), source.h)
+    out.set(w.id, rect)
+    placed.widgets = [...placed.widgets, { ...w, layout: { lg: rect } }]
+  }
+  return out
+}
+
+/**
+ * A dashboard as it looks at one breakpoint, with that breakpoint's rects and column count in the
+ * `lg` slots. Everything else - the grids, the bump planner, free-spot search - then works on the
+ * tablet layout unchanged. 'lg' returns the dashboard itself, so the desktop path is untouched.
+ */
+export function projectDashboard(dashboard: Dashboard, bp: 'lg' | 'md'): Dashboard {
+  if (bp === 'lg') return dashboard
+  const rects = tabletRects(dashboard)
+  return {
+    ...dashboard,
+    columns: mdColumnsOf(dashboard),
+    widgets: dashboard.widgets.map((w) => ({ ...w, layout: { ...w.layout, lg: rects.get(w.id) ?? rectOf(w) } })),
+  }
+}
+
+/**
+ * Surfaces a widget is hidden on (`config.hideOn`, a universal setting): show a chart only on the
+ * desktop, keep a big control off the phone stack. Tolerates a single string, and ignores values
+ * that are not surfaces, like every other imported config value.
+ */
+export function hiddenSurfaces(widget: WidgetInstance): Surface[] {
+  const raw = (widget.config as Record<string, unknown>).hideOn
+  const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []
+  return list.filter((s): s is Surface => s === 'phone' || s === 'tablet' || s === 'desktop')
+}
+
+export function isHiddenOn(widget: WidgetInstance, surface: Surface): boolean {
+  return hiddenSurfaces(widget).includes(surface)
+}
+
+/**
  * Widgets in single-column (stacked) display order: the dashboard's explicit stackOrder when
  * present, otherwise derived from the grid layout by row then column. Widgets not in the
  * explicit list keep their derived order after the listed ones.

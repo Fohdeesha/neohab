@@ -9,6 +9,7 @@ import {
   saveDraft,
   selectAll,
   setDashSettingsOpen,
+  setEditBreakpoint,
   setPaletteOpen,
   startEditing,
   stopEditing,
@@ -29,6 +30,7 @@ import { useAuthStore, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
+import { useGridEditSurface } from '../components/useEditSurface'
 import { useBackgroundStyle } from '../components/useBackground'
 import { SettingsPanel } from '../editor/SettingsPanel'
 import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
@@ -52,6 +54,9 @@ export function DashboardView({ id }: { id: string }) {
   // the view must follow it on its own rather than relying on an editor render to carry it in.
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const editor = useEditorStore()
+  // The tablet-layout switch only makes sense on the grid surface (the phone stack has no
+  // breakpoints of its own), and the toolbar is tight enough without a button that does nothing.
+  const gridSurface = useGridEditSurface()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
@@ -204,6 +209,17 @@ export function DashboardView({ id }: { id: string }) {
           <>
             <span className="nh-dash__title">{t('Editing — {{name}}', { name: dashboard.name })}</span>
             <span className="nh-dash__spacer" />
+            {gridSurface ? (
+              <button
+                className={'nh-btn nh-btn--ghost nh-bpswitch' + (editor.bp === 'md' ? ' nh-bpswitch--md' : '')}
+                onClick={() => setEditBreakpoint(editor.bp === 'lg' ? 'md' : 'lg')}
+                title={t(
+                  'Switch between the desktop layout and a separate tablet layout. Tablets use it below 1200px wide; without one they show the desktop layout.'
+                )}
+              >
+                {editor.bp === 'md' ? t('Tablet layout') : t('Desktop layout')}
+              </button>
+            ) : null}
             <button
               className="nh-iconbtn"
               onClick={() => setDashSettingsOpen(true)}

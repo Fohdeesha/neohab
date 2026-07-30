@@ -7,15 +7,21 @@
  * bring the widget back.
  */
 import { useTranslation } from 'react-i18next'
+import type { Surface } from '../model/layout'
 import { removeWidget } from '../store/editor'
+
+const SURFACE_LABEL: Record<Surface, string> = { phone: 'phones', tablet: 'tablets', desktop: 'desktops' }
 
 export function CellHandle({
   id,
   type,
+  hiddenOn = [],
   onDragStart,
 }: {
   id: string
   type: string
+  /** Surfaces this widget is hidden on, marked here so a dimmed cell explains itself. */
+  hiddenOn?: Surface[]
   onDragStart: (e: React.PointerEvent) => void
 }) {
   const { t } = useTranslation()
@@ -23,6 +29,14 @@ export function CellHandle({
     <div className="nh-cell__handle" onPointerDown={onDragStart}>
       <span className="nh-cell__grip">⋮⋮</span>
       <span className="nh-cell__type">{type}</span>
+      {hiddenOn.length > 0 ? (
+        <span
+          className="nh-cell__hidden"
+          title={t('Hidden on {{list}}', { list: hiddenOn.map((sfc) => t(SURFACE_LABEL[sfc])).join(', ') })}
+        >
+          ◌
+        </span>
+      ) : null}
       <button
         type="button"
         className="nh-cell__delete"

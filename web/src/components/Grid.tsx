@@ -10,22 +10,27 @@
  * never clip on phones. Stacked rows size their text per row (see stackedTextScale) rather than
  * from the grid's proportional scale, because a full-width row's room is its own height.
  *
- * Intermediate breakpoints (auto-derived md/sm) and drag-to-edit are later phases; this
- * component reads the same layout schema they will, so adding them needs no data change.
+ * Between the two sits the tablet band (see MD_BELOW): a dashboard that has a tablet layout
+ * renders that one there, with its own column count; one that has not keeps rendering the desktop
+ * layout, exactly as it always did. Widgets can also be hidden per surface (`config.hideOn`), so a
+ * chart can be desktop-only and a big control can stay off the phone stack.
  */
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import {
   cellMetrics,
+  hasTabletLayout,
   iconScale,
+  isHiddenOn,
+  projectDashboard,
   stackedOrder,
   stackedTextScale,
+  surfaceFor,
   textScale,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
-  STACK_BELOW,
   STACK_REFERENCE_WIDTH,
 } from '../model/layout'
 import { getWidgetDefinition } from '../widgets/registry'
@@ -36,7 +41,8 @@ function rectOf(widget: WidgetInstance): Rect {
   return widget.layout.lg ?? { x: 0, y: 0, w: 3, h: 3 }
 }
 
-export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; editing?: boolean }) {
+export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
+  const { editing = false } = props
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
@@ -46,13 +52,34 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
     return <div ref={ref} className="nh-grid" />
   }
 
-  if (dashboard.widgets.length === 0) {
-    return <p className="nh-dash__empty">{t('This dashboard has no widgets yet — tap ✎ to start adding some.')}</p>
+  // Note the container stays mounted on every path below: swapping it for a bare message would
+  // detach the element the width is measured from (see useContainerWidth).
+  if (props.dashboard.widgets.length === 0) {
+    return (
+      <div ref={ref} className="nh-grid">
+        <p className="nh-dash__empty">{t('This dashboard has no widgets yet — tap ✎ to start adding some.')}</p>
+      </div>
+    )
   }
 
-  if (width < STACK_BELOW) {
+  // The tablet band renders the tablet layout when there is one; otherwise nothing changes.
+  const surface = surfaceFor(width)
+  const dashboard =
+    surface === 'tablet' && hasTabletLayout(props.dashboard)
+      ? projectDashboard(props.dashboard, 'md')
+      : props.dashboard
+  const shown = dashboard.widgets.filter((w) => !isHiddenOn(w, surface))
+  if (shown.length === 0) {
+    return (
+      <div ref={ref} className="nh-grid">
+        <p className="nh-dash__empty">{t('Every widget on this dashboard is hidden at this screen size.')}</p>
+      </div>
+    )
+  }
+
+  if (surface === 'phone') {
     const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
-    const ordered = stackedOrder(dashboard)
+    const ordered = stackedOrder({ ...dashboard, widgets: shown })
     return (
       <div
         ref={ref}
@@ -103,7 +130,7 @@ export function Grid({ dashboard, editing = false }: { dashboard: Dashboard; edi
         } as React.CSSProperties
       }
     >
-      {dashboard.widgets.map((w) => {
+      {shown.map((w) => {
         const r = rectOf(w)
         return (
           <div
