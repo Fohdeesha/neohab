@@ -5,7 +5,7 @@
  * token rides along on servers that require one - an <audio> element cannot send auth headers.
  * An empty URL is the server's "stop playing" signal (the sink was asked to play nothing).
  */
-import { applyAuthHeader, getAccessToken } from '../api/auth'
+import { applyAuthHeader, applyProxyAuth, getAccessToken } from '../api/auth'
 import { setAudioBlocked } from '../store/audio'
 
 let element: HTMLAudioElement | null = null
@@ -48,6 +48,7 @@ export async function playAudioUrl(url: string): Promise<void> {
 
   try {
     const headers = new Headers()
+    applyProxyAuth(headers)
     const token = await getAccessToken()
     if (token) applyAuthHeader(headers, token)
     const res = await fetch(url, { headers })

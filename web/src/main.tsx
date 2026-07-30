@@ -6,12 +6,17 @@ import App from './App.tsx'
 import { applyCachedTheme } from './themes/themes.ts'
 import { applyDeviceTextSize } from './store/textsize.ts'
 import { installHistoryHook } from './store/history.ts'
+import { restoreBasicCredentials } from './api/auth.ts'
 import './app.css'
 
 // Apply the last-used theme and this device's text size before first paint, to avoid a
 // flash of the defaults.
 applyCachedTheme()
 applyDeviceTextSize()
+
+// Reverse-proxy credentials the openHAB phone app or the browser's password manager already
+// holds, picked up before the first request goes out. Nothing happens without one.
+void restoreBasicCredentials()
 
 // Every configuration write takes a restore point first. Registered here rather than imported
 // by the configuration store, so that store depends on nothing.

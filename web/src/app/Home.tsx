@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import { useKioskMode } from '../store/kiosk'
+import { appExitToApp, appPinToHome, canExitToApp, canPinToHome } from './ohapp'
 import { isLoggedIn } from '../api/auth'
 import { useEditingAllowed } from '../store/auth'
 import { navigate } from './router'
@@ -107,6 +108,22 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           ⚙ {t('Settings')}
         </button>
       )}
+
+      {/* Only inside the openHAB phone app, which is what provides these. */}
+      {!kiosk && (canPinToHome() || canExitToApp()) ? (
+        <div className="nh-home__app">
+          {canPinToHome() ? (
+            <button type="button" className="nh-btn nh-btn--ghost" onClick={appPinToHome}>
+              {t('Add to the home screen')}
+            </button>
+          ) : null}
+          {canExitToApp() ? (
+            <button type="button" className="nh-btn nh-btn--ghost" onClick={appExitToApp}>
+              {t('Back to the openHAB app')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {newOpen ? (
         <NewDashboardSheet

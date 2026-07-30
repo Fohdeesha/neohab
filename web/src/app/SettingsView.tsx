@@ -46,15 +46,16 @@ import { HistorySection } from '../editor/HistorySection'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { GallerySection } from '../editor/GallerySection'
 import { SignInSheet } from '../editor/SignInSheet'
-import { clearApiToken, isLoggedIn, logout } from '../api/auth'
+import { clearApiToken, getBasicCredentials, isLoggedIn, logout, onBasicCredentialsChange } from '../api/auth'
 import { refreshAuthStatus, useAuthStore, useEditingAllowed, useIsAdmin } from '../store/auth'
 import { collectUnusedBackgrounds } from '../store/config'
 import { BackgroundField } from '../components/BackgroundField'
 import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
-import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 import { exportComponent } from '../editor/exportComponent'
+import { appGoFullscreen } from './ohapp'
+import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 
 export function SettingsView() {
   const { t } = useTranslation()
@@ -534,9 +535,12 @@ function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       void document.exitFullscreen()
-    } else {
-      document.documentElement.requestFullscreen().catch(() => onNotice(t('Fullscreen was blocked by the browser.')))
+      return
     }
+    // Inside the openHAB phone app the webview's own fullscreen does not hide the native chrome;
+    // asking the app does. In a browser this is a no-op and the standard API takes over.
+    if (appGoFullscreen()) return
+    document.documentElement.requestFullscreen().catch(() => onNotice(t('Fullscreen was blocked by the browser.')))
   }
 
   return (
@@ -819,6 +823,10 @@ function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) 
   // (refreshAuthStatus updates the store, which re-renders us and re-evaluates isLoggedIn).
   const status = useAuthStore((s) => s.status)
   const [signInOpen, setSignInOpen] = useState(false)
+  const [proxyOpen, setProxyOpen] = useState(false)
+  // Proxy credentials live in memory, so this has to be told when they change.
+  const [proxy, setProxy] = useState(() => getBasicCredentials())
+  useEffect(() => onBasicCredentialsChange(() => setProxy(getBasicCredentials())), [])
 
   const signedIn = isLoggedIn()
   const statusText = !signedIn
@@ -833,7 +841,12 @@ function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) 
     <section>
       <h2 className="nh-settings__h">{t('Account')}</h2>
       <p className="nh-settings__text">{statusText}</p>
-      {signedIn ? (
+      {proxy ? (
+        <p className="nh-settings__text">
+          {t('Signed in to a reverse proxy as “{{user}}” for this session.', { user: proxy.id })}
+        </p>
+      ) : null}
+      {signedIn || proxy ? (
         <button
           type="button"
           className="nh-btn nh-btn--ghost"
@@ -851,6 +864,20 @@ function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) 
           {t('Sign in')}
         </button>
       )}
+      {/* A proxy sign-in is a different thing from an openHAB one, and is needed just as much on a
+          device that already holds a token - so it is reachable either way. */}
+      {proxy ? null : (
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setProxyOpen(true)}>
+          {t('Sign in to a reverse proxy')}
+        </button>
+      )}
+      {proxyOpen ? (
+        <SignInSheet
+          initialProxy
+          onClose={() => setProxyOpen(false)}
+          onToken={() => setProxyOpen(false)}
+        />
+      ) : null}
       {signInOpen ? (
         <SignInSheet
           onClose={() => setSignInOpen(false)}

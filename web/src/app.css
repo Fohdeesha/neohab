@@ -1122,6 +1122,15 @@ button {
   font-size: 0.8rem;
 }
 
+/* Buttons only the openHAB phone app provides (pin to home, back to the app). */
+.nh-home__app {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* ============================================================================
    Widget gallery cards (Settings)
    ============================================================================ */

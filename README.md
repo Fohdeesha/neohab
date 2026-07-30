@@ -101,6 +101,12 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
 - **View-only devices** — an editing lock hides every editing control from devices that are not
   signed in as an administrator, so wall panels and guests get a clean, read-only dashboard;
   administrator devices are never affected, and a locked device can still sign in from Settings.
+- **Away from home** — neohab works behind whatever you already put in front of openHAB. Sign in
+  to a reverse proxy (openHAB Cloud, or your own web server asking for a password) and the
+  credentials travel with every request for that session, kept in memory rather than written to
+  the device, with the browser's own password manager remembering them if you let it. Inside the
+  official openHAB phone app it picks those credentials up by itself, and offers the app's own
+  full-screen, add-to-home-screen and back-to-the-app actions.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
   an optional sandboxed JavaScript widget API for power users. A small gallery of ready-made
   widgets ships inside the add-on (so it works with no internet at all) and installs with one

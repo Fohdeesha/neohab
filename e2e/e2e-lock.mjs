@@ -136,7 +136,7 @@ try {
   ok('anon: no Editing lock section', (await anon.page.locator('section:has(h2:text-is("Editing lock"))').count()) === 0)
   ok('anon: Backup section still visible (lock off)', (await anon.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
   const anonAccount = anon.page.locator('section:has(h2:text-is("Account"))')
-  ok('anon: Account offers Sign in', (await anonAccount.locator('button:has-text("Sign in")').count()) === 1)
+  ok('anon: Account offers Sign in', (await anonAccount.locator('button:text-is("Sign in")').count()) === 1)
 
   // ---------- signed in but not an admin (garbage token -> 401) ----------
   const user = await makePage(browser, 'oh.notreal.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
@@ -178,7 +178,7 @@ try {
   ok('anon+lock: kiosk per-device settings still there', (await anon.page.locator('#kiosk-pinned').count()) === 1)
   ok('anon+lock: control-item picker hidden', (await anon.page.locator('#kiosk-controlitem').count()) === 0)
   ok('anon+lock: Account Sign in still there',
-    (await anon.page.locator('section:has(h2:text-is("Account")) button:has-text("Sign in")').count()) === 1)
+    (await anon.page.locator('section:has(h2:text-is("Account")) button:text-is("Sign in")').count()) === 1)
 
   await user.page.goto(APP + '#/d/nh-e2e-lock')
   await user.page.reload({ waitUntil: 'domcontentloaded' })
@@ -201,7 +201,7 @@ try {
   await wall.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
   ok('locked wall: config sections hidden before sign-in',
     (await wall.page.locator('section:has(h2:text-is("Backup"))').count()) === 0)
-  await wall.page.click('section:has(h2:text-is("Account")) button:has-text("Sign in")')
+  await wall.page.click('section:has(h2:text-is("Account")) button:text-is("Sign in")')
   await wall.page.waitForSelector('.nh-signin', { timeout: 10000 })
   await wall.page.click('button:has-text("Use an API token instead")')
   await wall.page.fill('#nh-token', TOKEN)

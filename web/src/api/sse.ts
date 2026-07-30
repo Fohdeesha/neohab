@@ -11,6 +11,7 @@
  *   event: alive\n   data: {"type":"ALIVE","interval":10}
  *   data: {"Item_Name":{"state":"1","numericState":1.0,"type":"Decimal"}, ...}
  */
+import { api } from './client'
 import type { ItemState } from './types'
 
 export type StateMap = Record<string, ItemState>
@@ -176,13 +177,12 @@ export class StatesTracker {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), PUSH_TIMEOUT_MS)
     try {
-      const res = await fetch('/rest/events/states/' + this.connectionId, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([...this.tracked]),
+      // Through the api client, not a bare fetch: this POST is what tells the server which items
+      // to push, so it has to carry whatever the request needs to get through - an openHAB token
+      // on a server with no anonymous role, and a reverse proxy's own credentials.
+      await api.post('/rest/events/states/' + this.connectionId, [...this.tracked], {
         signal: controller.signal,
       })
-      if (!res.ok) throw new Error(String(res.status))
       this.setLive(true)
     } catch {
       // A widget would silently never get updates if this were dropped - retry shortly

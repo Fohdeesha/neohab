@@ -11,6 +11,13 @@
  * Reverse-proxy quirk (openHAB Cloud): when the `X-OPENHAB-AUTH-HEADER` cookie is present the
  * token must be sent as `X-OPENHAB-TOKEN` instead of `Authorization: Bearer`.
  *
+ * Reverse-proxy sign-in: a proxy in front of openHAB (openHAB Cloud, or an nginx with basic auth)
+ * wants `Authorization: Basic ...` for itself, which is why an openHAB token then has to travel in
+ * `X-OPENHAB-TOKEN`. Those credentials are held in memory only - never in our own storage - and can
+ * optionally be remembered by the browser's own password manager, or handed to us by the openHAB
+ * phone app through `window.OHApp`. Note EventSource cannot carry headers at all, so live item
+ * states behind such a proxy depend on the browser's own credential caching for that connection.
+ *
  * Reading items and sending commands work unauthenticated when the server allows the implicit
  * user role (default). A token is only required for admin operations such as saving config.
  */
@@ -29,6 +36,80 @@ const MAINUI_REFRESH = 'openhab.ui:refreshToken'
 let accessToken: string | null = null
 let accessTokenExpiry = 0
 let refreshInFlight: Promise<void> | null = null
+
+export interface BasicCredentials {
+  id: string
+  password: string
+}
+
+/** In memory for this page only: a password does not belong in localStorage. */
+let basicCredentials: BasicCredentials | null = null
+const basicListeners = new Set<() => void>()
+
+export function getBasicCredentials(): BasicCredentials | null {
+  return basicCredentials
+}
+
+export function onBasicCredentialsChange(fn: () => void): () => void {
+  basicListeners.add(fn)
+  return () => basicListeners.delete(fn)
+}
+
+function announceBasic(): void {
+  for (const fn of [...basicListeners]) fn()
+}
+
+export function setBasicCredentials(id: string, password: string): void {
+  basicCredentials = id ? { id, password } : null
+  announceBasic()
+}
+
+export function clearBasicCredentials(): void {
+  basicCredentials = null
+  announceBasic()
+}
+
+/** Offer the credentials to the browser's password manager, where it supports one. */
+export async function rememberBasicCredentials(): Promise<boolean> {
+  const creds = basicCredentials
+  const ctor = (window as { PasswordCredential?: new (data: BasicCredentials) => Credential }).PasswordCredential
+  if (!creds || !ctor || !navigator.credentials?.store) return false
+  try {
+    await navigator.credentials.store(new ctor(creds))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Pick up proxy credentials without asking: from the openHAB phone app's webview bridge, or
+ * silently from the browser's password manager. Called once at startup.
+ */
+export async function restoreBasicCredentials(): Promise<boolean> {
+  const app = (window as { OHApp?: { getBasicCredentialsUsername?: () => string; getBasicCredentialsPassword?: () => string } }).OHApp
+  if (typeof app?.getBasicCredentialsUsername === 'function' && typeof app.getBasicCredentialsPassword === 'function') {
+    const id = app.getBasicCredentialsUsername()
+    const password = app.getBasicCredentialsPassword()
+    if (id) {
+      setBasicCredentials(id, password)
+      return true
+    }
+  }
+  if (!navigator.credentials?.get || !('PasswordCredential' in window)) return false
+  try {
+    const cred = (await navigator.credentials.get({ password: true, mediation: 'silent' } as CredentialRequestOptions)) as
+      | (Credential & { id?: string; password?: string })
+      | null
+    if (cred?.id && typeof cred.password === 'string') {
+      setBasicCredentials(cred.id, cred.password)
+      return true
+    }
+  } catch {
+    /* no stored credential, or the browser refused silently - nothing to do */
+  }
+  return false
+}
 
 export function tokenInCustomHeader(): boolean {
   return document.cookie.includes('X-OPENHAB-AUTH-HEADER')
@@ -78,13 +159,26 @@ function redirectUri(): string {
   return window.location.origin + window.location.pathname
 }
 
-/** Apply the current access token to a set of request headers, if we have one. */
+/**
+ * Apply the current access token to a set of request headers, if we have one. With proxy
+ * credentials in play the Authorization header belongs to the proxy, so the openHAB token moves to
+ * `X-OPENHAB-TOKEN` - the same rule openHAB Cloud's cookie asks for.
+ */
 export function applyAuthHeader(headers: Headers, token: string): void {
-  if (tokenInCustomHeader()) {
+  if (tokenInCustomHeader() || basicCredentials) {
     headers.set('X-OPENHAB-TOKEN', token)
   } else {
     headers.set('Authorization', 'Bearer ' + token)
   }
+}
+
+/**
+ * Apply the proxy credentials, if any. Separate from the token because a proxy demands them on
+ * EVERY request, including the anonymous ones a viewer makes.
+ */
+export function applyProxyAuth(headers: Headers): void {
+  const creds = basicCredentials
+  if (creds) headers.set('Authorization', 'Basic ' + btoa(`${creds.id}:${creds.password}`))
 }
 
 function base64url(bytes: Uint8Array): string {
@@ -200,6 +294,7 @@ export function logout(): void {
   const refresh = localStorage.getItem(STORAGE_REFRESH)
   accessToken = null
   accessTokenExpiry = 0
+  clearBasicCredentials()
   localStorage.removeItem(STORAGE_REFRESH)
   if (refresh) {
     void fetch('/rest/auth/logout', {

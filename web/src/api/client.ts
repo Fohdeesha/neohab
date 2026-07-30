@@ -4,7 +4,7 @@
  * `requireToken` (no anonymous user role) work for reading and commands too, not just
  * for admin writes. Without a token, requests go out anonymous as before.
  */
-import { applyAuthHeader, getAccessToken } from './auth'
+import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
 
 export class ApiError extends Error {
   constructor(
@@ -50,15 +50,20 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     }
   }
 
+  // The proxy's credentials go on first: applyAuthHeader knows to move an openHAB token out of
+  // the Authorization header when they are present.
+  applyProxyAuth(headers)
   const token = await getAccessToken()
   if (token) applyAuthHeader(headers, token)
 
   let res = await fetch(path, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   if (res.status === 401 && token) {
     // A stale/revoked stored token must not break what anonymous access would allow
-    // (e.g. viewing dashboards with the default user role) - retry once without it.
+    // (e.g. viewing dashboards with the default user role) - retry once without it. The proxy's
+    // own credentials stay: dropping those would fail the request before openHAB ever sees it.
     headers.delete('Authorization')
     headers.delete('X-OPENHAB-TOKEN')
+    applyProxyAuth(headers)
     res = await fetch(path, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   }
   if (!res.ok) {
