@@ -98,9 +98,14 @@ is:
 ```
 node tools/config-snapshot.mjs snapshot.json          # save the live configuration
 node tools/config-wipe.mjs --yes --snapshot snapshot.json   # empty the namespaces
-node e2e.mjs && node e2e-editor.mjs && ...            # run the wipe-cycle suites
+node e2e-history.mjs && node e2e.mjs && ...           # history FIRST, then the rest
 node tools/config-restore.mjs snapshot.json           # put it back (verifies content)
 ```
+
+**Run `e2e-history.mjs` first.** The other five guard `neohab:config` only, but this one guards
+all three namespaces — and each suite that saves configuration leaves restore points behind, so
+by the time it runs last the history is no longer empty and it aborts. Its guard is right to be
+the strict one: it is the suite whose subject is that data.
 
 The tools cover all three namespaces neohab owns — `neohab:config`, plus `neohab:history` (the
 version-history index) and `neohab:historydata` (its snapshots and shared images). Restore points
@@ -108,7 +113,9 @@ are a user's data too, so a wipe that dropped them could not be undone.
 
 Note that every suite that saves configuration through the app now also leaves restore points
 behind, since that is what the history is for. They are pruned to the retention limit like any
-other, and a wipe-cycle run starts from an empty history by definition.
+other, and a wipe-cycle run starts from an empty history — for the suite that goes first. The
+restore points a full battery accumulates are test artifacts, so clear both history namespaces
+before restoring if the configuration they describe is about to be replaced anyway.
 
 Never take the snapshot while a suite is running — you would capture its temporary
 components and restore them as if they were yours.
