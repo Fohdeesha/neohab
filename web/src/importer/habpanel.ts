@@ -85,11 +85,14 @@ export interface HabpanelImportResult {
 
 /** Parse a habpanel-config.json export (current or legacy bare-array format). */
 export function parseHabpanelFile(json: unknown): HPPanelConfig {
+  // An empty list is not a configuration to import; accepting it only produces a confirmation
+  // dialog offering nothing and a restore point recording that nothing happened.
   if (Array.isArray(json)) {
+    if (json.length === 0) throw new Error('Not a HABPanel configuration (no dashboards found)')
     return { dashboards: normalizeDashboards(json), settings: {}, customwidgets: {} }
   }
   const obj = json as Record<string, unknown> | null
-  if (!obj || !Array.isArray(obj.dashboards)) {
+  if (!obj || !Array.isArray(obj.dashboards) || obj.dashboards.length === 0) {
     throw new Error('Not a HABPanel configuration (no dashboards found)')
   }
   return {

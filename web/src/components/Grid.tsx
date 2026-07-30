@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import {
   cellMetrics,
+  columnsOf,
   hasTabletLayout,
   iconScale,
   isHiddenOn,
@@ -122,7 +123,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
       className="nh-grid"
       style={
         {
-          gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
+          gridTemplateColumns: `repeat(${columnsOf(dashboard)}, 1fr)`,
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),

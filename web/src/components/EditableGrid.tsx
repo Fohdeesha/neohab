@@ -21,6 +21,7 @@ import type { Dashboard, Rect } from '../model/dashboard'
 import {
   cellMetrics,
   clampRect,
+  columnsOf,
   hiddenSurfaces,
   iconScale,
   overlapsAny,
@@ -188,7 +189,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           w: placing.w,
           h: placing.h,
         },
-        dashRef.current.columns
+        columnsOf(dashRef.current)
       )
       return { rect, valid: !overlapsAny(dashRef.current, rect) }
     }
@@ -376,7 +377,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       drag.mode === 'move'
         ? { ...drag.startRect, x: drag.startRect.x + cellsX, y: drag.startRect.y + cellsY }
         : { ...drag.startRect, w: drag.startRect.w + cellsX, h: drag.startRect.h + cellsY },
-      dashboard.columns
+      columnsOf(dashboard)
     )
     const overlaps = overlapsAny(dashboard, target, drag.id)
 
@@ -454,7 +455,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       className="nh-grid nh-grid--edit"
       style={
         {
-          gridTemplateColumns: `repeat(${dashboard.columns}, 1fr)`,
+          gridTemplateColumns: `repeat(${columnsOf(dashboard)}, 1fr)`,
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),

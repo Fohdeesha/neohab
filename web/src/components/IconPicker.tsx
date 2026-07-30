@@ -304,7 +304,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
               >
                 {uploading ? t('Uploading…') : t('Upload icon…')}
               </button>
-              <span className="nh-iconpicker__uploadhint">PNG, JPG, GIF, WebP, BMP or SVG</span>
+              <span className="nh-iconpicker__uploadhint">{t('PNG, JPG, GIF, WebP, BMP or SVG')}</span>
               <input
                 ref={fileRef}
                 type="file"

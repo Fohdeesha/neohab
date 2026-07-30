@@ -41,6 +41,7 @@ import { setAudioSettings, useAudioStore } from '../store/audio'
 import { listVoices, onVoicesChanged, recognitionSupported, speak, ttsSupported } from '../audio/speech'
 import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
 import { ItemPicker } from '../components/ItemPicker'
+import { NumberSetting } from '../components/NumberSetting'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { HistorySection } from '../editor/HistorySection'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
@@ -748,20 +749,15 @@ function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void
             if (file) void upload(file)
           }}
         />
-        <label className="nh-iconman__limit" htmlFor="icon-maxkb">
-          {t('Upload limit (KB)')}
-          <input
-            id="icon-maxkb"
-            type="number"
-            min={50}
-            max={2000}
-            value={maxKB}
-            onChange={(e) => {
-              const v = Number(e.target.value)
-              if (Number.isFinite(v) && v > 0) void saveSettings({ maxIconKB: v })
-            }}
-          />
-        </label>
+        <NumberSetting
+          id="icon-maxkb"
+          className="nh-iconman__limit"
+          label={t('Upload limit (KB)')}
+          value={maxKB}
+          min={50}
+          max={2000}
+          onCommit={(v) => void saveSettings({ maxIconKB: v })}
+        />
       </div>
     </section>
   )

@@ -315,6 +315,10 @@ export async function captureSnapshot(force = false): Promise<boolean> {
     return false
   }
 
+  // Hand the flag back to whoever held it rather than forcing it off: a capture taken as the
+  // first step of a restore would otherwise clear `busy` while the restore was still writing,
+  // and `busy` is what disables the Restore button.
+  const wasBusy = useHistoryStore.getState().busy
   useHistoryStore.setState({ busy: true })
   try {
     const { entries, bodies } = await captureEntries()
@@ -386,7 +390,7 @@ export async function captureSnapshot(force = false): Promise<boolean> {
     markWrite()
     return true
   } finally {
-    useHistoryStore.setState({ busy: false })
+    useHistoryStore.setState({ busy: wasBusy })
   }
 }
 
@@ -423,6 +427,14 @@ export interface RestoreResult {
 }
 
 /**
+ * A restore is a long sequence of writes and deletes, so a second one starting while the first is
+ * mid-flight would compute its delete list from a half-restored configuration - and capture that
+ * half-restored state as a restore point. The disabled button is what normally prevents it; this
+ * makes it impossible rather than merely unlikely.
+ */
+let restoreInFlight = false
+
+/**
  * Put the whole configuration back to a snapshot.
  *
  * The current state is captured first, so a restore is itself undoable. Components are written
@@ -431,6 +443,8 @@ export interface RestoreResult {
  * backup importer.
  */
 export async function restoreSnapshot(id: string): Promise<RestoreResult> {
+  if (restoreInFlight) throw new Error(i18n.t('A restore is already running on this device.'))
+  restoreInFlight = true
   useHistoryStore.setState({ busy: true })
   try {
     const snapshot = await getSnapshot(id)
@@ -484,6 +498,7 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
     markWrite()
     return { restored: target.length, removed, skipped }
   } finally {
+    restoreInFlight = false
     useHistoryStore.setState({ busy: false })
   }
 }

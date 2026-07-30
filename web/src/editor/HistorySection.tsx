@@ -7,6 +7,7 @@
  */
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { NumberSetting } from '../components/NumberSetting'
 import { diffEntries, formatValue, type ChangeKind, type ComponentDiff } from '../history/diff'
 import {
   clampLimit,
@@ -43,15 +44,6 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
   const windowMin = clampWindow(settings.historyWindowMin ?? DEFAULT_HISTORY_WINDOW_MIN)
   const snapshots = index?.snapshots ?? []
 
-  const setLimit = (value: number) => {
-    if (!Number.isFinite(value)) return
-    void saveSettings({ historyLimit: clampLimit(value) })
-  }
-  const setWindow = (value: number) => {
-    if (!Number.isFinite(value)) return
-    void saveSettings({ historyWindowMin: clampWindow(value) })
-  }
-
   return (
     <section>
       <h2 className="nh-settings__h">{t('Version history')}</h2>
@@ -62,28 +54,24 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
       </p>
 
       <div className="nh-settings__row">
-        <label className="nh-hist__num" htmlFor="nh-hist-limit">
-          {t('Restore points kept')}
-          <input
-            id="nh-hist-limit"
-            type="number"
-            min={0}
-            max={MAX_HISTORY_LIMIT}
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-          />
-        </label>
-        <label className="nh-hist__num" htmlFor="nh-hist-window">
-          {t('New point after (minutes of quiet)')}
-          <input
-            id="nh-hist-window"
-            type="number"
-            min={0}
-            max={MAX_HISTORY_WINDOW_MIN}
-            value={windowMin}
-            onChange={(e) => setWindow(Number(e.target.value))}
-          />
-        </label>
+        <NumberSetting
+          id="nh-hist-limit"
+          className="nh-hist__num"
+          label={t('Restore points kept')}
+          value={limit}
+          min={0}
+          max={MAX_HISTORY_LIMIT}
+          onCommit={(v) => void saveSettings({ historyLimit: clampLimit(v) })}
+        />
+        <NumberSetting
+          id="nh-hist-window"
+          className="nh-hist__num"
+          label={t('New point after (minutes of quiet)')}
+          value={windowMin}
+          min={0}
+          max={MAX_HISTORY_WINDOW_MIN}
+          onCommit={(v) => void saveSettings({ historyWindowMin: clampWindow(v) })}
+        />
       </div>
       <p className="nh-settings__text">
         {limit === 0

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 
@@ -10,6 +11,7 @@ interface ImageConfig {
 }
 
 function ImageWidget({ config }: WidgetProps<ImageConfig>) {
+  const { t } = useTranslation()
   const [cacheBust, setCacheBust] = useState(0)
 
   useEffect(() => {
@@ -21,7 +23,7 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   if (!config.url) {
     return (
       <WidgetFrame label={config.label} center>
-        <span className="nh-image__placeholder">No image URL</span>
+        <span className="nh-image__placeholder">{t('No image URL')}</span>
       </WidgetFrame>
     )
   }

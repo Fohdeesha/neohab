@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 
@@ -29,6 +30,7 @@ function isSameOrigin(url: string): boolean {
 
 /** Frame - embeds an external page (weather, cameras, other UIs). */
 function FrameWidget({ config }: WidgetProps<FrameConfig>) {
+  const { t } = useTranslation()
   const [generation, setGeneration] = useState(0)
 
   useEffect(() => {
@@ -40,7 +42,7 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
   if (!config.url) {
     return (
       <WidgetFrame label={config.label} center>
-        <span className="nh-image__placeholder">No URL configured</span>
+        <span className="nh-image__placeholder">{t('No URL configured')}</span>
       </WidgetFrame>
     )
   }

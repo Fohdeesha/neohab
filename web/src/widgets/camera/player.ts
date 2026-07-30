@@ -167,6 +167,23 @@ function message(err: unknown): string {
 }
 
 /**
+ * Abandon a first-frame watcher whose attempt has already failed for another reason.
+ *
+ * The watcher is created before the signalling work that can throw, so on that path nobody is
+ * left awaiting it. Dispatching the error settles it through its own machinery - clearing its
+ * connect timeout and poll timer, unhooking its listeners and removing the element - and the
+ * attached catch keeps the resulting rejection from surfacing as an unhandled one ~8s later.
+ */
+function abandon(media: HTMLMediaElement, ready: Promise<Cleanup> | undefined): void {
+  ready?.catch(() => {})
+  try {
+    media.dispatchEvent(new Event('error'))
+  } catch {
+    /* the element is already gone; the catch above is what mattered */
+  }
+}
+
+/**
  * Wrap a teardown so running it twice is harmless: on the failure path both the first-frame
  * watcher's cleanup and the attempt's own catch block reach it.
  */
@@ -425,8 +442,9 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
     }
   })
 
+  let ready: Promise<Cleanup> | undefined
   try {
-    const ready = firstFrame(video, onDrop, teardown)
+    ready = firstFrame(video, onDrop, teardown)
 
     pc.addEventListener('icecandidate', (ev) => {
       if (ws.readyState !== WebSocket.OPEN) return
@@ -480,6 +498,7 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
 
     return await ready
   } catch (err) {
+    abandon(video, ready)
     video.remove()
     teardown()
     throw err
@@ -507,8 +526,9 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
     if (objectUrl) URL.revokeObjectURL(objectUrl)
   })
 
+  let ready: Promise<Cleanup> | undefined
   try {
-    const ready = firstFrame(video, onDrop, teardown)
+    ready = firstFrame(video, onDrop, teardown)
 
     if ('ManagedMediaSource' in window) {
       video.disableRemotePlayback = true
@@ -581,6 +601,7 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
 
     return await ready
   } catch (err) {
+    abandon(video, ready)
     video.remove()
     teardown()
     throw err
@@ -632,8 +653,9 @@ async function attemptHLS(url: string, opts: StartOptions, onDrop: () => void): 
     manifestLoadingTimeOut: CONNECT_TIMEOUT_MS,
   })
   const teardown = once(() => hls.destroy())
+  let ready: Promise<Cleanup> | undefined
   try {
-    const ready = firstFrame(video, onDrop, teardown)
+    ready = firstFrame(video, onDrop, teardown)
     hls.on(Hls.Events.ERROR, (_e, data) => {
       // Only fatal errors end the attempt; hls.js recovers from the rest by itself.
       if (data.fatal) video.dispatchEvent(new Event('error'))
@@ -643,6 +665,7 @@ async function attemptHLS(url: string, opts: StartOptions, onDrop: () => void): 
     void play(video)
     return await ready
   } catch (err) {
+    abandon(video, ready)
     video.remove()
     teardown()
     throw err

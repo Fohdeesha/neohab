@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
@@ -38,6 +39,7 @@ function parseChoices(text: string | undefined): Choice[] {
  * otherwise from the item's command options (as defined by its channel/state description).
  */
 function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
+  const { t } = useTranslation()
   const manual = parseChoices(config.choices)
   const catalogItem = useCatalogStore((s) => s.items.find((i) => i.name === config.item))
 
@@ -65,7 +67,7 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
       iconColor={config.iconColor}
     >
       {choices.length === 0 ? (
-        <div className="nh-selection__empty">No choices — set them in the widget settings</div>
+        <div className="nh-selection__empty">{t('No choices — set them in the widget settings')}</div>
       ) : (
         <div className="nh-selection">
           {choices.map((choice) => (

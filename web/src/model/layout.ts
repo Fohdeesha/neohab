@@ -36,9 +36,19 @@ export function hasTabletLayout(dashboard: Dashboard): boolean {
   return dashboard.mdColumns !== undefined || dashboard.widgets.some((w) => w.layout.md !== undefined)
 }
 
+/**
+ * The dashboard's column count, as a usable number. The editor clamps it to 1..60, but an
+ * imported or hand-edited dashboard is written verbatim, and a zero divides the cell width to
+ * Infinity - which takes the row height, the icon scale and the whole grid with it.
+ */
+export function columnsOf(dashboard: Dashboard): number {
+  const v = dashboard.columns
+  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : 1
+}
+
 export function mdColumnsOf(dashboard: Dashboard): number {
   const v = dashboard.mdColumns
-  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : dashboard.columns
+  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : columnsOf(dashboard)
 }
 
 /**
@@ -50,8 +60,11 @@ export function mdColumnsOf(dashboard: Dashboard): number {
 export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   const columns = mdColumnsOf(dashboard)
   const out = new Map<string, Rect>()
-  if (columns === dashboard.columns) {
-    for (const w of dashboard.widgets) out.set(w.id, w.layout.md ?? rectOf(w))
+  // Stored tablet rects are clamped like every other: the editor keeps them inside the grid when
+  // the column count changes, but an imported or hand-edited one can be wider than the grid it
+  // lands in, and would then render straight over the edge.
+  if (columns === columnsOf(dashboard)) {
+    for (const w of dashboard.widgets) out.set(w.id, clampRect(w.layout.md ?? rectOf(w), columns))
     return out
   }
   // Reflow: place each widget, in the order a phone would stack them, at the first free spot of
@@ -60,7 +73,9 @@ export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   for (const w of stackedOrder(dashboard)) {
     const stored = w.layout.md
     const source = rectOf(w)
-    const rect = stored ?? findFreeSpot(placed, Math.min(source.w, columns), source.h)
+    const rect = stored
+      ? clampRect(stored, columns)
+      : findFreeSpot(placed, Math.min(source.w, columns), source.h)
     out.set(w.id, rect)
     placed.widgets = [...placed.widgets, { ...w, layout: { lg: rect } }]
   }
@@ -130,8 +145,11 @@ export function cellMetrics(
   containerWidth: number
 ): { gap: number; colWidth: number; rowHeight: number } {
   const gap = dashboard.gap ?? DEFAULT_GAP
-  const colWidth = (containerWidth - gap * (dashboard.columns - 1)) / dashboard.columns
-  const rowHeight = dashboard.rowHeight === 'match' ? Math.max(8, colWidth) : dashboard.rowHeight
+  const columns = columnsOf(dashboard)
+  const colWidth = (containerWidth - gap * (columns - 1)) / columns
+  // A fixed row height comes from the same unvalidated config, so it gets the same treatment.
+  const fixed = typeof dashboard.rowHeight === 'number' && Number.isFinite(dashboard.rowHeight)
+  const rowHeight = fixed ? Math.max(8, dashboard.rowHeight as number) : Math.max(8, colWidth)
   return { gap, colWidth, rowHeight }
 }
 
@@ -331,10 +349,11 @@ export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPl
 
 /** Find the topmost-leftmost free w x h spot, scanning row by row. */
 export function findFreeSpot(dashboard: Dashboard, w: number, h: number): Rect {
-  const width = Math.min(w, dashboard.columns)
+  const columns = columnsOf(dashboard)
+  const width = Math.max(1, Math.min(w, columns))
   const maxY = dashboard.widgets.reduce((m, wi) => Math.max(m, rectOf(wi).y + rectOf(wi).h), 0)
   for (let y = 0; y <= maxY; y++) {
-    for (let x = 0; x <= dashboard.columns - width; x++) {
+    for (let x = 0; x <= columns - width; x++) {
       const rect = { x, y, w: width, h }
       if (!overlapsAny(dashboard, rect)) return rect
     }

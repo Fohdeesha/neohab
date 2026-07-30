@@ -54,6 +54,15 @@ export function partialUid(kind: PartialKind, id: string): string {
   return PREFIX_OF[kind] + id
 }
 
+/**
+ * The only component kinds a partial file may carry: the three exportable ones, plus the two
+ * kinds they can reference. Nothing else has any business in such a file, and a component
+ * outside this set could not be given a free id anyway - the copy path derives one from the uid
+ * prefix, so a prefix-less uid like `settings` resolves back to itself and overwrites the
+ * global settings even in copy mode, which promises to touch nothing of yours.
+ */
+const ALLOWED_PREFIXES = [DASHBOARD_PREFIX, WIDGETDEF_PREFIX, THEME_PREFIX, ICON_PREFIX, BACKGROUND_PREFIX]
+
 /* -------------------------------- reference collection -------------------------------- */
 
 interface Refs {
@@ -200,8 +209,13 @@ export function validatePartialBundle(value: unknown): string | null {
   if (b.components.some((c) => typeof c?.uid !== 'string' || typeof c?.component !== 'string')) {
     return 'File contains invalid components'
   }
+  const stray = b.components.find((c) => !ALLOWED_PREFIXES.some((p) => c.uid.startsWith(p)))
+  if (stray) return `File contains something this kind of file may not carry: ${stray.uid}`
   if (typeof b.manifest.primary !== 'string' || !b.components.some((c) => c.uid === b.manifest.primary)) {
     return 'File does not contain the component it describes'
+  }
+  if (!b.manifest.primary.startsWith(PREFIX_OF[b.manifest.kind])) {
+    return `File says it holds a ${b.manifest.kind}, but describes ${b.manifest.primary}`
   }
   return null
 }

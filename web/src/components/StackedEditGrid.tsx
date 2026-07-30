@@ -5,7 +5,7 @@
  * position/size on the wide grid is still edited on a wide viewport — here the handle only
  * moves widgets up and down, with a line showing where the drop lands.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
@@ -58,6 +58,10 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     }
     longPressStart.current = null
   }
+  // A press interrupted by an unmount - a route change, Save, or the viewport crossing back over
+  // STACK_BELOW - would otherwise fire its long-press into an editor that is no longer there.
+  // The wide grid does the same; the two surfaces are deliberately kept in step.
+  useEffect(() => () => clearLongPress(), [])
 
   const onOverlayClick = (id: string) => (e: React.MouseEvent) => {
     e.stopPropagation()
