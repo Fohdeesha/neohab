@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "gallery-grouptoggle",
+  "name": "Group switch list",
+  "kind": "template",
+  "source": "gallery",
+  "settings": [
+    {
+      "id": "group",
+      "type": "item",
+      "label": "Group item"
+    },
+    {
+      "id": "onLabel",
+      "type": "string",
+      "label": "Label when on",
+      "default": "ON"
+    },
+    {
+      "id": "offLabel",
+      "type": "string",
+      "label": "Label when off",
+      "default": "OFF"
+    }
+  ],
+  "template": "<div class=\"gt\">\n  <div class=\"gt__row\" x-for=\"m in itemsInGroup(config.group)\">\n    <span class=\"gt__name\">{{ m.label || m.name }}</span>\n    <button\n      class=\"gt__btn\"\n      x-class=\"{'gt__btn--on': itemState(m.name) === 'ON'}\"\n      x-on:tap=\"sendCmd(m.name, itemState(m.name) === 'ON' ? 'OFF' : 'ON')\"\n    >{{ itemState(m.name) === 'ON' ? (config.onLabel || 'ON') : (config.offLabel || 'OFF') }}</button>\n  </div>\n  <div class=\"gt__empty\" x-if=\"!itemsInGroup(config.group).length\">Pick a group item in this widget's settings.</div>\n</div>\n<style>\n  .gt { display: flex; flex-direction: column; gap: 6px; height: 100%; overflow: auto; }\n  .gt__row { display: flex; align-items: center; gap: 8px; }\n  .gt__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n  .gt__btn { flex: 0 0 auto; min-width: 62px; min-height: 34px; border-radius: 999px; cursor: pointer;\n    border: 1px solid var(--nh-border); background: var(--nh-surface-2); color: var(--nh-text); font: inherit; }\n  .gt__btn--on { background: var(--nh-primary); border-color: var(--nh-primary); color: #fff; }\n  .gt__empty { opacity: 0.7; font-size: 0.85em; }\n</style>"
+}

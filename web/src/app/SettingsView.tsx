@@ -44,6 +44,7 @@ import { ItemPicker } from '../components/ItemPicker'
 import { HabpanelImport } from '../editor/HabpanelImport'
 import { HistorySection } from '../editor/HistorySection'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
+import { GallerySection } from '../editor/GallerySection'
 import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
 import { refreshAuthStatus, useAuthStore, useEditingAllowed, useIsAdmin } from '../store/auth'
@@ -230,6 +231,8 @@ export function SettingsView() {
             <CustomIconsSection onNotice={setNotice} />
 
             <HabpanelImport onNotice={setNotice} />
+
+            <GallerySection onNotice={setNotice} />
 
             <BackupSection onNotice={setNotice} />
 

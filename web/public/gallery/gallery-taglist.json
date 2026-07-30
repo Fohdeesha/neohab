@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "gallery-taglist",
+  "name": "Tagged item list",
+  "kind": "template",
+  "source": "gallery",
+  "settings": [
+    {
+      "id": "tag",
+      "type": "string",
+      "label": "Tag"
+    },
+    {
+      "id": "heading",
+      "type": "string",
+      "label": "Heading"
+    }
+  ],
+  "template": "<div class=\"tl\">\n  <div class=\"tl__head\" x-if=\"config.heading\">{{ config.heading }}</div>\n  <div class=\"tl__row\" x-for=\"it in itemsWithTag(config.tag)\">\n    <span class=\"tl__name\">{{ it.label || it.name }}</span>\n    <span class=\"tl__state\">{{ getItem(it.name).displayState || itemState(it.name) }}</span>\n  </div>\n  <div class=\"tl__empty\" x-if=\"!itemsWithTag(config.tag).length\">No items carry the tag “{{ config.tag }}”.</div>\n</div>\n<style>\n  .tl { display: flex; flex-direction: column; gap: 4px; height: 100%; overflow: auto; }\n  .tl__head { font-weight: 700; opacity: 0.8; margin-bottom: 2px; }\n  .tl__row { display: flex; align-items: baseline; gap: 8px; }\n  .tl__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }\n  .tl__state { font-weight: 700; font-variant-numeric: tabular-nums; }\n  .tl__empty { opacity: 0.7; font-size: 0.85em; }\n</style>"
+}

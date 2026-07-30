@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "gallery-progress",
+  "name": "Progress bar",
+  "kind": "template",
+  "source": "gallery",
+  "settings": [
+    {
+      "id": "item",
+      "type": "item",
+      "label": "Item"
+    },
+    {
+      "id": "label",
+      "type": "string",
+      "label": "Caption"
+    },
+    {
+      "id": "min",
+      "type": "number",
+      "label": "Minimum",
+      "default": 0
+    },
+    {
+      "id": "max",
+      "type": "number",
+      "label": "Maximum",
+      "default": 100
+    },
+    {
+      "id": "color",
+      "type": "color",
+      "label": "Bar colour"
+    }
+  ],
+  "template": "<div\n  class=\"pb\"\n  x-init=\"pbSpan = ((+config.max || 100) - (+config.min || 0)) || 1; pbRaw = ((+itemValue(config.item) - (+config.min || 0)) / pbSpan) * 100; pbPct = pbRaw < 0 ? 0 : (pbRaw > 100 ? 100 : pbRaw)\"\n>\n  <div class=\"pb__top\">\n    <span class=\"pb__label\">{{ config.label }}</span>\n    <span class=\"pb__value\">{{ getItem(config.item).displayState || itemValue(config.item) }}</span>\n  </div>\n  <div class=\"pb__track\">\n    <div class=\"pb__fill\" x-style=\"{width: pbPct + '%', background: config.color || theme.primary}\"></div>\n  </div>\n</div>\n<style>\n  .pb { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; }\n  .pb__top { display: flex; align-items: baseline; gap: 8px; font-size: 0.85em; }\n  .pb__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.75; }\n  .pb__value { font-weight: 700; }\n  .pb__track { height: 10px; border-radius: 999px; background: var(--nh-surface-2); overflow: hidden; }\n  .pb__fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }\n</style>"
+}

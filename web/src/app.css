@@ -1086,6 +1086,72 @@ button {
   background: color-mix(in srgb, #e53935 12%, transparent);
 }
 
+/* ============================================================================
+   Widget gallery cards (Settings)
+   ============================================================================ */
+.nh-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.nh-gallery__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+}
+
+.nh-gallery__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nh-gallery__name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-gallery__badge {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text-dim);
+  font-size: 0.7rem;
+}
+
+.nh-gallery__desc {
+  margin: 0;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+}
+
+.nh-gallery__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.nh-gallery__meta {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nh-text-dim);
+  font-size: 0.75rem;
+}
+
 /* Widgets an armed bump will relocate, previewed at the spot the drop would put them. */
 .nh-cell--bumped .nh-widget {
   outline: 2px dashed var(--nh-primary);

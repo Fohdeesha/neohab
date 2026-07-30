@@ -99,7 +99,9 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   signed in as an administrator, so wall panels and guests get a clean, read-only dashboard;
   administrator devices are never affected, and a locked device can still sign in from Settings.
 - **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
-  an optional sandboxed JavaScript widget API for power users.
+  an optional sandboxed JavaScript widget API for power users. A small gallery of ready-made
+  widgets ships inside the add-on (so it works with no internet at all) and installs with one
+  tap; installed widgets are then yours to edit like any other.
 - **First-class theming** — theme editor with live preview, light/dark themes, and custom
   themes that travel with your backups. Any device can pin its own theme (a light desk browser
   next to a dark wall panel) without changing what the others share. Every theme can carry its own CSS on top of the color

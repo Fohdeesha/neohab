@@ -24,6 +24,7 @@ const SAFE_SUITES = [
   'e2e-i18n',
   'e2e-backgrounds',
   'e2e-partial',
+  'e2e-gallery',
   'e2e-templates',
   'e2e-icons',
   'e2e-iconpacks',

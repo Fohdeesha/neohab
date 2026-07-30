@@ -1,0 +1,51 @@
+{
+  "formatVersion": 1,
+  "name": "neohab widget gallery",
+  "widgets": [
+    {
+      "id": "gallery-bigvalue",
+      "name": "Big value",
+      "description": "One reading, as large as the cell allows, with a colour above a threshold.",
+      "author": "neohab",
+      "license": "EPL-2.0",
+      "kind": "template",
+      "file": "gallery-bigvalue.json"
+    },
+    {
+      "id": "gallery-grouptoggle",
+      "name": "Group switch list",
+      "description": "Every switchable member of a group as a row you can toggle.",
+      "author": "neohab",
+      "license": "EPL-2.0",
+      "kind": "template",
+      "file": "gallery-grouptoggle.json"
+    },
+    {
+      "id": "gallery-progress",
+      "name": "Progress bar",
+      "description": "A horizontal bar between a minimum and a maximum, with the value written on it.",
+      "author": "neohab",
+      "license": "EPL-2.0",
+      "kind": "template",
+      "file": "gallery-progress.json"
+    },
+    {
+      "id": "gallery-taglist",
+      "name": "Tagged item list",
+      "description": "Every item carrying a tag, with its state - a quick overview panel.",
+      "author": "neohab",
+      "license": "EPL-2.0",
+      "kind": "template",
+      "file": "gallery-taglist.json"
+    },
+    {
+      "id": "gallery-compare",
+      "name": "Two readings side by side",
+      "description": "Two items on one card - inside against outside, target against actual.",
+      "author": "neohab",
+      "license": "EPL-2.0",
+      "kind": "template",
+      "file": "gallery-compare.json"
+    }
+  ]
+}

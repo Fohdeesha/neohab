@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "id": "gallery-bigvalue",
+  "name": "Big value",
+  "kind": "template",
+  "source": "gallery",
+  "settings": [
+    {
+      "id": "item",
+      "type": "item",
+      "label": "Item"
+    },
+    {
+      "id": "label",
+      "type": "string",
+      "label": "Caption under the value"
+    },
+    {
+      "id": "suffix",
+      "type": "string",
+      "label": "Suffix (when the item has no unit)"
+    },
+    {
+      "id": "threshold",
+      "type": "number",
+      "label": "Colour above this value"
+    },
+    {
+      "id": "overColor",
+      "type": "color",
+      "label": "Colour when above",
+      "default": "#e35a2b"
+    }
+  ],
+  "template": "<div class=\"bv\">\n  <div\n    class=\"bv__value\"\n    x-style=\"{color: (config.threshold || config.threshold === 0) && +itemValue(config.item) >= +config.threshold ? (config.overColor || '#e35a2b') : theme.text}\"\n  >{{ getItem(config.item).displayState || itemValue(config.item) || '—' }}<span class=\"bv__suffix\" x-if=\"config.suffix\">{{ config.suffix }}</span></div>\n  <div class=\"bv__label\" x-if=\"config.label\">{{ config.label }}</div>\n</div>\n<style>\n  .bv { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 2px; }\n  .bv__value { font-size: 2.4em; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }\n  .bv__suffix { font-size: 0.42em; font-weight: 600; margin-left: 0.15em; opacity: 0.8; }\n  .bv__label { font-size: 0.8em; opacity: 0.7; text-align: center; }\n</style>"
+}
