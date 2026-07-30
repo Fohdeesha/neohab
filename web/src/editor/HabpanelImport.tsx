@@ -14,7 +14,7 @@ import {
   type HabpanelImportResult,
   type HPPanelConfig,
 } from '../importer/habpanel'
-import { saveDashboard, saveRawComponent, saveSettings, useConfigStore } from '../store/config'
+import { beginBulkConfigWrite, saveDashboard, saveRawComponent, saveSettings, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 
 export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => void }) {
@@ -56,6 +56,9 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
 
     setBusy(true)
     try {
+      // One restore point for the whole import, so the configuration as it was before it is
+      // recoverable however recently the last ordinary save happened.
+      await beginBulkConfigWrite()
       for (const dashboard of converted.dashboards) {
         await saveDashboard(dashboard)
       }

@@ -5,12 +5,17 @@ import './i18n'
 import App from './App.tsx'
 import { applyCachedTheme } from './themes/themes.ts'
 import { applyDeviceTextSize } from './store/textsize.ts'
+import { installHistoryHook } from './store/history.ts'
 import './app.css'
 
 // Apply the last-used theme and this device's text size before first paint, to avoid a
 // flash of the defaults.
 applyCachedTheme()
 applyDeviceTextSize()
+
+// Every configuration write takes a restore point first. Registered here rather than imported
+// by the configuration store, so that store depends on nothing.
+installHistoryHook()
 
 // Install/refresh the offline app shell. No-ops where service workers are unavailable (plain
 // HTTP). A new build deployed to the server replaces the cached shell automatically; wall

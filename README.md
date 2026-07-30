@@ -76,6 +76,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   so instead of quietly showing you old readings.
 - **Import / export** — back up, restore and share complete dashboard configurations as JSON;
   restore by replacing everything or merging a backup into what you have.
+- **Version history** — every change is preceded by a restore point, so you can look back through
+  a dated list, see exactly what changed at each one (down to the individual fields, before and
+  after), and put the whole configuration back to any of them. Points are named by date and can
+  be given a name of your own; changes made close together share one, so an afternoon of tweaking
+  leaves one entry rather than dozens. Twenty-five are kept by default, and that is configurable.
 - **Your language** — the UI ships in English, German, Spanish, French, Italian, Dutch and
   Polish (the translations are machine-drafted and welcome native review), picked automatically
   from the browser language with a per-device override in Settings. Your own dashboard text is

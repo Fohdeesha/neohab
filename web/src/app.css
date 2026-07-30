@@ -2815,6 +2815,204 @@ button {
   font-size: 0.85em;
 }
 
+/* ---------------------------- version history ---------------------------- */
+
+.nh-hist__num {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nh-text-dim);
+  font-size: 0.9rem;
+}
+
+.nh-hist__num input {
+  width: 5.5rem;
+  padding: 8px 10px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  color: var(--nh-text);
+  font: inherit;
+}
+
+.nh-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.nh-hist__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nh-hist__row--on {
+  border-color: var(--nh-primary);
+}
+
+.nh-hist__when {
+  font-weight: 600;
+}
+
+.nh-hist__what {
+  flex: 1 1 12rem;
+  min-width: 0;
+  color: var(--nh-text-dim);
+  font-size: 0.9em;
+  overflow-wrap: break-word;
+}
+
+.nh-histdetail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--nh-primary);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+}
+
+.nh-histdetail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-histdetail__modes {
+  display: flex;
+  gap: 6px;
+}
+
+.nh-histmode {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  color: var(--nh-text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.nh-histmode--on {
+  border-color: var(--nh-primary);
+  color: var(--nh-text);
+}
+
+.nh-histdetail__label {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  font: inherit;
+}
+
+.nh-histrow {
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+}
+
+.nh-histrow__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  color: var(--nh-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nh-histrow__head:disabled {
+  cursor: default;
+}
+
+.nh-histrow__kind {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nh-surface-2);
+  color: var(--nh-text-dim);
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nh-histrow__kind--added {
+  color: #4ac97e;
+}
+
+.nh-histrow__kind--removed {
+  color: #e0685f;
+}
+
+.nh-histrow__name {
+  flex: 1 1 8rem;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.nh-histrow__cat,
+.nh-histrow__count {
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+}
+
+.nh-histrow__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px 10px;
+}
+
+.nh-histfield {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.85em;
+}
+
+.nh-histfield__path {
+  flex: 0 1 auto;
+  color: var(--nh-text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.nh-histfield__before,
+.nh-histfield__after {
+  overflow-wrap: anywhere;
+}
+
+.nh-histfield__before {
+  color: var(--nh-text-dim);
+  text-decoration: line-through;
+}
+
 /* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable

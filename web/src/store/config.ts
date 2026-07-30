@@ -9,6 +9,9 @@
  *   - `settings`       (component `neohab:settings`)  - global app settings
  * Reads are public; saving requires an admin login. With no server dashboards the Home screen
  * shows a first-run welcome instead.
+ *
+ * Every write here passes through `beforeConfigWrite`, which is where the version history takes
+ * the restore point for the state about to be replaced (store/history.ts).
  */
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
@@ -73,6 +76,16 @@ export interface AppSettings {
   speechItem?: string
   /** Voice-input microphone button in the dashboard header (where supported). On by default. */
   voiceButton?: boolean
+  /**
+   * Restore points kept in the version history (default DEFAULT_HISTORY_LIMIT). 0 turns the
+   * history off, so nothing is captured and nothing is stored.
+   */
+  historyLimit?: number
+  /**
+   * Minutes of quiet before the next change starts a new restore point (default
+   * DEFAULT_HISTORY_WINDOW_MIN), so one editing session leaves one point rather than dozens.
+   */
+  historyWindowMin?: number
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })
@@ -204,10 +217,61 @@ export async function loadConfig(): Promise<void> {
   }
 }
 
+/* --------------------------- version history write hook --------------------------- */
+
+/**
+ * `single` is an ordinary save; `bulk` is an operation that rewrites much of the configuration
+ * at once (a backup import, a HABPanel import), which always deserves its own restore point.
+ */
+export type ConfigWriteKind = 'single' | 'bulk'
+
+let beforeWrite: ((kind: ConfigWriteKind) => Promise<void>) | null = null
+
+/**
+ * Register something to run before every configuration write - the version history uses it to
+ * capture the state a change is about to replace. Registered rather than imported so this store
+ * stays a leaf: it must not depend on the history, which depends on it.
+ */
+export function onBeforeConfigWrite(fn: (kind: ConfigWriteKind) => Promise<void>): void {
+  beforeWrite = fn
+}
+
+async function beforeConfigWrite(kind: ConfigWriteKind = 'single'): Promise<void> {
+  if (beforeWrite) await beforeWrite(kind)
+}
+
+/**
+ * Announce a rewrite made of many individual saves (the HABPanel importer), so the state it
+ * replaces gets a restore point of its own rather than depending on when the last save happened.
+ * The writes that follow are covered by that same point.
+ */
+export async function beginBulkConfigWrite(): Promise<void> {
+  await beforeConfigWrite('bulk')
+}
+
+/**
+ * Write a component, choosing create or update from what this tab believes is on the server.
+ *
+ * That belief can be out of date - another administrator's tab, or a restore from the version
+ * history, adds and removes components behind this one's back - and openHAB answers a create for
+ * an existing uid with a 500 and an update of a missing one with a 404. Rather than lose the
+ * save, the other verb is tried before giving up; the first failure is what gets reported, since
+ * the fallback's error would only describe the symptom.
+ */
 async function upsert<C>(component: UIComponent<C>): Promise<void> {
   const exists = useConfigStore.getState().serverUids.has(component.uid)
-  if (exists) await updateComponent(component)
-  else await addComponent(component)
+  const update = () => updateComponent(component)
+  const create = () => addComponent(component)
+  const [first, second] = exists ? [update, create] : [create, update]
+  try {
+    await first()
+  } catch (err) {
+    try {
+      await second()
+    } catch {
+      throw err
+    }
+  }
   useConfigStore.setState((s) => ({ serverUids: new Set([...s.serverUids, component.uid]) }))
 }
 
@@ -217,6 +281,7 @@ export function getDashboard(id: string): Dashboard | undefined {
 
 /** Persist a dashboard to the server. Requires an admin token. */
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
+  await beforeConfigWrite()
   await upsert(dashboardComponent(dashboard))
   useConfigStore.setState((s) => {
     const others = s.dashboards.filter((d) => d.id !== dashboard.id)
@@ -227,6 +292,7 @@ export async function saveDashboard(dashboard: Dashboard): Promise<void> {
 
 /** Delete a dashboard. Dashboards that never reached the server (demo) are removed locally. */
 export async function deleteDashboard(id: string): Promise<void> {
+  await beforeConfigWrite()
   const uid = DASHBOARD_PREFIX + id
   if (useConfigStore.getState().serverUids.has(uid)) await deleteComponent(uid)
   useConfigStore.setState((s) => ({
@@ -240,8 +306,13 @@ export async function deleteDashboard(id: string): Promise<void> {
  * the local change in place; the caller may surface the returned error.
  */
 export async function saveSettings(patch: Partial<AppSettings>): Promise<string | null> {
+  // Applied locally first, and only then captured: settings drive controlled inputs, so waiting
+  // for the restore point before updating the store would leave a switch sitting at its old
+  // position until the round trip finished. The capture reads the server rather than the store,
+  // so it still records the state this write is about to replace.
   const next = { ...useConfigStore.getState().settings, ...patch }
   useConfigStore.setState({ settings: next })
+  await beforeConfigWrite()
   try {
     await upsert(settingsComponent(next))
     return null
@@ -252,10 +323,12 @@ export async function saveSettings(patch: Partial<AppSettings>): Promise<string 
 
 /** Upsert an arbitrary component into the neohab namespace (used by the importer). */
 export async function saveRawComponent(component: UIComponent): Promise<void> {
+  await beforeConfigWrite()
   await upsert(component)
 }
 
 export async function saveTheme(theme: Theme): Promise<void> {
+  await beforeConfigWrite()
   await upsert(themeComponent(theme))
   useConfigStore.setState((s) => {
     const others = s.customThemes.filter((t) => t.id !== theme.id)
@@ -264,6 +337,7 @@ export async function saveTheme(theme: Theme): Promise<void> {
 }
 
 export async function deleteTheme(id: string): Promise<void> {
+  await beforeConfigWrite()
   await deleteComponent(THEME_PREFIX + id)
   useConfigStore.setState((s) => ({
     customThemes: s.customThemes.filter((t) => t.id !== id),
@@ -272,6 +346,7 @@ export async function deleteTheme(id: string): Promise<void> {
 }
 
 export async function saveWidgetDef(def: CustomWidgetDef): Promise<void> {
+  await beforeConfigWrite()
   await upsert(widgetDefComponent(def))
   useConfigStore.setState((s) => {
     const others = s.widgetDefs.filter((d) => d.id !== def.id)
@@ -280,6 +355,7 @@ export async function saveWidgetDef(def: CustomWidgetDef): Promise<void> {
 }
 
 export async function deleteWidgetDef(id: string): Promise<void> {
+  await beforeConfigWrite()
   await deleteComponent(WIDGETDEF_PREFIX + id)
   useConfigStore.setState((s) => ({
     widgetDefs: s.widgetDefs.filter((d) => d.id !== id),
@@ -289,6 +365,7 @@ export async function deleteWidgetDef(id: string): Promise<void> {
 
 /** Persist a user-uploaded icon. Requires an admin token. */
 export async function saveCustomIcon(icon: CustomIcon): Promise<void> {
+  await beforeConfigWrite()
   await upsert(iconComponent(icon))
   useConfigStore.setState((s) => {
     const others = s.customIcons.filter((i) => i.id !== icon.id)
@@ -297,6 +374,7 @@ export async function saveCustomIcon(icon: CustomIcon): Promise<void> {
 }
 
 export async function deleteCustomIcon(id: string): Promise<void> {
+  await beforeConfigWrite()
   await deleteComponent(ICON_PREFIX + id)
   useConfigStore.setState((s) => ({
     customIcons: s.customIcons.filter((i) => i.id !== id),
@@ -305,6 +383,7 @@ export async function deleteCustomIcon(id: string): Promise<void> {
 }
 
 export async function saveBackground(bg: CustomBackground): Promise<void> {
+  await beforeConfigWrite()
   await upsert(backgroundComponent(bg))
   useConfigStore.setState((s) => {
     const others = s.backgrounds.filter((b) => b.id !== bg.id)
@@ -416,6 +495,7 @@ export type ImportMode = 'replace' | 'merge'
  *              by the bundle's version
  */
 export async function importBundle(bundle: ExportBundle, mode: ImportMode): Promise<void> {
+  await beforeConfigWrite('bulk')
   const existing = await listComponents()
   const have = new Set(existing.map((c) => c.uid))
 

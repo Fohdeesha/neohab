@@ -33,6 +33,7 @@ import { listVoices, onVoicesChanged, recognitionSupported, speak, ttsSupported 
 import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
 import { ItemPicker } from '../components/ItemPicker'
 import { HabpanelImport } from '../editor/HabpanelImport'
+import { HistorySection } from '../editor/HistorySection'
 import { WidgetDefManager } from '../editor/WidgetDefManager'
 import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, isLoggedIn, logout } from '../api/auth'
@@ -210,6 +211,8 @@ export function SettingsView() {
             <HabpanelImport onNotice={setNotice} />
 
             <BackupSection onNotice={setNotice} />
+
+            <HistorySection onNotice={setNotice} />
           </>
         ) : null}
 
