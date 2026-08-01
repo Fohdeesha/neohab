@@ -77,6 +77,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   a concentric inner ring — the dual gauge — with its own range and colors, both readings shown
   in the center. It stays a touch control — drag around a ring to set its value, whichever ring
   is nearer your finger — unless you make it read-only.
+- **Compass** — wind direction, or any bearing, on a compass face: a pointer swings live around
+  the ring and the nearest cardinal name sits big in the center, with optional degrees and fixed
+  N/E/S/W letters. It reads numeric degrees or cardinal names from the item, and draws in the
+  theme's accent or a color you pick.
 - **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
   or any camera that serves its own stream. Point it at a camera server and pick a camera, or
   paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
@@ -130,6 +134,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   (dark and light, in the International Typographic Style) are built that way, and ship with
   [Instrument Sans](https://github.com/Instrument/instrument-sans)
   (© Instrument, [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
+  So is **Ember**, a slate-navy instrument panel with a single ember-orange accent, in the style
+  of the modern weather-station dashboards. A theme's stylesheet can also recolor the chart
+  palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
+  and every widget offers a *Tile accent* setting that paints its whole tile in the active
+  theme's accent — solid, or a muted wash — for the highlighted-callout look those panels use.
   Dashboards can also carry background images — one global default plus per-dashboard
   overrides, set by URL or uploaded. Uploads are stored losslessly as PNG at up to 5K (no
   compression artifacts) in your openHAB config, so backups include them; exports keep the

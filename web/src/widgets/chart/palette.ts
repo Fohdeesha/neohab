@@ -22,8 +22,22 @@ export function chartScheme(): ChartScheme {
 /**
  * Palette slot for a series position. Slots are assigned in fixed order and never cycled;
  * past the palette's end the last slot repeats - a visible signal to trim or recolor.
+ *
+ * A theme may recolor any slot by defining `--nh-chart-<n>` (1-based) in its stylesheet;
+ * undefined slots keep the validated built-in column, so a theme that only pins its accent
+ * into slot 1 leaves the rest of the palette's CVD-safe ordering intact. Use 6-digit hex
+ * values - the gradient fill derives its alpha stops from them.
  */
 export function seriesColor(index: number, scheme: ChartScheme): string {
   const p = scheme === 'light' ? SERIES_LIGHT : SERIES_DARK
-  return p[Math.max(0, Math.min(index, p.length - 1))]
+  const slot = Math.max(0, Math.min(index, p.length - 1))
+  try {
+    const themed = getComputedStyle(document.documentElement)
+      .getPropertyValue('--nh-chart-' + (slot + 1))
+      .trim()
+    if (themed) return themed
+  } catch {
+    /* non-browser (unit checks): built-ins only */
+  }
+  return p[slot]
 }
