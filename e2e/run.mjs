@@ -44,6 +44,7 @@ const SAFE_SUITES = [
   'e2e-cmdfail',
   'e2e-charts',
   'e2e-chartagg',
+  'e2e-gauge',
   'e2e-camera',
   'e2e-resizefix',
   'e2e-responsive',
