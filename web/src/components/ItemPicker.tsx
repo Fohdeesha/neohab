@@ -173,6 +173,26 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           }}
           onKeyDown={onKeyDown}
         />
+        {(query ?? value) !== '' ? (
+          <button
+            type="button"
+            className="nh-picker__clear"
+            aria-label={t('Clear selection')}
+            tabIndex={-1}
+            onPointerDown={(e) => {
+              // pointerdown + preventDefault, like the toggle: no focus bounce, no outside-close race
+              e.preventDefault()
+              onChange('')
+              setQuery(null)
+              setOpen(false)
+              restoringFocus.current = true
+              inputRef.current?.focus()
+              restoringFocus.current = false
+            }}
+          >
+            ✕
+          </button>
+        ) : null}
         <button
           type="button"
           className={'nh-picker__toggle' + (open ? ' nh-picker__toggle--open' : '')}
