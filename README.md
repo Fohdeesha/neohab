@@ -5,7 +5,7 @@ A modern dashboard UI for [openHAB](https://www.openhab.org/)
 neohab installs as a standard openHAB UI add-on and lets you build touch-friendly dashboards for
 phones, tablets and desktops, configured entirely in the browser. No file editing, ever.
 
-> **Status: in daily use.** The latest release is **1.3.0** — grab its add-on jar from the
+> **Status: in daily use.** The latest release is **1.4.0** — grab its add-on jar from the
 > [releases page](https://github.com/Fohdeesha/neohab/releases) and drop it in your `addons`
 > folder. Everything described below is built and tested end to end against a live openHAB
 > server by a browser suite that drives the whole UI; anything added since that release is on
