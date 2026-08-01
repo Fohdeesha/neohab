@@ -35,7 +35,10 @@ page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
-  try { localStorage.setItem('neohab:apiToken', t) } catch {}
+  // Pin the default theme: the server's global theme is the user's own choice, and a theme
+  // may legitimately re-pin chart palette slots (--nh-chart-<n>) - this suite asserts the
+  // BUILT-IN palette order, so it must not inherit whatever theme the server happens to run.
+  try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
   // Frame probe: a live append redraws its own canvas with exactly one more path segment.
   // Pixel comparison can't see it - the drop lands in the same pixel column as the fill's
   // closing edge at the plot border - so count segments per frame, attributed per canvas.

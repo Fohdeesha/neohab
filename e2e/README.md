@@ -65,6 +65,7 @@ each item's initial state first and restores it in cleanup, even when checks fai
 | `switch` | Switch | commanded (ON/OFF), restored |
 | `temperature` | Number | **read only** — should have persistence history so chart checks have data |
 | `player` | Player | **display only**, never commanded |
+| `formatted` | Number | *optional*, **read only** — its state pattern should append a unit (e.g. `%.0f %%`); e2e-ember uses it to prove a formatted state splits into number + unit, and self-skips without it |
 
 ## Running
 

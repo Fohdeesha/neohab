@@ -42,7 +42,9 @@ page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
-  try { localStorage.setItem('neohab:apiToken', t) } catch {}
+  // Pin the default theme: a theme may set its own default Name alignment (Ember centers),
+  // and this suite asserts the app's own defaults - it must not inherit the server's theme.
+  try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
 }, TOKEN)
 
 /** Geometry of the label parts inside the cell containing `text`. */
@@ -215,7 +217,8 @@ try {
   phone.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
   phone.on('dialog', (d) => d.accept())
   await phone.addInitScript((t) => {
-    try { localStorage.setItem('neohab:apiToken', t) } catch {}
+    // same default-theme pin as the main page - this suite asserts the app's own defaults
+    try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
   }, TOKEN)
   await phone.goto(APP + '#/d/nh-e2e-lblalign', { waitUntil: 'domcontentloaded' })
   await phone.waitForSelector('.nh-grid--stacked .nh-gcell', { timeout: 20000 })

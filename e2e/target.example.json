@@ -6,7 +6,8 @@
     "color": "MyColorItem",
     "switch": "MySwitchItem",
     "temperature": "MyTemperatureItem",
-    "player": "MyPlayerItem"
+    "player": "MyPlayerItem",
+    "formatted": "MyUnitFormattedItem"
   },
   "user": { "name": "e2e-throwaway", "password": "change-me-or-remove-this-key" },
   "camera": { "kind": "go2rtc", "server": "http://go2rtc.local:1984", "stream": "my_camera" }

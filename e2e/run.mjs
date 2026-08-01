@@ -53,6 +53,7 @@ const SAFE_SUITES = [
   'e2e-textsize',
   'e2e-labelalign',
   'e2e-themecss',
+  'e2e-ember',
   'e2e-kiosk',
   'e2e-audit2',
   'e2e-audit3',

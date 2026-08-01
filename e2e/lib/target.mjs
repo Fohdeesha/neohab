@@ -81,6 +81,14 @@ for (const key of ['dimmer', 'color', 'switch', 'temperature', 'player']) {
 }
 
 /**
+ * Optional display-only item whose state pattern appends a unit (e.g. `%.0f %%` on a
+ * humidity item). e2e-ember uses it to prove a formatted state splits into number + unit for
+ * the stat-tile typography; it is only ever read, never commanded. Without one that check
+ * self-skips. Env override: NEOHAB_E2E_FORMATTED_ITEM.
+ */
+export const FORMATTED_ITEM = process.env.NEOHAB_E2E_FORMATTED_ITEM ?? ITEMS.formatted ?? null
+
+/**
  * Optional throwaway login for the full credential-exchange test (e2e-signin): a user that
  * exists on the target server and may be signed in and out freely. Without one the exchange
  * section self-skips - everything up to the server's login form is still covered. Create one
