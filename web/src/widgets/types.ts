@@ -70,6 +70,9 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'chartthresholds'; label: string }
     | { key: string; type: 'statecolors'; label: string }
     | { key: string; type: 'timelineseries'; label: string }
+    | { key: string; type: 'gaugeseverity'; label: string }
+    | { key: string; type: 'gaugemarkers'; label: string }
+    | { key: string; type: 'gaugezones'; label: string }
   )
 
 export interface WidgetDefinition<C = Record<string, unknown>> {

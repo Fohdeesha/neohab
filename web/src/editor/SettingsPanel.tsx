@@ -8,6 +8,7 @@ import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
 import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
+import { GaugeMarkersField, GaugeSeverityField, GaugeZonesField } from './GaugeFields'
 import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
 import { CameraStreamField } from './CameraStreamField'
 import type { SettingField } from '../widgets/types'
@@ -374,6 +375,12 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <StateColorsField widget={widget} />
     case 'timelineseries':
       return <TimelineSeriesField widget={widget} />
+    case 'gaugeseverity':
+      return <GaugeSeverityField widget={widget} field={field} />
+    case 'gaugemarkers':
+      return <GaugeMarkersField widget={widget} />
+    case 'gaugezones':
+      return <GaugeZonesField widget={widget} />
     case 'camerastream':
       return <CameraStreamField field={field} widget={widget} value={value} />
     case 'dashboard':

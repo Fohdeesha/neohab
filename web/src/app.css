@@ -1726,6 +1726,149 @@ button {
   font-weight: 300;
 }
 
+/* Ring gauges (dial styles LED ring / Solid arc / Blocks / 3D) */
+.nh-dial--ring {
+  max-width: 320px;
+}
+
+/* solid-band styles: the dim full-length track, and the sector face behind the arc style */
+.nh-gauge__btrack {
+  fill: none;
+  stroke: var(--nh-surface-2);
+}
+
+.nh-gauge__btrack--soft {
+  opacity: 0.55;
+}
+
+/* the value band's stroke comes from its attribute - no stroke declared here */
+.nh-gauge__band {
+  fill: none;
+}
+
+.nh-gauge__face {
+  fill: var(--nh-surface);
+}
+
+/* blocks: unlit segments only - lit ones carry their stroke as an attribute */
+.nh-gauge__blk {
+  fill: none;
+  stroke: var(--nh-text);
+  opacity: 0.13;
+}
+
+.nh-gauge__blklit {
+  fill: none;
+}
+
+/* 3d clay shading: dark offset under, soft white sheen over; body stroke is an attribute */
+.nh-gauge__clayshadow {
+  fill: none;
+  stroke: #000;
+  opacity: 0.28;
+}
+
+.nh-gauge__claybody {
+  fill: none;
+}
+
+.nh-gauge__clayhi {
+  fill: none;
+  stroke: #fff;
+  opacity: 0.22;
+}
+
+.nh-gauge__clayshadow2 {
+  fill: #000;
+  opacity: 0.28;
+}
+
+.nh-gauge__clayhi2 {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.14;
+}
+
+.nh-gauge__bar {
+  opacity: 0.85;
+}
+
+/* unlit only - the lit bead (.nh-gauge__ledlit) must keep its gradient fill ATTRIBUTE,
+   which any stylesheet fill declaration would override */
+.nh-gauge__led {
+  fill: var(--nh-text);
+  opacity: 0.13;
+}
+
+.nh-gauge__bloom {
+  transition: opacity 0.3s ease;
+}
+
+.nh-gauge__bloom--pulse {
+  animation: nh-gauge-pulse 1s ease-in-out infinite;
+}
+
+@keyframes nh-gauge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.nh-gauge__zone {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+.nh-gauge__tick {
+  stroke: var(--nh-text-dim);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.nh-gauge__tick--minor {
+  stroke-width: 0.6;
+  opacity: 0.4;
+}
+
+.nh-gauge__ticklabel {
+  fill: var(--nh-text-dim);
+  font-size: 4.6px;
+}
+
+.nh-gauge__marker {
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.nh-gauge__markerlabel {
+  fill: var(--nh-text-dim);
+  font-size: 4.2px;
+}
+
+.nh-gauge__center {
+  fill: var(--nh-surface);
+  stroke: var(--nh-border);
+  stroke-width: 0.5;
+}
+
+.nh-gauge__value {
+  fill: var(--nh-text);
+  font-weight: 600;
+}
+
+.nh-gauge__unit {
+  fill: var(--nh-text-dim);
+}
+
 /* Chart */
 .nh-chartwrap {
   flex: 1;

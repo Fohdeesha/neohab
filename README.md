@@ -65,6 +65,18 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   month or year at a time. A timeline widget shows the same history as colored state bands —
   one row per item, with configurable state colors — which is the right shape for switches,
   presence and modes.
+- **Gauges** — the dial widget comes in five looks: the classic arc slider; an LED ring in the
+  style of modern instrument panels (a circle of glowing beads around a big center readout); a
+  solid tachometer-style arc with a dark sector face and the scale's ticks crossing the band;
+  chunky flat block segments; and a clay-shaded 3D look. Every look shares the same features: a
+  single color of your choosing (or the theme's) or color thresholds you define (blue when cold,
+  red when hot), a soft center glow in the same color, an alarm range that pulses it, full
+  circles, half gauges or any arc, bidirectional fill from zero, hidden unlit segments, a tick
+  scale, reference markers (fixed, or following another item's live value), colored zones, and
+  an optional mini bar-chart of the item's recent history under the reading. A second item adds
+  a concentric inner ring — the dual gauge — with its own range and colors, both readings shown
+  in the center. It stays a touch control — drag around a ring to set its value, whichever ring
+  is nearer your finger — unless you make it read-only.
 - **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
   or any camera that serves its own stream. Point it at a camera server and pick a camera, or
   paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
