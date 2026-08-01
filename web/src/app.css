@@ -3432,6 +3432,83 @@ button {
 }
 
 /* ============================================================================
+   Accent tiles. A widget promoted to a solid block of the theme accent color
+   (filled) or a muted wash of it (tinted) - the per-widget "Tile accent"
+   setting. Derived from tokens so every theme gets a sensible default; a theme
+   stylesheet can refine. Two classes deep, so it also outranks --bare frames:
+   accenting a label widget means wanting the tile back.
+   ============================================================================ */
+.nh-acc-filled .nh-widget {
+  background: var(--nh-primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+.nh-acc-filled .nh-widget__label {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.nh-acc-filled .nh-value__unit,
+.nh-acc-filled .nh-clock__date {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* explicit inks (label color, value icon tint) still win: these only recolor defaults */
+.nh-acc-tinted .nh-widget {
+  background: color-mix(in srgb, var(--nh-primary) 22%, var(--nh-surface));
+  border-color: color-mix(in srgb, var(--nh-primary) 30%, var(--nh-border));
+}
+
+/* ============================================================================
+   Compass widget
+   ============================================================================ */
+.nh-compass {
+  width: 100%;
+  height: 100%;
+  max-width: 300px;
+  max-height: 300px;
+}
+
+.nh-compass__ring {
+  fill: none;
+  stroke: var(--nh-border);
+  stroke-width: 2.2;
+}
+
+.nh-compass__rose {
+  fill: var(--nh-text-dim);
+  font-size: 8px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* no fill here: the lit cardinal's color comes from its attribute (a stylesheet fill
+   would beat it); only the no-reading placeholder is class-colored */
+.nh-compass__cardinal {
+  font-size: 30px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.nh-compass__cardinal--empty {
+  fill: var(--nh-text-dim);
+}
+
+.nh-compass__deg {
+  fill: var(--nh-text-dim);
+  font-size: 10px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.nh-compass__empty {
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable
    instead of clipping. Older browsers ignore @container and keep the defaults.

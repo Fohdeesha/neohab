@@ -29,6 +29,7 @@ import {
   projectDashboard,
   rectOf,
   textScale,
+  widgetAccent,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -522,7 +523,8 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
               (isDragging ? ' nh-cell--dragging' : '') +
               (bumpedTo ? ' nh-cell--bumped' : '') +
               (hiddenOn.length > 0 ? ' nh-cell--hidden' : '') +
-              (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
+              (widgetLabelBottom(widget) ? ' nh-labelbottom' : '') +
+              (widgetAccent(widget) ? ` nh-acc-${widgetAccent(widget)}` : '')
             }
             style={
               {

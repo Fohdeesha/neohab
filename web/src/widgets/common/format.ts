@@ -6,6 +6,19 @@ export function displayValue(state: ItemState | undefined, fallback = '—'): st
   return state.displayState ?? state.state ?? fallback
 }
 
+/**
+ * Split a formatted state like "11.5 °F" into the number and a short unit suffix, so the two
+ * can be typeset differently (big value, small raised unit — the stat-tile look). Only a
+ * leading number followed by a short digit-free tail splits; anything else ("ON",
+ * "Partly cloudy", timestamps, HSB triples) stays whole.
+ */
+export function splitValueUnit(text: string): { num: string; unit?: string } {
+  const m = /^(-?\d[\d.,]*)\s*(\D{1,8})?$/.exec(text.trim())
+  if (!m || !/\d$/.test(m[1])) return { num: text }
+  const unit = m[2]?.trim()
+  return unit ? { num: m[1], unit } : { num: m[1] }
+}
+
 /** Numeric value of an item state, if any. */
 export function numericValue(state: ItemState | undefined): number | undefined {
   if (!state) return undefined

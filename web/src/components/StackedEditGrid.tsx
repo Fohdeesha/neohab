@@ -13,6 +13,7 @@ import {
   iconScale,
   stackedOrder,
   stackedTextScale,
+  widgetAccent,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -176,7 +177,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 (selectedIds.includes(widget.id) ? ' nh-cell--selected' : '') +
                 (isDragging ? ' nh-cell--dragging' : '') +
                 (hiddenSurfaces(widget).length > 0 ? ' nh-cell--hidden' : '') +
-                (widgetLabelBottom(widget) ? ' nh-labelbottom' : '')
+                (widgetLabelBottom(widget) ? ' nh-labelbottom' : '') +
+                (widgetAccent(widget) ? ` nh-acc-${widgetAccent(widget)}` : '')
               }
               style={
                 {

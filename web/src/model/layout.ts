@@ -231,12 +231,24 @@ export function widgetTextScale(widget: WidgetInstance): number | undefined {
 
 /**
  * A widget's header ("Name") alignment (`config.labelAlign`, a universal setting on every
- * headered widget), as the justify-content its cell sets in `--nh-labelalign`. Undefined for
- * left/unset so the common case carries no style; unknown values fall back the same way.
+ * headered widget), as the justify-content its cell sets in `--nh-labelalign`. Undefined when
+ * UNSET so the common case carries no style and a theme may restyle the default; an explicit
+ * "Left" still pins flex-start, so the user's choice beats a theme that centers by default.
+ * Unknown values fall back like unset.
  */
-export function widgetLabelAlign(widget: WidgetInstance): 'center' | 'flex-end' | undefined {
+export function widgetLabelAlign(widget: WidgetInstance): 'flex-start' | 'center' | 'flex-end' | undefined {
   const v = (widget.config as Record<string, unknown>).labelAlign
-  return v === 'center' ? 'center' : v === 'right' ? 'flex-end' : undefined
+  return v === 'center' ? 'center' : v === 'right' ? 'flex-end' : v === 'left' ? 'flex-start' : undefined
+}
+
+/**
+ * A widget's tile accent (`config.accent`, a universal setting): the whole cell painted as a
+ * solid block of the theme accent (`filled`) or a muted wash of it (`tinted`). Returned as the
+ * cell class suffix; undefined (no class) for unset/unknown values.
+ */
+export function widgetAccent(widget: WidgetInstance): 'filled' | 'tinted' | undefined {
+  const v = (widget.config as Record<string, unknown>).accent
+  return v === 'filled' || v === 'tinted' ? v : undefined
 }
 
 /**

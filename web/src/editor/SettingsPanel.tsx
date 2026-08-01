@@ -32,6 +32,18 @@ const HIDE_ON_FIELD: SettingField = {
   hint: 'Leave this widget out at the chosen screen sizes. It always stays visible while editing.',
 }
 
+const ACCENT_FIELD: SettingField = {
+  key: 'accent',
+  type: 'select',
+  label: 'Tile accent',
+  options: [
+    { value: 'none', label: 'None' },
+    { value: 'filled', label: 'Filled' },
+    { value: 'tinted', label: 'Tinted' },
+  ],
+  hint: 'Paints the whole tile in the theme accent color (filled) or a muted wash of it (tinted), to make it stand out.',
+}
+
 const TEXT_SIZE_FIELD: SettingField = {
   key: 'textSize',
   type: 'number',
@@ -91,6 +103,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? 'top'} />
           </>
         ) : null}
+        <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? 'none'} />
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
         <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
       </div>

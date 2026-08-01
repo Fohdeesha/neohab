@@ -7,6 +7,7 @@ import { switchWidget } from './switch'
 import { buttonWidget } from './button'
 import { sliderWidget } from './slider'
 import { valueWidget } from './value'
+import { compassWidget } from './compass'
 import { labelWidget } from './label'
 import { clockWidget } from './clock'
 import { imageWidget } from './image'
@@ -35,6 +36,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(rollershutterWidget)
   registerWidget(playerWidget)
   registerWidget(valueWidget)
+  registerWidget(compassWidget)
   registerWidget(labelWidget)
   registerWidget(clockWidget)
   registerWidget(imageWidget)

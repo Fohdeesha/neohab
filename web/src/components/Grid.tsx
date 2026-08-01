@@ -29,6 +29,7 @@ import {
   stackedTextScale,
   surfaceFor,
   textScale,
+  widgetAccent,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -98,7 +99,11 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           return (
             <div
               key={w.id}
-              className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '')}
+              className={
+                'nh-gcell' +
+                (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
+                (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')
+              }
               style={
                 {
                   height,
@@ -136,7 +141,11 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
         return (
           <div
             key={w.id}
-            className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '')}
+            className={
+              'nh-gcell' +
+              (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
+              (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')
+            }
             style={
               {
                 gridColumn: `${r.x + 1} / span ${r.w}`,
