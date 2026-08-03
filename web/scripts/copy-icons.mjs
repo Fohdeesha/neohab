@@ -140,6 +140,17 @@ cpSync(join(fontSrc, 'files', 'instrument-sans-latin-wght-normal.woff2'), join(f
 cpSync(join(fontSrc, 'LICENSE'), join(fontsDir, 'instrument-sans-LICENSE.txt'))
 console.log('copy-icons: fonts: Instrument Sans staged')
 
+// Montserrat (OFL-1.1) - the Operations theme's geometric sans: light weights for the big
+// readouts, semibold for the spaced uppercase micro-labels, from one variable file.
+const montSrc = join(root, 'node_modules', '@fontsource-variable', 'montserrat')
+if (!existsSync(montSrc)) {
+  console.error('copy-icons: @fontsource-variable/montserrat is not installed')
+  process.exit(1)
+}
+cpSync(join(montSrc, 'files', 'montserrat-latin-wght-normal.woff2'), join(fontsDir, 'montserrat.woff2'))
+cpSync(join(montSrc, 'LICENSE'), join(fontsDir, 'montserrat-LICENSE.txt'))
+console.log('copy-icons: fonts: Montserrat staged')
+
 // DSEG (OFL-1.1) - segment-display faces for the LCD Console theme: 7-segment for digits,
 // 14-segment for alphanumerics, both in the slanted weight the real consoles use. Declared
 // via @font-face in the theme's CSS, so they only download when that theme is active.

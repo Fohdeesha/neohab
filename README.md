@@ -150,7 +150,14 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   console: glowing slanted seven-segment digits (with the faint unlit "ghost" segments behind
   every reading) on a pure black void of hairline-bordered panels, set in
   [DSEG](https://github.com/keshikan/DSEG) (© keshikan,
-  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
+  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on). And so is
+  **Operations**, a control-room board: a dark board lit from above rather than filled flat -
+  every widget is a translucent lit panel framed by a gradient bezel that brightens at its top
+  edge, tiny wide-spaced uppercase captions name the panels, very large light figures carry
+  their units raised beside them, and the instrument faces and framed regions catch the same
+  light, set in [Montserrat](https://github.com/JulietaUla/Montserrat) (© Julieta Ulanovsky
+  et al., [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on), with
+  green reading as on target and red as off it across values, gauges, trend arrows and charts.
   A theme's stylesheet can also recolor the chart
   palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
   and every widget offers a *Tile accent* setting that paints its whole tile in the active
