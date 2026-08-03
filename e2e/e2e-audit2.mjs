@@ -244,7 +244,8 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e'))
+  // scoped to what THIS suite made: an unrelated stray must not fail this suite's cleanup
+  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-a2'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 }
 

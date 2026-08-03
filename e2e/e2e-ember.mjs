@@ -186,7 +186,8 @@ try {
   ok('degrees line shown when asked', (await pa.locator('.nh-compass__deg').count()) === 1 &&
     (await pa.locator('.nh-compass__deg').textContent()) === '90°',
     await pa.locator('.nh-compass__deg').textContent().catch(() => 'none'))
-  ok('rose letters only when asked', (await pa.locator('.nh-compass__rose').count()) === 4)
+  // 8 since the LCD-console batch: N/E/S/W plus smaller NE/SE/SW/NW diagonals
+  ok('rose letters only when asked', (await pa.locator('.nh-compass__rose').count()) === 8)
   const customFill = await pa.locator('.nh-gcell:has(.nh-compass__rose) .nh-compass__cardinal').getAttribute('fill', { timeout: 4000 }).catch(() => null)
   ok('explicit color reaches the cardinal (attribute, not class)', customFill === '#00ff88', customFill ?? 'none')
   const emptyText = await pa.locator('.nh-compass__empty').textContent().catch(() => '')
@@ -314,7 +315,7 @@ try {
   const accSel = pb.locator('.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Tile accent")) select')
   ok('Tile accent offered for any widget', (await accSel.count()) === 1)
   ok('accent shows None by default', (await accSel.inputValue().catch(() => '')) === 'none')
-  ok('accent offers the three choices', (await accSel.locator('option').count().catch(() => 0)) === 3)
+  ok('accent offers every choice', (await accSel.locator('option').count().catch(() => 0)) === 4)
   await accSel.selectOption('filled').catch(() => {})
   await sleep(400)
   ok('picking Filled paints the tile live', (await pb.locator('.nh-cell.nh-acc-filled').count()) === before + 1)

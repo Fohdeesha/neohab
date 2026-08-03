@@ -455,7 +455,8 @@ try {
   }
   await browser.close()
   const left = await fetch(NS, { headers: AUTH }).then((r) => r.json()).catch(() => [])
-  const leftover = left.filter((c) => String(c.uid).includes('nh-e2e')).map((c) => c.uid)
+  // scoped to what THIS suite made: an unrelated stray must not fail this suite's cleanup
+  const leftover = left.filter((c) => c.uid === UID || c.uid === UID_TALL).map((c) => c.uid)
   ok('cleanup: no leftovers', leftover.length === 0, leftover.join(','))
 }
 

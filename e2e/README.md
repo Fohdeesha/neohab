@@ -63,9 +63,10 @@ each item's initial state first and restores it in cleanup, even when checks fai
 | `dimmer` | Dimmer | commanded (percent values), restored |
 | `color` | Color | commanded (HSB values), restored |
 | `switch` | Switch | commanded (ON/OFF), restored |
-| `temperature` | Number | **read only** — should have persistence history so chart checks have data |
+| `temperature` | Number | **read only** — should have persistence history so chart checks have data; e2e-ops also reads it as the reference a trend arrow compares against, and drives the dimmer clear of it so the direction is deterministic |
 | `player` | Player | **display only**, never commanded |
 | `formatted` | Number | *optional*, **read only** — its state pattern should append a unit (e.g. `%.0f %%`); e2e-ember uses it to prove a formatted state splits into number + unit, and self-skips without it |
+| `decimal` | Number | *optional*, **read only** — its formatted state should carry exactly one decimal digit (e.g. `%.1f`); e2e-lcd uses it to prove the tenths digit splits into its own raised span, and self-skips without it |
 
 ## Running
 

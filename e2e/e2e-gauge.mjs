@@ -390,7 +390,7 @@ try {
   await sleep(400)
   ok('switching to LED restyles the widget live', (await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("Classic")) .nh-dial--led').count()) === 1)
   ok('LED fields appear', (await page.locator('.nh-sheet--side label:has-text("Segments")').count()) === 1)
-  ok('style select offers all five looks', (await styleSel.locator('option').count()) === 5)
+  ok('style select offers every look', (await styleSel.locator('option').count()) === 6)
   ok('alarm range hidden until alarm is on', (await page.locator('.nh-sheet--side label:has-text("Alarm from")').count()) === 0)
   ok('second-item field offered', (await page.locator('.nh-sheet--side').getByText('Second item (inner ring)').count()) === 1)
   ok('inner fields hidden without a second item', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 0)

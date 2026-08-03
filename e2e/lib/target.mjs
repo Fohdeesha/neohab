@@ -89,6 +89,14 @@ for (const key of ['dimmer', 'color', 'switch', 'temperature', 'player']) {
 export const FORMATTED_ITEM = process.env.NEOHAB_E2E_FORMATTED_ITEM ?? ITEMS.formatted ?? null
 
 /**
+ * Optional display-only item whose formatted state carries exactly one decimal digit (e.g. a
+ * `%.1f` temperature). e2e-lcd uses it to prove the lone tenths digit splits into its own
+ * raised span for the segment-display typography; it is only ever read, never commanded.
+ * Without one that check self-skips. Env override: NEOHAB_E2E_DECIMAL_ITEM.
+ */
+export const DECIMAL_ITEM = process.env.NEOHAB_E2E_DECIMAL_ITEM ?? ITEMS.decimal ?? null
+
+/**
  * Optional throwaway login for the full credential-exchange test (e2e-signin): a user that
  * exists on the target server and may be signed in and out freely. Without one the exchange
  * section self-skips - everything up to the server's login form is still covered. Create one
