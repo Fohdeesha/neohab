@@ -21,6 +21,7 @@ import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import {
   cellMetrics,
   columnsOf,
+  groupFrames,
   hasTabletLayout,
   iconScale,
   isHiddenOn,
@@ -164,6 +165,23 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           </div>
         )
       })}
+      {/* Panel frames last: a tile with an opaque background would otherwise paint over the
+          rule, so the frame would only be visible in themes whose tiles are transparent.
+          Drawing over the cells' own edges is what a panel frame is for, and it is inert to
+          the pointer, so nothing underneath loses a tap. */}
+      {groupFrames(shown).map((f) => (
+        <div
+          key={'g-' + f.group}
+          className="nh-group"
+          style={
+            {
+              gridColumn: `${f.rect.x + 1} / span ${f.rect.w}`,
+              gridRow: `${f.rect.y + 1} / span ${f.rect.h}`,
+              '--nh-cellaccent': f.color,
+            } as React.CSSProperties
+          }
+        />
+      ))}
     </div>
   )
 }

@@ -243,12 +243,64 @@ export function widgetLabelAlign(widget: WidgetInstance): 'flex-start' | 'center
 
 /**
  * A widget's tile accent (`config.accent`, a universal setting): the whole cell painted as a
- * solid block of the theme accent (`filled`) or a muted wash of it (`tinted`). Returned as the
- * cell class suffix; undefined (no class) for unset/unknown values.
+ * solid block of the theme accent (`filled`), a muted wash of it (`tinted`), or left as it is
+ * behind an accent-colored rule around the edge (`outlined`) - the way an operations board
+ * frames the panel it is currently drilled into. Returned as the cell class suffix; undefined
+ * (no class) for unset/unknown values.
  */
-export function widgetAccent(widget: WidgetInstance): 'filled' | 'tinted' | undefined {
+export function widgetAccent(widget: WidgetInstance): 'filled' | 'tinted' | 'outlined' | undefined {
   const v = (widget.config as Record<string, unknown>).accent
-  return v === 'filled' || v === 'tinted' ? v : undefined
+  return v === 'filled' || v === 'tinted' || v === 'outlined' ? v : undefined
+}
+
+/**
+ * A widget's panel group (`config.group`, a universal setting): widgets that name the same
+ * group are framed together as one panel. Whitespace-only and over-long values are ignored,
+ * like every other value read out of stored configuration.
+ */
+export function widgetGroup(widget: WidgetInstance): string | undefined {
+  const v = (widget.config as Record<string, unknown>).group
+  return typeof v === 'string' && v.trim() !== '' && v.length <= 60 ? v.trim() : undefined
+}
+
+/** One panel frame: the grid rect enclosing a group, and the rule color to draw it in. */
+export interface GroupFrame {
+  group: string
+  rect: Rect
+  color?: string
+}
+
+/**
+ * The frames to draw behind a set of widgets: one per named group, enclosing every member.
+ *
+ * A dashboard describes regions this way - "these tiles are one panel" - which a grid of
+ * per-tile borders cannot say: it would rule every internal edge as well as the outside.
+ * Insertion order is kept so the frames render deterministically, and the rule takes the
+ * first member's accent color, so one group can differ from another.
+ */
+export function groupFrames(widgets: WidgetInstance[]): GroupFrame[] {
+  const out = new Map<string, GroupFrame>()
+  for (const w of widgets) {
+    const group = widgetGroup(w)
+    if (!group) continue
+    const r = rectOf(w)
+    const found = out.get(group)
+    if (!found) {
+      out.set(group, { group, rect: { ...r }, color: widgetAccentColor(w) })
+      continue
+    }
+    const b = found.rect
+    const x = Math.min(b.x, r.x)
+    const y = Math.min(b.y, r.y)
+    found.rect = {
+      x,
+      y,
+      w: Math.max(b.x + b.w, r.x + r.w) - x,
+      h: Math.max(b.y + b.h, r.y + r.h) - y,
+    }
+    found.color ??= widgetAccentColor(w)
+  }
+  return [...out.values()]
 }
 
 /**

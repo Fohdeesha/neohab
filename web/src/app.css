@@ -3455,6 +3455,22 @@ button {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* Outlined: the tile keeps its own surface and takes a rule in the accent color - the frame
+   an operations board draws around the panel it is drilled into. */
+.nh-acc-outlined .nh-widget {
+  border-color: var(--nh-cellaccent, var(--nh-primary));
+}
+
+/* Panel group: one rule around every widget that named the same group, drawn as a grid child
+   spanning their bounding rect. Inert to the pointer so it can never intercept a tap, a drag
+   or the start of a marquee. Run mode draws frames after the cells (an opaque tile would hide
+   the rule); the editor draws them first, so cells stay on top while dragging. */
+.nh-group {
+  border: 1px solid var(--nh-cellaccent, var(--nh-primary));
+  border-radius: var(--nh-radius);
+  pointer-events: none;
+}
+
 /* explicit inks (label color, value icon tint) still win: these only recolor defaults */
 .nh-acc-tinted .nh-widget {
   background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 22%, var(--nh-surface));
@@ -3543,6 +3559,206 @@ button {
 .nh-compass__cardinal--sub {
   font-size: 9px;
   font-weight: 600;
+}
+
+/* ============================================================================
+   Stat widget. A headline reading with its unit set apart, an optional caption
+   naming it, and a footer pairing a trend arrow with a second, smaller figure.
+   Good/bad inks are their own tokens with sensible fallbacks, so a theme can
+   pin the greens and reds its palette wants without touching this.
+   ============================================================================ */
+.nh-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nh-stat__main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nh-stat__value {
+  font-size: 1.8em;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.nh-stat__unit {
+  font-size: 1em;
+  color: var(--nh-text-dim);
+}
+
+.nh-stat__badge {
+  flex: none;
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--nh-cellaccent, var(--nh-primary));
+  color: #fff;
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.nh-stat__caption {
+  font-size: 0.75em;
+  color: var(--nh-text-dim);
+}
+
+.nh-stat__foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 5px;
+  min-width: 0;
+}
+
+.nh-stat__arrow {
+  flex: none;
+  width: 0.72em;
+  height: 0.84em;
+  fill: var(--nh-text-dim);
+}
+
+.nh-stat__arrow--good {
+  fill: var(--nh-good, #3fb950);
+}
+
+.nh-stat__arrow--bad {
+  fill: var(--nh-bad, #e5484d);
+}
+
+.nh-stat__sub {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nh-stat__subvalue {
+  font-size: 0.95em;
+  line-height: 1.15;
+}
+
+.nh-stat__subcaption {
+  font-size: 0.72em;
+  color: var(--nh-text-dim);
+}
+
+.nh-stat--center {
+  align-items: center;
+  text-align: center;
+}
+
+.nh-stat--center .nh-stat__foot,
+.nh-stat--center .nh-stat__main {
+  justify-content: center;
+}
+
+.nh-stat--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.nh-stat--right .nh-stat__foot,
+.nh-stat--right .nh-stat__main {
+  justify-content: flex-end;
+}
+
+/* ============================================================================
+   Tick-ring gauge. A fine instrument ring: radial marks hung inside a hairline
+   rim, the widget's name and reading in the open face, and an optional
+   sparkline under it. Lit marks, the sparkline and the tinted reading all take
+   their color from the element, so none of these rules may set stroke or fill
+   on them - a stylesheet declaration would beat the attribute.
+   ============================================================================ */
+/* no stroke here: the rim's color is an attribute pointing at a per-instance gradient (which
+   defaults to the border color), and any stylesheet stroke would beat it */
+.nh-gauge__rim {
+  fill: none;
+  stroke-width: 0.6;
+}
+
+.nh-gauge__face2 {
+  stroke: none;
+}
+
+.nh-gauge__tkmark,
+.nh-gauge__tklit {
+  stroke-linecap: butt;
+}
+
+/* unlit only - see the note above */
+.nh-gauge__tkmark {
+  stroke: var(--nh-text);
+  opacity: 0.16;
+}
+
+.nh-gauge__name {
+  fill: var(--nh-text);
+  font-weight: 500;
+}
+
+.nh-gauge__spark {
+  fill: none;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+/* ============================================================================
+   Label chips. The label widget set as a filled pill or box that hugs its text
+   - callouts and badges, rather than a tile of text.
+   ============================================================================ */
+.nh-label--chip {
+  padding: 0.28em 0.85em;
+  background: var(--nh-cellaccent, var(--nh-primary));
+  color: #fff;
+  font-weight: 600;
+}
+
+.nh-label--pill {
+  border-radius: 999px;
+}
+
+/* Alignment inside the tile: the span is centered by the frame, so it moves as a block. */
+.nh-label--left {
+  align-self: flex-start;
+  text-align: left;
+}
+
+.nh-label--right {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.nh-label--box {
+  border-radius: var(--nh-radius);
+}
+
+/* Selection as a dropdown: the current choice is the point, the list is on demand. */
+.nh-selection__select {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 8px;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  color: var(--nh-text);
+  font: inherit;
+}
+
+/* A date-only clock: the date is the reading, so it is set like one. */
+.nh-clock__date--only {
+  margin-top: 0;
+  font-size: 1.1em;
+  color: var(--nh-text);
 }
 
 /* ============================================================================

@@ -9,6 +9,11 @@ interface SelectionConfig {
   label?: string
   /** Manual choices, one per line: `COMMAND=Label` or just `COMMAND`. */
   choices?: string
+  /**
+   * 'buttons' (default) shows every choice at once; 'dropdown' collapses them into a select,
+   * for long lists and for filter-style controls where the current choice is the point.
+   */
+  display?: 'buttons' | 'dropdown'
   /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", …). */
   icon?: string
   iconSize?: number
@@ -68,6 +73,24 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
     >
       {choices.length === 0 ? (
         <div className="nh-selection__empty">{t('No choices — set them in the widget settings')}</div>
+      ) : config.display === 'dropdown' ? (
+        <select
+          className="nh-selection__select"
+          value={state?.state ?? ''}
+          disabled={ctx.editing}
+          onChange={(e) => {
+            if (!ctx.editing && config.item) ctx.sendCommand(config.item, e.target.value)
+          }}
+        >
+          {/* a live state that is not one of the choices still shows, rather than the list
+              silently displaying some other choice as if it were current */}
+          {choices.some((c) => c.command === state?.state) ? null : <option value={state?.state ?? ''}>{state?.state ?? ''}</option>}
+          {choices.map((choice) => (
+            <option key={choice.command} value={choice.command}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
       ) : (
         <div className="nh-selection">
           {choices.map((choice) => (
@@ -96,10 +119,19 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
   description: 'Buttons for a set of commands or item options',
   defaultSize: { w: 4, h: 3 },
   hasHeader: true,
-  defaultConfig: () => ({ item: '', choices: '' }),
+  defaultConfig: () => ({ item: '', choices: '', display: 'buttons' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item' },
     { key: 'label', type: 'text', label: 'Name' },
+    {
+      key: 'display',
+      type: 'select',
+      label: 'Display',
+      options: [
+        { value: 'buttons', label: 'Buttons' },
+        { value: 'dropdown', label: 'Dropdown' },
+      ],
+    },
     { key: 'icon', type: 'icon', label: 'Icon' },
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 64 },

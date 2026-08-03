@@ -30,17 +30,22 @@ export interface GaugeZone {
 }
 
 /** The ring-drawn gauge styles ('classic' is the original arc slider, drawn elsewhere). */
-export type RingStyle = 'led' | 'arc' | 'blocks' | '3d'
+export type RingStyle = 'led' | 'ticks' | 'arc' | 'blocks' | '3d'
 
 export interface DialConfig {
   item: string
   label?: string
   /**
    * Visual style: 'classic' = the original arc slider; 'led' = glowing bead ring;
-   * 'arc' = continuous solid band with a sector face; 'blocks' = chunky flat segments;
-   * '3d' = clay-shaded blocks and arc.
+   * 'ticks' = a fine instrument ring of radial tick marks; 'arc' = continuous solid band with
+   * a sector face; 'blocks' = chunky flat segments; '3d' = clay-shaded blocks and arc.
    */
   style?: 'classic' | RingStyle
+  /**
+   * Draw the widget's Name inside the face, above the reading, instead of in the tile header -
+   * the instrument-panel layout where the gauge names itself.
+   */
+  centerLabel?: boolean
   min?: number
   max?: number
   step?: number
@@ -69,10 +74,12 @@ export interface DialConfig {
   alarm?: boolean
   alarmFrom?: number
   alarmTo?: number
-  /** Mini history bar-chart under the center value, fed from persistence. */
+  /** Mini history chart under the center value, fed from persistence. */
   history?: boolean
-  /** Window for the history bars, e.g. '24h'. */
+  /** Window for the history chart, e.g. '24h'. */
   historyPeriod?: string
+  /** How that history draws: discrete bars, or a continuous sparkline. */
+  historyStyle?: 'bars' | 'line'
   /* ── second (inner) ring: set item2 and the LED gauge becomes a dual gauge ── */
   item2?: string
   min2?: number
@@ -351,6 +358,39 @@ export function historyBars(
   const lo = Math.min(...seen)
   const hi = Math.max(...seen)
   return means.map((m) => (m === null ? null : hi > lo ? (m - lo) / (hi - lo) : 0.5))
+}
+
+/**
+ * Sparkline paths through a normalized history series (the same 0..1 values the bars use),
+ * one path per run of consecutive readings - a gap in the data breaks the line rather than
+ * drawing a straight lie across it. A run of one point draws a short dash so a lone reading
+ * is still visible. Values grow upward from `yBase`.
+ */
+export function sparkSegments(
+  values: (number | null)[],
+  x0: number,
+  width: number,
+  yBase: number,
+  height: number
+): string[] {
+  const n = values.length
+  if (n === 0 || !(width > 0)) return []
+  const stepX = n > 1 ? width / (n - 1) : 0
+  const at = (i: number, v: number) => `${(x0 + i * stepX).toFixed(2)} ${(yBase - v * height).toFixed(2)}`
+  const out: string[] = []
+  let run: string[] = []
+  const flush = () => {
+    if (run.length === 1) out.push(`M ${run[0]} l ${(stepX * 0.5).toFixed(2)} 0`)
+    else if (run.length > 1) out.push('M ' + run.join(' L '))
+    run = []
+  }
+  for (let i = 0; i < n; i++) {
+    const v = values[i]
+    if (v === null || !Number.isFinite(v)) flush()
+    else run.push(at(i, v))
+  }
+  flush()
+  return out
 }
 
 /** Whether the value sits inside the configured alarm range (inclusive). */

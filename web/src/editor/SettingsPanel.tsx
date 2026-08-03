@@ -40,8 +40,9 @@ const ACCENT_FIELD: SettingField = {
     { value: 'none', label: 'None' },
     { value: 'filled', label: 'Filled' },
     { value: 'tinted', label: 'Tinted' },
+    { value: 'outlined', label: 'Outlined' },
   ],
-  hint: 'Paints the whole tile in the theme accent color (filled) or a muted wash of it (tinted), to make it stand out.',
+  hint: 'Makes the tile stand out: painted in the accent color (filled), a muted wash of it (tinted), or framed by a rule in it (outlined).',
 }
 
 const ACCENT_COLOR_FIELD: SettingField = {
@@ -49,6 +50,13 @@ const ACCENT_COLOR_FIELD: SettingField = {
   type: 'color',
   label: 'Accent color',
   hint: 'This tile’s own accent: it recolors the filled/tinted accent above, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.',
+}
+
+const GROUP_FIELD: SettingField = {
+  key: 'group',
+  type: 'text',
+  label: 'Panel group',
+  hint: 'Widgets sharing a name here are framed together as one panel. Leave it empty for a tile that stands alone.',
 }
 
 const TEXT_SIZE_FIELD: SettingField = {
@@ -112,6 +120,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         ) : null}
         <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? 'none'} />
         <Field field={ACCENT_COLOR_FIELD} widget={widget} value={effective[ACCENT_COLOR_FIELD.key]} />
+        <Field field={GROUP_FIELD} widget={widget} value={effective[GROUP_FIELD.key]} />
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
         <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
       </div>

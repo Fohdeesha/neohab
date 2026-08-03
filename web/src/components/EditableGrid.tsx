@@ -22,6 +22,7 @@ import {
   cellMetrics,
   clampRect,
   columnsOf,
+  groupFrames,
   hiddenSurfaces,
   iconScale,
   overlapsAny,
@@ -469,6 +470,21 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       onPointerUp={onPointerUp}
       onPointerCancel={cancelPointer}
     >
+      {/* panel frames, so a group reads as one panel while it is being edited too */}
+      {groupFrames(dashboard.widgets).map((f) => (
+        <div
+          key={'g-' + f.group}
+          className="nh-group"
+          style={
+            {
+              gridColumn: `${f.rect.x + 1} / span ${f.rect.w}`,
+              gridRow: `${f.rect.y + 1} / span ${f.rect.h}`,
+              '--nh-cellaccent': f.color,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+
       {/* placeholder for the snapped drop target */}
       {drag ? (
         <div

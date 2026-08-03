@@ -65,15 +65,24 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   month or year at a time. A timeline widget shows the same history as colored state bands —
   one row per item, with configurable state colors — which is the right shape for switches,
   presence and modes.
-- **Gauges** — the dial widget comes in five looks: the classic arc slider; an LED ring in the
+- **Stat tiles** — the headline figure a dashboard is really for: one large reading with its
+  unit set apart, a caption naming what it measures, a second smaller figure beneath, and a
+  trend arrow comparing the reading with its own history or with another item. Which way counts
+  as good news is yours to say, so the same downward arrow is green on a drop-off rate and red
+  on a response rate. Colors can follow thresholds, and a short badge marks a tile that needs
+  attention.
+- **Gauges** — the dial widget comes in six looks: the classic arc slider; an LED ring in the
   style of modern instrument panels (a circle of glowing beads around a big center readout); a
+  fine tick ring of radial marks around a wide-open face, which can carry its own name above
+  the reading and a sparkline of recent history below it; a
   solid tachometer-style arc with a dark sector face and the scale's ticks crossing the band;
   chunky flat block segments; and a clay-shaded 3D look. Every look shares the same features: a
   single color of your choosing (or the theme's) or color thresholds you define (blue when cold,
   red when hot), a soft center glow in the same color, an alarm range that pulses it, full
   circles, half gauges or any arc, bidirectional fill from zero, hidden unlit segments, a tick
   scale, reference markers (fixed, or following another item's live value), colored zones, and
-  an optional mini bar-chart of the item's recent history under the reading. A second item adds
+  an optional mini chart of the item's recent history under the reading, as bars or as a
+  sparkline. A second item adds
   a concentric inner ring — the dual gauge — with its own range and colors, both readings shown
   in the center. It stays a touch control — drag around a ring to set its value, whichever ring
   is nearer your finger — unless you make it read-only.
@@ -145,7 +154,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   A theme's stylesheet can also recolor the chart
   palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
   and every widget offers a *Tile accent* setting that paints its whole tile in the active
-  theme's accent — solid, or a muted wash — for the highlighted-callout look those panels use.
+  theme's accent — solid, a muted wash, or just a rule around the edge — for the
+  highlighted-callout look those panels use, plus an *Accent color* of its own, so panels can
+  take per-zone colors (green outdoor, magenta pressure) the way the real consoles do. Widgets
+  that name the same *Panel group* are framed together as one panel, so a dashboard can say
+  "these tiles belong together" rather than boxing each of them separately.
   Dashboards can also carry background images — one global default plus per-dashboard
   overrides, set by URL or uploaded. Uploads are stored losslessly as PNG at up to 5K (no
   compression artifacts) in your openHAB config, so backups include them; exports keep the

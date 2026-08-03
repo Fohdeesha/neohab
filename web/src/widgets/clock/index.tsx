@@ -11,6 +11,29 @@ interface ClockConfig {
   hour12?: boolean
   /** Analog only: numerals around the face. */
   showNumbers?: boolean
+  /** How the date line is written; all of them follow the UI language. */
+  dateFormat?: 'short' | 'weekday' | 'monthYear' | 'full' | 'numeric'
+  /** Date only: the panel says what day it is, not what time it is. */
+  hideTime?: boolean
+}
+
+/**
+ * The date line, in the browser's own locale so it follows the UI language. Intl decides the
+ * wording and the field order for each locale; only which fields to ask for is ours.
+ */
+function formatDate(now: Date, format: string | undefined): string {
+  switch (format) {
+    case 'weekday':
+      return now.toLocaleDateString([], { weekday: 'long' })
+    case 'monthYear':
+      return now.toLocaleDateString([], { month: 'long', year: 'numeric' })
+    case 'full':
+      return now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    case 'numeric':
+      return now.toLocaleDateString()
+    default:
+      return now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  }
 }
 
 /** Hand line from the center at `deg` (0 = 12 o'clock), as an SVG line in a 200x200 viewBox. */
@@ -87,7 +110,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   }, [])
 
   const analog = String(config.mode ?? '').toLowerCase() === 'analog'
-  const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  const date = formatDate(now, config.dateFormat)
 
   if (analog) {
     return (
@@ -107,15 +130,21 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     hour12: config.hour12,
   })
 
+  // Hiding the time leaves the date as the panel's own reading, so it is set as one.
+  const dateOnly = config.hideTime === true
   return (
     <WidgetFrame bare center>
       <div className="nh-clock">
-        {/* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
-            behind the time; identical non-digit chars overlay themselves invisibly */}
-        <div className="nh-clock__time" data-ghost={ghostFor(time)}>
-          {time}
-        </div>
-        {config.showDate ? <div className="nh-clock__date">{date}</div> : null}
+        {dateOnly ? null : (
+          /* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
+             behind the time; identical non-digit chars overlay themselves invisibly */
+          <div className="nh-clock__time" data-ghost={ghostFor(time)}>
+            {time}
+          </div>
+        )}
+        {config.showDate || dateOnly ? (
+          <div className={'nh-clock__date' + (dateOnly ? ' nh-clock__date--only' : '')}>{date}</div>
+        ) : null}
       </div>
     </WidgetFrame>
   )
@@ -129,7 +158,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
   name: 'Clock',
   description: 'Current time and date',
   defaultSize: { w: 3, h: 3 },
-  defaultConfig: () => ({ mode: 'digital', showDate: true, showSeconds: false }),
+  defaultConfig: () => ({ mode: 'digital', showDate: true, showSeconds: false, dateFormat: 'short' }),
   settings: [
     {
       key: 'mode',
@@ -141,9 +170,24 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
       ],
     },
     { key: 'showDate', type: 'boolean', label: 'Show date' },
-    { key: 'showSeconds', type: 'boolean', label: 'Show seconds' },
+    {
+      key: 'dateFormat',
+      type: 'select',
+      label: 'Date format',
+      options: [
+        { value: 'short', label: 'Fri, Nov 6' },
+        { value: 'weekday', label: 'Friday' },
+        { value: 'monthYear', label: 'November 2026' },
+        { value: 'full', label: 'Friday, November 6, 2026' },
+        { value: 'numeric', label: '11/6/2026' },
+      ],
+      hint: 'Written in the language the interface is set to.',
+      showIf: (c) => c.showDate === true || c.hideTime === true,
+    },
+    { key: 'hideTime', type: 'boolean', label: 'Date only (hide the time)', showIf: isDigital },
+    { key: 'showSeconds', type: 'boolean', label: 'Show seconds', showIf: (c) => c.hideTime !== true },
     { key: 'showNumbers', type: 'boolean', label: 'Show numerals', showIf: isAnalog },
-    { key: 'hour12', type: 'boolean', label: '12-hour clock', showIf: isDigital },
+    { key: 'hour12', type: 'boolean', label: '12-hour clock', showIf: (c) => isDigital(c) && c.hideTime !== true },
   ],
   Component: ClockWidget,
 }
