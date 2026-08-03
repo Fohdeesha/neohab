@@ -139,3 +139,16 @@ mkdirSync(fontsDir, { recursive: true })
 cpSync(join(fontSrc, 'files', 'instrument-sans-latin-wght-normal.woff2'), join(fontsDir, 'instrument-sans.woff2'))
 cpSync(join(fontSrc, 'LICENSE'), join(fontsDir, 'instrument-sans-LICENSE.txt'))
 console.log('copy-icons: fonts: Instrument Sans staged')
+
+// DSEG (OFL-1.1) - segment-display faces for the LCD Console theme: 7-segment for digits,
+// 14-segment for alphanumerics, both in the slanted weight the real consoles use. Declared
+// via @font-face in the theme's CSS, so they only download when that theme is active.
+const dsegSrc = join(root, 'node_modules', 'dseg')
+if (!existsSync(dsegSrc)) {
+  console.error('copy-icons: dseg is not installed')
+  process.exit(1)
+}
+cpSync(join(dsegSrc, 'fonts', 'DSEG7-Classic', 'DSEG7Classic-BoldItalic.woff2'), join(fontsDir, 'dseg7.woff2'))
+cpSync(join(dsegSrc, 'fonts', 'DSEG14-Classic', 'DSEG14Classic-BoldItalic.woff2'), join(fontsDir, 'dseg14.woff2'))
+cpSync(join(dsegSrc, 'DSEG-LICENSE.txt'), join(fontsDir, 'dseg-LICENSE.txt'))
+console.log('copy-icons: fonts: DSEG staged')

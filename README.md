@@ -137,7 +137,12 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   [Instrument Sans](https://github.com/Instrument/instrument-sans)
   (© Instrument, [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
   So is **Ember**, a slate-navy instrument panel with a single ember-orange accent, in the style
-  of the modern weather-station dashboards. A theme's stylesheet can also recolor the chart
+  of the modern weather-station dashboards. And so is **LCD Console**, a segment-display weather
+  console: glowing slanted seven-segment digits (with the faint unlit "ghost" segments behind
+  every reading) on a pure black void of hairline-bordered panels, set in
+  [DSEG](https://github.com/keshikan/DSEG) (© keshikan,
+  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
+  A theme's stylesheet can also recolor the chart
   palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
   and every widget offers a *Tile accent* setting that paints its whole tile in the active
   theme's accent — solid, or a muted wash — for the highlighted-callout look those panels use.

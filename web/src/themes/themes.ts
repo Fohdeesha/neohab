@@ -408,6 +408,310 @@ const EMBER_CSS = `/* the accent leads the chart palette; slots 2+ keep the vali
 }
 `
 
+/**
+ * LCD Console - a segment-display weather-station console: panels of glowing seven-segment
+ * digits on a pure black void, hairline colored panel borders, tiny uppercase corner labels,
+ * and faint unlit "ghost" segments behind every reading. Values and the digital clock set in
+ * DSEG (bundled, OFL-1.1; the slanted bold the real consoles use), with DSEG's 14-segment
+ * face for alphanumerics - so "OFF" and the label widget read as segment text too. Built for
+ * the per-widget "Accent color" setting: each panel takes its own neon (green outdoor,
+ * magenta records, amber warnings) via --nh-cellaccent, azure when unset - the console's
+ * color zones. The ghost underlay is the data-ghost metadata the value and clock widgets
+ * always carry; only this stylesheet draws it, so no other theme is affected.
+ */
+const LCD_CSS = `@font-face {
+  font-family: 'DSEG7';
+  src: url('fonts/dseg7.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DSEG14';
+  src: url('fonts/dseg14.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+/* the console's four neons lead the chart palette */
+:root {
+  --nh-chart-1: #3fd2f6;
+  --nh-chart-2: #3bf07a;
+  --nh-chart-3: #ff45d8;
+  --nh-chart-4: #ffd23c;
+  --nh-shadow: none;
+}
+::selection {
+  background: var(--nh-primary);
+  color: #000;
+}
+/* Section names sit in the top-RIGHT corner of their panel on the reference console.
+   A per-widget Name alignment choice still wins - the cell's inline var overrides this. */
+.nh-gcell,
+.nh-cell {
+  --nh-labelalign: flex-end;
+}
+/* Panels: pure black behind a hairline border in the panel's own neon. This also re-panels
+   "bare" widgets (clock, label) - on the console EVERYTHING lives in a bordered zone. */
+.nh-widget,
+.nh-tile {
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-cellaccent, color-mix(in srgb, var(--nh-primary) 60%, transparent));
+  border-radius: 0;
+  box-shadow: none;
+}
+.nh-tile:hover {
+  background: #081018;
+}
+.nh-tile--new {
+  border-style: dashed;
+  border-color: var(--nh-border);
+}
+/* Corner labels: tiny, spaced, uppercase - instrument lettering, not display text. */
+.nh-widget__label {
+  text-transform: uppercase;
+  font-size: 0.58em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--nh-text) 85%, transparent);
+}
+/* Tighter insets so the digits own the panel - gated like the app's tight-cell sheds. */
+@container (min-height: 105px) {
+  .nh-widget__label {
+    padding: 8px 10px 0;
+  }
+  .nh-labelbottom .nh-widget__label {
+    padding: 0 10px 8px;
+  }
+}
+@container (min-height: 105px) and (min-width: 121px) {
+  .nh-widget__body {
+    padding: 6px 10px 10px;
+  }
+}
+/* Readings: big slanted seven-segment digits in the panel neon, glowing. Non-numeric
+   states fall through to the 14-segment face glyph-by-glyph, so "OFF" is segment text.
+   Digit-only readings (data-ghost present) size in container units - the digits scale to
+   FILL their panel like the console's, whatever the cell size; text readings stay modest. */
+.nh-value {
+  justify-content: center;
+  gap: 7px;
+}
+.nh-value__text,
+.nh-stat__value {
+  position: relative;
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  text-transform: uppercase;
+  font-size: 1.4em;
+  line-height: 1;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  text-shadow:
+    0 0 0.05em currentColor,
+    0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);
+}
+.nh-value__text[data-ghost],
+.nh-stat__value[data-ghost] {
+  font-size: calc(min(38cqh, 24cqw) * var(--nh-widgetscale, 1));
+}
+/* The lone tenths digit rides high while its separator stays on the baseline - the
+   console's "68.5" typesetting. The span exists in every theme; only this one shrinks it. */
+.nh-value__frac,
+.nh-stat__frac {
+  position: relative;
+  font-size: 0.55em;
+  vertical-align: 0.68em;
+}
+.nh-value__unit,
+.nh-stat__unit {
+  font-size: min(13cqh, 6.5cqw);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: color-mix(in srgb, var(--nh-text) 85%, transparent);
+  align-self: flex-start;
+  margin-top: 0.15em;
+}
+/* Ghost segments: every digit's unlit '8' drawn faintly behind the reading, from the
+   data-ghost metadata the widgets carry. Absolute overlay in the same font, so each ghost
+   glyph sits exactly under its lit one. */
+.nh-value__text::before,
+.nh-value__frac::before,
+.nh-stat__value::before,
+.nh-stat__frac::before,
+.nh-clock__time::before {
+  content: attr(data-ghost);
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.14;
+  pointer-events: none;
+}
+.nh-clock__time {
+  position: relative;
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  font-size: calc(min(34cqh, 15cqw) * var(--nh-widgetscale, 1));
+  line-height: 1;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  text-shadow:
+    0 0 0.05em currentColor,
+    0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);
+}
+.nh-clock__date {
+  font-family: 'DSEG14', sans-serif;
+  text-transform: uppercase;
+  font-size: min(14cqh, 6cqw);
+  margin-top: 10px;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  opacity: 0.9;
+}
+/* The label widget is display text (FRIDAY on the console's date bar): 14-segment, glowing. */
+.nh-label {
+  font-family: 'DSEG14', sans-serif;
+  text-transform: uppercase;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  text-shadow:
+    0 0 0.05em currentColor,
+    0 0 0.26em color-mix(in srgb, currentColor 45%, transparent);
+}
+/* Controls are flat content of their bordered panel - NO inner card, or every control tile
+   would draw double borders (panel + control). The panel is the control: neon uppercase
+   glyphs at rest, and an active toggle turns its WHOLE panel into the neon plate with dark
+   glyphs (the plain --active rule keeps a visible on-state without :has()). */
+.nh-button,
+.nh-selection__btn,
+.nh-roller__btn,
+.nh-player__btn {
+  background: transparent;
+  border: none;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  box-shadow: none;
+}
+.nh-button:active {
+  background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 18%, transparent);
+}
+.nh-button--active,
+.nh-selection__btn--active {
+  background: var(--nh-cellaccent, var(--nh-primary));
+  color: #000;
+}
+.nh-button--active .nh-icon--mdi {
+  background-color: #000;
+}
+.nh-widget:has(.nh-button--active) {
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 55%, transparent);
+}
+.nh-widget:has(.nh-button--active) .nh-button--active {
+  background: transparent;
+}
+.nh-widget:has(.nh-button--active) .nh-widget__label {
+  color: rgba(0, 0, 0, 0.6);
+}
+.nh-switch--on .nh-switch__track {
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
+}
+.nh-switch--on .nh-switch__thumb {
+  background: #000;
+}
+.nh-switch--on .nh-switch__state {
+  color: var(--nh-cellaccent, var(--nh-primary));
+}
+/* Every numeric readout is a segment display, not just the value widget: dial and gauge
+   centers, the slider's number, the shutter position. Fills/sizes that live as SVG
+   attributes are left alone (the standing trap); only the face and the panel neon change. */
+.nh-dial__value {
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  fill: var(--nh-cellaccent, var(--nh-primary));
+  font-weight: 400;
+}
+.nh-gauge__value {
+  font-family: 'DSEG7', 'DSEG14', monospace;
+}
+.nh-slider__value {
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  color: var(--nh-cellaccent, var(--nh-primary));
+  text-shadow: 0 0 0.3em color-mix(in srgb, currentColor 45%, transparent);
+}
+.nh-roller__pos {
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  color: var(--nh-cellaccent, var(--nh-primary));
+}
+.nh-switch__state {
+  font-family: 'DSEG14', sans-serif;
+}
+/* Home tiles carry their names in the 14-segment face too */
+.nh-tile__name {
+  font-family: 'DSEG14', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.95rem;
+}
+.nh-chart__chip--on {
+  background: var(--nh-primary);
+  border-color: var(--nh-primary);
+  color: #000;
+}
+/* The wind ring: bezel, ticks and readings all in the panel neon. The value/cardinal
+   fills stay attributes on the SVG (no fill rules here - the documented trap). */
+.nh-compass__ring {
+  stroke: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 85%, transparent);
+  stroke-width: 2.2;
+}
+.nh-compass__tick {
+  stroke: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 50%, transparent);
+  stroke-width: 1.4;
+}
+.nh-compass__tick--major {
+  stroke: var(--nh-cellaccent, var(--nh-primary));
+  stroke-width: 2;
+}
+.nh-compass__rose {
+  fill: color-mix(in srgb, var(--nh-text) 80%, transparent);
+}
+.nh-compass__value {
+  font-family: 'DSEG7', 'DSEG14', monospace;
+  font-size: 23px;
+}
+.nh-compass__valueunit {
+  fill: color-mix(in srgb, var(--nh-text) 80%, transparent);
+}
+.nh-gauge__btrack {
+  stroke: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 22%, #000);
+}
+/* Page chrome: a black masthead ruled off in the console azure, segment-face title. */
+.nh-dash__bar {
+  background: var(--nh-bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--nh-primary) 45%, transparent);
+}
+.nh-dash__title {
+  font-family: 'DSEG14', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+/* segment displays have no rounded corners */
+.nh-button,
+.nh-iconbtn,
+.nh-selection__btn,
+.nh-roller__btn,
+.nh-player__btn,
+.nh-chart__chip,
+.nh-color__swatch,
+.nh-switch__track,
+.nh-switch__thumb {
+  border-radius: 0;
+}
+.nh-color__track::-webkit-slider-runnable-track {
+  border-radius: 0;
+}
+.nh-color__track::-moz-range-track {
+  border-radius: 0;
+}
+`
+
 export const BUILTIN_THEMES: Theme[] = [
   {
     id: 'dark',
@@ -507,6 +811,23 @@ export const BUILTIN_THEMES: Theme[] = [
       radius: '10px',
     },
     css: EMBER_CSS,
+  },
+  {
+    id: 'lcd',
+    name: 'LCD Console',
+    scheme: 'dark',
+    tokens: {
+      bg: '#000000',
+      surface: '#0a1116',
+      'surface-2': '#12202a',
+      border: '#173038',
+      text: '#dff4fd',
+      'text-dim': '#6e93a5',
+      primary: '#3fd2f6',
+      brand: '#3fd2f6',
+      radius: '0px',
+    },
+    css: LCD_CSS,
   },
   {
     id: 'aqua',
