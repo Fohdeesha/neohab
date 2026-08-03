@@ -30,6 +30,7 @@ import {
   rectOf,
   textScale,
   widgetAccent,
+  widgetAccentColor,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -534,6 +535,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
                 minHeight: 0,
                 '--nh-widgetscale': widgetTextScale(widget),
                 '--nh-labelalign': widgetLabelAlign(widget),
+                '--nh-cellaccent': widgetAccentColor(widget),
                 // A move follows the pointer; a resize stretches the box in place (its top-left
                 // is anchored) while the placeholder shows the snapped result.
                 transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,

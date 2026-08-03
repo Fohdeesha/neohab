@@ -3437,9 +3437,11 @@ button {
    setting. Derived from tokens so every theme gets a sensible default; a theme
    stylesheet can refine. Two classes deep, so it also outranks --bare frames:
    accenting a label widget means wanting the tile back.
+   The per-widget "Accent color" setting puts --nh-cellaccent on the cell, so
+   one tile can take a color of its own; unset falls back to the theme accent.
    ============================================================================ */
 .nh-acc-filled .nh-widget {
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   border-color: transparent;
   color: #fff;
 }
@@ -3455,8 +3457,8 @@ button {
 
 /* explicit inks (label color, value icon tint) still win: these only recolor defaults */
 .nh-acc-tinted .nh-widget {
-  background: color-mix(in srgb, var(--nh-primary) 22%, var(--nh-surface));
-  border-color: color-mix(in srgb, var(--nh-primary) 30%, var(--nh-border));
+  background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 22%, var(--nh-surface));
+  border-color: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 30%, var(--nh-border));
 }
 
 /* ============================================================================
@@ -3506,6 +3508,41 @@ button {
   color: var(--nh-text-dim);
   font-size: 0.85em;
   text-align: center;
+}
+
+.nh-compass__tick {
+  stroke: var(--nh-border);
+  stroke-width: 1;
+}
+
+.nh-compass__tick--major {
+  stroke: var(--nh-text-dim);
+  stroke-width: 1.6;
+}
+
+.nh-compass__rose--minor {
+  font-size: 5.5px;
+}
+
+/* Center-item mode: a second reading (wind speed) leads the face, the cardinal drops
+   to a small line beneath it. */
+.nh-compass__value {
+  font-size: 22px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.nh-compass__valueunit {
+  fill: var(--nh-text-dim);
+  font-size: 7px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.nh-compass__cardinal--sub {
+  font-size: 9px;
+  font-weight: 600;
 }
 
 /* ============================================================================

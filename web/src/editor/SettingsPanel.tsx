@@ -44,6 +44,13 @@ const ACCENT_FIELD: SettingField = {
   hint: 'Paints the whole tile in the theme accent color (filled) or a muted wash of it (tinted), to make it stand out.',
 }
 
+const ACCENT_COLOR_FIELD: SettingField = {
+  key: 'accentColor',
+  type: 'color',
+  label: 'Accent color',
+  hint: 'This tile’s own accent: it recolors the filled/tinted accent above, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.',
+}
+
 const TEXT_SIZE_FIELD: SettingField = {
   key: 'textSize',
   type: 'number',
@@ -104,6 +111,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
           </>
         ) : null}
         <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? 'none'} />
+        <Field field={ACCENT_COLOR_FIELD} widget={widget} value={effective[ACCENT_COLOR_FIELD.key]} />
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
         <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
       </div>

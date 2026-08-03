@@ -1,6 +1,6 @@
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import { displayValue, splitValueUnit } from '../common/format'
+import { displayValue, ghostFor, isSegmentable, segParts, splitValueUnit } from '../common/format'
 import { Icon } from '../../components/Icon'
 import { resolveStateIcon, type StateIconRule } from '../common/stateIcon'
 
@@ -23,13 +23,25 @@ function ValueWidget({ config, ctx }: WidgetProps<ValueConfig>) {
   const suffix = config.unit || unit
   // no "active" notion here - the base slot and the per-state rules are the whole story
   const { icon, color } = resolveStateIcon(config, false, state?.state)
+  // Segment-display metadata, inert until a theme styles it: a lone tenths digit splits into
+  // its own span, and digit-only values carry ghost text ("888.8") that the LCD theme draws
+  // as unlit segments behind the reading. No other theme renders any of it.
+  const { int, frac } = segParts(num)
+  const seg = isSegmentable(num)
   return (
     <WidgetFrame label={config.label} center>
       <div className="nh-value">
         {icon ? (
           <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-value__icon" />
         ) : null}
-        <span className="nh-value__text">{num}</span>
+        <span className="nh-value__text" data-ghost={seg ? ghostFor(int) : undefined}>
+          {int}
+          {frac !== undefined ? (
+            <span className="nh-value__frac" data-ghost={seg ? ghostFor(frac) : undefined}>
+              {frac}
+            </span>
+          ) : null}
+        </span>
         {suffix ? <span className="nh-value__unit">{suffix}</span> : null}
       </div>
     </WidgetFrame>

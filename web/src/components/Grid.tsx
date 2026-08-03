@@ -30,6 +30,7 @@ import {
   surfaceFor,
   textScale,
   widgetAccent,
+  widgetAccentColor,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -110,6 +111,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                   '--nh-textscale': stackedTextScale(dashboard, unit, height),
                   '--nh-widgetscale': widgetTextScale(w),
                   '--nh-labelalign': widgetLabelAlign(w),
+                  '--nh-cellaccent': widgetAccentColor(w),
                 } as React.CSSProperties
               }
             >
@@ -154,6 +156,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                 minHeight: 0,
                 '--nh-widgetscale': widgetTextScale(w),
                 '--nh-labelalign': widgetLabelAlign(w),
+                '--nh-cellaccent': widgetAccentColor(w),
               } as React.CSSProperties
             }
           >

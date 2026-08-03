@@ -19,6 +19,32 @@ export function splitValueUnit(text: string): { num: string; unit?: string } {
   return unit ? { num: m[1], unit } : { num: m[1] }
 }
 
+/**
+ * Split a numeric display string for segment-display typesetting: when exactly one digit
+ * follows the decimal separator ("71.8"), the separator stays with the integer part and the
+ * lone tenths digit splits off so a theme can raise and shrink it (the weather-station look —
+ * "29.68" and every other shape stay whole). Inert everywhere else: the two parts always
+ * concatenate back to the input.
+ */
+export function segParts(num: string): { int: string; frac?: string } {
+  const m = /^(-?\d+[.,])(\d)$/.exec(num)
+  return m ? { int: m[1], frac: m[2] } : { int: num }
+}
+
+/**
+ * Ghost-segment underlay text for a display string: every digit becomes '8' (all seven
+ * segments lit), everything else is kept so the ghost overlays the real text glyph-for-glyph.
+ * Returns undefined for text with no digits — there is nothing to ghost.
+ */
+export function ghostFor(text: string): string | undefined {
+  return /\d/.test(text) ? text.replace(/\d/g, '8') : undefined
+}
+
+/** True when a display string is plain digits/separators — safe for a 7-segment face. */
+export function isSegmentable(text: string): boolean {
+  return /^-?[\d.,: ]+$/.test(text) && /\d/.test(text)
+}
+
 /** Numeric value of an item state, if any. */
 export function numericValue(state: ItemState | undefined): number | undefined {
   if (!state) return undefined

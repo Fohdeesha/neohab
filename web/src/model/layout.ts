@@ -259,6 +259,17 @@ export function widgetLabelBottom(widget: WidgetInstance): boolean {
   return (widget.config as Record<string, unknown>).labelPosition === 'bottom'
 }
 
+/**
+ * A widget's accent color (`config.accentColor`, a universal setting): a CSS color the cell
+ * exposes as `--nh-cellaccent`. The accent-tile styles and per-tile-accent themes (the LCD
+ * console's colored zones) read it; unset means the theme accent. Stored config is untrusted,
+ * so anything but a plain short string is ignored (the CSSOM rejects invalid colors anyway).
+ */
+export function widgetAccentColor(widget: WidgetInstance): string | undefined {
+  const v = (widget.config as Record<string, unknown>).accentColor
+  return typeof v === 'string' && v.trim() !== '' && v.length <= 40 ? v.trim() : undefined
+}
+
 export function collides(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { ghostFor } from '../common/format'
 
 interface ClockConfig {
   /** 'digital' (default) or 'analog' (SVG face, colored by the theme tokens). */
@@ -109,7 +110,11 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   return (
     <WidgetFrame bare center>
       <div className="nh-clock">
-        <div className="nh-clock__time">{time}</div>
+        {/* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
+            behind the time; identical non-digit chars overlay themselves invisibly */}
+        <div className="nh-clock__time" data-ghost={ghostFor(time)}>
+          {time}
+        </div>
         {config.showDate ? <div className="nh-clock__date">{date}</div> : null}
       </div>
     </WidgetFrame>

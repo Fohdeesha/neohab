@@ -78,9 +78,11 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   in the center. It stays a touch control — drag around a ring to set its value, whichever ring
   is nearer your finger — unless you make it read-only.
 - **Compass** — wind direction, or any bearing, on a compass face: a pointer swings live around
-  the ring and the nearest cardinal name sits big in the center, with optional degrees and fixed
-  N/E/S/W letters. It reads numeric degrees or cardinal names from the item, and draws in the
-  theme's accent or a color you pick.
+  a ticked bezel and the nearest cardinal name sits big in the center, with optional degrees and
+  fixed cardinal letters. A second item can take the center instead — wind speed inside the wind
+  ring, the weather-console layout — with the cardinal on a small line beneath it. It reads
+  numeric degrees or cardinal names from the item, and draws in the theme's accent or a color
+  you pick.
 - **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
   or any camera that serves its own stream. Point it at a camera server and pick a camera, or
   paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
