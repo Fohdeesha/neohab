@@ -91,7 +91,7 @@ try {
   /* --------- nameless dashboard must not break the config load --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     const errs = []
     page.on('pageerror', (e) => errs.push(String(e)))
@@ -108,7 +108,7 @@ try {
   /* --------- a nonsensical column count still renders --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     const errs = []
     page.on('pageerror', (e) => errs.push(String(e)))
@@ -145,7 +145,7 @@ try {
   /* --------- a zero fixed row height is floored rather than collapsed --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-norow')
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
@@ -161,7 +161,7 @@ try {
   {
     // 1000px is inside the tablet band (>= 840, < 1200), so the tablet layout is what renders.
     const ctx = await browser.newContext({ viewport: { width: 1000, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-mdwide')
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })
@@ -199,7 +199,7 @@ try {
     const sizes = {}
     for (const [name, width] of [['1920', 1920], ['1024', 1024]]) {
       const ctx = await browser.newContext({ viewport: { width, height: 800 } })
-      await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+      await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
       const page = await ctx.newPage()
       await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
       await page.waitForSelector('.nh-label', { timeout: 15000 })
@@ -217,7 +217,7 @@ try {
   /* --------- ItemPicker: is the list still open after selecting? --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })

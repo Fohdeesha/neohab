@@ -121,6 +121,9 @@ const open = async (browser, width, height, route) => {
   await ctx.addInitScript((t) => {
     try {
       localStorage.setItem('neohab:apiToken', t)
+      // this suite asserts the app's DEFAULT geometry; the server's global theme belongs to
+      // the user (it was `assembly` when this line was added), so pin the default per device
+      localStorage.setItem('neohab:themeOverride', 'dark')
     } catch {}
   }, TOKEN)
   const page = await ctx.newPage()

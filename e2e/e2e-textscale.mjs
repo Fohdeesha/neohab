@@ -10,6 +10,11 @@
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-scale (deleted afterwards, cleanup
  * guarded), reads the server's own dashboards strictly read-only (zero clicks), commands nothing.
+ *
+ * Every context pins the per-device theme override to the default theme: this suite asserts
+ * the app's DEFAULT geometry, and the server's global theme belongs to the user - under a
+ * theme with its own font (Operations' Montserrat, 2026-08-03) the ink-box arithmetic is that
+ * theme's business, not this suite's.
  */
 import { chromium } from 'playwright-core'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
@@ -71,7 +76,7 @@ try {
     { name: 'desktop-2560', width: 2560, height: 1440 },
   ]) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     const errors = []
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
@@ -158,7 +163,7 @@ try {
   /* ---------------- template: ng-repeat outranks ng-if ---------------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-scale')
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })
@@ -177,7 +182,7 @@ try {
   /* ---------------- icon recovers from a transient 404 ---------------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     // Phase 1: every icon fetch 404s. (Not "the first one only": the icon legitimately
     // re-fetches when SSE delivers the item state, so a one-shot 404 is repaired before the
@@ -215,7 +220,7 @@ try {
     .map((c) => ({ id: c.config.id, name: c.config.name ?? c.config.id }))
   for (const d of liveScale) {
     const ctx = await browser.newContext({ viewport: { width: 915, height: 411 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/' + encodeURIComponent(d.id))
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })

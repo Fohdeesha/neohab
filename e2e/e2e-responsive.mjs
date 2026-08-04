@@ -142,6 +142,9 @@ try {
   const iconHeights = {}
   for (const vp of VIEWPORTS) {
     const ctx = await browser.newContext(vp.name.startsWith('phone') || vp.name.startsWith('tablet') ? vp : { viewport: vp.viewport })
+    // pin the default theme: this suite asserts default geometry, and the server's
+    // global theme belongs to the user (it was 'assembly' when this line was added)
+    await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
     await ctx.route('**://home.lan/**', (route) =>
       route.fulfill({ status: 200, contentType: 'text/html', body: TIME_HTML })
     )
@@ -213,6 +216,9 @@ try {
   }
   for (const [name, hash, vp] of livePairs) {
     const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2, ...(vp.width < 800 ? { isMobile: true, hasTouch: true } : {}) })
+    // pin the default theme: this suite asserts default geometry, and the server's
+    // global theme belongs to the user (it was 'assembly' when this line was added)
+    await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
     await ctx.route('**://home.lan/**', (route) =>
       route.request().url().endsWith('time.html')
         ? route.fulfill({ status: 200, contentType: 'text/html', body: TIME_HTML })
@@ -231,6 +237,9 @@ try {
 
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } })
   const page = await ctx.newPage()
+    // pin the default theme: this suite asserts default geometry, and the server's
+    // global theme belongs to the user (it was 'assembly' when this line was added)
+    await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
   const posts = []
   await page.route('**/rest/items/' + COLOR_ITEM, (route) => {
     posts.push(route.request().postData())

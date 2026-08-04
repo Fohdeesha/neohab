@@ -15,6 +15,17 @@ const origSwitch = await getState(ITEMS.switch)
 // was set to since the suite was written (it happened once, 2026-07-20).
 const origColor = await getState(ITEMS.color)
 
+// The brightness-track check needs saturation > 0: at S=0 the track ends white at EVERY hue,
+// so moving hue cannot recolor it - structurally unsatisfiable when the bulb happens to sit
+// at S=0 (exactly where it was found on 2026-08-03). Establish the precondition here; the
+// recorded value above is restored at the end as always.
+for (let i = 0; i < 3; i++) {
+  await fetch(`${BASE}/rest/items/${ITEMS.color}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: '210,70,55' })
+  await sleep(900)
+  const s = Number((await getState(ITEMS.color)).split(',')[1])
+  if (Number.isFinite(s) && s > 10) break
+}
+
 await fetch(NS, {
   method: 'POST',
   headers: { ...AUTH, 'Content-Type': 'application/json' },
