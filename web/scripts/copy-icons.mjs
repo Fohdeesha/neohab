@@ -163,3 +163,16 @@ cpSync(join(dsegSrc, 'fonts', 'DSEG7-Classic', 'DSEG7Classic-BoldItalic.woff2'),
 cpSync(join(dsegSrc, 'fonts', 'DSEG14-Classic', 'DSEG14Classic-BoldItalic.woff2'), join(fontsDir, 'dseg14.woff2'))
 cpSync(join(dsegSrc, 'DSEG-LICENSE.txt'), join(fontsDir, 'dseg-LICENSE.txt'))
 console.log('copy-icons: fonts: DSEG staged')
+
+// Poppins (OFL-1.1) - the Assembly theme's rounded geometric sans, in the three weights the
+// board uses (labels / titles / readings). Static faces, so one file per weight.
+const popSrc = join(root, 'node_modules', '@fontsource', 'poppins')
+if (!existsSync(popSrc)) {
+  console.error('copy-icons: @fontsource/poppins is not installed')
+  process.exit(1)
+}
+for (const w of [400, 500, 600]) {
+  cpSync(join(popSrc, 'files', `poppins-latin-${w}-normal.woff2`), join(fontsDir, `poppins-${w}.woff2`))
+}
+cpSync(join(popSrc, 'LICENSE'), join(fontsDir, 'poppins-LICENSE.txt'))
+console.log('copy-icons: fonts: Poppins staged')

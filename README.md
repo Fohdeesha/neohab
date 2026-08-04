@@ -159,6 +159,16 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   light, set in [Montserrat](https://github.com/JulietaUla/Montserrat) (© Julieta Ulanovsky
   et al., [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on), with
   green reading as on target and red as off it across values, gauges, trend arrows and charts.
+  And so is **Assembly**, a production-floor board in dark green glass: translucent tiles that
+  blur whatever is behind them — and there is something to blur, because the theme ships with
+  its own backdrop, a defocused robot-factory hall (skylights, rim-lit arms) rendered for it,
+  which a background image of your own replaces as usual. Hairline mint borders, vivid green
+  arc gauges with brightened value tips, and the active control drawn as the board's selected
+  card — green outline, tinted fill, soft glow — set in
+  [Poppins](https://github.com/itfoundry/poppins) (© Indian Type Foundry,
+  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on). Buttons can
+  also carry an illustration image and a caption line (in any theme), which is how you build
+  the zone cards boards like that use for their stations.
   A theme's stylesheet can also recolor the chart
   palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
   and every widget offers a *Tile accent* setting that paints its whole tile in the active
