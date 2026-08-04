@@ -489,6 +489,27 @@ button {
   overflow-wrap: break-word;
 }
 
+/* The button's illustration (Image URL setting): fills the card above the label and is the
+   shrink victim, exactly like the icon it replaces. */
+.nh-button__media {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: cover;
+  border-radius: calc(var(--nh-radius) - 6px);
+}
+
+.nh-button__caption {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78em;
+  font-weight: 400;
+  color: var(--nh-text-dim);
+  line-height: 1.35;
+}
+
 /* ============================================================================
    Icons (mdi = masked span tinted by text color; oh = server-rendered img)
    ============================================================================ */
@@ -1764,6 +1785,14 @@ button {
   fill: none;
 }
 
+/* the band's light films: gradient-stroked overlays whose opacity comes from the theme
+   (--nh-band-light / --nh-band-shade), zero everywhere by default - no stroke declared here
+   either, their gradient paint is an attribute */
+.nh-gauge__bandlight,
+.nh-gauge__bandshade {
+  fill: none;
+}
+
 .nh-gauge__face {
   fill: var(--nh-surface);
 }
@@ -1885,6 +1914,12 @@ button {
 
 .nh-gauge__unit {
   fill: var(--nh-text-dim);
+}
+
+/* the "/ 58" scale maximum beside the reading (the showMax setting) */
+.nh-gauge__max {
+  fill: var(--nh-text-dim);
+  font-weight: 500;
 }
 
 /* Chart */

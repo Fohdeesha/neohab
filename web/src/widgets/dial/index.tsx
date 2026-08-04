@@ -201,13 +201,19 @@ function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const text2 = value2.toFixed(decimals2)
   const primaryText = primaryIsInner ? text2 : text
   const primaryUnit = primaryIsInner ? config.unit2 : config.unit
+  /* "39 / 58": the reading over its scale maximum (trailing zeros dropped, like tick labels) */
+  const maxText =
+    config.showMax === true
+      ? String(Number((primaryIsInner ? max2 : max).toFixed(primaryIsInner ? decimals2 : decimals)))
+      : null
   const secondaryLine = inner
     ? (primaryIsInner ? text : text2) + ((primaryIsInner ? config.unit : config.unit2) ? ' ' + (primaryIsInner ? config.unit : config.unit2) : '')
     : null
   /* The tick ring has no center disc to fit inside, so its reading takes the whole face -
      the instrument look, where the number is the widget. */
-  const valueSize =
-    (centerR * (tickRing ? 1.15 : 0.52)) * Math.min(1, (tickRing ? 4.2 : 5.5) / Math.max(1, primaryText.length))
+  /* the "/ 58" tail is drawn at ~0.44x the value size, so it costs about half its length */
+  const centerLen = primaryText.length + (maxText !== null ? (maxText.length + 2) * 0.55 : 0)
+  const valueSize = (centerR * (tickRing ? 1.15 : 0.52)) * Math.min(1, (tickRing ? 4.2 : 5.5) / Math.max(1, centerLen))
   /** The gauge names itself inside the face instead of in the tile header. */
   const named = config.centerLabel === true && (config.label ?? '') !== ''
 
@@ -328,13 +334,49 @@ function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       )
     })
 
-  /** Continuous solid band with a dim track (the arc style, outer or inner ring). */
+  /** Continuous solid band with a dim track (the arc style, outer or inner ring). The two
+      film overlays after the band are invisible until a theme raises --nh-band-light /
+      --nh-band-shade: a brightened tail at the value tip and a darkened one at the start,
+      each faded along its own chord - a lit arc, without touching the band's own attribute
+      paint (which severity stops and the color setting drive). */
   const bandRing = (RR: number, w: number, vf: number, zf: number, bidi: boolean, col: string, key: string) => {
     const s = span(vf, zf, bidi)
+    const film = s && s[1] - s[0] > 0.03 ? Math.min(0.25, (s[1] - s[0]) * 0.45) : 0
+    const chord = (from: number, to: number) => {
+      const p1 = polar(50, 50, RR, fractionToAngle(from, start, sweep))
+      const p2 = polar(50, 50, RR, fractionToAngle(to, start, sweep))
+      return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
+    }
     return (
       <g key={key}>
         <path className="nh-gauge__btrack" d={segPath(RR, 0, 1)} strokeWidth={w} />
         {s ? <path className="nh-gauge__band" d={segPath(RR, s[0], s[1])} strokeWidth={w} stroke={col} /> : null}
+        {s && film > 0 ? (
+          <>
+            <defs>
+              <linearGradient id={`nh-g-shade-${uid}-${key}`} gradientUnits="userSpaceOnUse" {...chord(s[0] + film, s[0])}>
+                <stop offset="0" style={{ stopColor: 'rgba(0, 0, 0, 0)' }} />
+                <stop offset="1" style={{ stopColor: 'rgba(0, 0, 0, var(--nh-band-shade, 0))' }} />
+              </linearGradient>
+              <linearGradient id={`nh-g-tip-${uid}-${key}`} gradientUnits="userSpaceOnUse" {...chord(s[1] - film, s[1])}>
+                <stop offset="0" style={{ stopColor: 'rgba(255, 255, 255, 0)' }} />
+                <stop offset="1" style={{ stopColor: 'rgba(255, 255, 255, var(--nh-band-light, 0))' }} />
+              </linearGradient>
+            </defs>
+            <path
+              className="nh-gauge__bandshade"
+              d={segPath(RR, s[0], s[0] + film)}
+              strokeWidth={w}
+              stroke={`url(#nh-g-shade-${uid}-${key})`}
+            />
+            <path
+              className="nh-gauge__bandlight"
+              d={segPath(RR, s[1] - film, s[1])}
+              strokeWidth={w}
+              stroke={`url(#nh-g-tip-${uid}-${key})`}
+            />
+          </>
+        ) : null}
       </g>
     )
   }
@@ -369,7 +411,14 @@ function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const histW = tickRing ? R * 0.86 : Math.min(centerR * 1.5, 2 * histHalf - 5)
 
   return (
-    <WidgetFrame label={named ? undefined : config.label} center>
+    <WidgetFrame
+      label={named ? undefined : config.label}
+      icon={config.icon}
+      iconSize={config.iconSize}
+      iconState={state?.state}
+      iconColor={config.iconColor}
+      center
+    >
       <svg
         ref={svgRef}
         className={'nh-dial nh-dial--ring nh-dial--' + kind + (config.readOnly ? ' nh-dial--readonly' : '')}
@@ -680,6 +729,11 @@ function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
           style={tickRing ? { fill: primaryIsInner ? color2 : color } : undefined}
         >
           {primaryText}
+          {maxText !== null ? (
+            <tspan className="nh-gauge__max" fontSize={valueFont * 0.44}>
+              {' / ' + maxText}
+            </tspan>
+          ) : null}
           {/* raised beside the reading on the tick ring, trailing it on the others */}
           {tickRing && primaryUnit ? (
             <tspan
@@ -805,7 +859,14 @@ function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
   const knobPos = polar(50, 50, 38, knobAngle)
 
   return (
-    <WidgetFrame label={config.label} center>
+    <WidgetFrame
+      label={config.label}
+      icon={config.icon}
+      iconSize={config.iconSize}
+      iconState={state?.state}
+      iconColor={config.iconColor}
+      center
+    >
       <svg
         ref={svgRef}
         className={'nh-dial' + (config.readOnly ? ' nh-dial--readonly' : '')}
@@ -863,6 +924,9 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },
     { key: 'label', type: 'text', label: 'Name' },
+    { key: 'icon', type: 'icon', label: 'Icon' },
+    { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     {
       key: 'style',
       type: 'select',
@@ -880,6 +944,13 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     { key: 'max', type: 'number', label: 'Maximum' },
     { key: 'step', type: 'number', label: 'Step' },
     { key: 'unit', type: 'text', label: 'Unit suffix' },
+    {
+      key: 'showMax',
+      type: 'boolean',
+      label: 'Maximum beside the value',
+      showIf: ring,
+      hint: 'Draws the reading over its scale maximum: "39 / 58".',
+    },
     { key: 'readOnly', type: 'boolean', label: 'Read-only gauge' },
     { key: 'ledCount', type: 'number', label: 'Segments', min: 8, max: 200, showIf: segmented },
     {

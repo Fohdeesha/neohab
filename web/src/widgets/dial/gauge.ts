@@ -35,6 +35,10 @@ export type RingStyle = 'led' | 'ticks' | 'arc' | 'blocks' | '3d'
 export interface DialConfig {
   item: string
   label?: string
+  /** Header icon beside the name, like the other headered widgets. */
+  icon?: string
+  iconColor?: string
+  iconSize?: number
   /**
    * Visual style: 'classic' = the original arc slider; 'led' = glowing bead ring;
    * 'ticks' = a fine instrument ring of radial tick marks; 'arc' = continuous solid band with
@@ -50,6 +54,8 @@ export interface DialConfig {
   max?: number
   step?: number
   unit?: string
+  /** Ring styles: draw the reading over its scale maximum, "39 / 58". */
+  showMax?: boolean
   /** Display-only gauge: shows the value but never sends commands. */
   readOnly?: boolean
   /* ── LED style ── */

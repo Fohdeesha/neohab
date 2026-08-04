@@ -80,9 +80,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   single color of your choosing (or the theme's) or color thresholds you define (blue when cold,
   red when hot), a soft center glow in the same color, an alarm range that pulses it, full
   circles, half gauges or any arc, bidirectional fill from zero, hidden unlit segments, a tick
-  scale, reference markers (fixed, or following another item's live value), colored zones, and
-  an optional mini chart of the item's recent history under the reading, as bars or as a
-  sparkline. A second item adds
+  scale, reference markers (fixed, or following another item's live value), colored zones, an
+  optional mini chart of the item's recent history under the reading, as bars or as a
+  sparkline, a header icon like the other widgets carry, and the reading drawn over its scale
+  maximum ("39 / 58") for the completed-of-planned look. A second item adds
   a concentric inner ring — the dual gauge — with its own range and colors, both readings shown
   in the center. It stays a touch control — drag around a ring to set its value, whichever ring
   is nearer your finger — unless you make it read-only.

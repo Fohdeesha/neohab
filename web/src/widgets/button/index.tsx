@@ -17,6 +17,10 @@ interface ButtonConfig extends StateIconConfig {
   navigateUrl?: string
   iconSize?: number
   hideLabel?: boolean
+  /** An illustration filling the card above the label; when set it replaces the icon. */
+  imageUrl?: string
+  /** Small dim line under the label - the zone-card layout. */
+  caption?: string
 }
 
 function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
@@ -46,10 +50,13 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
         aria-label={config.label}
         onClick={press}
       >
-        {icon ? (
+        {config.imageUrl ? (
+          <img className="nh-button__media" src={config.imageUrl} alt="" />
+        ) : icon ? (
           <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-button__icon" />
         ) : null}
         {showLabel ? <span className="nh-button__label">{config.label}</span> : null}
+        {config.caption ? <span className="nh-button__caption">{config.caption}</span> : null}
       </button>
     </WidgetFrame>
   )
@@ -66,6 +73,8 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   defaultConfig: () => ({ label: 'Button', command: 'ON', commandAlt: 'OFF', toggle: false, action: 'command', iconSize: 32 }),
   settings: [
     { key: 'label', type: 'text', label: 'Label' },
+    { key: 'caption', type: 'text', label: 'Caption' },
+    { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…' },
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide label)' },
