@@ -61,7 +61,8 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
     setQuery(null)
   }
 
-  const openList = () => {
+  const openedAt = useRef(0)
+  const placeList = () => {
     const box = boxRef.current?.getBoundingClientRect()
     if (box) {
       const below = window.innerHeight - box.bottom - MARGIN
@@ -75,8 +76,12 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           : { left: box.left, width: box.width, top: box.bottom + 4, maxHeight }
       )
     }
+  }
+  const openList = () => {
+    placeList()
     setOpen(true)
     setHighlight(0)
+    openedAt.current = Date.now()
   }
 
   // Close when tapping outside, scrolling elsewhere, or resizing (the fixed position
@@ -89,6 +94,14 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
     }
     const onScroll = (e: Event) => {
       if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return
+      // Focusing an input sitting at a scroll container's clipped edge makes the browser
+      // scroll it the rest of the way into view RIGHT as the list opens - that scroll is part
+      // of opening, not the user scrolling away. Follow it (reposition, without re-arming the
+      // grace clock) instead of closing on it; scrolls after the window really do close.
+      if (Date.now() - openedAt.current < 300) {
+        placeList()
+        return
+      }
       close()
     }
     const onResize = () => close()

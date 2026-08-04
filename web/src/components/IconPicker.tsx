@@ -134,7 +134,8 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     }
   }, [open, tab])
 
-  const openList = () => {
+  const openedAt = useRef(0)
+  const placeList = () => {
     const box = boxRef.current?.getBoundingClientRect()
     if (box) {
       const below = window.innerHeight - box.bottom - MARGIN
@@ -147,7 +148,11 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           : { left: box.left, width: Math.max(box.width, 300), top: box.bottom + 4, maxHeight }
       )
     }
+  }
+  const openList = () => {
+    placeList()
     setOpen(true)
+    openedAt.current = Date.now()
   }
   const close = () => {
     setOpen(false)
@@ -163,6 +168,13 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     }
     const onScroll = (e: Event) => {
       if (popRef.current && e.target instanceof Node && popRef.current.contains(e.target)) return
+      // The focus-follow scroll of a just-tapped input at a panel's clipped edge arrives as
+      // the popover opens; reposition on it (without re-arming the grace clock) rather than
+      // closing the popover the tap just opened. Same fix as ItemPicker.
+      if (Date.now() - openedAt.current < 300) {
+        placeList()
+        return
+      }
       close()
     }
     const onResize = () => close()
