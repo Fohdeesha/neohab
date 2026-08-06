@@ -4,6 +4,7 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
 import { openExternal } from '../../model/url'
+import { useScreensaverStore } from '../../kiosk/Screensaver'
 import {
   TRANSPORT_OPTIONS,
   isConfigured,
@@ -42,7 +43,11 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   const hostRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<PlayerHandle | null>(null)
   const [status, setStatus] = useState<PlayerStatus>({ phase: 'connecting', transport: null, failed: [] })
-  const [wanted, setWanted] = useState(config.offscreen === 'keep')
+  const [onScreen, setOnScreen] = useState(config.offscreen === 'keep')
+  // The screensaver covers the page without hiding it: `visibilityState` stays visible and an
+  // IntersectionObserver knows nothing about occlusion, so it has to be asked directly.
+  const covered = useScreensaverStore((s) => s.active)
+  const wanted = onScreen && !(covered && config.offscreen !== 'keep')
 
   const configured = isConfigured(config)
   const poster = posterUrl(config)
@@ -71,18 +76,18 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
    */
   useEffect(() => {
     if (config.offscreen === 'keep') {
-      setWanted(true)
+      setOnScreen(true)
       return
     }
     const el = wrapRef.current
     if (!el) return
-    let onScreen = false
+    let visible = false
 
-    const evaluate = () => setWanted(onScreen && document.visibilityState !== 'hidden')
+    const evaluate = () => setOnScreen(visible && document.visibilityState !== 'hidden')
 
     const observer = new IntersectionObserver(
       (entries) => {
-        onScreen = entries.some((e) => e.isIntersecting)
+        visible = entries.some((e) => e.isIntersecting)
         evaluate()
       },
       { threshold: 0.01 }

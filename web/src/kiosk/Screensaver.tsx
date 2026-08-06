@@ -5,18 +5,46 @@
  * cannot also press whatever happens to be under it.
  */
 import { useEffect, useRef, useState } from 'react'
+import { create } from 'zustand'
 import { useKioskStore } from '../store/kiosk'
 
 /** How often idleness is re-checked. Activity itself is event-driven; this only fires the saver. */
 const CHECK_MS = 1000
 
+/**
+ * Reactive "the screen is covered right now", for anything whose work is pointless while nobody
+ * can see it — the camera widget above all, which otherwise kept four decoders and four sockets
+ * busy all night behind a black rectangle. The saver is an overlay, so neither `visibilityState`
+ * nor an IntersectionObserver notices it; this flag is the only way to know.
+ */
+export const useScreensaverStore = create<{ active: boolean }>(() => ({ active: false }))
+
 export function Screensaver() {
   const mode = useKioskStore((s) => s.settings.screensaver)
   const minutes = useKioskStore((s) => s.settings.screensaverMinutes)
+  /**
+   * Component state, deliberately - NOT the store below.
+   *
+   * The swallow depends on it. A mouse WAKES the saver by moving, and the click that follows is a
+   * separate event: `activeRef` is still true for it because React batches the wake and re-renders
+   * after the current event, so the click is swallowed too. Driving this from an external store
+   * instead makes the wake flush synchronously inside the pointermove, so by the time the click
+   * arrives the saver is already gone and the click lands on whatever is underneath - which is the
+   * one thing this feature exists to prevent. Proved with a probe, not reasoned: the click's own
+   * dispatch saw `.nh-saver` already removed.
+   */
   const [active, setActive] = useState(false)
   const activeRef = useRef(false)
   activeRef.current = active
   const lastActivity = useRef(Date.now())
+
+  // Publish it for anything whose work is pointless while the screen is covered. Mirrored in an
+  // effect rather than being the source of truth, so the timing above is untouched: a frame's
+  // delay is nothing to a camera deciding whether to hold a socket open.
+  useEffect(() => {
+    useScreensaverStore.setState({ active: active && mode !== 'off' })
+    return () => useScreensaverStore.setState({ active: false })
+  }, [active, mode])
 
   useEffect(() => {
     if (mode === 'off') return
