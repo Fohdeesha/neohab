@@ -3,10 +3,21 @@ Bundle-Name: neohab
 Bundle-Vendor: neohab
 Automatic-Module-Name: org.openhab.ui.neohab
 
+# Left alone, bnd answers a javax.servlet dependency with an osgi.contract requirement pinned to
+# the EXACT servlet version it compiled against (4.0.0). That is a hard resolution constraint: an
+# openHAB shipping any other servlet line would refuse to start the bundle at all, which trades a
+# caching header for the one-jar-runs-on-4.x-and-5.x guarantee. Turned off, so the packages are
+# imported with the widened ranges below instead.
+-contract: -*
+
 # compiled against openHAB 4.3.x but must resolve on 4.x and 5.x,
-# so the core import range is widened explicitly
+# so the core import range is widened explicitly. javax.servlet is the cache-header filter's:
+# openHAB 4 ships the 3.1 API and later lines ship 4.x of it, and this filter uses only the part
+# that has not changed since 2.x, so the range covers the lot.
 Import-Package: \
   org.openhab.core.ui.tiles;version="[4.3,6)",\
+  javax.servlet;version="[3.1,6)",\
+  javax.servlet.http;version="[3.1,6)",\
   org.slf4j;version="[1.7,3)",\
   *
 
