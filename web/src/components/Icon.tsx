@@ -11,7 +11,7 @@
  *
  * A bare name without a prefix is treated as an openHAB icon (what HABPanel configs contain).
  */
-import type { SyntheticEvent } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import { ohUrl } from '../api/base'
 import { useConfigStore } from '../store/config'
 
@@ -79,6 +79,65 @@ const hideBroken = (e: SyntheticEvent<HTMLImageElement>) => {
 }
 
 /**
+ * Whether a mask image can actually be loaded.
+ *
+ * A monochrome icon is drawn as a coloured box masked to the glyph's shape, and CSS says a
+ * mask-image that fails to load resolves to `none` — so the box is drawn UNMASKED. A mistyped
+ * name ("mdi:lightbub") therefore painted a solid block of the icon colour, which reads as a
+ * rendering fault rather than a name that does not exist. The `<img>`-based sources hide
+ * themselves through `onError`; a mask has no such event, so the URL is probed once instead.
+ *
+ * Cached per URL for the session: `Icon` renders on nearly every widget update, and a name that
+ * is missing stays missing.
+ */
+type MaskStatus = 'ok' | 'missing'
+const maskStatus = new Map<string, MaskStatus>()
+const maskProbes = new Map<string, Promise<MaskStatus>>()
+
+function probeMask(url: string): Promise<MaskStatus> {
+  let probe = maskProbes.get(url)
+  if (!probe) {
+    probe = new Promise<MaskStatus>((resolve) => {
+      const img = new Image()
+      img.onload = () => resolve('ok')
+      img.onerror = () => resolve('missing')
+      img.src = url
+    }).then((status) => {
+      maskStatus.set(url, status)
+      return status
+    })
+    maskProbes.set(url, probe)
+  }
+  return probe
+}
+
+/** True once `url` is known not to exist, so the caller can render nothing instead of a block. */
+function useMaskMissing(url: string | null): boolean {
+  const [missing, setMissing] = useState(() => (url ? maskStatus.get(url) === 'missing' : false))
+
+  useEffect(() => {
+    if (!url) {
+      setMissing(false)
+      return
+    }
+    const known = maskStatus.get(url)
+    if (known !== undefined) {
+      setMissing(known === 'missing')
+      return
+    }
+    let alive = true
+    void probeMask(url).then((status) => {
+      if (alive) setMissing(status === 'missing')
+    })
+    return () => {
+      alive = false
+    }
+  }, [url])
+
+  return missing
+}
+
+/**
  * State-aware openHAB icons re-fetch when the item changes, and a set may have art for one
  * state but not another. The hidden flag is set imperatively, so React won't clear it on the
  * next src - without this an icon that 404s once stays invisible for the rest of the session.
@@ -92,20 +151,23 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const customUri = useConfigStore((s) =>
     ref?.source === 'custom' ? s.customIcons.find((i) => i.id === ref.name)?.dataUri : undefined
   )
+  // Hooks run for every icon, so the URL is computed before the early return below.
+  const maskUrl = ref?.source === 'mdi' ? packIconUrl('mdi', ref.name) : null
+  const maskMissing = useMaskMissing(maskUrl)
   if (!ref) return null
 
   const dim = `calc(${size}px * var(--nh-iconscale, 1))`
 
   if (ref.source === 'mdi') {
-    const url = packIconUrl('mdi', ref.name)
+    if (maskMissing) return null
     return (
       <span
         className={'nh-icon nh-icon--mdi' + (className ? ' ' + className : '')}
         style={{
           width: dim,
           height: dim,
-          WebkitMaskImage: `url(${url})`,
-          maskImage: `url(${url})`,
+          WebkitMaskImage: `url(${maskUrl})`,
+          maskImage: `url(${maskUrl})`,
           backgroundColor: color || undefined,
         }}
         aria-hidden
