@@ -38,6 +38,10 @@ await fetch(NS, {
         { id: 'b1', type: 'button', config: { label: 'MDI', icon: 'mdi:lightbulb', iconSize: 40, command: 'ON', item: ITEMS.switch, toggle: true, commandAlt: 'OFF' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
         { id: 'b2', type: 'button', config: { label: 'OH', icon: 'oh:light', iconSize: 40, command: 'ON', item: ITEMS.switch }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
         { id: 'b3', type: 'button', config: { label: 'HiddenLabel', icon: 'mdi:garage', hideLabel: true, command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+        // A monochrome icon is a coloured box masked to the glyph. CSS says a mask image that
+        // fails to load resolves to `none`, so the box is drawn UNMASKED - a mistyped name
+        // painted a solid block of the icon colour rather than nothing at all.
+        { id: 'b4', type: 'button', config: { label: 'Typo', icon: 'mdi:lightbub', iconSize: 40, command: 'ON' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
         { id: 'c1', type: 'color', config: { label: 'Color', item: ITEMS.color }, layout: { lg: { x: 0, y: 2, w: 4, h: 3 } } },
       ],
     },
@@ -78,6 +82,18 @@ try {
   ok('mdi icon renders as masked span', (await mdiIcon.count()) === 1)
   const maskSet = await mdiIcon.evaluate((el) => getComputedStyle(el).maskImage.includes('lightbulb'))
   ok('mdi mask points at the svg', maskSet)
+
+  // A name that does not exist must render NOTHING. Unmasked, the same element is a solid block
+  // of the icon colour at the icon's size, which reads as a rendering fault rather than a typo.
+  await page.waitForTimeout(800) // the missing-mask probe is one image load
+  const typo = await page.locator('.nh-button:has-text("Typo")').evaluate((btn) => {
+    const el = btn.querySelector('.nh-icon--mdi')
+    if (!el) return { present: false, w: 0, h: 0 }
+    const box = el.getBoundingClientRect()
+    return { present: true, w: Math.round(box.width), h: Math.round(box.height) }
+  })
+  ok('a missing mdi icon draws nothing at all', !typo.present, JSON.stringify(typo))
+  ok('a good mdi icon beside it is unaffected', (await mdiIcon.count()) === 1)
   const ohIcon = page.locator('.nh-button:has-text("OH") img.nh-icon--oh')
   ok('oh icon renders as server img', (await ohIcon.count()) === 1)
   const src = await ohIcon.getAttribute('src')

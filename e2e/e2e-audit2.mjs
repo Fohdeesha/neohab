@@ -8,6 +8,11 @@
  *   - a nameless dashboard component no longer takes down the whole config load
  *   - backup import writes before deleting (a failed replace cannot leave you with nothing)
  *   - a nonsensical column count (0) still renders, instead of dividing the cell size to Infinity
+ *   - a gap that is not a number does the same, in the one geometry field that had no guard
+ *   - a rect that is not a rect is repaired at the read, rather than becoming a NaN free-spot
+ *     search and a grid-row counted backwards from the end of the grid
+ *   - a widget whose config throws is ONE broken tile: it used to unmount the entire app, so a
+ *     blank page was all you got and the editor that could fix it went with it
  *   - a stored tablet rect wider than the tablet grid is clamped into it
  *   - label widget font size scales with the cell like everything else
  *   - ItemPicker: does selecting an item leave the list open? (behaviour probe)
@@ -70,6 +75,49 @@ await put({
   config: {
     version: 1, id: 'nh-e2e-a2-norow', name: 'E2E Audit2 NoRow', columns: 12, rowHeight: 0, gap: 5,
     widgets: [{ id: 'a2-r', type: 'label', config: { text: 'Floored' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+  },
+})
+// a gap that is not a number: the column count and the row height were guarded and this was not,
+// so the cell width came out NaN and the grid had nothing to lay anything out with
+await put({
+  uid: 'dashboard:nh-e2e-a2-nogap',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-nogap', name: 'E2E Audit2 NoGap', columns: 12, rowHeight: 'match', gap: 'wide',
+    widgets: [{ id: 'a2-g', type: 'label', config: { text: 'Gapped' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+  },
+})
+// a rect that is not a rect. An unreadable height made findFreeSpot return y: NaN - which was
+// then SAVED onto the next widget added - and a negative y became a grid-row counted from the
+// end of the grid, so the widget rendered somewhere nobody put it.
+await put({
+  uid: 'dashboard:nh-e2e-a2-badrect',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-badrect', name: 'E2E Audit2 BadRect', columns: 12, rowHeight: 'match', gap: 5,
+    widgets: [
+      { id: 'a2-bad', type: 'label', config: { text: 'Repaired' }, layout: { lg: { x: -4, y: -5, w: 0, h: 'tall' } } },
+      { id: 'a2-good', type: 'label', config: { text: 'Neighbour' }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
+    ],
+  },
+})
+// a widget whose stored config is the wrong SHAPE. Guards live at each read, but a widget that
+// throws during render used to unmount the whole React tree - the dashboard, the editor and the
+// way to Settings went together, leaving a blank page and no route back to the cause.
+await put({
+  uid: 'dashboard:nh-e2e-a2-throws',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-throws', name: 'E2E Audit2 Throws', columns: 12, rowHeight: 'match', gap: 5,
+    widgets: [
+      { id: 'a2-chart', type: 'chart', config: { series: {}, thresholds: 'none' }, layout: { lg: { x: 0, y: 0, w: 6, h: 3 } } },
+      { id: 'a2-tl', type: 'timeline', config: { series: 'nope', colorMaps: 7 }, layout: { lg: { x: 6, y: 0, w: 6, h: 3 } } },
+      { id: 'a2-alive', type: 'label', config: { text: 'Still here' }, layout: { lg: { x: 0, y: 3, w: 3, h: 2 } } },
+      { id: 'a2-nosuch', type: 'notawidget', config: {}, layout: { lg: { x: 3, y: 3, w: 3, h: 2 } } },
+    ],
   },
 })
 // a stored tablet rect wider than the tablet grid it lands in
@@ -154,6 +202,116 @@ try {
     const cellH = await page.evaluate(() => Math.round(document.querySelector('.nh-gcell').getBoundingClientRect().height))
     ok('rowHeight=0 is floored to something visible', rowH >= 8, String(rowH))
     ok('rowHeight=0: the cell has height', cellH > 0, String(cellH))
+    await ctx.close()
+  }
+
+  /* --------- a gap that is not a number --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-nogap')
+    // Tolerant: a NaN cell width leaves the grid with no size at all, so it never becomes
+    // "visible" and a plain wait would time out and take every later check in this suite with it.
+    // The assertions below are what should fail here, not the wait.
+    await page.waitForSelector('.nh-grid', { state: 'attached', timeout: 15000 }).catch(() => {})
+    await page.waitForTimeout(800)
+    const g = await page.evaluate(() => {
+      const grid = document.querySelector('.nh-grid')
+      const cell = document.querySelector('.nh-gcell')
+      if (!grid) return { rows: 'no grid', gap: 'no grid', h: 0, w: 0 }
+      return {
+        rows: getComputedStyle(grid).gridAutoRows,
+        gap: getComputedStyle(grid).gap,
+        h: cell ? Math.round(cell.getBoundingClientRect().height) : 0,
+        w: cell ? Math.round(cell.getBoundingClientRect().width) : 0,
+      }
+    })
+    ok('gap="wide": the row height is a real length', /px/.test(g.rows) && !/NaN/.test(g.rows), JSON.stringify(g))
+    // A pixel value, not merely "no NaN": an unreadable gap resolved to the CSS keyword `normal`,
+    // which contains no NaN either, so testing for that alone passed on the broken build too.
+    ok('gap="wide": the gap falls back to the default length', /^8px/.test(g.gap), g.gap)
+    ok('gap="wide": the widget has a size', g.h > 0 && g.w > 0, JSON.stringify(g))
+    await ctx.close()
+  }
+
+  /* --------- a rect that is not a rect --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-badrect')
+    await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
+    await page.waitForTimeout(800)
+    const rects = await page.evaluate(() =>
+      [...document.querySelectorAll('.nh-gcell')].map((c) => {
+        const cs = getComputedStyle(c)
+        const box = c.getBoundingClientRect()
+        return {
+          text: c.querySelector('.nh-label')?.textContent ?? '',
+          rowStart: cs.gridRowStart,
+          colStart: cs.gridColumnStart,
+          h: Math.round(box.height),
+          w: Math.round(box.width),
+          top: Math.round(box.top),
+        }
+      })
+    )
+    const bad = rects.find((r) => r.text === 'Repaired')
+    ok('a corrupt rect still renders both widgets', rects.length === 2, JSON.stringify(rects))
+    ok('the repaired widget has a real size', !!bad && bad.h > 0 && bad.w > 0, JSON.stringify(bad))
+    ok(
+      'a negative row is not counted from the end of the grid',
+      !!bad && Number(bad.rowStart) >= 1 && Number(bad.colStart) >= 1,
+      JSON.stringify(bad)
+    )
+    // A NaN maxY meant the free-spot search never ran, and the widget added next was stored at
+    // y: NaN. Adding one here proves the search still works on this dashboard. Every step is
+    // tolerant so a build that cannot get this far fails the assertions rather than the suite.
+    await page.click('[aria-label="Edit dashboard"]').catch(() => {})
+    await page.waitForSelector('.nh-grid--edit', { state: 'attached', timeout: 10000 }).catch(() => {})
+    await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0).catch(() => {})
+    await page.click('[aria-label="Add widget"]').catch(() => {})
+    await page.waitForSelector('.nh-palette__card', { timeout: 10000 }).catch(() => {})
+    await page.locator('.nh-palette__card', { hasText: 'Clock' }).first().click().catch(() => {})
+    await page.waitForTimeout(600)
+    const added = await page.evaluate(() =>
+      [...document.querySelectorAll('.nh-cell')].map((c) => getComputedStyle(c).gridRowStart)
+    )
+    ok('adding a widget beside a corrupt rect places it', added.length === 3, JSON.stringify(added))
+    ok('no widget lands on a NaN row', added.every((r) => /^\d+$/.test(r)), JSON.stringify(added))
+    await ctx.close()
+  }
+
+  /* --------- a widget that throws is one broken tile, not a blank app --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-throws')
+    // Deliberately tolerant: without a boundary the whole tree unmounts, so there is no cell to
+    // wait for and the state read below is what reports it.
+    await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
+    await page.waitForTimeout(1500)
+    const state = await page.evaluate(() => ({
+      cells: document.querySelectorAll('.nh-gcell').length,
+      errors: document.querySelectorAll('.nh-widget--error').length,
+      alive: document.body.innerText.includes('Still here'),
+      header: document.querySelectorAll('.nh-dash__bar').length,
+      root: (document.getElementById('root')?.childElementCount ?? 0) > 0,
+    }))
+    // Without a boundary the whole tree unmounted: no cells, no header, an empty #root.
+    ok('every widget on the dashboard still has a cell', state.cells === 4, JSON.stringify(state))
+    ok('the working widget beside them still renders', state.alive, JSON.stringify(state))
+    ok('the dashboard header survives', state.header === 1 && state.root, JSON.stringify(state))
+    ok('the unrenderable widgets say so in their own tiles', state.errors >= 1, JSON.stringify(state))
+    // Recovery: the editor is still reachable, which is the whole point of containing it.
+    await page.click('[aria-label="Edit dashboard"]').catch(() => {})
+    const editable = await page
+      .waitForSelector('.nh-grid--edit', { state: 'attached', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false)
+    ok('the dashboard can still be edited to fix them', editable)
     await ctx.close()
   }
 

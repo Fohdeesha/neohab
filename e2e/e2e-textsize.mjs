@@ -177,6 +177,51 @@ try {
   await page.click('button:has-text("Exit")')
   await sleep(500)
 
+  // ---------- a number field can actually be typed into ----------
+  // Every check above sets these fields with fill(), which delivers the whole value in one
+  // event - and that is exactly the case that always worked. Typed a digit at a time, the field
+  // rejected anything outside its range on every keystroke while being driven by the stored
+  // value, so the leading digit of "150" was refused and the input snapped back. Row height
+  // (minimum 8) and text size (minimum 50) had no reachable values below their own first digit.
+  await page.goto(APP + '#/d/nh-e2e-textsize')
+  await page.waitForSelector('.nh-gcell')
+  await page.click('[aria-label="Edit dashboard"]')
+  await page.waitForSelector('.nh-grid--edit')
+  await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
+  await page.click('[aria-label="Dashboard settings"]')
+  await page.waitForSelector('#nh-dash-textsize', { timeout: 10000 })
+
+  const typeInto = async (selector, text) => {
+    await page.click(selector)
+    await page.keyboard.press('Control+a')
+    await page.keyboard.type(text, { delay: 40 })
+    return page.inputValue(selector)
+  }
+
+  ok('text size can be typed digit by digit', (await typeInto('#nh-dash-textsize', '175')) === '175')
+  // Switch to a fixed row height, whose minimum of 8 made "12" and "20" unreachable entirely.
+  await page.selectOption('#nh-dash-rowmode', 'fixed')
+  await page.waitForSelector('#nh-dash-rowpx', { timeout: 5000 })
+  ok('a row height below its own first digit can be typed', (await typeInto('#nh-dash-rowpx', '12')) === '12')
+
+  // Leaving the field with something out of range clamps it, rather than storing a value every
+  // reader then has to guard: the min/max attributes only advise the browser.
+  await typeInto('#nh-dash-rowpx', '2')
+  await page.click('#nh-dash-name')
+  await sleep(250)
+  ok('an out-of-range value is clamped on leaving the field', (await page.inputValue('#nh-dash-rowpx')) === '8', await page.inputValue('#nh-dash-rowpx'))
+
+  // An emptied field is not a zero: it leaves the setting alone and snaps back to it.
+  await page.click('#nh-dash-rowpx')
+  await page.keyboard.press('Control+a')
+  await page.keyboard.press('Delete')
+  await page.click('#nh-dash-name')
+  await sleep(250)
+  ok('an emptied field keeps the stored value', (await page.inputValue('#nh-dash-rowpx')) === '8', await page.inputValue('#nh-dash-rowpx'))
+
+  await page.click('button:has-text("Exit")')
+  await page.waitForSelector('.nh-grid--edit', { state: 'detached', timeout: 10000 })
+
   // ---------- importer maps font_scale ----------
   await page.goto(APP + '#/settings')
   await page.waitForSelector('.nh-hpimport__row', { timeout: 15000 })

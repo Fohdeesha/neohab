@@ -314,7 +314,15 @@ try {
   await pb.waitForSelector('.nh-sheet--side')
   const accSel = pb.locator('.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Tile accent")) select')
   ok('Tile accent offered for any widget', (await accSel.count()) === 1)
-  ok('accent shows None by default', (await accSel.inputValue().catch(() => '')) === 'none')
+  // "None" is the absence of an accent, so it is the empty value and clears the key rather than
+  // storing a word meaning nothing - like every other "unset" choice in this form. What matters
+  // is that the field reads None and the tile carries no accent class.
+  ok('accent shows None by default', (await accSel.inputValue().catch(() => 'x')) === '')
+  ok(
+    'the None option is the one selected',
+    (await accSel.locator('option:checked').textContent().catch(() => '')) === 'None'
+  )
+  ok('a widget with no accent has no accent class', (await pb.locator('.nh-cell.nh-acc-none').count()) === 0)
   ok('accent offers every choice', (await accSel.locator('option').count().catch(() => 0)) === 4)
   await accSel.selectOption('filled').catch(() => {})
   await sleep(400)

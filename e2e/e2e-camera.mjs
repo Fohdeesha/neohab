@@ -3,7 +3,8 @@
  *
  * Covers the transport chain, the failure paths, the off-screen policy, tap actions and the
  * settings form. The live-video sections need a camera server in the target configuration
- * ("camera": {kind, server, stream}); without one they self-skip and the rest still runs.
+ * ("camera": {kind, server, stream}); without one they self-skip and the rest still runs. The
+ * screensaver section deliberately needs no camera server: what it observes is the teardown.
  *
  * Two checks exist because of bugs found by probing a real go2rtc, and both fail on a build
  * without their fix:
@@ -216,8 +217,12 @@ try {
       try {
         localStorage.setItem('neohab:apiToken', t)
       } catch {}
-      // Fail the offer, so WebRTC dies after its watcher is already armed.
-      if (window.RTCPeerConnection) {
+      // Fail the offer, so WebRTC dies after its watcher is already armed. Top frame only: an
+      // init script runs in EVERY frame, so left unguarded this also breaks the offer inside the
+      // embedded third-party player the chain falls back to, and that page's own unhandled
+      // rejection reads exactly like one of ours. What is under test is how this app settles the
+      // work it abandoned, not how someone else's page handles a broken browser.
+      if (window.top === window && window.RTCPeerConnection) {
         window.RTCPeerConnection.prototype.createOffer = () => Promise.reject(new Error('e2e: no offer'))
       }
     }, TOKEN)
@@ -289,6 +294,66 @@ try {
     await open(UID_TALL)
     await sleep(4000)
     ok('off-screen "keep": streams even out of view', (await state()).child !== null, JSON.stringify(await state()))
+  }
+
+  // ---------- 5a. the screensaver counts as "nobody is looking" ----------
+  // The widget's own documentation listed the screensaver among the cases `stop` covers, and it
+  // was the one case that did not work: the saver is an OVERLAY, so document.visibilityState
+  // stays "visible" and an IntersectionObserver knows nothing about occlusion. Four cameras
+  // therefore decoded all night behind a black rectangle, on exactly the wall panels that turn a
+  // screensaver on. Needs no camera server: what is being observed is the teardown.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
+    await ctx.addInitScript(
+      (t) => {
+        try {
+          localStorage.setItem('neohab:apiToken', t)
+          // ~1.2s of idle, which is the floor the saver clamps to.
+          localStorage.setItem('neohab:kiosk', JSON.stringify({ kiosk: false, screensaver: 'blank', screensaverMinutes: 0.02, wakeLock: false }))
+        } catch {}
+      },
+      TOKEN
+    )
+    const saverPage = await ctx.newPage()
+    ok('seed for the screensaver', await seed([cell(camConfig({ transport: 'auto', offscreen: 'stop' }))]))
+    await saverPage.goto(APP + '#/d/' + UID.split(':')[1], { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await saverPage.waitForSelector('.nh-camera', { timeout: 15000 })
+
+    const cameraState = () =>
+      saverPage.evaluate(() => ({
+        saver: !!document.querySelector('.nh-saver'),
+        media: document.querySelectorAll('.nh-camera__host > *').length,
+        status: document.querySelector('.nh-camera__status')?.textContent ?? null,
+      }))
+
+    // Keep it awake first: the element it has attached is what the screensaver should take away,
+    // so its presence is the "before" this section is measured against. (Not the status overlay -
+    // a camera that is working shows none, which made an earlier version of this check meaningless.)
+    for (let i = 0; i < 8; i++) {
+      await saverPage.mouse.move(500 + i, 400)
+      await sleep(300)
+    }
+    const awake = await cameraState()
+    ok('screensaver: the camera has a media element before it engages', !awake.saver && awake.media > 0, JSON.stringify(awake))
+
+    // Now leave it alone. page.evaluate generates no input events, so the saver engages.
+    await sleep(4000)
+    const covered = await cameraState()
+    ok('screensaver: it engages when nothing is touched', covered.saver, JSON.stringify(covered))
+    ok('screensaver: the camera holds no media element while covered', covered.media === 0, JSON.stringify(covered))
+
+    // Waking it puts the camera back, so this is a pause and not a one-way street. The idle
+    // timeout here is ~1.2s, so the page has to be kept awake while the stream reconnects -
+    // simply sleeping let the saver engage again and made this look like a one-way street.
+    await saverPage.keyboard.press('Space')
+    let woken = await cameraState()
+    for (let i = 0; i < 20 && (woken.saver || woken.media === 0); i++) {
+      await saverPage.mouse.move(500 + (i % 5), 400)
+      await sleep(500)
+      woken = await cameraState()
+    }
+    ok('screensaver: waking restarts the camera', !woken.saver && woken.media > 0, JSON.stringify(woken))
+    await ctx.close()
   }
 
   // ---------- 5b. how the name is shown ----------

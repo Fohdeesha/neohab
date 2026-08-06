@@ -117,16 +117,30 @@ async function expandFirstRow() {
   await page.waitForSelector('.nh-histfield', { timeout: 10000 })
 }
 
-/** Switch the comparison and wait for the new result to replace the old one. */
+/**
+ * Switch the comparison and wait for the new result to replace the old one.
+ *
+ * "The panel does not say Loading" is not enough on its own, and this failed about one run in
+ * four because of it: switching mode clears the rows and re-fetches, but there is a window
+ * between the click and React rendering "Loading…" in which the panel still holds the PREVIOUS
+ * comparison and says nothing about loading — so the wait returns immediately and the rows that
+ * get counted are the old ones, mid-replacement. Waiting for the panel to be quiet across two
+ * polls closes it: whatever the timing, one of them lands after the re-render.
+ */
 async function compareMode(label) {
   await page.click(`button:has-text("${label}")`)
-  await page.waitForFunction(
-    () => {
-      const detail = document.querySelector('.nh-histdetail')
-      return !!detail && !/Loading/.test(detail.textContent ?? '')
-    },
-    { timeout: 15000 }
-  )
+  const settled = async () => {
+    await page.waitForFunction(
+      () => {
+        const detail = document.querySelector('.nh-histdetail')
+        return !!detail && !/Loading/.test(detail.textContent ?? '')
+      },
+      { timeout: 15000 }
+    )
+  }
+  await settled()
+  await new Promise((r) => setTimeout(r, 300))
+  await settled()
 }
 
 /** Make one configuration change through the app: pick a theme, and wait for it to land. */
