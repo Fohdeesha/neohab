@@ -180,11 +180,6 @@ export function startItemTracking(): void {
   else publishNeed()
 }
 
-export function stopItemTracking(): void {
-  tracker.stop()
-  useItemsStore.setState({ connected: false })
-}
-
 /** Ref-count item subscriptions so unmounting one widget doesn't drop another's item. */
 export function subscribeItems(names: string[]): () => void {
   if (names.length === 0) return () => {}

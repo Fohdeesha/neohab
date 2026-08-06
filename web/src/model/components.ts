@@ -31,3 +31,17 @@ export function nextFreeId(base: string, taken: Set<string>): string {
     if (!taken.has(candidate)) return candidate
   }
 }
+
+/**
+ * A display name as an id that is safe in a URL and in a component uid, de-duped against what is
+ * already there. One implementation: dashboards and icons had a copy each, identical but for the
+ * word they fall back to when a name reduces to nothing at all.
+ */
+export function slugify(name: string, fallback: string, taken: Set<string>): string {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || fallback
+  return nextFreeId(base, taken)
+}

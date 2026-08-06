@@ -53,6 +53,9 @@ export function DashboardView({ id }: { id: string }) {
   // subscribed, not read once: a save, an import or a reload replaces the stored dashboard, and
   // the view must follow it on its own rather than relying on an editor render to carry it in.
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
+  // The whole editor store on purpose, unlike everywhere else: this component reads twelve of its
+  // thirteen fields, so selectors would be a dozen subscriptions to say "all of it" - and every
+  // field it does not read changes in the same gestures as the ones it does.
   const editor = useEditorStore()
   // The tablet-layout switch only makes sense on the grid surface (the phone stack has no
   // breakpoints of its own), and the toolbar is tight enough without a button that does nothing.

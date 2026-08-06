@@ -1,6 +1,10 @@
 /**
- * Stages the bundled icon packs into public/ so the built app serves them offline from the
- * add-on jar. One directory + one compact search index per pack:
+ * Stages everything the built app serves from its own jar rather than fetching: the icon packs,
+ * the webfonts the structural themes use, and (nothing here, but next in the build) the rendered
+ * documentation. Nothing neohab ships reaches for the internet at runtime, and this is where that
+ * is arranged. It also clears `dist/`, for the Windows reason noted below.
+ *
+ * One directory + one compact search index per icon pack:
  *   public/icons/mdi/<name>.svg    + icons/mdi-index.json    - Material Design Icons (@mdi/svg,
  *       Apache-2.0): ~7k monochrome glyphs, tinted by the app via CSS mask
  *   public/icons/fluent/<name>.svg + icons/fluent-index.json - Fluent Emoji flat (MIT): full-color
@@ -11,7 +15,7 @@
  * Each pack directory also carries its upstream LICENSE/ATTRIBUTION file.
  * public/icons is generated output and gitignored. Runs before dev and build.
  */
-import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,21 +30,29 @@ rmSync(join(root, 'dist'), { recursive: true, force: true, maxRetries: 10, retry
 
 const mdiSrc = join(root, 'node_modules', '@mdi', 'svg')
 if (!existsSync(mdiSrc)) {
-  console.error('copy-icons: @mdi/svg is not installed')
+  console.error('stage-assets: @mdi/svg is not installed')
   process.exit(1)
 }
 const mdiMeta = JSON.parse(readFileSync(join(mdiSrc, 'meta.json'), 'utf8'))
-const already = existsSync(join(dest, 'mdi')) ? readdirSync(join(dest, 'mdi')).length : 0
-mkdirSync(join(dest, 'mdi'), { recursive: true })
-if (already < mdiMeta.length) {
+// Version-stamped like the Iconify packs below, and for the same reason: the previous test was
+// "does the directory hold fewer files than the package lists?", which is false after an upgrade
+// to a version with the same or fewer icons - so the old SVGs stayed on disk while the search
+// index listed the new names, and the difference rendered as missing icons.
+const mdiVersion = JSON.parse(readFileSync(join(mdiSrc, 'package.json'), 'utf8')).version
+const mdiStampFile = join(dest, 'mdi.stamp')
+const mdiStamp = `${mdiVersion}:${mdiMeta.length}`
+if (!existsSync(mdiStampFile) || readFileSync(mdiStampFile, 'utf8') !== mdiStamp) {
+  rmSync(join(dest, 'mdi'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  mkdirSync(join(dest, 'mdi'), { recursive: true })
   cpSync(join(mdiSrc, 'svg'), join(dest, 'mdi'), { recursive: true })
   cpSync(join(mdiSrc, 'LICENSE'), join(dest, 'mdi', 'LICENSE'))
+  writeFileSync(mdiStampFile, mdiStamp)
 }
 const mdiIndex = mdiMeta
   .filter((m) => !m.deprecated)
   .map((m) => (m.aliases?.length ? m.name + '|' + m.aliases.join(' ') : m.name))
 writeFileSync(join(dest, 'mdi-index.json'), JSON.stringify(mdiIndex))
-console.log(`copy-icons: mdi: ${mdiIndex.length} icons staged`)
+console.log(`stage-assets: mdi: ${mdiIndex.length} icons staged`)
 
 /* ------------------------------ Iconify JSON packs ------------------------------ */
 
@@ -59,7 +71,7 @@ function hasSkinTone(name) {
 function stageIconifyPack({ pkg, dir, curate }) {
   const base = join(root, 'node_modules', '@iconify-json', pkg)
   if (!existsSync(base)) {
-    console.error(`copy-icons: @iconify-json/${pkg} is not installed`)
+    console.error(`stage-assets: @iconify-json/${pkg} is not installed`)
     process.exit(1)
   }
   const data = JSON.parse(readFileSync(join(base, 'icons.json'), 'utf8'))
@@ -111,7 +123,7 @@ function stageIconifyPack({ pkg, dir, curate }) {
   }
   const index = kept.map((n) => (aliasTerms[n] ? n + '|' + aliasTerms[n].join(' ') : n))
   writeFileSync(join(dest, dir + '-index.json'), JSON.stringify(index))
-  console.log(`copy-icons: ${pkg} -> ${dir}: ${index.length} icons staged`)
+  console.log(`stage-assets: ${pkg} -> ${dir}: ${index.length} icons staged`)
 }
 
 stageIconifyPack({
@@ -131,48 +143,48 @@ stageIconifyPack({ pkg: 'meteocons', dir: 'meteo' })
 // the theme's own CSS, so it is only ever downloaded when one of those themes is active.
 const fontSrc = join(root, 'node_modules', '@fontsource-variable', 'instrument-sans')
 if (!existsSync(fontSrc)) {
-  console.error('copy-icons: @fontsource-variable/instrument-sans is not installed')
+  console.error('stage-assets: @fontsource-variable/instrument-sans is not installed')
   process.exit(1)
 }
 const fontsDir = join(root, 'public', 'fonts')
 mkdirSync(fontsDir, { recursive: true })
 cpSync(join(fontSrc, 'files', 'instrument-sans-latin-wght-normal.woff2'), join(fontsDir, 'instrument-sans.woff2'))
 cpSync(join(fontSrc, 'LICENSE'), join(fontsDir, 'instrument-sans-LICENSE.txt'))
-console.log('copy-icons: fonts: Instrument Sans staged')
+console.log('stage-assets: fonts: Instrument Sans staged')
 
 // Montserrat (OFL-1.1) - the Operations theme's geometric sans: light weights for the big
 // readouts, semibold for the spaced uppercase micro-labels, from one variable file.
 const montSrc = join(root, 'node_modules', '@fontsource-variable', 'montserrat')
 if (!existsSync(montSrc)) {
-  console.error('copy-icons: @fontsource-variable/montserrat is not installed')
+  console.error('stage-assets: @fontsource-variable/montserrat is not installed')
   process.exit(1)
 }
 cpSync(join(montSrc, 'files', 'montserrat-latin-wght-normal.woff2'), join(fontsDir, 'montserrat.woff2'))
 cpSync(join(montSrc, 'LICENSE'), join(fontsDir, 'montserrat-LICENSE.txt'))
-console.log('copy-icons: fonts: Montserrat staged')
+console.log('stage-assets: fonts: Montserrat staged')
 
 // DSEG (OFL-1.1) - segment-display faces for the LCD Console theme: 7-segment for digits,
 // 14-segment for alphanumerics, both in the slanted weight the real consoles use. Declared
 // via @font-face in the theme's CSS, so they only download when that theme is active.
 const dsegSrc = join(root, 'node_modules', 'dseg')
 if (!existsSync(dsegSrc)) {
-  console.error('copy-icons: dseg is not installed')
+  console.error('stage-assets: dseg is not installed')
   process.exit(1)
 }
 cpSync(join(dsegSrc, 'fonts', 'DSEG7-Classic', 'DSEG7Classic-BoldItalic.woff2'), join(fontsDir, 'dseg7.woff2'))
 cpSync(join(dsegSrc, 'fonts', 'DSEG14-Classic', 'DSEG14Classic-BoldItalic.woff2'), join(fontsDir, 'dseg14.woff2'))
 cpSync(join(dsegSrc, 'DSEG-LICENSE.txt'), join(fontsDir, 'dseg-LICENSE.txt'))
-console.log('copy-icons: fonts: DSEG staged')
+console.log('stage-assets: fonts: DSEG staged')
 
 // Poppins (OFL-1.1) - the Assembly theme's rounded geometric sans, in the three weights the
 // board uses (labels / titles / readings). Static faces, so one file per weight.
 const popSrc = join(root, 'node_modules', '@fontsource', 'poppins')
 if (!existsSync(popSrc)) {
-  console.error('copy-icons: @fontsource/poppins is not installed')
+  console.error('stage-assets: @fontsource/poppins is not installed')
   process.exit(1)
 }
 for (const w of [400, 500, 600]) {
   cpSync(join(popSrc, 'files', `poppins-latin-${w}-normal.woff2`), join(fontsDir, `poppins-${w}.woff2`))
 }
 cpSync(join(popSrc, 'LICENSE'), join(fontsDir, 'poppins-LICENSE.txt'))
-console.log('copy-icons: fonts: Poppins staged')
+console.log('stage-assets: fonts: Poppins staged')

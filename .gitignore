@@ -1,7 +1,8 @@
 # --- Node / frontend ---
 node_modules/
 web/dist/
-# generated at build time from @mdi/svg
+# staged into public/ at build time: the docs from docs/*.md, the icon packs and the webfonts
+# from their npm packages (see web/scripts/)
 web/public/docs/
 web/public/icons/
 web/public/fonts/

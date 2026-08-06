@@ -92,7 +92,14 @@ export async function setLanguage(choice: string): Promise<void> {
   await activate(choice === 'auto' ? detectLanguage() : choice)
 }
 
-/** Apply the detected language at startup (module side effect, before first paint). */
+/**
+ * Apply the detected language at startup.
+ *
+ * English is in the bundle and is applied synchronously by the `init` above, so an English
+ * session never waits. Any other language is a separate chunk, so its first frame is unavoidably
+ * English and swaps once the catalog arrives - a fetch cannot be awaited before paint without
+ * holding the whole app back on every load, including the English ones.
+ */
 void activate(detectLanguage())
 
 export default i18n

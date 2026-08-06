@@ -13,11 +13,12 @@ import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 /** Manager for user-uploaded icons: upload, rename, delete, and the upload size limit. */
 export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
-  const { customIcons, settings } = useConfigStore()
+  // Selectors, not the whole store: this section re-rendered on every unrelated configuration
+  // change - a theme edit, a dashboard save - to read two fields.
+  const customIcons = useConfigStore((s) => s.customIcons)
+  const maxKB = useConfigStore((s) => s.settings.maxIconKB) ?? DEFAULT_MAX_ICON_KB
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-
-  const maxKB = settings.maxIconKB ?? DEFAULT_MAX_ICON_KB
   const totalKB = Math.round(customIcons.reduce((sum, i) => sum + (i.bytes || 0), 0) / 1024)
 
   const upload = async (file: File) => {

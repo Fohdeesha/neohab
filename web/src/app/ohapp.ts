@@ -25,10 +25,6 @@ function bridge(): OHAppBridge | undefined {
   return (window as { OHApp?: OHAppBridge }).OHApp
 }
 
-export function inOpenhabApp(): boolean {
-  return bridge() !== undefined
-}
-
 export function canPinToHome(): boolean {
   return typeof bridge()?.pinToHome === 'function'
 }

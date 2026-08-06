@@ -17,7 +17,7 @@ import { readableInk } from './contrast'
 import { isUsableTokenValue, THEME_TOKENS, type ThemeTokens } from './tokens'
 import { urlThemeId } from './urlTheme'
 
-export { COLOR_TOKENS, THEME_TOKENS, TOKEN_GROUPS, TOKEN_SPECS, tokensInGroup, type ThemeTokens, type TokenSpec } from './tokens'
+export { THEME_TOKENS, TOKEN_GROUPS, TOKEN_SPECS, tokensInGroup, type ThemeTokens, type TokenSpec } from './tokens'
 
 /** Built-in stylesheets, by the id a theme references them with. */
 const CSS_MODULES = {
@@ -274,7 +274,6 @@ export const BUILTIN_THEMES: Theme[] = [
       brand: '#0db9f0',
       radius: '2px',
     },
-    cssModule: undefined,
   },
 
   /* ------------------------- the rest of HABPanel's set -------------------------

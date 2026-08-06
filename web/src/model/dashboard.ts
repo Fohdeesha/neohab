@@ -6,6 +6,8 @@
  * simple grid rectangles; the runtime and (later) the editor both operate on this shape.
  */
 
+import { slugify } from './components'
+
 export const MODEL_VERSION = 1
 
 /**
@@ -91,14 +93,5 @@ export function createDashboard(id: string, name: string): Dashboard {
 
 /** URL-safe dashboard id derived from a display name, de-duped against existing ids. */
 export function slugifyDashboardId(name: string, existing: Set<string>): string {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'dashboard'
-  if (!existing.has(base)) return base
-  for (let n = 2; ; n++) {
-    const candidate = `${base}-${n}`
-    if (!existing.has(candidate)) return candidate
-  }
+  return slugify(name, 'dashboard', existing)
 }

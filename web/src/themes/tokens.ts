@@ -89,14 +89,7 @@ export type TokenKey = string
 
 export const THEME_TOKENS: readonly string[] = TOKEN_SPECS.map((t) => t.key)
 
-/** The Core colours, still used where a compact swatch row is wanted (the theme cards). */
-export const COLOR_TOKENS = TOKEN_SPECS.filter((t) => t.group === 'Core' && t.kind === 'color').map((t) => t.key)
-
 export type ThemeTokens = Partial<Record<string, string>>
-
-export function tokenSpec(key: string): TokenSpec | undefined {
-  return TOKEN_SPECS.find((t) => t.key === key)
-}
 
 export function tokensInGroup(group: TokenGroup): TokenSpec[] {
   return TOKEN_SPECS.filter((t) => t.group === group)

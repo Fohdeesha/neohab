@@ -4,9 +4,9 @@
   "version": "1.8.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/copy-icons.mjs && node scripts/build-docs.mjs",
+    "predev": "node scripts/stage-assets.mjs && node scripts/build-docs.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/copy-icons.mjs && node scripts/build-docs.mjs",
+    "prebuild": "node scripts/stage-assets.mjs && node scripts/build-docs.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",

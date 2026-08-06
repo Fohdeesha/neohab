@@ -28,7 +28,7 @@ function computeRoot(): string {
 let root: string | null = null
 
 /** The path prefix openHAB is served under: '' normally, '/openhab' behind a sub-path proxy. */
-export function ohRoot(): string {
+function ohRoot(): string {
   root ??= computeRoot()
   return root
 }

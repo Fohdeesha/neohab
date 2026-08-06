@@ -46,8 +46,8 @@ interface SettingCommon {
 }
 
 /**
- * A single field in a widget's settings form. The editor (Phase 3) renders these generically;
- * defining them now keeps each widget's configurable surface declarative and self-documenting.
+ * A single field in a widget's settings form. The editor renders these generically, so a widget's
+ * configurable surface is declarative data rather than a form someone has to write.
  */
 export type SettingField = SettingCommon &
   (

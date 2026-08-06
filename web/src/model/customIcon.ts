@@ -10,16 +10,9 @@ export interface CustomIcon {
   bytes: number
 }
 
+import { slugify } from './components'
+
 /** URL-safe icon id derived from a file name, de-duped against existing ids. */
 export function slugifyIconId(name: string, existing: Set<string>): string {
-  const base =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'icon'
-  if (!existing.has(base)) return base
-  for (let n = 2; ; n++) {
-    const candidate = `${base}-${n}`
-    if (!existing.has(candidate)) return candidate
-  }
+  return slugify(name, 'icon', existing)
 }

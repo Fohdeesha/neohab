@@ -32,16 +32,20 @@ type CompareMode = 'step' | 'now'
 
 export function HistorySection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
-  const settings = useConfigStore((s) => s.settings)
-  const { index, loading, busy, error } = useHistoryStore()
+  const historyLimit = useConfigStore((s) => s.settings.historyLimit)
+  const historyWindow = useConfigStore((s) => s.settings.historyWindowMin)
+  const index = useHistoryStore((s) => s.index)
+  const loading = useHistoryStore((s) => s.loading)
+  const busy = useHistoryStore((s) => s.busy)
+  const error = useHistoryStore((s) => s.error)
   const [selected, setSelected] = useState<string | null>(null)
 
   useEffect(() => {
     void loadHistory()
   }, [])
 
-  const limit = clampLimit(settings.historyLimit ?? DEFAULT_HISTORY_LIMIT)
-  const windowMin = clampWindow(settings.historyWindowMin ?? DEFAULT_HISTORY_WINDOW_MIN)
+  const limit = clampLimit(historyLimit ?? DEFAULT_HISTORY_LIMIT)
+  const windowMin = clampWindow(historyWindow ?? DEFAULT_HISTORY_WINDOW_MIN)
   const snapshots = index?.snapshots ?? []
 
   return (

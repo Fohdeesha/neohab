@@ -7,7 +7,7 @@
  */
 import type { Item } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { MODEL_VERSION, slugifyDashboardId } from '../model/dashboard'
+import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
 import {
   configFor,
   isReadOnlyPoint,
@@ -159,12 +159,6 @@ function packSection(sizes: { w: number; h: number }[], columns: number, startY:
     bottom = Math.max(bottom, placed.y + placed.h)
   }
   return { rects, bottom }
-}
-
-let widgetSeq = 0
-function newWidgetId(): string {
-  widgetSeq += 1
-  return 'w-gen' + widgetSeq.toString(36) + Math.random().toString(36).slice(2, 8)
 }
 
 function headerWidget(text: string, columns: number, y: number, fontSize: number): WidgetInstance {

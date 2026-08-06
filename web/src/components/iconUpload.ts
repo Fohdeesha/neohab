@@ -84,7 +84,7 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
  * busts the ceiling the image is downscaled - resolution is the only lossless lever - never
  * re-encoded lossily. SVGs are sanitized and kept as vectors, like icons.
  */
-export const MAX_BACKGROUND_DIMENSION = 5120
+const MAX_BACKGROUND_DIMENSION = 5120
 const MAX_BACKGROUND_BYTES = 24 * 1024 * 1024
 
 export async function processBackgroundFile(file: File): Promise<ProcessedIcon> {
