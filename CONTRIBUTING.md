@@ -25,7 +25,8 @@ e2e/                           browser end-to-end suites, run against a real ope
 
 ## Getting it running
 
-You need Node 20+ and, for the add-on jar, a JDK 21.
+You need Node 20.19+ or 22.12+ (what Vite 7 requires; the Maven build downloads its own Node 24
+regardless) and, for the add-on jar, a JDK 21.
 
 ```bash
 cd web
@@ -99,11 +100,15 @@ export const myWidget: WidgetDefinition<MyConfig> = {
 Register it in `src/widgets/index.ts`. That is the whole contract — the grid, the editor, the
 settings panel, copy/paste, exports and the per-widget universal settings all come for free.
 
-Two things to know:
+Three things to know:
 
 - **Stored configuration is untrusted.** A backup, a shared export or a hand edit is written
   verbatim, so guard every value you do arithmetic on *at the point you read it*, not at the point
-  it was entered.
+  it was entered. `Array.isArray` before `.map`, not `?? []` — the second one still throws on an
+  object, and this runs during render.
+- **A widget that throws is contained** (see `components/WidgetBoundary.tsx`), so a bad
+  configuration costs one tile rather than the whole app. That is a safety net, not permission to
+  skip the guard above: a tile reading "could not be shown" is still a broken widget.
 - **Widget strings go through `t()`.** Empty states and messages included — an untranslated string
   is the only English left on screen in another language.
 

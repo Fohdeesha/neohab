@@ -16,7 +16,8 @@ neohab is a community project and is not an official openHAB UI.
 2. Drop it into your openHAB `addons/` folder. It is picked up in a few seconds — no restart.
 3. Open **http://your-server:8080/neohab/**.
 
-It appears on the openHAB start page too. To remove it, delete the jar.
+It appears on the openHAB start page too. To remove it, delete the jar. To upgrade, replace it —
+open tabs pick the new version up on their next load, with no cache to clear.
 
 Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs. Viewing works with
 whatever access your server already allows; editing asks you to sign in as an administrator.
@@ -24,8 +25,9 @@ whatever access your server already allows; editing asks you to sign in as an ad
 ## Coming from HABPanel
 
 Import your panels from **Settings › HABPanel import** — either straight off your server or from a
-`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and you
-get a report of what came over cleanly, what was approximated, and what needs a look.
+`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across (panel names
+become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`), and you get a report of
+what came over cleanly, what was approximated, and what needs a look.
 
 All seven HABPanel themes have a port here, so an imported dashboard arrives looking like itself.
 Custom AngularJS templates import as neohab template widgets. An `additional_stylesheet_url` is
@@ -122,6 +124,10 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 - **Version history** — every change is preceded by a restore point. Look back through a dated
   list, see exactly what changed field by field, and roll the whole configuration back. Twenty-five
   are kept by default.
+- **Hard to break** — configuration that did not come from the editor is treated as untrusted
+  wherever it is read, and a widget that cannot make sense of its own settings becomes one tile
+  saying so rather than a blank page. Whatever a hand edit, an old backup or someone else's export
+  contains, the dashboard around it keeps working and the editor is still there to fix it.
 
 ## Icons
 
