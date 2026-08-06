@@ -9,7 +9,11 @@
     "prebuild": "node scripts/copy-icons.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "@jsep-plugin/assignment": "^1.3.0",
@@ -25,6 +29,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@fontsource-variable/montserrat": "^5.3.0",
     "@fontsource/poppins": "^5.3.0",
@@ -36,8 +41,13 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
     "dseg": "^0.46.0",
+    "eslint": "^9.20.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.15.0",
     "typescript": "~5.9.2",
+    "typescript-eslint": "^8.24.0",
     "vite": "^7.1.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^3.0.5"
   }
 }

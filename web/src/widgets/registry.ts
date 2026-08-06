@@ -1,19 +1,29 @@
 import type { WidgetDefinition } from './types'
 
-const registry = new Map<string, WidgetDefinition<any>>()
+/**
+ * The widget registry.
+ *
+ * Definitions are generic in their own config type, but the registry holds them all together, so
+ * what goes in is narrowed to the erased shape on the way. The cast is the one place that happens:
+ * everything downstream reads a `WidgetDefinition<Record<string, unknown>>`, and `WidgetHost` hands
+ * each component the config its own definition described.
+ */
+type AnyWidgetDefinition = WidgetDefinition<Record<string, unknown>>
+
+const registry = new Map<string, AnyWidgetDefinition>()
 
 export function registerWidget<C>(def: WidgetDefinition<C>): void {
   if (registry.has(def.type)) {
     console.warn(`Widget type "${def.type}" is already registered; overwriting.`)
   }
-  registry.set(def.type, def as WidgetDefinition<any>)
+  registry.set(def.type, def as unknown as AnyWidgetDefinition)
 }
 
-export function getWidgetDefinition(type: string): WidgetDefinition | undefined {
+export function getWidgetDefinition(type: string): AnyWidgetDefinition | undefined {
   return registry.get(type)
 }
 
-export function listWidgetDefinitions(): WidgetDefinition[] {
+export function listWidgetDefinitions(): AnyWidgetDefinition[] {
   return [...registry.values()]
 }
 

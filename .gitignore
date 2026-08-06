@@ -38,6 +38,8 @@ id_ed25519*
 *.log
 .env
 .env.*
+# ...but the template telling a contributor what belongs in one is committed
+!.env.example
 *.tsbuildinfo
 
 # --- frontend toolchain (maven-installed node) ---

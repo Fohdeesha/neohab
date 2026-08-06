@@ -188,10 +188,10 @@ function binary(op: string, l: unknown, r: unknown): unknown {
     case '%':
       return a % b
     case '==':
-      // eslint-disable-next-line eqeqeq
+      // Loose equality on purpose: AngularJS templates rely on it, and HABPanel templates are
+      // full of `state == 1` against a string state.
       return l == r
     case '!=':
-      // eslint-disable-next-line eqeqeq
       return l != r
     case '===':
       return l === r

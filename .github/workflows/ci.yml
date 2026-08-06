@@ -17,6 +17,21 @@ jobs:
           java-version: 21
           cache: maven
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # Typecheck, lint and unit tests, before the much slower add-on build. The Maven build runs
+      # the frontend build itself with its own pinned Node; this step is the fast feedback and the
+      # only place the linter and the unit suite run at all.
+      - name: Check the frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run check
+
       - name: Build add-on
         run: ./mvnw -B -ntp clean install
 

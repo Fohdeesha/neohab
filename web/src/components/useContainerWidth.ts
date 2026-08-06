@@ -19,7 +19,9 @@ export function useContainerWidth(ref: RefObject<HTMLElement | null>): number {
   const observer = useRef<ResizeObserver | null>(null)
 
   // Deliberately runs after every render (it costs a reference comparison) so a container that
-  // was swapped, remounted or replaced is picked up.
+  // was swapped, remounted or replaced is picked up. It cannot loop: `setWidth` only runs when
+  // the ref points somewhere new, which is a comparison against a ref rather than against state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const el = ref.current
     if (el === observed.current) return
