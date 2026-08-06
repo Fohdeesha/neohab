@@ -4,7 +4,7 @@ import { useConfigStore } from '../store/config'
 import { useKioskMode } from '../store/kiosk'
 import { appExitToApp, appPinToHome, canExitToApp, canPinToHome } from './ohapp'
 import { isLoggedIn } from '../api/auth'
-import { useEditingAllowed } from '../store/auth'
+import { useAuthStore, useEditingAllowed } from '../store/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
@@ -28,7 +28,11 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const [afterSignIn, setAfterSignIn] = useState<'new' | 'generate'>('new')
 
   const start = (what: 'new' | 'generate') => {
-    if (!isLoggedIn()) {
+    // The same test the dashboard's edit pencil makes: signed in but definitively NOT an
+    // administrator means the save at the end can only fail, so ask for credentials up front
+    // rather than after the work. An 'unknown' probe result never blocks a signed-in user.
+    const canSave = isLoggedIn() && useAuthStore.getState().status !== 'user'
+    if (!canSave) {
       setAfterSignIn(what)
       setSignInOpen(true)
     } else if (what === 'new') setNewOpen(true)

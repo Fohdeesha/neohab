@@ -40,6 +40,8 @@ export function ThemeEditor({
   const sharedThemeId = useConfigStore((s) => s.settings.theme)
   const [makeShared, setMakeShared] = useState(() => sharedThemeId === theme.id)
   const [saving, setSaving] = useState(false)
+  // Whether this theme is on the server yet, so a brand-new one is not offered a Delete button.
+  const saved = useConfigStore((s) => s.customThemes.some((c) => c.id === theme.id))
 
   // Live preview: the draft is applied as it is edited, and whatever the app should really be
   // showing is put back when the editor closes - including after a save that did not adopt it.
@@ -128,9 +130,13 @@ export function ThemeEditor({
       </div>
 
       <div className="nh-settings__row">
-        <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
-          {t('Delete')}
-        </button>
+        {/* A theme that was never saved has nothing to delete; offering it only produced a
+            confusing "deleting failed: 404" for what is really just Close. */}
+        {saved ? (
+          <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
+            {t('Delete')}
+          </button>
+        ) : null}
         <span className="nh-dash__spacer" />
         <label className="nh-field nh-field--row nh-themeeditor__share" htmlFor="theme-shared">
           <span className="nh-field__label">{t('Use on all devices')}</span>

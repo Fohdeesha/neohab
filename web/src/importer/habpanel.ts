@@ -4,12 +4,12 @@
  * Accepts either a `habpanel-config.json` export file (including the legacy bare-array format)
  * or a live `habpanel:panelconfig` UI component read from the server, and converts it into
  * neohab dashboards with a best-effort widget mapping and an honest report of everything that
- * was approximated or dropped. Template/custom widgets are imported with their full original
- * configuration preserved so they render once template support lands.
+ * was approximated or dropped. Template and custom widgets keep their original AngularJS
+ * templates, which neohab's own template engine renders.
  */
 import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { MODEL_VERSION } from '../model/dashboard'
+import { MODEL_VERSION, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
 import type { AppSettings } from '../store/config'
 
@@ -540,17 +540,20 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
 
   const dashboards = cfg.dashboards.map((d, i) => convertDashboard(d, i, report))
 
-  // De-duplicate dashboard ids against what already exists.
+  // Turn HABPanel's ids into the same web-address-safe form a dashboard created here gets, and
+  // de-duplicate against what is already on this server. HABPanel ids are free text and often
+  // carry spaces ("Bedroom Lighting"), which then travelled through the URL and the component
+  // uid; slugifying here is what makes an imported dashboard indistinguishable from a new one.
   const taken = new Set(existingDashboardIds)
   for (const d of dashboards) {
-    if (taken.has(d.id)) {
-      const original = d.id
-      let n = 2
-      while (taken.has(`${original}-${n}`)) n++
-      d.id = `${original}-${n}`
-      report.add('info', 'Some dashboard ids already existed and were renamed')
+    const tidy = slugifyDashboardId(d.id, new Set())
+    const id = slugifyDashboardId(d.id, taken)
+    if (id !== tidy) report.add('info', 'Some dashboard ids already existed and were renamed')
+    else if (id !== d.id) {
+      report.add('info', 'Dashboard names were turned into web addresses (“Bedroom Lighting” becomes “bedroom-lighting”)')
     }
-    taken.add(d.id)
+    d.id = id
+    taken.add(id)
   }
 
   const widgetDefs: UIComponent[] = Object.entries(cfg.customwidgets).map(([id, def]) => ({

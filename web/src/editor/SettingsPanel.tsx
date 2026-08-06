@@ -37,7 +37,9 @@ const ACCENT_FIELD: SettingField = {
   type: 'select',
   label: 'Tile accent',
   options: [
-    { value: 'none', label: 'None' },
+    // An empty value, so choosing it clears the key: the select's own handler writes undefined
+    // for '', and `widgetAccent` reads anything it does not recognise as no accent either way.
+    { value: '', label: 'None' },
     { value: 'filled', label: 'Filled' },
     { value: 'tinted', label: 'Tinted' },
     { value: 'outlined', label: 'Outlined' },
@@ -128,7 +130,9 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
           </>
         ) : null}
-        <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? 'none'} />
+        {/* 'none' is the absence of an accent, so it is stored as absent - every other "unset"
+            choice in this form clears its key rather than writing a word meaning nothing. */}
+        <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? ''} />
         <Field field={ACCENT_COLOR_FIELD} widget={widget} value={effective[ACCENT_COLOR_FIELD.key]} />
         <Field field={GROUP_FIELD} widget={widget} value={effective[GROUP_FIELD.key]} />
         <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
