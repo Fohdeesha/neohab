@@ -187,10 +187,10 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             setQuery(text)
             if (!open) openList()
             setHighlight(0)
-            // Typing filters. It used to also write each keystroke into the widget's item, so a
-            // half-typed search left the widget bound to an item that does not exist the moment
-            // the picker was abandoned. A name that really is an item is still accepted as typed,
-            // which is what makes the field usable from the keyboard alone.
+            // Typing filters the list; it does not bind the widget. Writing each keystroke
+            // through would leave a widget bound to a half-typed name the moment the picker was
+            // abandoned. A name that really is an item is still accepted as typed, which is what
+            // makes the field usable from the keyboard alone.
             if (allowUnknown || text === '' || items.some((i) => i.name === text)) onChange(text)
           }}
           onBlur={() => {
