@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { safeUrl } from '../../model/url'
 
 interface ImageConfig {
   url: string
@@ -22,15 +23,20 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
     return () => clearInterval(id)
   }, [config.refresh])
 
-  if (!config.url) {
+  // Same allow-list the frame and the template engine use, so one stored URL cannot be a picture
+  // here and something else there.
+  const url = safeUrl(config.url)
+  if (!url) {
     return (
       <WidgetFrame label={config.label} center>
-        <span className="nh-image__placeholder">{t('No image URL')}</span>
+        <span className="nh-image__placeholder">
+          {config.url ? t('That image address cannot be shown.') : t('No image URL')}
+        </span>
       </WidgetFrame>
     )
   }
 
-  const src = cacheBust > 0 ? appendParam(config.url, '_', String(cacheBust)) : config.url
+  const src = cacheBust > 0 ? appendParam(url, '_', String(cacheBust)) : url
 
   return (
     <WidgetFrame label={config.label} bare>

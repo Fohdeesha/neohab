@@ -174,12 +174,27 @@ export function applyAuthHeader(headers: Headers, token: string): void {
 }
 
 /**
+ * Base64 of a string that may hold anything a person can type.
+ *
+ * `btoa` takes bytes, not text, and throws on any character above U+00FF — so a proxy password
+ * with an umlaut, an accent or an emoji in it made EVERY request fail, with an error about
+ * character ranges rather than about credentials. Encoding to UTF-8 first is what RFC 7617
+ * expects anyway.
+ */
+function basicToken(id: string, password: string): string {
+  const bytes = new TextEncoder().encode(`${id}:${password}`)
+  let binary = ''
+  for (const b of bytes) binary += String.fromCharCode(b)
+  return btoa(binary)
+}
+
+/**
  * Apply the proxy credentials, if any. Separate from the token because a proxy demands them on
  * EVERY request, including the anonymous ones a viewer makes.
  */
 export function applyProxyAuth(headers: Headers): void {
   const creds = basicCredentials
-  if (creds) headers.set('Authorization', 'Basic ' + btoa(`${creds.id}:${creds.password}`))
+  if (creds) headers.set('Authorization', 'Basic ' + basicToken(creds.id, creds.password))
 }
 
 function base64url(bytes: Uint8Array): string {

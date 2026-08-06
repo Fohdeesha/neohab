@@ -16,6 +16,7 @@
  */
 import DOMPurify from 'dompurify'
 import { ohUrl } from '../api/base'
+import { safeUrl } from '../model/url'
 import { evaluate, type Scope } from './evaluator'
 import { FILTERS, splitTopLevel } from './filters'
 
@@ -77,21 +78,15 @@ function interpolate(text: string, scope: Scope): string {
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'xlink:href'])
 
 /**
- * Schemes allowed in a URL that came out of an expression.
+ * A URL that came out of an expression, or an empty attribute.
  *
  * Interpolated attribute values are written AFTER the sanitizer has run, so DOMPurify's own URI
- * policy never sees them - this is the only thing standing in for it. An allow-list rather than
- * a `javascript:`-only block, because it was narrower than the policy it stands in for
- * (`vbscript:` and `data:text/html` walked straight through). A value with no scheme at all is a
- * relative URL and is fine.
+ * policy never sees them - the allow-list in model/url.ts is the only thing standing in for it.
+ * Shared with the widgets that put a stored URL into an iframe or a new tab, which have exactly
+ * the same problem for exactly the same reason.
  */
-const SAFE_URL = /^(?:https?:|mailto:|tel:|ftp:|blob:|data:image\/)/i
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
-
-function safeUrl(value: string): string {
-  const v = value.trim()
-  if (!HAS_SCHEME.test(v)) return value // relative, protocol-relative or a fragment
-  return SAFE_URL.test(v) ? value : ''
+function attrUrl(value: string): string {
+  return safeUrl(value) ?? ''
 }
 
 function attr(el: Element, ...names: string[]): string | null {
@@ -160,15 +155,15 @@ function processElement(el: Element, scope: Scope): void {
 
   // ng-src/ng-href values are interpolated strings, like in AngularJS
   const src = el.getAttribute('ng-src')
-  if (src !== null) el.setAttribute('src', safeUrl(interpolate(src, scope)))
+  if (src !== null) el.setAttribute('src', attrUrl(interpolate(src, scope)))
   const href = el.getAttribute('ng-href')
-  if (href !== null) el.setAttribute('href', safeUrl(interpolate(href, scope)))
+  if (href !== null) el.setAttribute('href', attrUrl(interpolate(href, scope)))
 
   // {{ }} inside ordinary attribute values
   for (const a of [...el.attributes]) {
     if (a.value.includes('{{')) {
       const v = interpolate(a.value, scope)
-      el.setAttribute(a.name, URL_ATTRS.has(a.name) ? safeUrl(v) : v)
+      el.setAttribute(a.name, URL_ATTRS.has(a.name) ? attrUrl(v) : v)
     }
   }
 
@@ -200,6 +195,9 @@ function processElement(el: Element, scope: Scope): void {
 
 const REPEAT_RE = /^\s*([$\w]+)\s+in\s+(.+?)(?:\s+track\s+by\s+.+)?\s*$/
 
+/** Names a loop variable may not take; the evaluator refuses the same three when assigning. */
+const FORBIDDEN_SCOPE_NAMES = new Set(['__proto__', 'prototype', 'constructor'])
+
 function expandRepeat(el: Element, expr: string, scope: Scope): void {
   const m = REPEAT_RE.exec(expr)
   if (!m) {
@@ -215,7 +213,12 @@ function expandRepeat(el: Element, expr: string, scope: Scope): void {
   el.removeAttribute('ng-repeat')
   list.forEach((item, index) => {
     const child: Scope = Object.create(scope)
-    child[varName] = item
+    // The one write into a scope that did not go through the evaluator's guard: `varName` comes
+    // out of the template, so `ng-repeat="__proto__ in list"` re-pointed the child scope's
+    // prototype at whatever the list held. Nothing reachable from there is dangerous - reads of
+    // __proto__ and constructor are blocked - but a loop variable that quietly replaces the scope
+    // chain is not something to leave to that.
+    if (!FORBIDDEN_SCOPE_NAMES.has(varName)) child[varName] = item
     child.$index = index
     child.$first = index === 0
     child.$last = index === list.length - 1

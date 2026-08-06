@@ -1,6 +1,7 @@
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
+import { openExternal, safeUrl } from '../../model/url'
 import { Icon } from '../../components/Icon'
 import { resolveStateIcon, stateMatches, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 
@@ -31,7 +32,9 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
     if (ctx.editing) return
     if (config.action === 'navigate') {
       if (config.navigateDashboard) navigate({ name: 'dashboard', id: config.navigateDashboard })
-      else if (config.navigateUrl) window.open(config.navigateUrl, '_blank', 'noopener')
+      // openExternal, not window.open: a stored `javascript:` URL opened this way would run with
+      // this page's origin behind it.
+      else if (config.navigateUrl) openExternal(config.navigateUrl)
       return
     }
     if (!config.item) return
@@ -41,6 +44,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
 
   const showLabel = !config.hideLabel && config.label
   const { icon, color } = resolveStateIcon(config, active, state?.state)
+  const media = safeUrl(config.imageUrl)
 
   return (
     <WidgetFrame center>
@@ -50,8 +54,8 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
         aria-label={config.label}
         onClick={press}
       >
-        {config.imageUrl ? (
-          <img className="nh-button__media" src={config.imageUrl} alt="" />
+        {media ? (
+          <img className="nh-button__media" src={media} alt="" />
         ) : icon ? (
           <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-button__icon" />
         ) : null}

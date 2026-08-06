@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
+import { openExternal } from '../../model/url'
 import {
   TRANSPORT_OPTIONS,
   isConfigured,
@@ -136,7 +137,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
         if (config.tapDashboard) navigate({ name: 'dashboard', id: config.tapDashboard })
         break
       case 'url':
-        if (config.tapUrl) window.open(config.tapUrl, '_blank', 'noopener')
+        openExternal(config.tapUrl)
         break
       case 'command':
         if (config.tapItem && config.tapCommand) void ctx.sendCommand(config.tapItem, config.tapCommand)

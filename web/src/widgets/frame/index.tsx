@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import { isSameOrigin } from '../../model/url'
+import { isSameOrigin, safeUrl } from '../../model/url'
 
 interface FrameConfig {
   url: string
@@ -24,10 +24,16 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     return () => clearInterval(id)
   }, [config.refresh])
 
-  if (!config.url) {
+  // An iframe pointed at a `javascript:` URL executes in the EMBEDDING page's origin - this
+  // page, its session and its token - so the stored URL goes through the same allow-list the
+  // template engine applies to the ones its expressions produce.
+  const url = safeUrl(config.url)
+  if (!url) {
     return (
       <WidgetFrame label={config.label} center>
-        <span className="nh-image__placeholder">{t('No URL configured')}</span>
+        <span className="nh-image__placeholder">
+          {config.url ? t('That page address cannot be embedded.') : t('No URL configured')}
+        </span>
       </WidgetFrame>
     )
   }
@@ -36,7 +42,7 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
   // from the app's DOM, storage and token, and sandboxing them breaks pages that legitimately
   // need their own origin (WebRTC camera streams). A URL we cannot place counts as ours, so it
   // is at least sandboxable rather than silently exempt.
-  const sandboxed = config.sandbox === true && isSameOrigin(config.url, true)
+  const sandboxed = config.sandbox === true && isSameOrigin(url, true)
 
   return (
     <WidgetFrame label={config.label} bare>
@@ -44,7 +50,7 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
       <iframe
         key={`${generation}:${sandboxed}`}
         className="nh-frame"
-        src={config.url}
+        src={url}
         title={config.label ?? 'frame'}
         sandbox={sandboxed ? 'allow-scripts' : undefined}
       />
