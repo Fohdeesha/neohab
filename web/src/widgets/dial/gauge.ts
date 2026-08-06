@@ -145,8 +145,9 @@ export function ledCountOf(c: DialConfig): number {
 
 export function arcOf(c: DialConfig): { start: number; sweep: number } {
   const sweep = Math.min(360, Math.max(30, finite(c.arcSweep, 360)))
-  let start = finite(c.arcStart, 0) % 360
-  if (start < 0) start += 360
+  // Two modulos rather than an `if`: a single one leaves -0 for an exact negative multiple of
+  // 360, which is arithmetically fine but compares unequal to 0 and is a needless surprise.
+  const start = ((finite(c.arcStart, 0) % 360) + 360) % 360
   return { start, sweep }
 }
 

@@ -69,11 +69,20 @@ const TEXT_SIZE_FIELD: SettingField = {
   hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.',
 }
 
+/**
+ * Name alignment and position both offer an explicit "theme default".
+ *
+ * Several themes set the alignment they want for every widget, and a widget only follows that
+ * while it has made no choice of its own. Showing "Left" for a widget that is actually inheriting
+ * a theme's centred default was wrong twice over: it described the widget incorrectly, and
+ * touching the field to see what it did silently pinned Left with no way back.
+ */
 const LABEL_ALIGN_FIELD: SettingField = {
   key: 'labelAlign',
   type: 'select',
   label: 'Name alignment',
   options: [
+    { value: '', label: 'Theme default' },
     { value: 'left', label: 'Left' },
     { value: 'center', label: 'Center' },
     { value: 'right', label: 'Right' },
@@ -85,6 +94,7 @@ const LABEL_POSITION_FIELD: SettingField = {
   type: 'select',
   label: 'Name position',
   options: [
+    { value: '', label: 'Theme default' },
     { value: 'top', label: 'Top' },
     { value: 'bottom', label: 'Bottom' },
   ],
@@ -114,8 +124,8 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
         {def.hasHeader ? (
           <>
-            <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? 'left'} />
-            <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? 'top'} />
+            <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? ''} />
+            <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
           </>
         ) : null}
         <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? 'none'} />
@@ -324,7 +334,7 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return (
         <label className="nh-field" htmlFor={id}>
           <span className="nh-field__label">{t(field.label)}</span>
-          <select id={id} value={current} onChange={(e) => set(e.target.value)}>
+          <select id={id} value={current} onChange={(e) => set(e.target.value === '' ? undefined : e.target.value)}>
             {/* placeholder row only when nothing (not even a default) resolves */}
             {field.options.some((o) => o.value === current) ? null : <option value={current} />}
             {field.options.map((o) => (

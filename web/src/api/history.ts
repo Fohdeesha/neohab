@@ -15,6 +15,7 @@
  *     and only for uids the index says are there. It is never listed except to rebuild the index.
  */
 import { api, ApiError } from './client'
+import { writeWithFallback } from './write'
 import type { UIComponent } from './types'
 
 export const HISTORY_NAMESPACE = 'neohab:history'
@@ -43,29 +44,13 @@ export async function getDataComponent<C>(uid: string, signal?: AbortSignal): Pr
   }
 }
 
-/**
- * Create or replace a component, given a hint about whether it is already there.
- *
- * The hint saves a round trip but is never trusted: openHAB answers a create for an existing uid
- * with a 500 and an update of a missing one with a 404, and either can happen legitimately when a
- * second administrator is editing at the same time. Whichever verb the hint chose, the other one
- * is tried before giving up - and the first failure is what gets reported, since the fallback's
- * error would only describe the symptom.
- */
-async function write<C>(base: string, component: UIComponent<C>, exists: boolean): Promise<void> {
+/** Create or replace a component, given a hint about whether it is already there. */
+function write<C>(base: string, component: UIComponent<C>, exists: boolean): Promise<void> {
   const path = base + '/' + encodeURIComponent(component.uid)
   const update = () => api.put(path, component)
   const create = () => api.post(base, component)
   const [first, second] = exists ? [update, create] : [create, update]
-  try {
-    await first()
-  } catch (err) {
-    try {
-      await second()
-    } catch {
-      throw err
-    }
-  }
+  return writeWithFallback(first, second)
 }
 
 export const putIndexComponent = <C>(component: UIComponent<C>, exists: boolean) => write(indexBase, component, exists)

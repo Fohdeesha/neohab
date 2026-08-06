@@ -27,6 +27,15 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
     useShallow((s) => Object.fromEntries(itemNames.map((n) => [n, s.states[n]])))
   )
 
+  // Definition defaults fill any keys the stored config doesn't set (e.g. imported configs), so
+  // widget behavior and the settings form always agree on effective values. Memoised on the
+  // stored config's identity: rebuilding it every render handed every widget a new object, which
+  // makes memoising a widget impossible for anyone who later wants to.
+  const config = useMemo(
+    () => ({ ...def?.defaultConfig(), ...instance.config }),
+    [def, instance.config]
+  )
+
   const ctx: WidgetContext = useMemo(
     () => ({
       widgetId: instance.id,
@@ -41,8 +50,6 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
     return <div className="nh-widget nh-widget--error">Unknown widget: {instance.type}</div>
   }
 
-  // Definition defaults fill any keys the stored config doesn't set (e.g. imported configs),
-  // so widget behavior and the settings form always agree on effective values.
   const Component = def.Component
-  return <Component config={{ ...def.defaultConfig(), ...instance.config }} ctx={ctx} />
+  return <Component config={config} ctx={ctx} />
 }

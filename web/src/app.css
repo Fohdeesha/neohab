@@ -15,7 +15,27 @@
   --nh-radius: 12px;
   --nh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 
+
   color-scheme: dark;
+}
+
+/* ============================================================================
+   Keyboard focus. Every interactive surface here is a real button or input, so
+   one rule covers all of them - but the browser's default ring is close to
+   invisible on the near-black surfaces several themes use, and nothing was
+   replacing it. Drawn in the brand colour rather than the accent, so the ring
+   never disappears into a control that is already painted in the accent.
+   ============================================================================ */
+:focus-visible {
+  outline: 2px solid var(--nh-brand);
+  outline-offset: 2px;
+}
+
+/* A widget card and a sheet clip their own overflow, so a ring drawn outside a
+   control inside one would be cut off; there it goes inside the control. */
+.nh-widget :focus-visible,
+.nh-sheet :focus-visible {
+  outline-offset: -2px;
 }
 
 * {
@@ -1000,11 +1020,17 @@ button {
   outline-offset: -1px;
 }
 
+/* A real button, so every widget is reachable by Tab and selectable with Enter - but styled
+   away to nothing, because visually it is just the widget underneath it. */
 .nh-cell__overlay {
   position: absolute;
   inset: 0;
   z-index: 1;
+  padding: 0;
+  background: none;
+  border: none;
   border-radius: var(--nh-radius);
+  cursor: pointer;
 }
 
 .nh-cell__handle {
@@ -1682,10 +1708,6 @@ button {
 
 .nh-themeeditor .nh-settings__row {
   margin-top: 14px;
-}
-
-.nh-home__settings {
-  margin-top: 0.5rem;
 }
 
 /* ============================================================================
@@ -3794,6 +3816,25 @@ button {
   margin-top: 0;
   font-size: 1.1em;
   color: var(--nh-text);
+}
+
+/* ============================================================================
+   Reduced motion. Two animations here run indefinitely - the gauge alarm bloom
+   and the microphone's listening dot - and indefinite motion is exactly what
+   this preference exists to stop. Everything keeps its final appearance (a gauge
+   in alarm still glows, it just stops pulsing); only the movement goes.
+   `!important` is what makes this win, so its position in the file is immaterial.
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ============================================================================

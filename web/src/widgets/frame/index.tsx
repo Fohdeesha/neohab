@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { isSameOrigin } from '../../model/url'
 
 interface FrameConfig {
   url: string
@@ -10,22 +11,6 @@ interface FrameConfig {
   refresh?: number
   /** Sandbox a page served from this openHAB (default false). Ignored for other origins. */
   sandbox?: boolean
-}
-
-/**
- * Is this page served from the same origin as neohab itself?
- *
- * Only same-origin pages are worth sandboxing: the browser already walls off other origins from
- * the app's DOM, storage and token, and sandboxing them would break pages that legitimately need
- * their own origin (WebRTC camera streams). An unparseable URL is treated as ours, so a page we
- * cannot place is at least sandboxable rather than silently exempt.
- */
-function isSameOrigin(url: string): boolean {
-  try {
-    return new URL(url, location.href).origin === location.origin
-  } catch {
-    return true
-  }
 }
 
 /** Frame - embeds an external page (weather, cameras, other UIs). */
@@ -47,7 +32,11 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     )
   }
 
-  const sandboxed = config.sandbox === true && isSameOrigin(config.url)
+  // Only same-origin pages are worth sandboxing: the browser already walls off other origins
+  // from the app's DOM, storage and token, and sandboxing them breaks pages that legitimately
+  // need their own origin (WebRTC camera streams). A URL we cannot place counts as ours, so it
+  // is at least sandboxable rather than silently exempt.
+  const sandboxed = config.sandbox === true && isSameOrigin(config.url, true)
 
   return (
     <WidgetFrame label={config.label} bare>

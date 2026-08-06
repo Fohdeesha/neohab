@@ -56,10 +56,3 @@ export function setAudioBlocked(blocked: boolean): void {
   if (useAudioStore.getState().blocked !== blocked) useAudioStore.setState({ blocked })
 }
 
-export function audioEnabled(): boolean {
-  return useAudioStore.getState().settings.playAudio !== false
-}
-
-export function speakEnabled(): boolean {
-  return useAudioStore.getState().settings.speak !== false
-}

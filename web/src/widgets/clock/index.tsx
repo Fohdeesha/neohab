@@ -103,11 +103,32 @@ function AnalogFace({ now, seconds, numbers }: { now: Date; seconds: boolean; nu
 
 function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   const [now, setNow] = useState(() => new Date())
+  const seconds = config.showSeconds === true && config.hideTime !== true
 
+  /**
+   * Tick only as often as the face actually changes.
+   *
+   * Re-rendering every second when nothing but the minute is shown is not free: each tick builds
+   * a Date and runs two `Intl` formatters, and a wall panel can carry several clocks. Without
+   * seconds the timer is re-aimed at the next minute boundary each time, so the display still
+   * turns over exactly on the minute.
+   */
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
+    if (seconds) {
+      const id = setInterval(() => setNow(new Date()), 1000)
+      return () => clearInterval(id)
+    }
+    let timer: ReturnType<typeof setTimeout>
+    const schedule = () => {
+      const ms = 60_000 - (Date.now() % 60_000)
+      timer = setTimeout(() => {
+        setNow(new Date())
+        schedule()
+      }, ms + 20)
+    }
+    schedule()
+    return () => clearTimeout(timer)
+  }, [seconds])
 
   const analog = String(config.mode ?? '').toLowerCase() === 'analog'
   const date = formatDate(now, config.dateFormat)

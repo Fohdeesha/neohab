@@ -6,6 +6,7 @@
  * moves widgets up and down, with a line showing where the drop lands.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
@@ -43,6 +44,7 @@ interface DragState {
 }
 
 export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
+  const { t } = useTranslation()
   const ordered = stackedOrder(dashboard)
   const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
   const selectedIds = useEditorStore((s) => s.selectedIds)
@@ -193,8 +195,12 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
               }
             >
               <WidgetHost instance={widget} editing />
-              <div
+              {/* a real button, matching the wide grid: Tab reaches every widget, Enter selects */}
+              <button
+                type="button"
                 className="nh-cell__overlay"
+                aria-label={t('{{type}} widget', { type: widget.type })}
+                aria-pressed={selectedIds.includes(widget.id)}
                 onClick={onOverlayClick(widget.id)}
                 onPointerDown={onOverlayPointerDown(widget.id)}
                 onPointerMove={onOverlayPointerMove}

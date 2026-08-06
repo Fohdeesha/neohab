@@ -5,6 +5,7 @@
  * for admin writes. Without a token, requests go out anonymous as before.
  */
 import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
+import { ohUrl } from './base'
 
 export class ApiError extends Error {
   constructor(
@@ -56,7 +57,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const token = await getAccessToken()
   if (token) applyAuthHeader(headers, token)
 
-  let res = await fetch(path, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
+  // Resolved against openHAB's own path prefix, so this works behind a sub-path reverse proxy.
+  const url = ohUrl(path)
+  let res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   if (res.status === 401 && token) {
     // A stale/revoked stored token must not break what anonymous access would allow
     // (e.g. viewing dashboards with the default user role) - retry once without it. The proxy's
@@ -64,7 +67,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     headers.delete('Authorization')
     headers.delete('X-OPENHAB-TOKEN')
     applyProxyAuth(headers)
-    res = await fetch(path, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
+    res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   }
   if (!res.ok) {
     throw new ApiError(res.status, `${opts.method ?? 'GET'} ${path} -> ${res.status}${await errorDetail(res)}`)

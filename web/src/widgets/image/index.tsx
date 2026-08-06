@@ -12,11 +12,13 @@ interface ImageConfig {
 
 function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   const { t } = useTranslation()
+  // A timestamp rather than a counter: a counter restarts at 0 on every mount, so returning to
+  // a dashboard re-requests a URL the browser already has cached and shows the stale frame.
   const [cacheBust, setCacheBust] = useState(0)
 
   useEffect(() => {
     if (!config.refresh || config.refresh <= 0) return
-    const id = setInterval(() => setCacheBust((n) => n + 1), config.refresh * 1000)
+    const id = setInterval(() => setCacheBust(Date.now()), config.refresh * 1000)
     return () => clearInterval(id)
   }, [config.refresh])
 

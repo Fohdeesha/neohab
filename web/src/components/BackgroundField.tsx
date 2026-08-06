@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { saveBackground, useConfigStore } from '../store/config'
 import { notify } from '../store/notify'
 import { BG_REF_PREFIX, isUploadedBackground, newBackgroundId, resolveBackgroundRef } from '../model/background'
+import { cssUrl } from './download'
 import { processBackgroundFile } from './iconUpload'
 
 export function BackgroundField({
@@ -50,7 +51,7 @@ export function BackgroundField({
   return (
     <div className="nh-bgfield">
       <div className="nh-bgfield__row">
-        {resolved ? <span className="nh-bgfield__thumb" style={{ backgroundImage: `url("${cssSafe(resolved)}")` }} /> : null}
+        {resolved ? <span className="nh-bgfield__thumb" style={{ backgroundImage: `url("${cssUrl(resolved)}")` }} /> : null}
         <input
           id={id}
           type="text"
@@ -94,7 +95,3 @@ export function BackgroundField({
   )
 }
 
-/** Escape a value for interpolation into CSS url("...") - data URIs never need it, URLs might. */
-function cssSafe(url: string): string {
-  return url.replace(/["\\]/g, '\\$&')
-}

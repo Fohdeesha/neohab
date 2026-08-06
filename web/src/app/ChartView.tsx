@@ -26,6 +26,7 @@ import { DEFAULT_MAX_POINTS, PERIODS, PERIOD_CHIPS, type ChartConfig } from '../
 import { plotSeries, resolveChart } from '../widgets/chart/resolve'
 import type { ChartHandle } from '../widgets/chart/plot'
 import type { HeatmapHandle } from '../widgets/chart/heatmap'
+import { useShallow } from 'zustand/react/shallow'
 import { useItemsStore } from '../store/items'
 
 const UNITS: CalendarUnit[] = ['day', 'week', 'month', 'year']
@@ -49,8 +50,11 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
 
   const isChart = widget?.type === 'chart'
   const resolved = resolveChart(config)
-  // Item states are read for their unit only (the tooltip); this view never commands anything.
-  const states = useItemsStore((s) => s.states)
+  // Only the units, and only for the series on screen: subscribing to the whole state map
+  // re-rendered this view on every item change in the installation, to read a handful of strings.
+  const units = useItemsStore(
+    useShallow((s) => resolved.series.map((series) => s.states[series.item]?.unit))
+  )
 
   const nowMs = Date.now()
   const window =
@@ -69,7 +73,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
     }
     let disposed = false
     const fmtValue = (i: number, v: number): string => {
-      const unitLabel = states[resolved.series[i]?.item ?? '']?.unit
+      const unitLabel = units[i]
       const abs = Math.abs(v)
       const dec = abs >= 100 ? 0 : abs >= 10 ? 1 : 2
       let out = v.toFixed(dec)

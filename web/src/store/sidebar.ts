@@ -1,10 +1,11 @@
 /**
  * Navigation sidebar state.
  *
- * Two independent things: whether it is `open` right now (transient, closes when the pointer
- * leaves it) and whether the user `pinned` it open (sticky). Pinning is per-device rather than
- * part of the saved configuration: it is a choice about one screen's real estate, so a wall
- * panel and a phone should be free to disagree, and it stays out of backup bundles.
+ * Two independent things: whether it is `open` right now (transient - it stays open until it is
+ * deliberately dismissed by a click elsewhere, Escape, navigating, or picking a dashboard) and
+ * whether the user `pinned` it open (sticky). Pinning is per-device rather than part of the saved
+ * configuration: it is a choice about one screen's real estate, so a wall panel and a phone should
+ * be free to disagree, and it stays out of backup bundles.
  *
  * Wide screens inset the dashboard beside the sidebar; narrow ones overlay it, because a phone
  * has no room to shrink the content into (see SIDEBAR_PUSH_MIN).
@@ -40,7 +41,6 @@ function readPinned(): boolean {
 
 export const useSidebarStore = create<SidebarState>(() => ({ open: false, pinned: readPinned() }))
 
-export const openSidebar = (): void => useSidebarStore.setState({ open: true })
 export const closeSidebar = (): void => useSidebarStore.setState({ open: false })
 export const toggleSidebar = (): void => useSidebarStore.setState((s) => ({ open: !s.open }))
 

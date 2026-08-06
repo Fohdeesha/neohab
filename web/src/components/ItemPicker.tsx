@@ -16,6 +16,13 @@ interface ItemPickerProps {
   id: string
   value: string
   onChange: (itemName: string) => void
+  /**
+   * Accept a name that is not in the item list. Off by default: for a widget bound to an item,
+   * a value that names nothing is a broken widget, so typing is treated as searching and only a
+   * real pick is stored. On for the few fields where a name the server has not reported yet is
+   * still legitimate.
+   */
+  allowUnknown?: boolean
   /** Restrict to these item types (a typed Group matches via its base type). */
   itemTypes?: string[]
   placeholder?: string
@@ -38,7 +45,7 @@ function typeMatches(item: Item, types?: string[]): boolean {
 const MAX_RESULTS = 200
 const MARGIN = 8
 
-export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: ItemPickerProps) {
+export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowUnknown }: ItemPickerProps) {
   const { t } = useTranslation()
   const items = useCatalogStore((s) => s.items)
   const loaded = useCatalogStore((s) => s.loaded)
@@ -176,10 +183,20 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
           value={query ?? value}
           placeholder={placeholder ?? t('Search or pick an item…')}
           onChange={(e) => {
-            setQuery(e.target.value)
+            const text = e.target.value
+            setQuery(text)
             if (!open) openList()
             setHighlight(0)
-            onChange(e.target.value)
+            // Typing filters. It used to also write each keystroke into the widget's item, so a
+            // half-typed search left the widget bound to an item that does not exist the moment
+            // the picker was abandoned. A name that really is an item is still accepted as typed,
+            // which is what makes the field usable from the keyboard alone.
+            if (allowUnknown || text === '' || items.some((i) => i.name === text)) onChange(text)
+          }}
+          onBlur={() => {
+            // Leaving with a half-typed search shows the stored value again, rather than
+            // pretending the search text was a choice.
+            if (!allowUnknown) setQuery(null)
           }}
           onFocus={() => {
             if (!restoringFocus.current) openList()

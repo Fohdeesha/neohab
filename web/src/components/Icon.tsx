@@ -12,6 +12,7 @@
  * A bare name without a prefix is treated as an openHAB icon (what HABPanel configs contain).
  */
 import type { SyntheticEvent } from 'react'
+import { ohUrl } from '../api/base'
 import { useConfigStore } from '../store/config'
 
 export type IconSource = 'mdi' | 'fluent' | 'fc' | 'meteo' | 'custom' | 'oh'
@@ -57,7 +58,7 @@ export function packIconUrl(source: IconSource, name: string): string {
 export function ohIconUrl(name: string, iconset: string, state?: string): string {
   const params = new URLSearchParams({ iconset, anyFormat: 'true', format: 'svg' })
   if (state !== undefined && state !== '') params.set('state', state)
-  return '/icon/' + encodeURIComponent(name) + '?' + params.toString()
+  return ohUrl('/icon/') + encodeURIComponent(name) + '?' + params.toString()
 }
 
 interface IconProps {

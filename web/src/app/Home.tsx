@@ -16,7 +16,9 @@ import { useBackgroundStyle } from '../components/useBackground'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
   const { t } = useTranslation()
-  const { dashboards, error } = useConfigStore()
+  // Selectors, not the whole store: Home re-rendered on every settings change otherwise.
+  const dashboards = useConfigStore((s) => s.dashboards)
+  const error = useConfigStore((s) => s.error)
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [newOpen, setNewOpen] = useState(false)

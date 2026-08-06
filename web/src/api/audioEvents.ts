@@ -12,6 +12,7 @@
  * connection has actually produced a heartbeat (`alive` events, observed every ~10s on
  * openHAB 4.3) - a server that never heartbeats must not be "rescued" into a reconnect loop.
  */
+import { ohUrl } from './base'
 import { api } from './client'
 
 const TOPIC = 'openhab/webaudio/playurl'
@@ -80,7 +81,7 @@ export class AudioEventSource {
     if (this.closed || this.source) return
     this.lastEventAt = Date.now()
     this.heartbeats = false
-    const source = new EventSource('/rest/events?topics=' + encodeURIComponent(TOPIC))
+    const source = new EventSource(ohUrl('/rest/events?topics=') + encodeURIComponent(TOPIC))
     this.source = source
 
     source.onopen = () => {

@@ -15,6 +15,7 @@
  */
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
+import { writeWithFallback } from '../api/write'
 import type { UIComponent } from '../api/types'
 import type { CustomBackground } from '../model/background'
 import { BG_REF_PREFIX, isUploadedBackground } from '../model/background'
@@ -272,15 +273,7 @@ async function upsert<C>(component: UIComponent<C>): Promise<void> {
   const update = () => updateComponent(component)
   const create = () => addComponent(component)
   const [first, second] = exists ? [update, create] : [create, update]
-  try {
-    await first()
-  } catch (err) {
-    try {
-      await second()
-    } catch {
-      throw err
-    }
-  }
+  await writeWithFallback(first, second)
   useConfigStore.setState((s) => ({ serverUids: new Set([...s.serverUids, component.uid]) }))
 }
 

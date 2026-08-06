@@ -23,7 +23,7 @@ import { useDeviceThemeStore } from './store/deviceTheme'
 
 registerBuiltinWidgets()
 
-export default function App() {
+export default function App({ credentialsReady }: { credentialsReady?: Promise<unknown> }) {
   const { t } = useTranslation()
   const route = useRoute()
   const sidebar = useSidebarLayout()
@@ -47,6 +47,10 @@ export default function App() {
     let cancelled = false
 
     async function boot() {
+      // Any reverse-proxy credentials the browser already had, before the first request goes out.
+      // Resolves immediately when there are none to find.
+      await credentialsReady
+
       // Finish an in-progress login redirect, then clean the code from the URL.
       try {
         if (await completeLogin()) {
@@ -72,6 +76,8 @@ export default function App() {
     return () => {
       cancelled = true
     }
+    // Boot runs once; `credentialsReady` is created before the first render and never changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (!loaded) {

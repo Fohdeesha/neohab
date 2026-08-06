@@ -11,6 +11,7 @@
  *   event: alive\n   data: {"type":"ALIVE","interval":10}
  *   data: {"Item_Name":{"state":"1","numericState":1.0,"type":"Decimal"}, ...}
  */
+import { ohUrl } from './base'
 import { api } from './client'
 import type { ItemState } from './types'
 
@@ -125,7 +126,7 @@ export class StatesTracker {
   private connect(): void {
     if (this.closed || this.source) return // never run two streams at once
     this.lastEventAt = Date.now()
-    const source = new EventSource('/rest/events/states')
+    const source = new EventSource(ohUrl('/rest/events/states'))
     this.source = source
 
     source.addEventListener('ready', (e) => {

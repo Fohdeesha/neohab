@@ -20,6 +20,8 @@
  */
 
 /** How the pixels actually reach the browser. */
+import { isSameOrigin } from '../../model/url'
+
 export type CameraTransport = 'webrtc' | 'mse' | 'hls' | 'mp4' | 'mjpeg' | 'snapshot' | 'iframe'
 
 /** Where the stream's URLs are derived from. */
@@ -123,16 +125,14 @@ export function toWebSocketUrl(url: string): string {
 }
 
 /**
- * Does this URL point at the origin serving neohab? Cross-origin cameras are the norm, but a
+ * Is the camera server the origin serving neohab? Cross-origin cameras are the norm, but a
  * same-origin one (openHAB's own ipcamera binding, or a reverse proxy putting both behind one
- * host) is exempt from every CORS limitation above, so the widget can stop warning about them.
+ * host) is exempt from every CORS limitation above, so the widget can stop warning about it. An
+ * address we cannot parse is NOT assumed to be ours: the warning it would suppress is the one
+ * thing that explains the failure.
  */
-export function isSameOrigin(url: string): boolean {
-  try {
-    return new URL(url, location.href).origin === location.origin
-  } catch {
-    return false
-  }
+export function isOwnOrigin(url: string): boolean {
+  return isSameOrigin(url, false)
 }
 
 /**

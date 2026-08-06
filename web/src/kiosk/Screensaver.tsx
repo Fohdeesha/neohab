@@ -31,8 +31,18 @@ export function Screensaver() {
         setActive(false)
       }
     }
-    const events: (keyof WindowEventMap)[] = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']
-    for (const ev of events) window.addEventListener(ev, onInput, { capture: true, passive: false })
+    /**
+     * Two registrations on purpose.
+     *
+     * Only the waking input has to be cancellable, and a non-passive `wheel`/`touchstart`
+     * listener opts the whole page out of the browser's fast-scroll path for as long as it is
+     * attached - on exactly the touch devices that turn a screensaver on. So the scroll-ish
+     * events are passive while the saver is idle and only become cancellable once it is showing.
+     */
+    const always: (keyof WindowEventMap)[] = ['pointerdown', 'pointermove', 'keydown']
+    const scrollish: (keyof WindowEventMap)[] = ['wheel', 'touchstart']
+    for (const ev of always) window.addEventListener(ev, onInput, { capture: true, passive: false })
+    for (const ev of scrollish) window.addEventListener(ev, onInput, { capture: true, passive: !active })
 
     const timer = window.setInterval(() => {
       if (activeRef.current) return
@@ -42,11 +52,14 @@ export function Screensaver() {
     }, CHECK_MS)
 
     return () => {
-      for (const ev of events) window.removeEventListener(ev, onInput, { capture: true } as EventListenerOptions)
+      for (const ev of [...always, ...scrollish]) {
+        window.removeEventListener(ev, onInput, { capture: true } as EventListenerOptions)
+      }
       window.clearInterval(timer)
-      setActive(false)
     }
-  }, [mode, minutes])
+    // `active` is a dependency so the scroll-ish listeners are re-registered as cancellable once
+    // the saver is showing, and passive again once it is not.
+  }, [mode, minutes, active])
 
   if (!active || mode === 'off') return null
   return (

@@ -7,7 +7,7 @@ import {
   TRANSPORT_OPTIONS,
   isConfigured,
   isMixedContent,
-  isSameOrigin,
+  isOwnOrigin,
   normalizeServer,
   posterUrl,
   transportChain,
@@ -154,7 +154,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
    */
   const wsRefused =
     (config.source ?? 'go2rtc') !== 'url' &&
-    !isSameOrigin(normalizeServer(config.server)) &&
+    !isOwnOrigin(normalizeServer(config.server)) &&
     (status.failed.includes('webrtc') || status.failed.includes('mse'))
 
   let overlay: string | null = null

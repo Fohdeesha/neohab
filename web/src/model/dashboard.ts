@@ -8,9 +8,12 @@
 
 export const MODEL_VERSION = 1
 
-/** Responsive breakpoints, widest first. Column counts are defined per dashboard. */
-export type Breakpoint = 'lg' | 'md' | 'sm' | 'xs'
-export const BREAKPOINTS: Breakpoint[] = ['lg', 'md', 'sm', 'xs']
+/**
+ * Layout breakpoints. `lg` is the desktop layout every dashboard has; `md` is the optional
+ * tablet one (see MD_BELOW). Phones render the single-column stack, which is derived rather than
+ * authored, so it needs no slot of its own.
+ */
+export type Breakpoint = 'lg' | 'md'
 
 /** A widget's placement on the grid at one breakpoint (units = grid cells). */
 export interface Rect {

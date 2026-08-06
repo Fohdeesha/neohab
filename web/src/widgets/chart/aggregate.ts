@@ -164,14 +164,14 @@ function walk(
   endSec: number,
   groupBy: GroupBy,
   onPiece: (key: number, value: number, seconds: number, atSec: number) => void,
-  onSample: (key: number, value: number) => void
+  onSample: (key: number, value: number, atSec: number) => void
 ): void {
   for (let i = 0; i < xs.length; i++) {
     const v = ys[i]
     if (v === null || !Number.isFinite(v)) continue
     const from = xs[i]
     const until = Math.max(from, i + 1 < xs.length ? xs[i + 1] : endSec)
-    onSample(bucketFor(groupBy, from).key, v)
+    onSample(bucketFor(groupBy, from).key, v, from)
     let cur = from
     // A zero-length interval (the final sample at the window end, or two samples at the same
     // instant) still names its bucket, so `first`/`last`/`min`/`max` see it.
@@ -305,11 +305,14 @@ export function heatmapMatrix(
         acc.lastAt = atSec
         acc.lastValue = value
       }
+    },
+    // Stored rows, counted in the cell they were recorded in - the same thing `sum` and `count`
+    // mean on a grouped chart. Accumulating them per time-slice instead made `count` on a heatmap
+    // count hours rather than readings, which is a different question with the same name on it.
+    (_key, value, atSec) => {
+      const acc = at(cellKey(atSec))
       acc.sum += value
       acc.count++
-    },
-    () => {
-      /* sample facts are accumulated per piece above: a heatmap cell is a time slot */
     }
   )
   const cells: (number | null)[][] = []

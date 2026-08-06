@@ -15,8 +15,10 @@ applyCachedTheme()
 applyDeviceTextSize()
 
 // Reverse-proxy credentials the openHAB phone app or the browser's password manager already
-// holds, picked up before the first request goes out. Nothing happens without one.
-void restoreBasicCredentials()
+// holds. The app waits for this before its first request: the phone-app bridge answers
+// synchronously, but the password manager does not, and a request that goes out first is
+// answered by the proxy with a 401 that nothing retries.
+const credentialsReady = restoreBasicCredentials()
 
 // Every configuration write takes a restore point first. Registered here rather than imported
 // by the configuration store, so that store depends on nothing.
@@ -34,6 +36,6 @@ registerSW({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <App credentialsReady={credentialsReady} />
   </StrictMode>
 )

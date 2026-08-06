@@ -18,12 +18,6 @@ export function listComponentsIn(namespace: string, signal?: AbortSignal): Promi
   return api.get<UIComponent[]>('/rest/ui/components/' + encodeURIComponent(namespace), { signal })
 }
 
-export function getComponent(uid: string, signal?: AbortSignal): Promise<UIComponent> {
-  return api.get<UIComponent>('/rest/ui/components/' + NAMESPACE + '/' + encodeURIComponent(uid), {
-    signal,
-  })
-}
-
 export function addComponent<C>(component: UIComponent<C>): Promise<UIComponent<C>> {
   return api.post<UIComponent<C>>('/rest/ui/components/' + NAMESPACE, component)
 }

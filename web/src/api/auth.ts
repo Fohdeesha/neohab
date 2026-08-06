@@ -22,6 +22,7 @@
  * user role (default). A token is only required for admin operations such as saving config.
  */
 
+import { ohUrl } from './base'
 import { sha256 } from './sha256'
 
 const STORAGE_REFRESH = 'neohab:refreshToken'
@@ -214,11 +215,11 @@ export async function authorize(): Promise<void> {
     code_challenge: challenge,
     state,
   })
-  window.location.href = '/auth?' + params.toString()
+  window.location.href = ohUrl('/auth') + '?' + params.toString()
 }
 
 async function requestToken(body: Record<string, string>): Promise<void> {
-  const res = await fetch('/rest/auth/token', {
+  const res = await fetch(ohUrl('/rest/auth/token'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body).toString(),
@@ -290,14 +291,23 @@ export async function getAccessToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Sign out on this device.
+ *
+ * Main UI's refresh token is not ours to delete - it belongs to the other UI on this origin -
+ * but continuing to fall back to it would mean "Sign out" left the device signed in, with admin
+ * rights, and the Account screen still reporting a session. So it is disowned for this page
+ * instead: the token stays where Main UI put it, and nothing here uses it again.
+ */
 export function logout(): void {
   const refresh = localStorage.getItem(STORAGE_REFRESH)
   accessToken = null
   accessTokenExpiry = 0
+  mainUiRefreshDead = true
   clearBasicCredentials()
   localStorage.removeItem(STORAGE_REFRESH)
   if (refresh) {
-    void fetch('/rest/auth/logout', {
+    void fetch(ohUrl('/rest/auth/logout'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ refresh_token: refresh }).toString(),

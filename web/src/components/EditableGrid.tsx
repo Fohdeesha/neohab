@@ -17,6 +17,7 @@
  * A multi-selection drives batch copy/cut/delete from the toolbar (see DashboardView).
  */
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect } from '../model/dashboard'
 import {
   cellMetrics,
@@ -106,6 +107,14 @@ interface PendingMarquee {
 /** Movement past this many pixels turns a press into a marquee instead of a click. */
 const MARQUEE_THRESHOLD_PX = 5
 
+/** Arrow keys, as one grid cell of movement (or one cell of size, with Shift). */
+const ARROW_STEPS: Record<string, { x: number; y: number }> = {
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+}
+
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
 
 /** Pixel bounding box (left/top/right/bottom) of a grid rect at the given cell metrics. */
@@ -123,6 +132,7 @@ function boxesOverlap(
 }
 
 export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [marquee, setMarquee] = useState<MarqueeState | null>(null)
@@ -304,6 +314,33 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     const start = longPressStart.current
     if (!start) return
     if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
+  }
+
+  /**
+   * Keyboard editing.
+   *
+   * Everything else here is pointer-driven, which left the editor unusable without one. Arrows
+   * move a widget a cell at a time and Shift+arrows resize it — through the same `setWidgetRect`
+   * a drag uses, so the overlap rules, the clamping and the single-undo-entry behaviour are
+   * identical. A move that would overlap is simply refused, exactly as a drop on an occupied
+   * cell is.
+   */
+  const onCellKeyDown = (id: string) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      selectWidget(id)
+      return
+    }
+    const step = ARROW_STEPS[e.key]
+    if (!step) return
+    const widget = dashRef.current.widgets.find((w) => w.id === id)
+    if (!widget) return
+    e.preventDefault()
+    const r = rectOf(widget)
+    const next = e.shiftKey
+      ? { ...r, w: Math.max(1, r.w + step.x), h: Math.max(1, r.h + step.y) }
+      : { ...r, x: Math.max(0, r.x + step.x), y: Math.max(0, r.y + step.y) }
+    setWidgetRect(id, next)
   }
 
   /* ------------------------------------- marquee ------------------------------------- */
@@ -562,10 +599,19 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           >
             <WidgetHost instance={widget} editing />
 
-            {/* edit overlay: tap selects, handle strip drags, corner resizes */}
-            <div
+            {/* Edit overlay: tap selects, handle strip drags, corner resizes — and a real
+                button, so the whole editor is reachable from the keyboard. Tab moves between
+                widgets, Enter/Space selects, arrows move the selection and Shift+arrows resize
+                it (see onCellKeyDown). */}
+            <button
+              type="button"
               className="nh-cell__overlay"
+              aria-label={t('{{type}} widget — press Enter to select, arrow keys to move', {
+                type: widget.type,
+              })}
+              aria-pressed={isSelected}
               onClick={onWidgetClick(widget.id)}
+              onKeyDown={onCellKeyDown(widget.id)}
               onPointerDown={onWidgetPointerDown(widget.id)}
               onPointerMove={onWidgetPointerMove}
               onPointerUp={clearLongPress}

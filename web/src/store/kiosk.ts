@@ -84,11 +84,6 @@ export function setKioskSettings(patch: Partial<KioskSettings>): void {
   }
 }
 
-export function kioskModeActive(): boolean {
-  const s = useKioskStore.getState()
-  return s.sessionKiosk ?? s.settings.kiosk
-}
-
 /** Reactive: is kiosk mode (settings or session URL override) on right now? */
 export function useKioskMode(): boolean {
   return useKioskStore((s) => s.sessionKiosk ?? s.settings.kiosk)

@@ -15,6 +15,7 @@
  * sandboxed without allow-same-origin so an embedded page can't reach the app or its tokens.
  */
 import DOMPurify from 'dompurify'
+import { ohUrl } from '../api/base'
 import { evaluate, type Scope } from './evaluator'
 import { FILTERS, splitTopLevel } from './filters'
 
@@ -75,8 +76,22 @@ function interpolate(text: string, scope: Scope): string {
 
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'xlink:href'])
 
+/**
+ * Schemes allowed in a URL that came out of an expression.
+ *
+ * Interpolated attribute values are written AFTER the sanitizer has run, so DOMPurify's own URI
+ * policy never sees them - this is the only thing standing in for it. An allow-list rather than
+ * a `javascript:`-only block, because it was narrower than the policy it stands in for
+ * (`vbscript:` and `data:text/html` walked straight through). A value with no scheme at all is a
+ * relative URL and is fine.
+ */
+const SAFE_URL = /^(?:https?:|mailto:|tel:|ftp:|blob:|data:image\/)/i
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
+
 function safeUrl(value: string): string {
-  return /^\s*javascript:/i.test(value) ? '' : value
+  const v = value.trim()
+  if (!HAS_SCHEME.test(v)) return value // relative, protocol-relative or a fragment
+  return SAFE_URL.test(v) ? value : ''
 }
 
 function attr(el: Element, ...names: string[]): string | null {
@@ -92,6 +107,7 @@ export function renderTemplate(compiled: HTMLTemplateElement, scope: Scope): Doc
   const frag = compiled.content.cloneNode(true) as DocumentFragment
   for (const child of [...frag.children]) processElement(child, scope)
   interpolateTextNodes(frag, scope)
+  for (const el of frag.querySelectorAll(`[${DONE_ATTR}]`)) el.removeAttribute(DONE_ATTR)
   return frag
 }
 
@@ -206,7 +222,12 @@ function expandRepeat(el: Element, expr: string, scope: Scope): void {
     const clone = el.cloneNode(true) as Element
     parent.insertBefore(clone, el)
     processElement(clone, child)
+    // Interpolated here with the item scope, and marked so the fragment-wide pass below leaves
+    // the result alone. Without the mark a value that itself contains {{ }} - an item state,
+    // say - was evaluated a second time against the OUTER scope, which nothing outside a repeat
+    // ever was.
     interpolateTextNodes(clone, child)
+    markInterpolated(clone)
   })
   el.remove()
 }
@@ -220,7 +241,7 @@ function replaceWidgetIcon(el: Element, scope: Scope): void {
   const img = document.createElement('img')
   const params = new URLSearchParams({ iconset, anyFormat: 'true', format: 'svg' })
   if (state !== undefined && state !== null) params.set('state', String(state))
-  img.src = `/icon/${encodeURIComponent(icon)}?${params.toString()}`
+  img.src = `${ohUrl('/icon/')}${encodeURIComponent(icon)}?${params.toString()}`
   img.width = size
   img.height = size
   img.alt = icon
@@ -247,6 +268,13 @@ function applyStyle(el: HTMLElement, value: unknown): void {
   }
 }
 
+/** Marks a subtree as already interpolated, so a later pass over its parent skips it. */
+const DONE_ATTR = 'data-nh-interpolated'
+
+function markInterpolated(el: Element): void {
+  el.setAttribute(DONE_ATTR, '')
+}
+
 function interpolateTextNodes(root: Node, scope: Scope): void {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
   const texts: Text[] = []
@@ -256,6 +284,8 @@ function interpolateTextNodes(root: Node, scope: Scope): void {
   for (const t of texts) {
     // skip nodes inside <style>/<script> (script can't exist post-sanitize, style is literal)
     if (t.parentElement?.closest('style')) continue
+    // ...and anything a repeat already rendered with its own item scope
+    if (t.parentElement?.closest(`[${DONE_ATTR}]`)) continue
     t.data = interpolate(t.data, scope)
   }
 }
