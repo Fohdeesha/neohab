@@ -18,7 +18,7 @@ import {
   type CustomWidgetDef,
   type WidgetDefSetting,
 } from '../model/widgetdef'
-import { exportComponent } from './exportComponent'
+import { exportComponent } from '../editor/exportComponent'
 
 const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
 

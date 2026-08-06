@@ -17,6 +17,7 @@ web/                           the app
   src/components/              shared UI, the grids
   src/widgets/                 one folder per widget
   src/editor/                  edit-mode panels and forms
+  src/settings/                one file per section of the Settings screen
   src/themes/                  the theming contract and the built-in themes
 docs/                          documentation
 e2e/                           browser end-to-end suites, run against a real openHAB
