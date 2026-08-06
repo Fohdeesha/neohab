@@ -7,30 +7,9 @@
  * rediscovering them, and so the reasoning lives next to the CSS it explains.
  *
  * The rules these encode, and why they exist, are documented for theme authors in
- * `docs/theming.md`. The cross-theme unit tests in `themes/themes.test.ts` enforce them for
- * every theme, whether or not it used these helpers.
+ * `docs/theming.md`, and `themes/cssRules.ts` checks them mechanically — for the built-in themes
+ * in the unit suite, and for a custom theme as it is typed in the editor.
  */
-
-/**
- * Classes whose paint comes from an SVG **attribute** the widget computes — a per-instance
- * gradient, a severity colour, a live value's tint. A stylesheet `fill` or `stroke` on any of
- * them beats the attribute and pins the element to one colour, which is how a lit gauge bead
- * ends up black on a light theme and a compass cardinal ends up grey.
- *
- * A theme may style anything else about them (width, opacity, font, filter) — just not the paint.
- */
-export const ATTRIBUTE_PAINTED = [
-  'nh-gauge__rim',
-  'nh-gauge__band',
-  'nh-gauge__bandlight',
-  'nh-gauge__bandshade',
-  'nh-gauge__ledlit',
-  'nh-gauge__blklit',
-  'nh-gauge__claybody',
-  'nh-gauge__tklit',
-  'nh-compass__cardinal',
-  'nh-compass__value',
-] as const
 
 /**
  * Square off the controls that carry their own hardcoded radius.

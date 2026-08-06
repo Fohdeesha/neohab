@@ -7,14 +7,16 @@
  * repainted every other device in the house is worse.
  *
  * The fields build themselves from the one token list in `themes/tokens.ts`, so a token is
- * discoverable the moment it exists, and it reports whether the colours can actually be read
- * while they are being chosen.
+ * discoverable the moment it exists. Alongside them it reports two things that are otherwise
+ * invisible until something looks wrong: whether the colours can be read, and whether the
+ * stylesheet breaks one of the rules in `themes/cssRules.ts`.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { deleteTheme, saveSettings, saveTheme, useConfigStore } from '../store/config'
 import { applyTheme, themeCss, TOKEN_GROUPS, tokensInGroup, type Theme, type TokenSpec } from '../themes/themes'
 import { getActiveTheme, useActiveTheme } from '../themes/active'
+import { checkThemeCss, type ThemeCssIssue } from '../themes/cssRules'
 import { CONTRAST_PAIRS, contrastLevel, contrastOf, type ContrastLevel } from '../themes/contrast'
 import { TOKEN_SPECS } from '../themes/tokens'
 
@@ -282,6 +284,46 @@ function ContrastReport({ theme }: { theme: Theme }) {
   )
 }
 
+/** One broken rule, in wording aimed at the person writing the stylesheet. */
+function issueText(t: (k: string, o?: Record<string, string>) => string, issue: ThemeCssIssue): string {
+  const p = issue.params
+  switch (issue.rule) {
+    case 'attributePaint':
+      return t('“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself — a gradient, or a colour that follows the value. Your rule wins, and pins it to one colour. Style its width or opacity instead.', p)
+    case 'ungatedPadding':
+      return t('“{{selector}}” sets padding outside a @container gate, so it also applies in cells too small for it and text will clip. Wrap it in @container (min-height: 105px) and (min-width: 121px).', p)
+    case 'activeState':
+      return t('.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state — style both.', p)
+    case 'borderImageRadius':
+      return t('border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.', p)
+    case 'bareWidget':
+      return t('Every widget is painted, including the label and clock widgets that asked for no card. Add a .nh-widget--bare rule undoing it.')
+    case 'newTile':
+      return t('Every tile is painted, including the “+ New dashboard” one, which should stay a dashed invitation. Add a .nh-tile--new rule.')
+    case 'externalAsset':
+      return t('“{{url}}” is not bundled with neohab, so it will not load on a server with no route to the internet. Use a fonts/, backgrounds/ or icons/ path, or a data: URI.', p)
+  }
+}
+
+/** What the stylesheet gets wrong, reported as it is typed. */
+function StylesheetIssues({ css, radius }: { css: string; radius: string }) {
+  const { t } = useTranslation()
+  const issues = useMemo(() => checkThemeCss(css, { radius }), [css, radius])
+  if (issues.length === 0) return null
+  return (
+    <div className="nh-cssissues">
+      <span className="nh-cssissues__head">
+        {t('{{count}} thing to check', { count: issues.length })}
+      </span>
+      <ul>
+        {issues.map((issue, i) => (
+          <li key={issue.rule + i}>{issueText(t, issue)}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /**
  * The theme's own stylesheet.
  *
@@ -318,6 +360,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
         value={theme.css ?? ''}
         onChange={(e) => onChange({ ...theme, css: e.target.value || undefined })}
       />
+      <StylesheetIssues css={theme.css ?? ''} radius={theme.tokens.radius ?? '12px'} />
       <span className="nh-field__hint">
         {t(
           'Optional. A stylesheet applied with this theme, for looks the tokens above cannot express — fonts, widget-frame structure. It is applied here as you type, like everything else.'

@@ -3947,6 +3947,37 @@ button {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Theme editor: what a custom stylesheet gets wrong, listed as it is typed.
+   A warning, not a refusal - the CSS is applied either way.
+   --------------------------------------------------------------------------- */
+.nh-cssissues {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--nh-border);
+  border-left: 3px solid var(--nh-brand);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  font-size: 0.85rem;
+}
+
+.nh-cssissues__head {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.nh-cssissues ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.nh-cssissues li {
+  margin: 4px 0;
+  color: var(--nh-text-dim);
+  line-height: 1.4;
+}
+
 /* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable

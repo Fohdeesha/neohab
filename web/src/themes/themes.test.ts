@@ -2,14 +2,15 @@
  * The theming contract, checked across every built-in theme.
  *
  * These are the mistakes that kept recurring, each caught by eye after the fact. They are all
- * mechanically checkable from the stylesheet text in milliseconds, which is what this file is
- * for: a new theme either follows the rules or the suite says which one it broke.
+ * mechanically checkable from the stylesheet text in milliseconds, which is what `cssRules.ts`
+ * is for: a new theme either follows the rules or this suite says which one it broke. The theme
+ * editor runs the same checks against a custom theme as it is written.
  *
  * The rules themselves are documented for theme authors in `docs/theming.md`.
  */
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_THEMES, BUILTIN_THEME_IDS, listThemes, resolveTheme, themeCss, type Theme } from './themes'
-import { ATTRIBUTE_PAINTED } from './css/shared'
+import { checkThemeCss, describeIssue, parseRules, type RuleId } from './cssRules'
 import { TOKEN_SPECS, isUsableTokenValue } from './tokens'
 
 /** Every theme that carries a stylesheet, with it resolved. */
@@ -22,43 +23,15 @@ async function styledThemes(): Promise<{ theme: Theme; css: string }[]> {
   return out
 }
 
-const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
-
-/** Rules in a stylesheet as `[selector, body]`, including those nested in at-rules. */
-function rules(css: string): [string, string][] {
-  const out: [string, string][] = []
-  const scan = (text: string) => {
-    let depth = 0
-    let start = 0
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] === '{') {
-        depth++
-      } else if (text[i] === '}') {
-        depth--
-        if (depth === 0) {
-          const rule = text.slice(start, i + 1)
-          const brace = rule.indexOf('{')
-          const selector = rule.slice(0, brace).trim()
-          const body = rule.slice(brace + 1, -1)
-          if (body.includes('{')) scan(body)
-          else out.push([selector, body])
-          start = i + 1
-        }
-      }
-    }
+/**
+ * Assert that no built-in breaks one particular rule. Checked one rule at a time so a failure
+ * names the rule that broke, rather than a single test that fails for six different reasons.
+ */
+async function expectNoneBreak(rule: RuleId): Promise<void> {
+  for (const { theme, css } of await styledThemes()) {
+    const broken = checkThemeCss(css, { radius: theme.tokens.radius ?? '12px' }).filter((i) => i.rule === rule)
+    expect(broken.map((i) => `${theme.id}: ${describeIssue(i)}`).join('\n')).toBe('')
   }
-  scan(stripComments(css))
-  return out
-}
-
-/** Rules whose selector is inside an at-rule block (a container/media query). */
-function gatedSelectors(css: string): Set<string> {
-  const gated = new Set<string>()
-  for (const block of stripComments(css).matchAll(/@[a-z-]+[^{]*\{([\s\S]*?)\n\}/g)) {
-    for (const [selector] of rules('x' + block[1] + '}')) gated.add(selector)
-    for (const m of block[1].matchAll(/([^{}]+)\{/g)) gated.add(m[1].trim())
-  }
-  return gated
 }
 
 describe('the built-in themes', () => {
@@ -94,106 +67,119 @@ describe('the built-in themes', () => {
   })
 })
 
-describe('theme stylesheet rules', () => {
-  /**
-   * Rule 4: the paint of these elements is an SVG attribute the widget computes - a per-instance
-   * gradient, a severity colour, a live tint. A stylesheet fill/stroke beats an attribute, which
-   * is how a lit gauge bead turns black and a compass cardinal turns grey.
-   */
-  it('never set fill or stroke on an attribute-painted element', async () => {
-    for (const { theme, css } of await styledThemes()) {
-      for (const [selector, body] of rules(css)) {
-        for (const cls of ATTRIBUTE_PAINTED) {
-          if (!new RegExp(`\\.${cls}\\b`).test(selector)) continue
-          expect(
-            /(^|[;{\s])(fill|stroke)\s*:/.test(body),
-            `${theme.id}: "${selector}" sets fill/stroke on .${cls}, which is painted by attribute`
-          ).toBe(false)
-        }
-      }
-    }
+describe('the built-in stylesheets follow the rules', () => {
+  /** The paint of these elements is an attribute the widget computes; a stylesheet beats it. */
+  it('never set fill or stroke on an attribute-painted element', () => expectNoneBreak('attributePaint'))
+
+  /** app.css sheds padding in small cells; a theme loads later and would undo that. */
+  it('gate every padding override on cell size', () => expectNoneBreak('ungatedPadding'))
+
+  /** A BEM modifier shares specificity with its base class. */
+  it('restyle the active state of any control they restyle', () => expectNoneBreak('activeState'))
+
+  /** A border gradient squares off rounded corners. */
+  it('only use border-image when their radius is 0', () => expectNoneBreak('borderImageRadius'))
+
+  /** A blanket tile rule catches the two tiles that asked not to be one. */
+  it('put back the bare widget after a blanket tile rule', () => expectNoneBreak('bareWidget'))
+  it('put back the new-dashboard tile after a blanket tile rule', () => expectNoneBreak('newTile'))
+
+  /** An asset a theme names has to be one the add-on ships. */
+  it('only reference bundled assets', () => expectNoneBreak('externalAsset'))
+})
+
+/**
+ * The checker itself. It is what tells a person writing a theme what they got wrong, so it has
+ * to catch each mistake and — just as important — stay quiet about correct CSS.
+ */
+describe('the stylesheet checker', () => {
+  const check = (css: string, radius = '12px') => checkThemeCss(css, { radius }).map((i) => i.rule)
+
+  it('reads rules, including those nested in at-rules', () => {
+    const parsed = parseRules('a { color: red } @container (min-width: 10px) { b { color: blue } }')
+    expect(parsed.map((r) => r.selector)).toEqual(['a', 'b'])
+    expect(parsed[0].gates).toEqual([])
+    expect(parsed[1].gates).toEqual(['@container (min-width: 10px)'])
   })
 
-  /**
-   * Rule 2: app.css sheds padding in short and narrow cells. A theme sheet loads afterwards, so
-   * an ungated padding override wins over those sheds and puts the clipping back.
-   */
-  it('gate every padding override on cell size', async () => {
-    for (const { theme, css } of await styledThemes()) {
-      const gated = gatedSelectors(css)
-      for (const [selector, body] of rules(css)) {
-        if (!/(^|[;{\s])padding\s*:/.test(body)) continue
-        if (!/nh-widget__(label|body)/.test(selector)) continue
-        expect(
-          gated.has(selector),
-          `${theme.id}: "${selector}" sets padding outside a @container gate`
-        ).toBe(true)
-      }
-    }
+  it('ignores comments, and survives half-typed CSS', () => {
+    expect(parseRules('/* .nh-button { fill: red } */ a { color: red }').map((r) => r.selector)).toEqual(['a'])
+    expect(() => parseRules('.nh-button { color: red')).not.toThrow()
+    expect(parseRules('.a { color: red } .b { color:')).toHaveLength(1)
   })
 
-  /**
-   * Rule 3: BEM modifiers share specificity with their base class, so a theme that restyles the
-   * base flattens the active state unless it restyles that too.
-   */
-  it('restyle the active state of any control they restyle', async () => {
-    const CONTROLS = ['nh-button', 'nh-selection__btn']
-    for (const { theme, css } of await styledThemes()) {
-      const selectors = rules(css).map(([s]) => s)
-      for (const control of CONTROLS) {
-        const stylesBase = selectors.some((s) =>
-          new RegExp(`\\.${control}(?![\\w-])`).test(s) && !s.includes(`${control}--active`)
-        )
-        if (!stylesBase) continue
-        const stylesActive = selectors.some((s) => s.includes(`${control}--active`))
-        expect(stylesActive, `${theme.id} restyles .${control} but not .${control}--active`).toBe(true)
-      }
-    }
+  it('treats an at-rule holding declarations as no rule at all', () => {
+    expect(parseRules("@font-face { font-family: 'X'; src: url('fonts/x.woff2') }")).toHaveLength(0)
   })
 
-  /** Rule 5: a border gradient squares off rounded corners, so the two cannot be combined. */
-  it('only use border-image when their radius is 0', async () => {
-    for (const { theme, css } of await styledThemes()) {
-      const uses = rules(css).some(([, body]) => /border-image\s*:\s*(?!none)/.test(body))
-      if (!uses) continue
-      expect(theme.tokens.radius, `${theme.id} uses border-image with a non-zero radius`).toBe('0px')
-    }
+  it('catches paint on an attribute-painted element, and allows anything else on it', () => {
+    expect(check('.nh-gauge__rim { stroke: red }')).toEqual(['attributePaint'])
+    expect(check('.nh-gauge__ledlit { fill: red }')).toEqual(['attributePaint'])
+    expect(check('.nh-gauge__rim { stroke-width: 3; opacity: 0.5 }')).toEqual([])
   })
 
-  /**
-   * A blanket `.nh-widget, .nh-tile` rule silently breaks the two tiles that asked not to be one:
-   * bare widgets (label, clock) and the dashed "+ New dashboard" invitation.
-   */
-  it('put back the bare widget and the new-dashboard tile after a blanket tile rule', async () => {
-    for (const { theme, css } of await styledThemes()) {
-      const selectors = rules(css).map(([s]) => s)
-      const blankets = selectors.some((s) => /\.nh-widget\b/.test(s) && /\.nh-tile\b/.test(s))
-      if (!blankets) continue
-      // A theme may deliberately panel them instead - the LCD console has no unboxed content at
-      // all - but it has to say so in the stylesheet, so the deviation is a decision on record
-      // rather than something nobody noticed.
-      if (!css.includes('nh-theme-allow: bare-panelled')) {
-        expect(
-          selectors.some((s) => s.includes('nh-widget--bare')),
-          `${theme.id} paints every widget but never restores .nh-widget--bare ` +
-            '(declare "nh-theme-allow: bare-panelled" in the stylesheet if that is deliberate)'
-        ).toBe(true)
-      }
-      expect(
-        selectors.some((s) => s.includes('nh-tile--new')),
-        `${theme.id} paints every tile but never restores .nh-tile--new`
-      ).toBe(true)
-    }
+  it('catches an ungated padding override, and accepts a gated one', () => {
+    expect(check('.nh-widget__body { padding: 8px }')).toEqual(['ungatedPadding'])
+    expect(check('.nh-widget__label { padding-top: 8px }')).toEqual(['ungatedPadding'])
+    expect(check('@container (min-height: 105px) { .nh-widget__body { padding: 8px } }')).toEqual([])
+    // A media query is not a cell-size gate: the shed is keyed on the cell, not the viewport.
+    expect(check('@media (min-width: 900px) { .nh-widget__body { padding: 8px } }')).toEqual(['ungatedPadding'])
+    // Padding on something that is not a widget box is nobody's business but the theme's.
+    expect(check('.nh-settings { padding: 8px }')).toEqual([])
   })
 
-  /** A font a theme declares has to be one the add-on actually ships. */
-  it('only reference bundled assets', async () => {
-    const BUNDLED = /^(fonts|backgrounds|icons)\//
-    for (const { theme, css } of await styledThemes()) {
-      for (const m of css.matchAll(/url\(['"]?([^'")]+)['"]?\)/g)) {
-        expect(BUNDLED.test(m[1]), `${theme.id} references "${m[1]}", which is not a bundled path`).toBe(true)
+  it('catches a base control styled without its active state', () => {
+    expect(check('.nh-button { background: red }')).toEqual(['activeState'])
+    expect(check('.nh-button { background: red } .nh-button--active { background: blue }')).toEqual([])
+    // The modifier alone is fine - it does not flatten anything.
+    expect(check('.nh-button--active { background: blue }')).toEqual([])
+    // A different class that merely starts with the same text must not count as styling it.
+    expect(check('.nh-button__icon { width: 10px }')).toEqual([])
+  })
+
+  it('catches border-image against a rounded radius only', () => {
+    expect(check('.nh-widget { border-image: linear-gradient(red, blue) 1 }', '12px')).toEqual(['borderImageRadius'])
+    expect(check('.nh-widget { border-image: linear-gradient(red, blue) 1 }', '0px')).toEqual([])
+    expect(check('.nh-widget { border-image: none }', '12px')).toEqual([])
+  })
+
+  it('catches a blanket tile rule that drops the bare widget or the new tile', () => {
+    const blanket = '.nh-widget, .nh-tile { background: red }'
+    expect(check(blanket)).toEqual(['bareWidget', 'newTile'])
+    expect(check(`${blanket} .nh-widget--bare { background: none } .nh-tile--new { border: 1px dashed red }`)).toEqual([])
+    // Panelling the bare widgets is allowed when the stylesheet says it is on purpose.
+    expect(check(`${blanket} .nh-tile--new { border: 1px dashed red } /* nh-theme-allow: bare-panelled */`)).toEqual([])
+  })
+
+  it('catches an asset that is not bundled, and allows the ones that are', () => {
+    expect(check("@font-face { font-family: 'X'; src: url('https://fonts.example/x.woff2') }")).toEqual(['externalAsset'])
+    expect(check("body { background-image: url('../../etc/x.png') }")).toEqual(['externalAsset'])
+    expect(check("@font-face { font-family: 'X'; src: url('fonts/x.woff2') }")).toEqual([])
+    expect(check("body { background-image: url('backgrounds/x.jpg') }")).toEqual([])
+    expect(check('body { background-image: url(data:image/png;base64,AAAA) }')).toEqual([])
+  })
+
+  it('says nothing about a stylesheet that breaks no rule', () => {
+    expect(check('body { font-family: sans-serif }')).toEqual([])
+    expect(check('')).toEqual([])
+  })
+
+  it('describes every rule it can report', () => {
+    const seen = new Set<RuleId>()
+    for (const css of [
+      '.nh-gauge__rim { fill: red }',
+      '.nh-widget__body { padding: 1px }',
+      '.nh-button { color: red }',
+      '.nh-widget { border-image: linear-gradient(red, blue) 1 }',
+      '.nh-widget, .nh-tile { background: red }',
+      "body { background-image: url('https://x/y.png') }",
+    ]) {
+      for (const issue of checkThemeCss(css)) {
+        seen.add(issue.rule)
+        expect(describeIssue(issue).length).toBeGreaterThan(10)
       }
     }
+    expect(seen.size).toBe(7)
   })
 })
 
