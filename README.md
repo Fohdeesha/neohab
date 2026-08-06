@@ -1,219 +1,135 @@
 # neohab
 
-A modern dashboard UI for [openHAB](https://www.openhab.org/)
+A modern dashboard UI for [openHAB](https://www.openhab.org/) — touch-friendly dashboards for
+phones, tablets and wall panels, configured entirely in the browser. No file editing, ever.
 
-neohab installs as a standard openHAB UI add-on and lets you build touch-friendly dashboards for
-phones, tablets and desktops, configured entirely in the browser. No file editing, ever.
+> **Status: in daily use.** The latest release is **1.7.0**. Everything described below is built
+> and tested end to end against a live openHAB server by a browser suite that drives the whole UI;
+> anything added since that release is on `main` and ships with the next one. Marketplace
+> packaging is still to come. Feedback welcome.
 
-> **Status: in daily use.** The latest release is **1.7.0** — grab its add-on jar from the
-> [releases page](https://github.com/Fohdeesha/neohab/releases) and drop it in your `addons`
-> folder. Everything described below is built and tested end to end against a live openHAB
-> server by a browser suite that drives the whole UI; anything added since that release is on
-> `main` and ships with the next one. Marketplace packaging is still to come. Feedback welcome.
+neohab is a community project and is not an official openHAB UI.
 
-## Goals
+## Install
 
-- **Mobile-first** — dashboards are always viewable and dynamically sized, from phone to
-  wall-mounted tablet to desktop. Phones and portrait tablets get a single-column stack whose
-  order you can drag-to-reorder independently of the grid layout. On the grid a dashboard scales
-  as one proportional unit: icons *and* text track the cell size (text down to a readable floor),
-  and widget chrome slims itself down in tight cells, so labels stay readable instead of
-  clipping. Stacked rows are full-width, so there they size their text to the room the row has
-  rather than shrinking it to match a desktop. On top of the automatic sizing, text size is
-  adjustable at every level: per dashboard, per widget, and per device (so a wall panel across
-  the room can run bigger text than your desk's monitor). Tablets can have a grid layout of
-  their own — a second arrangement, with its own column count, that starts as a copy of the
-  desktop one — and any widget can be left out on phones, tablets or desktops entirely.
-- **Navigate from anywhere** — a pull-out sidebar lists every dashboard, so switching is one tap
-  from wherever you are. It slides the dashboard aside on desktop and overlays it on phones, and
-  stays put until you pick something or click away — that click only dismisses it, so you never
-  hit a control by accident on the way out. Pin it if you would rather it always stayed, and the
-  dashboard stays live beside it. The Home screen is still there, and the sidebar can be switched
-  off entirely.
-- **Everything in the UI** — dashboards, widgets, themes and settings are all managed in the
-  browser and stored on your openHAB server. Zero config files.
-- **Dashboards it builds for you** — point neohab at your items and it lays out dashboards from
-  them. It reads your semantic model when you have one (a dashboard per location, a section per
-  piece of equipment, icons from the tags), and works just as well without one: it clusters items
-  by their naming convention or by group membership, or you can simply tick the items you want.
-  Every widget it chose is listed for review first — drop any row, or swap it for a different
-  widget — and nothing is written until you say so.
-- **Inline editing** — arrange dashboards on the live grid itself: drag widgets to move or
-  resize, delete them from a button on the widget, undo/redo anything, and save when you are
-  ready (Save returns you to the live dashboard). Moving a widget onto an occupied spot rejects
-  by default; hold it there for a moment and the widgets in the way step aside — swapping with a
-  same-size neighbour, or shuffling down. New widgets can be tapped into the first free spot or
-  dragged out of the palette straight onto the cell you want, which has to be a free one. Select
-  several widgets at once (Ctrl/Cmd- or Shift-click, a drag-a-box marquee, or long-press on
-  touch) to copy, cut or delete them together, and copy/paste widgets — including from one
-  dashboard to another — with the usual Ctrl+C / Ctrl+V.
-- **Wall panels & kiosks** — install neohab as an app (PWA) with an offline-capable shell; per
-  device, keep the screen awake, blank it after idle (or show a slowly drifting clock), open
-  straight onto a pinned dashboard, and hide all chrome in kiosk mode (five quick taps in a
-  screen corner exits, and `?kiosk=on` / `?kiosk=off` in the address works for kiosk-browser
-  apps). A dashboard-control item lets your rules remotely switch what every wall panel shows.
-- **Charts** — history graphs straight from openHAB persistence: multiple series with
-  per-series colors and styles (smooth/linear/stepped lines, gradient fills, points), left and
-  right y-axes with fixed or automatic ranges, threshold lines and shaded bands, a legend that
-  toggles series on and off, a crosshair tooltip, quick time-range switching from an hour to a
-  year, drag-to-zoom, and live updating as item states change. History can also be grouped
-  before it is drawn — per hour, day, week or month, or by hour of day, day of week or month of
-  year — with each series reducing its bucket its own way (time-weighted average, min, max,
-  first, last, sum or count of readings), drawn as lines or bars. A heatmap mode shows one
-  series as an hour-by-weekday matrix, which is how you see *when* something happens. Any chart
-  opens full screen from a ⤢ button, where you can walk backwards and forwards a day, week,
-  month or year at a time. A timeline widget shows the same history as colored state bands —
-  one row per item, with configurable state colors — which is the right shape for switches,
-  presence and modes.
-- **Stat tiles** — the headline figure a dashboard is really for: one large reading with its
-  unit set apart, a caption naming what it measures, a second smaller figure beneath, and a
-  trend arrow comparing the reading with its own history or with another item. Which way counts
-  as good news is yours to say, so the same downward arrow is green on a drop-off rate and red
-  on a response rate. Colors can follow thresholds, and a short badge marks a tile that needs
-  attention.
-- **Gauges** — the dial widget comes in six looks: the classic arc slider; an LED ring in the
-  style of modern instrument panels (a circle of glowing beads around a big center readout); a
-  fine tick ring of radial marks around a wide-open face, which can carry its own name above
-  the reading and a sparkline of recent history below it; a
-  solid tachometer-style arc with a dark sector face and the scale's ticks crossing the band;
-  chunky flat block segments; and a clay-shaded 3D look. Every look shares the same features: a
-  single color of your choosing (or the theme's) or color thresholds you define (blue when cold,
-  red when hot), a soft center glow in the same color, an alarm range that pulses it, full
-  circles, half gauges or any arc, bidirectional fill from zero, hidden unlit segments, a tick
-  scale, reference markers (fixed, or following another item's live value), colored zones, an
-  optional mini chart of the item's recent history under the reading, as bars or as a
-  sparkline, a header icon like the other widgets carry, and the reading drawn over its scale
-  maximum ("39 / 58") for the completed-of-planned look. A second item adds
-  a concentric inner ring — the dual gauge — with its own range and colors, both readings shown
-  in the center. It stays a touch control — drag around a ring to set its value, whichever ring
-  is nearer your finger — unless you make it read-only.
-- **Compass** — wind direction, or any bearing, on a compass face: a pointer swings live around
-  a ticked bezel and the nearest cardinal name sits big in the center, with optional degrees and
-  fixed cardinal letters. A second item can take the center instead — wind speed inside the wind
-  ring, the weather-console layout — with the cardinal on a small line beneath it. It reads
-  numeric degrees or cardinal names from the item, and draws in the theme's accent or a color
-  you pick.
-- **Cameras** — live video on your dashboard, from go2rtc, Frigate, an openHAB camera binding,
-  or any camera that serves its own stream. Point it at a camera server and pick a camera, or
-  paste a URL directly: MJPEG, HLS, MP4, still-image snapshots and WebRTC are all understood.
-  neohab tries the lowest-latency route first and falls back until one works, so a camera shows
-  up without you having to know which of them your server speaks — and you can pin a specific
-  one if you would rather it never varied. Streams stop when nobody is looking at them (a
-  dashboard that is scrolled away or in a background tab), tapping a camera can go fullscreen,
-  jump to another dashboard, open a URL or send a command, and each camera can carry audio.
-- **Voice & audio** — every open dashboard can be a speaker: sounds your rules play through
-  openHAB's Web Audio sink come out of the browser, a speech item announces its changes out
-  loud (voice picked per device), and a microphone button sends spoken commands to openHAB's
-  interpreter where the browser supports it. Each device decides for itself whether it plays
-  along, so the wall panel chimes and your desk stays quiet.
-- **As many tabs and windows as you like** — browsers only allow a handful of connections per
-  server, and a live dashboard holds one open permanently, so several tabs would normally leave
-  one of them frozen on stale values. neohab keeps a single connection for the whole browser and
-  shares live item states between its tabs. If updates ever do stop arriving, the dashboard says
-  so instead of quietly showing you old readings.
-- **Import / export** — back up, restore and share complete dashboard configurations as JSON;
-  restore by replacing everything or merging a backup into what you have. A single dashboard,
-  custom widget or theme can also be exported on its own, and it takes the things it uses with
-  it (the custom widgets, uploaded icons and background it references), so it works on someone
-  else's server. Importing one offers it as a numbered copy, leaving anything of yours with the
-  same name untouched — or overwrites it deliberately, if that is what you meant.
-- **Version history** — every change is preceded by a restore point, so you can look back through
-  a dated list, see exactly what changed at each one (down to the individual fields, before and
-  after), and put the whole configuration back to any of them. Points are named by date and can
-  be given a name of your own; changes made close together share one, so an afternoon of tweaking
-  leaves one entry rather than dozens. Twenty-five are kept by default, and that is configurable.
-- **Your language** — the UI ships in English, German, Spanish, French, Italian, Dutch and
-  Polish (the translations are machine-drafted and welcome native review), picked automatically
-  from the browser language with a per-device override in Settings. Your own dashboard text is
-  never touched.
-- **View-only devices** — an editing lock hides every editing control from devices that are not
-  signed in as an administrator, so wall panels and guests get a clean, read-only dashboard;
-  administrator devices are never affected, and a locked device can still sign in from Settings.
-- **Away from home** — neohab works behind whatever you already put in front of openHAB. Sign in
-  to a reverse proxy (openHAB Cloud, or your own web server asking for a password) and the
-  credentials travel with every request for that session, kept in memory rather than written to
-  the device, with the browser's own password manager remembering them if you let it. Inside the
-  official openHAB phone app it picks those credentials up by itself, and offers the app's own
-  full-screen, add-to-home-screen and back-to-the-app actions.
-- **Custom widgets** — build your own widgets from HTML templates with live item bindings, plus
-  an optional sandboxed JavaScript widget API for power users. A small gallery of ready-made
-  widgets ships inside the add-on (so it works with no internet at all) and installs with one
-  tap; installed widgets are then yours to edit like any other.
-- **First-class theming** — a theme editor that previews as you type, offers every design token
-  grouped and explained, and tells you whether the colours you picked can actually be read.
-  Light/dark themes, and custom themes that travel with your backups. Saving a theme does not
-  switch anyone else over unless you say so. Any device can pin its own theme (a light desk browser
-  next to a dark wall panel) without changing what the others share. Every theme can carry its own CSS on top of the color
-  tokens, so a theme can change fonts and widget styling too — the bundled Swiss Sheet themes
-  (dark and light, in the International Typographic Style) are built that way, and ship with
-  [Instrument Sans](https://github.com/Instrument/instrument-sans)
-  (© Instrument, [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on).
-  So is **Ember**, a slate-navy instrument panel with a single ember-orange accent, in the style
-  of the modern weather-station dashboards. And so is **LCD Console**, a segment-display weather
-  console: glowing slanted seven-segment digits (with the faint unlit "ghost" segments behind
-  every reading) on a pure black void of hairline-bordered panels, set in
-  [DSEG](https://github.com/keshikan/DSEG) (© keshikan,
-  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on). And so is
-  **Operations**, a control-room board: a dark board lit from above rather than filled flat -
-  every widget is a translucent lit panel framed by a gradient bezel that brightens at its top
-  edge, tiny wide-spaced uppercase captions name the panels, very large light figures carry
-  their units raised beside them, and the instrument faces and framed regions catch the same
-  light, set in [Montserrat](https://github.com/JulietaUla/Montserrat) (© Julieta Ulanovsky
-  et al., [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on), with
-  green reading as on target and red as off it across values, gauges, trend arrows and charts.
-  And so is **Assembly**, a production-floor board in dark green glass: translucent tiles that
-  blur whatever is behind them — and there is something to blur, because the theme ships with
-  its own backdrop, a defocused robot-factory hall (skylights, rim-lit arms) rendered for it,
-  which a background image of your own replaces as usual. Hairline mint borders, vivid green
-  arc gauges with brightened value tips, and the active control drawn as the board's selected
-  card — green outline, tinted fill, soft glow — set in
-  [Poppins](https://github.com/itfoundry/poppins) (© Indian Type Foundry,
-  [SIL OFL 1.1](https://openfontlicense.org/), license included in the add-on). Buttons can
-  also carry an illustration image and a caption line (in any theme), which is how you build
-  the zone cards boards like that use for their stations.
-  A theme's stylesheet can also recolor the chart
-  palette (`--nh-chart-1` through `--nh-chart-8`, used wherever a series has no explicit color),
-  and every widget offers a *Tile accent* setting that paints its whole tile in the active
-  theme's accent — solid, a muted wash, or just a rule around the edge — for the
-  highlighted-callout look those panels use, plus an *Accent color* of its own, so panels can
-  take per-zone colors (green outdoor, magenta pressure) the way the real consoles do. Widgets
-  that name the same *Panel group* are framed together as one panel, so a dashboard can say
-  "these tiles belong together" rather than boxing each of them separately.
-  Dashboards can also carry background images — one global default plus per-dashboard
-  overrides, set by URL or uploaded. Uploads are stored losslessly as PNG at up to 5K (no
-  compression artifacts) in your openHAB config, so backups include them; exports keep the
-  image data at the end of the file to stay readable, and can leave it out entirely to stay
-  small.
-- **HABPanel migration** — import your existing HABPanel panels (from a `habpanel-config.json`
-  export or directly from your server) with best-effort widget mapping and a detailed report.
+1. Download the add-on jar from the [releases page](https://github.com/Fohdeesha/neohab/releases).
+2. Drop it into your openHAB `addons/` folder. It is picked up in a few seconds — no restart.
+3. Open **http://your-server:8080/neohab/**.
 
-## Compatibility
+It appears on the openHAB start page too. To remove it, delete the jar.
 
-Targets openHAB **4.x and 5.x**. Distributed as an add-on jar installable through the openHAB
-community marketplace (planned) or manually via the addons folder.
+Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs. Viewing works with
+whatever access your server already allows; editing asks you to sign in as an administrator.
 
-## Tech
+## Coming from HABPanel
 
-React + TypeScript + Vite frontend served by a thin OSGi add-on shell, talking to openHAB
-exclusively through its public REST and SSE APIs.
+Import your panels from **Settings › HABPanel import** — either straight off your server or from a
+`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and you
+get a report of what came over cleanly, what was approximated, and what needs a look.
 
-- **[Making a theme](docs/theming.md)** — the design tokens, the class names, and the handful of
-  CSS rules that are not obvious.
-- **[CONTRIBUTING](CONTRIBUTING.md)** — running it locally against your own openHAB (no Java build
-  needed), the checks, and how to add a widget.
+All seven HABPanel themes have a port here, so an imported dashboard arrives looking like itself.
+Custom AngularJS templates import as neohab template widgets. An `additional_stylesheet_url` is
+the one thing that cannot come across — its selectors are HABPanel's — so it is reported, and
+[the theming guide](docs/theming.md) has the table you need to translate it.
 
-`npm run check` in `web/` runs the typecheck, the linter and the unit suite — the same three
-things CI does. The browser end-to-end suites live in [`e2e/`](e2e/); they drive a real browser
-against a live openHAB with the add-on deployed, so read [`e2e/README.md`](e2e/README.md) before
-running them against a server you care about.
+## What it does
+
+**Layout**
+
+- **Mobile-first.** Phones and portrait tablets get a single-column stack you can reorder
+  independently of the grid. On the grid, icons *and* text scale with the cell, and widget chrome
+  slims down in tight cells so labels stay readable. Text size is adjustable per dashboard, per
+  widget and per device.
+- **Tablet layouts.** An optional second arrangement with its own column count, and any widget can
+  be left out on phones, tablets or desktops entirely.
+- **Inline editing.** Arrange dashboards on the live grid: drag to move or resize, drag from the
+  palette onto the cell you want, multi-select (Ctrl/Cmd-click, Shift-click, marquee, long-press),
+  copy/paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it is
+  rejected; hold it there and the widgets in the way step aside.
+- **Navigate from anywhere.** A pull-out sidebar lists every dashboard. It pushes the dashboard
+  aside on desktop, overlays on phones, and can be pinned or switched off.
+- **Dashboards it builds for you.** Point neohab at your items and it lays out dashboards from
+  them — from your semantic model if you have one, otherwise clustered by naming convention or
+  group, or just tick the items you want. Everything it chose is listed for review first.
+
+**Widgets**
+
+- **Charts** — multiple series with per-series colors and styles, dual y-axes, thresholds and
+  bands, a toggling legend, crosshair tooltip, drag-to-zoom, ranges from an hour to a year, and
+  live updates. History can be grouped before drawing (per hour/day/week/month, or by hour of day,
+  day of week, month of year) with each series reducing its bucket its own way. A heatmap mode
+  shows one series as an hour-by-weekday matrix. Any chart opens full screen and steps backwards
+  through time.
+- **Timeline** — the same history as colored state bands, one row per item: the right shape for
+  switches, presence and modes.
+- **Gauges** — six looks, from a classic arc slider to an LED ring, tick ring, tachometer arc,
+  block segments and a 3D clay face. All share color thresholds, alarm ranges, arcs and half
+  gauges, tick scales, reference markers, zones, an inline history sparkline, and an optional
+  second item as a concentric inner ring.
+- **Stat tiles** — one large reading with its unit set apart, a caption, a second figure beneath,
+  and a trend arrow against its own history or another item. Which direction counts as good news
+  is yours to say.
+- **Compass** — wind direction or any bearing, with a live pointer, cardinal names, and an
+  optional second item (wind speed) in the middle.
+- **Cameras** — live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
+  MJPEG, HLS, MP4, snapshots and WebRTC are all understood; neohab tries the lowest-latency route
+  first and falls back until one works. Streams stop when nobody is looking.
+- **Custom widgets** — build your own from HTML templates with live item bindings, plus an
+  optional sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one
+  tap.
+
+**Theming**
+
+A theme editor that previews as you type, offers every design token grouped and explained, tells
+you whether your colors can actually be read, and checks a custom stylesheet against the rules
+that are easy to get wrong. Saving a theme does not switch anyone else over unless you say so, and
+any device can pin its own. Themes travel with your backups and export on their own.
+
+Beyond colors, a theme can carry its own stylesheet — which is how the bundled **Swiss Sheet**,
+**Ember**, **LCD Console**, **Operations** and **Assembly** themes change fonts and widget
+structure, not just palette. Dashboards can carry background images, global or per dashboard.
+
+If a theme ever makes the app unusable, `?theme=none` in the address loads with the default one
+for that page load, without changing anything.
+
+See **[Making a theme](docs/theming.md)** for the tokens, the class names and the six rules.
+
+**Running it**
+
+- **Wall panels & kiosks** — installable as an app (PWA) with an offline-capable shell. Per
+  device: keep the screen awake, blank after idle or show a drifting clock, open onto a pinned
+  dashboard, and hide all chrome in kiosk mode. A dashboard-control item lets your rules switch
+  what every panel shows.
+- **Voice & audio** — openHAB's Web Audio sink plays through the browser, a speech item announces
+  changes out loud, and a microphone button sends spoken commands to the interpreter. Each device
+  decides whether it joins in.
+- **As many tabs as you like** — browsers allow only a handful of connections per server, so
+  several dashboards would normally leave one frozen on stale values. neohab shares a single
+  connection across the whole browser, and says so if updates ever stop arriving.
+- **View-only devices** — an editing lock hides every editing control from devices not signed in
+  as an administrator. Wall panels and guests get a clean read-only dashboard.
+- **Away from home** — works behind a reverse proxy or openHAB Cloud; credentials are kept in
+  memory for the session, never written to the device. Inside the official openHAB phone app it
+  picks them up by itself.
+- **Your language** — English, German, Spanish, French, Italian, Dutch and Polish (machine-drafted;
+  native review welcome), from the browser language with a per-device override.
+
+**Your configuration**
+
+- **Import / export** — back up, restore and share complete configurations as JSON, replacing or
+  merging. A single dashboard, widget or theme exports on its own and takes what it uses with it,
+  so it works on someone else's server.
+- **Version history** — every change is preceded by a restore point. Look back through a dated
+  list, see exactly what changed field by field, and roll the whole configuration back. Twenty-five
+  are kept by default.
 
 ## Icons
 
 Nearly 10,000 icons are bundled in the add-on, so everything works fully offline — plus your
 openHAB server's own icon sets and your own uploads:
 
-- **Color** — [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (flat style, curated
-  for dashboards; © Microsoft, MIT) and
+- **Color** — [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (flat style, curated for
+  dashboards; © Microsoft, MIT) and
   [icons8 flat-color-icons](https://github.com/icons8/flat-color-icons) (MIT)
 - **Mono** — [Material Design Icons](https://pictogrammers.com/library/mdi/)
   (© Pictogrammers, [Apache License 2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE)),
@@ -221,18 +137,35 @@ openHAB server's own icon sets and your own uploads:
 - **Weather** — [Meteocons](https://github.com/basmilius/meteocons) animated weather icons
   (© Bas Milius, MIT)
 - **openHAB** — the server's classic icon set (state-aware where the set provides variants)
-- **Custom** — upload your own PNG, JPG, GIF, WebP, BMP or SVG straight from the icon picker;
-  transparency and GIF animation survive, and uploads are stored in your openHAB config so
-  backups and exports include them
+- **Custom** — upload your own PNG, JPG, GIF, WebP, BMP or SVG from the icon picker; transparency
+  and GIF animation survive, and uploads are stored in your openHAB config so backups include them
 
-Stateful widgets (switches, toggle buttons, value readouts) can show a different icon — and a
-different mono tint — for their active state, or per state beyond that: rules map exact states
-or numeric ranges (a dimmer at `0`, `1-49` and `50-100` can be three different bulbs). Icon
-sizes are authored against a desktop-width dashboard and scale automatically with the actual
-cell size, so the same config looks right on any screen.
+Stateful widgets can show a different icon — and a different mono tint — per state: rules map
+exact states or numeric ranges, so a dimmer at `0`, `1-49` and `50-100` can be three different
+bulbs.
+
+## Fonts
+
+The themes that need one bundle it, so nothing is fetched from the internet. All are under the
+[SIL Open Font License 1.1](https://openfontlicense.org/), with the license included in the
+add-on: [Instrument Sans](https://github.com/Instrument/instrument-sans) (© Instrument),
+[DSEG](https://github.com/keshikan/DSEG) (© keshikan),
+[Montserrat](https://github.com/JulietaUla/Montserrat) (© Julieta Ulanovsky et al.) and
+[Poppins](https://github.com/itfoundry/poppins) (© Indian Type Foundry).
+
+## Development
+
+React + TypeScript + Vite, served by a thin OSGi add-on shell, talking to openHAB only through its
+public REST and SSE APIs.
+
+**[CONTRIBUTING](CONTRIBUTING.md)** covers running it locally against your own openHAB with no Java
+build, the checks, and how to add a widget. `npm run check` in `web/` runs the typecheck, the
+linter and the unit suite — the same three things CI does.
+
+The browser end-to-end suites live in [`e2e/`](e2e/); they drive a real browser against a live
+openHAB with the add-on deployed, so read [`e2e/README.md`](e2e/README.md) before running them
+against a server you care about.
 
 ## License
 
 [Eclipse Public License 2.0](LICENSE)
-
-neohab is a community project and is not an official openHAB UI.

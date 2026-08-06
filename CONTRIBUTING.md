@@ -70,7 +70,7 @@ adding logic, put it in a pure module and test it there — it is faster to writ
 run than driving a browser.
 
 **End-to-end suites** live in `e2e/` and drive a real browser against a real openHAB server. They
-are not run by CI, because they need a server. See [`e2e/README.md`](../e2e/README.md) for how to
+are not run by CI, because they need a server. See [`e2e/README.md`](e2e/README.md) for how to
 point them at yours. They are the right tool for anything that only exists in a browser: layout,
 gestures, live updates, theming as rendered.
 
@@ -109,7 +109,7 @@ Two things to know:
 
 ## Theming
 
-See [`docs/theming.md`](theming.md). If you are adding a theme, the cross-theme tests in
+See [`docs/theming.md`](docs/theming.md). If you are adding a theme, the cross-theme tests in
 `web/src/themes/themes.test.ts` will tell you if you have hit one of the traps.
 
 ## Style

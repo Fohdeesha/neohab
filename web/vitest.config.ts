@@ -13,7 +13,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // `scripts/` holds build-time tooling (the docs renderer), which is plain ESM rather than TS.
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.mjs'],
     reporters: ['default'],
   },
 })
