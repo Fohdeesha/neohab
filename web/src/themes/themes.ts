@@ -277,6 +277,131 @@ export const BUILTIN_THEMES: Theme[] = [
     cssModule: undefined,
   },
 
+  /* ------------------------- the rest of HABPanel's set -------------------------
+     Ports of the themes HABPanel shipped, so a dashboard imported from it arrives
+     looking roughly like it did. Each is read from that theme's own CSS variables:
+     --body-bg -> bg, --box-bg -> surface, --primary-color -> primary,
+     --widget-text-color -> text, --body-color -> text-dim, and its radius and
+     shadow. HABPanel had no notion of a raised surface or a border colour, so
+     those two are chosen to sit with the rest.
+
+     They are ports, not clones: where a colour fell below a readable contrast
+     ratio it was moved the smallest distance that fixes it, because the editor
+     reports contrast and a built-in should not be the example that fails. Those
+     adjustments are noted individually. */
+  {
+    id: 'material',
+    name: 'Material (HABPanel)',
+    scheme: 'light',
+    tokens: {
+      bg: '#f5f5f5',
+      surface: '#ffffff',
+      'surface-2': '#eceff1',
+      border: '#dcdfe3',
+      text: '#333333',
+      'text-dim': '#616161',
+      primary: '#ff3333',
+      brand: '#ff3333',
+      radius: '0px',
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
+    },
+  },
+  {
+    id: 'material-dark',
+    name: 'Material dark (HABPanel)',
+    scheme: 'dark',
+    tokens: {
+      bg: '#303030',
+      surface: '#424242',
+      'surface-2': '#4f4f4f',
+      border: '#565656',
+      text: '#ffffff',
+      'text-dim': '#b7b7b7',
+      primary: '#0db9f0',
+      brand: '#0db9f0',
+      radius: '2px',
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
+    },
+  },
+  {
+    id: 'paleblue',
+    name: 'Pale blue (HABPanel)',
+    scheme: 'dark',
+    tokens: {
+      bg: '#000000',
+      surface: '#001428',
+      // darker than a step above the surface would normally be, so the muted text
+      // this theme is built on still reads on a button
+      'surface-2': '#04203a',
+      border: '#123a52',
+      text: '#708c9d',
+      // HABPanel's own #647f93 sat at 4.4:1 on the surface; lifted to clear 4.5
+      'text-dim': '#7590a0',
+      primary: '#13738f',
+      brand: '#13738f',
+      radius: '8px',
+      shadow: 'none',
+    },
+  },
+  {
+    id: 'translucent',
+    name: 'Translucent (HABPanel)',
+    scheme: 'dark',
+    tokens: {
+      bg: '#072d4b',
+      // the point of this one: widgets are smoked glass over the page, so a
+      // background image reads through them
+      surface: 'rgba(0, 0, 0, 0.6)',
+      'surface-2': 'rgba(0, 0, 0, 0.35)',
+      border: 'rgba(255, 255, 255, 0.18)',
+      text: '#ddeeff',
+      'text-dim': '#a8bccc',
+      primary: '#0db9f0',
+      brand: '#0db9f0',
+      radius: '0px',
+      shadow: 'none',
+    },
+  },
+  {
+    id: 'madras',
+    name: 'Madras (HABPanel)',
+    scheme: 'light',
+    tokens: {
+      // HABPanel left the page transparent, expecting a background image behind it.
+      // A theme has to name a colour, so this is the warm paper its palette implies;
+      // set a background image and the translucent surfaces still let it through.
+      bg: '#e9e2d6',
+      surface: 'rgba(255, 255, 255, 0.9)',
+      'surface-2': 'rgba(255, 255, 255, 0.72)',
+      border: 'rgba(25, 23, 22, 0.18)',
+      text: '#191716',
+      'text-dim': '#5b5651',
+      // HABPanel's hsl(29, 100%, 50%) is 2.6:1 on near-white; darkened to clear the
+      // 3:1 that large text needs, which keeps the orange without losing the reading
+      primary: '#d96b00',
+      brand: '#d96b00',
+      radius: '3px',
+      shadow: '0 1px 8px rgba(0, 0, 0, 0.5)',
+    },
+  },
+  {
+    id: 'orange-tree',
+    name: 'Orange Tree (HABPanel)',
+    scheme: 'dark',
+    tokens: {
+      bg: '#09120f',
+      surface: '#151d19',
+      'surface-2': '#1f2a24',
+      border: '#2a3730',
+      text: '#a4a4a4',
+      // HABPanel's #7d7d7d sat at 4.2:1 on the surface; lifted to clear 4.5
+      'text-dim': '#8a8a8a',
+      primary: '#ff7b00',
+      brand: '#ff7b00',
+      radius: '3px',
+      shadow: '0 1px 8px rgba(0, 0, 0, 0.8)',
+    },
+  },
 ]
 
 /** Ids that belong to a built-in and may not be taken by a custom theme. */

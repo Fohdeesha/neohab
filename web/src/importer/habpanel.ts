@@ -198,14 +198,19 @@ const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   Y: { period: '1y', exact: true },
 }
 
-const THEME_MAP: Record<string, string> = {
+/**
+ * HABPanel's seven themes, each with a port of its own. The ids match, so this is a pass-through
+ * rather than a table of approximations — and a dashboard that came from HABPanel arrives wearing
+ * something recognisable instead of the default dark.
+ */
+export const THEME_MAP: Record<string, string> = {
   default: 'aqua',
-  material: 'dark',
-  'material-dark': 'dark',
-  paleblue: 'dark',
-  translucent: 'aqua',
-  madras: 'dark',
-  'orange-tree': 'dark',
+  material: 'material',
+  'material-dark': 'material-dark',
+  paleblue: 'paleblue',
+  translucent: 'translucent',
+  madras: 'madras',
+  'orange-tree': 'orange-tree',
 }
 
 /* ------------------------------- widget converters ------------------------------- */
@@ -567,8 +572,10 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     if (themeId) {
       settingsPatch.theme = themeId
       if (hpTheme !== 'default') {
-        report.add('info', 'HABPanel theme “{{theme}}” was mapped to the closest neohab theme', { theme: hpTheme })
+        report.add('info', 'The “{{theme}}” theme was imported. Its colours are a port of HABPanel’s, and you can edit them under Settings › Appearance.', { theme: hpTheme })
       }
+    } else {
+      report.add('warn', 'HABPanel theme “{{theme}}” is not one neohab knows, so the theme was left alone.', { theme: hpTheme })
     }
   }
   const background = str(cfg.settings.background_image)
@@ -576,8 +583,16 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     settingsPatch.background = background
     report.add('info', 'The panel background image was imported as the global background')
   }
-  if (str(cfg.settings.additional_stylesheet_url)) {
-    report.add('info', 'Additional stylesheets are replaced by neohab themes')
+  const stylesheet = str(cfg.settings.additional_stylesheet_url)
+  if (stylesheet) {
+    // Say plainly that it was NOT brought across, and where it goes. Calling this "replaced by
+    // neohab themes" read as an equivalence, and a power user's whole stylesheet went quietly
+    // missing. neohab's version of it is a theme's own Custom CSS.
+    report.add(
+      'warn',
+      'Your extra stylesheet ({{url}}) was not imported — its selectors are HABPanel’s, not neohab’s. Copy what you need into Settings › Appearance › edit a theme › Custom CSS.',
+      { url: stylesheet }
+    )
   }
   const speechItem = str(cfg.settings.speech_synthesis_item)
   if (speechItem) {

@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_THEMES, BUILTIN_THEME_IDS, listThemes, resolveTheme, themeCss, type Theme } from './themes'
 import { checkThemeCss, describeIssue, parseRules, type RuleId } from './cssRules'
 import { TOKEN_SPECS, isUsableTokenValue } from './tokens'
+import { THEME_MAP } from '../importer/habpanel'
 
 /** Every theme that carries a stylesheet, with it resolved. */
 async function styledThemes(): Promise<{ theme: Theme; css: string }[]> {
@@ -214,6 +215,29 @@ describe('the ?theme= escape hatch', () => {
 
   it('changes nothing when the parameter is absent', () => {
     expect(resolveParam(null)).toBe(null)
+  })
+})
+
+describe('the HABPanel themes', () => {
+  /**
+   * Every theme HABPanel shipped has a port here, so an imported dashboard arrives looking like
+   * it did. A mapping that points at a theme which does not exist resolves to the default
+   * silently — which is what used to happen to five of the seven.
+   */
+  it('each map to a theme that exists', () => {
+    for (const [habpanel, id] of Object.entries(THEME_MAP)) {
+      expect(BUILTIN_THEME_IDS.has(id), `HABPanel "${habpanel}" maps to "${id}", which is not a theme`).toBe(true)
+    }
+  })
+
+  it('cover all seven of them', () => {
+    expect(Object.keys(THEME_MAP).sort()).toEqual(
+      ['default', 'madras', 'material', 'material-dark', 'orange-tree', 'paleblue', 'translucent'].sort()
+    )
+  })
+
+  it('do not all collapse onto the same theme', () => {
+    expect(new Set(Object.values(THEME_MAP)).size).toBe(Object.keys(THEME_MAP).length)
   })
 })
 
