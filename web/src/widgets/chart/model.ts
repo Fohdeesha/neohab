@@ -154,9 +154,21 @@ export const PERIOD_CHIPS = ['1h', '12h', '24h', '7d', '30d', '1y']
 /**
  * The series a config describes: the `series` list when present, else the legacy single
  * `item` as an implied series, so configs from before multi-series keep rendering.
+ *
+ * Guarded with `Array.isArray` rather than `?? []`: this runs during render, and stored
+ * configuration is untrusted input — a `series` that is not a list threw straight out of the
+ * chart's render, which with no boundary above it took the whole app down rather than one tile.
  */
 export function effectiveSeries(config: ChartConfig): ChartSeries[] {
-  const list = (config.series ?? []).filter((s) => s && typeof s.item === 'string' && s.item !== '')
+  const stored = Array.isArray(config.series) ? config.series : []
+  const list = stored.filter((s) => s && typeof s.item === 'string' && s.item !== '')
   if (list.length > 0) return list
-  return config.item ? [{ item: config.item }] : []
+  return typeof config.item === 'string' && config.item !== '' ? [{ item: config.item }] : []
+}
+
+/** The thresholds a config describes, with the same guard for the same reason. */
+export function effectiveThresholds(config: ChartConfig): ChartThreshold[] {
+  return (Array.isArray(config.thresholds) ? config.thresholds : []).filter(
+    (t): t is ChartThreshold => !!t && typeof t === 'object'
+  )
 }

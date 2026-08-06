@@ -17,15 +17,17 @@
  */
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
+import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
   columnsOf,
+  gapOf,
   groupFrames,
   hasTabletLayout,
   iconScale,
   isHiddenOn,
   projectDashboard,
+  rectOf,
   stackedOrder,
   stackedTextScale,
   surfaceFor,
@@ -41,10 +43,6 @@ import {
 import { getWidgetDefinition } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
-
-function rectOf(widget: WidgetInstance): Rect {
-  return widget.layout.lg ?? { x: 0, y: 0, w: 3, h: 3 }
-}
 
 export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const { editing = false } = props
@@ -91,7 +89,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
         className="nh-grid nh-grid--stacked"
         style={
           {
-            gap: dashboard.gap ?? 8,
+            gap: gapOf(dashboard),
             '--nh-iconscale': iconScale(dashboard, unit),
           } as React.CSSProperties
         }

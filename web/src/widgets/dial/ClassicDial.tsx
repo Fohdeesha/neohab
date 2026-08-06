@@ -3,14 +3,13 @@ import type { WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { numericValue } from '../common/format'
 import { arcPath, polar, stepDecimals, START, SWEEP } from './geometry'
-import type { DialConfig } from './gauge'
+import { scaleOf, type DialConfig } from './gauge'
 
 /** Dial - a circular touch slider for numeric/dimmer items. Commits on release. */
 export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
-  const min = config.min ?? 0
-  const max = config.max ?? 100
-  // a cleared or nonsensical step would make the snap divide by zero
-  const step = config.step && config.step > 0 ? config.step : 1
+  // Guarded at the read (see scaleOf): a cleared or nonsensical step made the snap divide by
+  // zero, and a min or max that is not a number rendered the whole dial as NaN.
+  const { min, max, step } = scaleOf(config)
   const decimals = stepDecimals(step)
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<number | null>(null)

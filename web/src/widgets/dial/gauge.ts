@@ -134,6 +134,29 @@ function finite(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/** One ring's numeric scale, the only values here that were still read raw. */
+export interface GaugeScale {
+  min: number
+  max: number
+  step: number
+}
+
+/**
+ * The scale a ring works in.
+ *
+ * Everything else in this file has been guarded for a while; `min`, `max` and `step` were read
+ * straight off the config by both renderers, so an imported `min: "abc"` drew NaN arcs and a
+ * reading of "NaN". A step of zero divides by zero in the pointer snap, and a max at or below
+ * the min leaves no range to map a value onto, so both are given the defaults instead.
+ */
+export function scaleOf(c: DialConfig, ring: 'outer' | 'inner' = 'outer'): GaugeScale {
+  const min = finite(ring === 'inner' ? c.min2 : c.min, 0)
+  const rawMax = finite(ring === 'inner' ? c.max2 : c.max, 100)
+  const max = rawMax > min ? rawMax : min + 100
+  const rawStep = finite(ring === 'inner' ? c.step2 : c.step, 1)
+  return { min, max, step: rawStep > 0 ? rawStep : 1 }
+}
+
 export const LED_COUNT_DEFAULT = 60
 /** Chunky segments read as blocks only when there are few of them. */
 export const BLOCK_COUNT_DEFAULT = 20

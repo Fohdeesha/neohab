@@ -13,13 +13,16 @@ import {
   clampRect,
   collides,
   columnsOf,
+  DEFAULT_GAP,
   findFreeSpot,
+  gapOf,
   groupFrames,
   hiddenSurfaces,
   iconScale,
   MIN_TEXT_SCALE,
   planBump,
   projectDashboard,
+  rectOf,
   stackedOrder,
   stackedTextScale,
   surfaceFor,
@@ -72,6 +75,56 @@ describe('cellMetrics', () => {
     for (const columns of [0, -3, NaN, Infinity, undefined as unknown as number, 'six' as unknown as number]) {
       expect(columnsOf(dash([], { columns })), String(columns)).toBeGreaterThanOrEqual(1)
     }
+  })
+
+  it('reads a garbage gap as the default, and clamps a wild one', () => {
+    // The column count and the row height were guarded and the gap was not, so a hand-edited
+    // `gap: "wide"` made the cell width NaN and left the grid with nothing to lay out.
+    for (const gap of ['wide' as unknown as number, NaN, Infinity, undefined as unknown as number]) {
+      expect(gapOf(dash([], { gap })), String(gap)).toBe(DEFAULT_GAP)
+    }
+    expect(gapOf(dash([], { gap: -20 }))).toBe(0)
+    expect(gapOf(dash([], { gap: 5000 }))).toBeLessThanOrEqual(400)
+    const m = cellMetrics(dash([], { columns: 4, gap: 'wide' as unknown as number }), 400)
+    expect(Number.isFinite(m.colWidth)).toBe(true)
+    expect(Number.isFinite(m.rowHeight)).toBe(true)
+  })
+
+  it('never lets the gap eat the whole row', () => {
+    // 60 columns at a 64px gap is wider than a phone; a negative column width would flow into
+    // every scale and into grid-template-columns.
+    const m = cellMetrics(dash([], { columns: 60, gap: 64 }), 360)
+    expect(m.colWidth).toBeGreaterThan(0)
+    expect(m.rowHeight).toBeGreaterThanOrEqual(8)
+  })
+})
+
+describe('rectOf', () => {
+  it('reads a widget with no layout as a default rect', () => {
+    expect(rectOf({ id: 'a', type: 'label', config: {}, layout: {} })).toEqual({ x: 0, y: 0, w: 3, h: 3 })
+  })
+
+  it('repairs a stored rect rather than passing nonsense to the grid', () => {
+    // Stored rects were the one geometry value read without a guard: a string height made
+    // findFreeSpot return NaN, and a negative y became a grid-row counted from the END of the
+    // grid, so the widget rendered somewhere nobody put it.
+    const bad = { x: -4, y: -5, w: 0, h: 'tall' } as unknown as Rect
+    const r = rectOf({ id: 'a', type: 'label', config: {}, layout: { lg: bad } })
+    expect(r.x).toBeGreaterThanOrEqual(0)
+    expect(r.y).toBeGreaterThanOrEqual(0)
+    expect(r.w).toBeGreaterThanOrEqual(1)
+    expect(r.h).toBeGreaterThanOrEqual(1)
+    for (const v of Object.values(r)) expect(Number.isFinite(v)).toBe(true)
+  })
+
+  it('accepts a numeric string, as imported configurations carry', () => {
+    const stored = { x: '2', y: '3', w: '4', h: '5' } as unknown as Rect
+    expect(rectOf({ id: 'a', type: 'label', config: {}, layout: { lg: stored } })).toEqual({ x: 2, y: 3, w: 4, h: 5 })
+  })
+
+  it('leaves a good rect exactly as it was', () => {
+    const good = { x: 1, y: 2, w: 3, h: 4 }
+    expect(rectOf({ id: 'a', type: 'label', config: {}, layout: { lg: good } })).toEqual(good)
   })
 })
 
@@ -138,6 +191,15 @@ describe('findFreeSpot', () => {
   it('goes below everything when nothing fits', () => {
     const d = dash([w('a', { x: 0, y: 0, w: 4, h: 3 })], { columns: 4 })
     expect(findFreeSpot(d, 4, 1)).toEqual({ x: 0, y: 3, w: 4, h: 1 })
+  })
+
+  it('still finds a spot on a dashboard holding one corrupt rect', () => {
+    // A single unreadable height made `maxY` NaN, so the search loop never ran and every widget
+    // added from then on was stored at `y: NaN`.
+    const broken = { id: 'a', type: 'label', config: {}, layout: { lg: { x: 0, y: 0, w: 2, h: 'tall' } } }
+    const d = dash([broken as unknown as WidgetInstance], { columns: 4 })
+    const spot = findFreeSpot(d, 2, 2)
+    for (const v of Object.values(spot)) expect(Number.isFinite(v)).toBe(true)
   })
 
   it('narrows a widget too wide for the grid rather than overflowing it', () => {

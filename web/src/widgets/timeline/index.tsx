@@ -9,6 +9,7 @@ import { chartScheme, seriesColor } from '../chart/palette'
 import { stateMatches } from '../common/stateIcon'
 import {
   autoRefreshSeconds,
+  effectiveColorMaps,
   effectiveTimelineSeries,
   partitionHistory,
   thinBands,
@@ -150,12 +151,15 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
    * the rest (assigned alphabetically over numerically-canonicalized states, so '64' and
    * '64.0' share one color and one slot).
    */
+  // Depending on the colour rows rather than the whole config: this recomputes over every band
+  // on the chart, and any other setting changing must not drag it along.
+  const colorMaps = config.colorMaps
   const colorFor = useMemo(() => {
     const canon = (s: string) => {
       const n = Number(s)
       return Number.isFinite(n) ? String(n) : s
     }
-    const maps = (config.colorMaps ?? []).filter((m) => m && typeof m.state === 'string' && m.state !== '' && m.color)
+    const maps = effectiveColorMaps({ colorMaps })
     const unmapped = [...new Set(rows.flat().map((b) => canon(b.state)))]
       .filter((s) => !maps.some((m) => stateMatches(m.state, s)))
       .sort()
@@ -164,7 +168,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       if (explicit) return explicit.color
       return seriesColor(unmapped.indexOf(canon(state)), scheme)
     }
-  }, [config.colorMaps, rows, scheme])
+  }, [colorMaps, rows, scheme])
 
   const chips = useMemo(() => {
     const set = new Set(PERIOD_CHIPS)

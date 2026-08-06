@@ -14,6 +14,7 @@ import {
   ledFraction,
   ledLit,
   pickRing,
+  scaleOf,
   severityColor,
   sparkSegments,
   zeroFractionOf,
@@ -21,6 +22,38 @@ import {
 } from './gauge'
 
 const cfg = (over: Partial<DialConfig> = {}): DialConfig => ({ item: 'X', ...over })
+
+describe('the numeric scale', () => {
+  it('reads a configured range as it was written', () => {
+    expect(scaleOf(cfg({ min: -40, max: 120, step: 0.5 }))).toEqual({ min: -40, max: 120, step: 0.5 })
+  })
+
+  it('takes numbers stored as strings, as imported configurations carry', () => {
+    const stored = { min: '10', max: '30', step: '2' } as unknown as Partial<DialConfig>
+    expect(scaleOf(cfg(stored))).toEqual({ min: 10, max: 30, step: 2 })
+  })
+
+  it('falls back rather than drawing a gauge full of NaN', () => {
+    // These three were the only values here still read raw: an unreadable min drew NaN arcs and
+    // a reading of "NaN", and a zero step divided by zero in the pointer snap.
+    const bad = { min: 'abc', max: null, step: 0 } as unknown as Partial<DialConfig>
+    const s = scaleOf(cfg(bad))
+    expect(s).toEqual({ min: 0, max: 100, step: 1 })
+    for (const v of Object.values(s)) expect(Number.isFinite(v)).toBe(true)
+  })
+
+  it('gives a collapsed or inverted range something to map onto', () => {
+    expect(scaleOf(cfg({ min: 50, max: 50 })).max).toBeGreaterThan(50)
+    expect(scaleOf(cfg({ min: 100, max: 0 })).max).toBeGreaterThan(100)
+    expect(scaleOf(cfg({ step: -5 })).step).toBe(1)
+  })
+
+  it('reads the inner ring from its own fields', () => {
+    const c = cfg({ min: 0, max: 10, step: 1, item2: 'Y', min2: 100, max2: 200, step2: 5 })
+    expect(scaleOf(c, 'inner')).toEqual({ min: 100, max: 200, step: 5 })
+    expect(scaleOf(c)).toEqual({ min: 0, max: 10, step: 1 })
+  })
+})
 
 describe('reading stored configuration', () => {
   it('clamps an arc to something drawable', () => {

@@ -10,8 +10,10 @@ import { useTranslation } from 'react-i18next'
 import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
+  gapOf,
   hiddenSurfaces,
   iconScale,
+  rectOf,
   stackedOrder,
   stackedTextScale,
   widgetAccent,
@@ -154,7 +156,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
       className="nh-grid nh-grid--stacked nh-grid--stackedit"
       style={
         {
-          gap: dashboard.gap ?? 8,
+          gap: gapOf(dashboard),
           '--nh-iconscale': iconScale(dashboard, unit),
         } as React.CSSProperties
       }
@@ -164,8 +166,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     >
       {ordered.map((widget) => {
         const min = getWidgetDefinition(widget.type)?.minPixelHeight ?? 0
-        const rect = widget.layout.lg ?? { h: 3 }
-        const height = Math.round(Math.max(rect.h * unit, min))
+        const height = Math.round(Math.max(rectOf(widget).h * unit, min))
         const isDragging = drag?.id === widget.id
         const indicator = drag && !isDragging && nonDragged++ === drag.insertPos
         return (

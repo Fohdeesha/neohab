@@ -2,11 +2,38 @@
 import { readableInk } from '../themes/contrast'
 import type { Dashboard, Rect, WidgetInstance } from './dashboard'
 
+/**
+ * A stored value read as a number. Imported configurations carry numbers as strings, and a hand
+ * edit can carry anything at all, so the fallback is what keeps the arithmetic downstream sane.
+ */
+function finite(value: unknown, fallback: number): number {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
+  return Number.isFinite(n) ? n : fallback
+}
+
+/**
+ * Where a widget sits on the desktop grid.
+ *
+ * Repaired at the read, like the column count and the row height: the editor clamps every rect it
+ * writes, but a backup, a shared export or a hand edit is stored verbatim. An unreadable height
+ * made `findFreeSpot` return `y: NaN` — which was then saved onto the next widget added — and a
+ * negative `y` became a `grid-row` counted from the END of the grid, putting the widget somewhere
+ * nobody had placed it.
+ */
 export function rectOf(widget: WidgetInstance): Rect {
-  return widget.layout.lg ?? { x: 0, y: 0, w: 3, h: 3 }
+  const stored = widget.layout.lg
+  if (!stored) return { x: 0, y: 0, w: 3, h: 3 }
+  return {
+    x: Math.max(0, Math.round(finite(stored.x, 0))),
+    y: Math.max(0, Math.round(finite(stored.y, 0))),
+    w: Math.max(1, Math.round(finite(stored.w, 1))),
+    h: Math.max(1, Math.round(finite(stored.h, 1))),
+  }
 }
 
 export const DEFAULT_GAP = 8
+/** Upper bound on a stored gap: past this a "grid" is a column of widgets separated by voids. */
+const MAX_GAP = 400
 
 /**
  * Below this container width the dashboard renders as a single-column stack. Includes
@@ -50,6 +77,18 @@ export function columnsOf(dashboard: Dashboard): number {
 export function mdColumnsOf(dashboard: Dashboard): number {
   const v = dashboard.mdColumns
   return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : columnsOf(dashboard)
+}
+
+/**
+ * The gap between cells, as a usable number. The editor clamps it to 0..64; a stored `gap: "wide"`
+ * made the cell width NaN and left the grid unable to lay anything out at all — the same failure
+ * `columns: 0` used to cause, in the one geometry field that had no guard.
+ */
+export function gapOf(dashboard: Dashboard): number {
+  const v = dashboard.gap
+  if (v === undefined || v === null) return DEFAULT_GAP
+  const n = finite(v, NaN)
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_GAP, Math.round(n))) : DEFAULT_GAP
 }
 
 /**
@@ -145,9 +184,11 @@ export function cellMetrics(
   dashboard: Dashboard,
   containerWidth: number
 ): { gap: number; colWidth: number; rowHeight: number } {
-  const gap = dashboard.gap ?? DEFAULT_GAP
+  const gap = gapOf(dashboard)
   const columns = columnsOf(dashboard)
-  const colWidth = (containerWidth - gap * (columns - 1)) / columns
+  // Floored at 1px: many columns at a wide gap can want more room than the container has, and a
+  // negative width would flow into every scale below and into grid-template-columns itself.
+  const colWidth = Math.max(1, (containerWidth - gap * (columns - 1)) / columns)
   // A fixed row height comes from the same unvalidated config, so it gets the same treatment.
   const fixed = typeof dashboard.rowHeight === 'number' && Number.isFinite(dashboard.rowHeight)
   const rowHeight = fixed ? Math.max(8, dashboard.rowHeight as number) : Math.max(8, colWidth)

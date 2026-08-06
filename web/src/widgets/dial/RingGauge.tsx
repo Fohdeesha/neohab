@@ -20,6 +20,7 @@ import {
   ledFraction,
   ledLit,
   pickRing,
+  scaleOf,
   sparkSegments,
   zeroFractionOf,
   type DialConfig,
@@ -37,13 +38,11 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     config.style === 'arc' || config.style === 'blocks' || config.style === '3d' || config.style === 'ticks'
       ? config.style
       : 'led'
-  const min = config.min ?? 0
-  const max = config.max ?? 100
-  const step = config.step && config.step > 0 ? config.step : 1
+  // Guarded at the read like every other stored value here: a min or max that is not a number
+  // drew NaN arcs and a reading of "NaN", and a zero step divided by zero in the pointer snap.
+  const { min, max, step } = scaleOf(config)
   const decimals = stepDecimals(step)
-  const min2 = config.min2 ?? 0
-  const max2 = config.max2 ?? 100
-  const step2 = config.step2 && config.step2 > 0 ? config.step2 : 1
+  const { min: min2, max: max2, step: step2 } = scaleOf(config, 'inner')
   const decimals2 = stepDecimals(step2)
   const inner = hasInnerRing(config)
   const svgRef = useRef<SVGSVGElement>(null)

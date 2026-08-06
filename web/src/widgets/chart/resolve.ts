@@ -5,7 +5,7 @@
  * same chart from the same configuration.
  */
 import { AGGREGATE_FUNCTIONS, isCategorical, type AggregateFunction, type GroupBy } from './aggregate'
-import { effectiveSeries, type ChartConfig, type ChartThreshold } from './model'
+import { effectiveSeries, effectiveThresholds, type ChartConfig, type ChartThreshold } from './model'
 import { chartScheme, seriesColor } from './palette'
 
 export interface ResolvedSeries {
@@ -71,7 +71,7 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
       ? s.aggregate
       : 'average') as AggregateFunction,
   }))
-  const thresholds = (config.thresholds ?? [])
+  const thresholds = effectiveThresholds(config)
     .map((th: ChartThreshold) => ({
       from: numOpt(th.from),
       to: numOpt(th.to),

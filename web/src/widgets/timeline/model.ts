@@ -39,8 +39,20 @@ export interface TimelineBand {
 /** States that mean "nothing known" - rendered as gaps, never as bands. */
 const GAP_STATES = new Set(['NULL', 'UNDEF', ''])
 
+/**
+ * The rows this timeline draws. `Array.isArray` rather than `?? []` for the same reason the chart
+ * uses it: this runs during render, and a stored `series` that is not a list threw out of the
+ * widget instead of rendering an empty one.
+ */
 export function effectiveTimelineSeries(config: TimelineConfig): TimelineSeries[] {
-  return (config.series ?? []).filter((s) => s && typeof s.item === 'string' && s.item !== '')
+  const stored = Array.isArray(config.series) ? config.series : []
+  return stored.filter((s) => s && typeof s.item === 'string' && s.item !== '')
+}
+
+/** The explicit state->colour rows, guarded the same way. */
+export function effectiveColorMaps(config: TimelineConfig): TimelineColorMap[] {
+  const stored = Array.isArray(config.colorMaps) ? config.colorMaps : []
+  return stored.filter((m) => m && typeof m.state === 'string' && m.state !== '' && typeof m.color === 'string' && m.color !== '')
 }
 
 /**

@@ -11,7 +11,7 @@ import { NumberSetting } from '../components/NumberSetting'
 import { downloadJson } from '../components/download'
 import type { Dashboard } from '../model/dashboard'
 import { partialFileName } from '../model/partial'
-import { hasTabletLayout, mdColumnsOf } from '../model/layout'
+import { columnsOf, gapOf, hasTabletLayout, mdColumnsOf } from '../model/layout'
 import { clearTabletLayout, setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
 import { buildDashboardExport, collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
 import { notify } from '../store/notify'
@@ -115,7 +115,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           className="nh-field"
           label={fieldLabel(t('Grid columns'))}
           mode="live"
-          value={dashboard.columns}
+          value={columnsOf(dashboard)}
           min={1}
           max={60}
           onCommit={(n) => updateDashboardMeta({ columns: n }, 'dash:columns')}
@@ -153,7 +153,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           className="nh-field"
           label={fieldLabel(t('Grid gap (px)'))}
           mode="live"
-          value={dashboard.gap ?? 8}
+          value={gapOf(dashboard)}
           min={0}
           max={64}
           onCommit={(n) => updateDashboardMeta({ gap: n }, 'dash:gap')}
