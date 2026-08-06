@@ -15,12 +15,10 @@
  * (settings.allowJsWidgets); when off, a notice renders instead.
  */
 import { useEffect, useRef } from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import { useConfigStore } from '../../store/config'
-import { useDeviceThemeStore } from '../../store/deviceTheme'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { commandItem } from '../common/command'
-import { resolveTheme } from '../../themes/themes'
+import { getActiveTheme, useActiveTheme } from '../../themes/active'
 import i18n from '../../i18n'
 import type { CustomWidgetDef } from '../../model/widgetdef'
 
@@ -123,12 +121,7 @@ interface BridgeMessage {
 
 export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   const allow = useConfigStore((s) => s.settings.allowJsWidgets === true)
-  const { theme, customThemes } = useConfigStore(
-    useShallow((s) => ({ theme: s.settings.theme, customThemes: s.customThemes }))
-  )
-  // The device override beats the shared setting for everything else on screen, so a JS widget
-  // handed the shared tokens would be the one thing on the page wearing the wrong theme.
-  const deviceTheme = useDeviceThemeStore((s) => s.themeId)
+  const activeTheme = useActiveTheme()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const editingRef = useRef(editing)
   editingRef.current = editing
@@ -143,11 +136,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
     if (!iframe) return
 
     const post = (msg: Record<string, unknown>) => iframe.contentWindow?.postMessage({ neohab: true, ...msg }, '*')
-    const themeTokens = () =>
-      resolveTheme(
-        useDeviceThemeStore.getState().themeId ?? useConfigStore.getState().settings.theme,
-        useConfigStore.getState().customThemes
-      ).tokens
+    const themeTokens = () => getActiveTheme().tokens
     const subscribed = new Set<string>()
     const unsubs: (() => void)[] = []
 
@@ -210,10 +199,10 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   useEffect(() => {
     if (!allow) return
     iframeRef.current?.contentWindow?.postMessage(
-      { neohab: true, type: 'theme', theme: resolveTheme(deviceTheme ?? theme, customThemes).tokens },
+      { neohab: true, type: 'theme', theme: activeTheme.tokens },
       '*'
     )
-  }, [allow, theme, deviceTheme, customThemes])
+  }, [allow, activeTheme])
 
   if (!allow) {
     return (

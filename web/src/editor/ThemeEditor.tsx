@@ -1,36 +1,26 @@
 /**
  * The custom-theme editor.
  *
- * Three things it deliberately does that the previous one did not:
+ * It previews: every edit is applied to the running app immediately, and the theme the app should
+ * really be showing is put back when the editor closes — including after a save that did not
+ * adopt the draft. Picking colours through a save round-trip is guesswork, and a save that also
+ * repainted every other device in the house is worse.
  *
- *  - it previews. Every edit is applied to the running app immediately, and the real theme is put
- *    back when the editor closes. Picking colours through a save round-trip that also changed
- *    what every other device was showing was the single worst part of theming here.
- *  - it offers every token, grouped and explained, from the one list in `themes/tokens.ts`. A
- *    variable a person cannot find is not a feature they have.
- *  - it says whether the colours can be read, while they are being chosen.
+ * The fields build themselves from the one token list in `themes/tokens.ts`, so a token is
+ * discoverable the moment it exists, and it reports whether the colours can actually be read
+ * while they are being chosen.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { deleteTheme, saveSettings, saveTheme, useConfigStore } from '../store/config'
-import { useDeviceThemeStore } from '../store/deviceTheme'
-import {
-  applyTheme,
-  resolveTheme,
-  themeCss,
-  TOKEN_GROUPS,
-  tokensInGroup,
-  type Theme,
-  type TokenSpec,
-} from '../themes/themes'
+import { applyTheme, themeCss, TOKEN_GROUPS, tokensInGroup, type Theme, type TokenSpec } from '../themes/themes'
+import { getActiveTheme, useActiveTheme } from '../themes/active'
 import { CONTRAST_PAIRS, contrastLevel, contrastOf, type ContrastLevel } from '../themes/contrast'
 import { TOKEN_SPECS } from '../themes/tokens'
 
 /** Re-apply whatever theme the app should actually be showing right now. */
 function applyLiveTheme(): void {
-  const config = useConfigStore.getState()
-  const override = useDeviceThemeStore.getState().themeId
-  applyTheme(resolveTheme(override ?? config.settings.theme, config.customThemes))
+  applyTheme(getActiveTheme())
 }
 
 export function ThemeEditor({
@@ -68,8 +58,8 @@ export function ThemeEditor({
     setSaving(true)
     try {
       await saveTheme(theme)
-      // Saving a theme is not the same as adopting it. It used to be, which meant tweaking a
-      // theme you were not using switched every device in the house onto it.
+      // Saving a theme is not the same as adopting it: tweaking a theme should not repaint every
+      // device in the house. Sharing it is the checkbox beside this button, and nothing else.
       if (makeShared) {
         const err = await saveSettings({ theme: theme.id })
         if (err) {
@@ -295,16 +285,16 @@ function ContrastReport({ theme }: { theme: Theme }) {
 /**
  * The theme's own stylesheet.
  *
- * Starting a theme no longer copies the active one's stylesheet automatically. Doing that handed
- * anyone starting from a structural theme two hundred lines referencing bundled fonts and images,
- * full of colours that do NOT follow the tokens they were about to change — so the new theme
- * looked broken and the reason was invisible. It is offered explicitly instead, with that said.
+ * Copying a built-in's stylesheet is offered rather than done automatically: a structural theme's
+ * CSS is two hundred lines referencing bundled fonts and images, full of colours written directly
+ * into it that do NOT follow the tokens above, so a silent copy looks broken for a reason nothing
+ * on screen explains. The button says which theme it is copying and what that costs.
  */
 function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
   const { t } = useTranslation()
-  const sharedThemeId = useConfigStore((s) => s.settings.theme)
-  const customThemes = useConfigStore((s) => s.customThemes)
-  const source = resolveTheme(sharedThemeId, customThemes)
+  // The theme on screen, which is the one a person means by "this" - not the shared setting,
+  // which a device with its own theme override is not even showing.
+  const source = useActiveTheme()
   const [busy, setBusy] = useState(false)
   const areaRef = useRef<HTMLTextAreaElement>(null)
 

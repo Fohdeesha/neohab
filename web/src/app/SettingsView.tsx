@@ -23,7 +23,8 @@ import {
   type PartialImportMode,
   type PartialPlan,
 } from '../model/partial'
-import { listThemes, resolveTheme, type Theme } from '../themes/themes'
+import { listThemes, type Theme } from '../themes/themes'
+import { useActiveTheme } from '../themes/active'
 import { ThemeEditor } from '../editor/ThemeEditor'
 import { NavButton } from './Sidebar'
 import { navigate } from './router'
@@ -62,7 +63,9 @@ export function SettingsView() {
   // per-device options stay, everything that changes the server configuration goes away.
   const canEdit = useEditingAllowed()
 
-  const activeTheme = resolveTheme(settings.theme, customThemes)
+  // The theme on screen, which is what "current" means to the person looking at it. A device
+  // with its own override is not showing the shared one.
+  const activeTheme = useActiveTheme()
 
   const choose = async (id: string) => {
     setNotice(null)
@@ -142,9 +145,19 @@ export function SettingsView() {
               </div>
             ))}
           </div>
+          {/* The cards set the SHARED theme, so the highlighted one is not necessarily the one
+              on screen. Say so, or the highlight reads as a bug. */}
+          {activeTheme.id !== settings.theme ? (
+            <p className="nh-settings__text">
+              {t('The highlighted theme is the shared one. This device is showing “{{name}}” instead, set below.', {
+                name: activeTheme.name,
+              })}
+            </p>
+          ) : null}
+
           {canEdit ? (
             <button type="button" className="nh-btn nh-btn--ghost" onClick={newFromCurrent}>
-              {t('New theme from current')}
+              {t('New theme from “{{name}}”', { name: activeTheme.name })}
             </button>
           ) : null}
 

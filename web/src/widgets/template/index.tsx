@@ -20,7 +20,7 @@ import { subscribeItems, useItemsStore } from '../../store/items'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 import { commandItem } from '../common/command'
 import i18n from '../../i18n'
-import { resolveTheme } from '../../themes/themes'
+import { useActiveTheme } from '../../themes/active'
 import { defTemplate, mergedSettingValues, type CustomWidgetDef } from '../../model/widgetdef'
 import type { Scope } from '../../template/evaluator'
 import { JsWidget } from './JsWidget'
@@ -99,9 +99,7 @@ function buildScope(opts: {
 
 function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
   const widgetDefs = useConfigStore((s) => s.widgetDefs)
-  const { settings, customThemes } = useConfigStore(
-    useShallow((s) => ({ settings: s.settings, customThemes: s.customThemes }))
-  )
+  const activeTheme = useActiveTheme()
 
   const def: CustomWidgetDef | undefined = config.customwidget
     ? widgetDefs.find((d) => d.id === config.customwidget)
@@ -152,7 +150,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
       config: values,
       label,
       editing: ctx.editing,
-      theme: resolveTheme(settings.theme, customThemes).tokens as unknown as Record<string, string>,
+      theme: activeTheme.tokens as unknown as Record<string, string>,
     })
     try {
       const frag = engine.renderTemplate(engine.compileTemplate(template), scope)
@@ -166,7 +164,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
     const next = [...recorded].sort().join('\n')
     if (next !== depsKey) setDeps(next ? next.split('\n') : [])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, template, valuesKey, label, ctx.editing, states, catalogLoaded, settings.theme, customThemes, isJs, missingDef])
+  }, [engine, template, valuesKey, label, ctx.editing, states, catalogLoaded, activeTheme, isJs, missingDef])
 
   if (isJs && def) {
     return <JsWidget def={def} values={values} label={label} editing={ctx.editing} bare={config.nobackground || config.dontwrap} />
