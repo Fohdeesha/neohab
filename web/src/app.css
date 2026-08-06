@@ -353,11 +353,36 @@ button {
   box-shadow: none;
 }
 
+/* A widget that could not render: its own tile explains itself, so the dashboard around it and
+   the editor that can fix it both survive. */
 .nh-widget--error {
   align-items: center;
   justify-content: center;
+  gap: 4px;
+  padding: 10px;
+  overflow: hidden;
   color: var(--nh-text-dim);
   font-size: 0.85em;
+  text-align: center;
+}
+
+.nh-widget__errtitle {
+  color: var(--nh-text);
+  font-weight: 600;
+}
+
+.nh-widget__errtext {
+  max-width: 100%;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-widget__errhint {
+  font-size: 0.9em;
+  opacity: 0.8;
 }
 
 .nh-widget__label {

@@ -1,16 +1,20 @@
 /**
  * Renders one widget instance: looks up its definition, subscribes to just the items it needs,
- * and hands it the uniform widget context. Re-renders are scoped to the widget's own items.
+ * and hands it the uniform widget context. Re-renders are scoped to the widget's own items, and
+ * a widget that throws is contained here (see WidgetBoundary) rather than taking the app with it.
  */
 import { useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 import { getWidgetDefinition, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { subscribeItems, useItemsStore } from '../store/items'
 import { commandItem } from '../widgets/common/command'
+import { WidgetBoundary } from './WidgetBoundary'
 
 export function WidgetHost({ instance, editing }: { instance: WidgetInstance; editing: boolean }) {
+  const { t } = useTranslation()
   const def = getWidgetDefinition(instance.type)
 
   // Key the subscription on the item names themselves, not config identity - the config object
@@ -47,9 +51,22 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   )
 
   if (!def) {
-    return <div className="nh-widget nh-widget--error">Unknown widget: {instance.type}</div>
+    return (
+      <div className="nh-widget nh-widget--error">
+        <span className="nh-widget__errtitle">{t('Unknown widget type “{{type}}”', { type: instance.type })}</span>
+        <span className="nh-widget__errhint">
+          {t('It may come from a newer version of neohab, or from a configuration this one cannot read.')}
+        </span>
+      </div>
+    )
   }
 
   const Component = def.Component
-  return <Component config={config} ctx={ctx} />
+  return (
+    // Reset on the stored config, so an edit that fixes a broken widget renders it again without
+    // a reload; the instance id covers a paste replacing what is in this slot.
+    <WidgetBoundary type={instance.type} resetKey={instance.config}>
+      <Component config={config} ctx={ctx} />
+    </WidgetBoundary>
+  )
 }
