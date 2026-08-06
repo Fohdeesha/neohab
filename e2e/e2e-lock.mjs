@@ -172,7 +172,7 @@ try {
   // NOT :has-text("HABPanel") - the built-in "Aqua (HABPanel classic)" theme card would match.
   ok('anon+lock: HABPanel import hidden', (await anon.page.locator('section:has(h2:text-is("Migrate from HABPanel"))').count()) === 0)
   ok('anon+lock: theme cards still shown', (await anon.page.locator('.nh-theme__pick').count()) > 0)
-  ok('anon+lock: no "New theme from current"', (await anon.page.locator('button:has-text("New theme from current")').count()) === 0)
+  ok('anon+lock: no "New theme"', (await anon.page.locator('button:has-text("New theme")').count()) === 0)
   ok('anon+lock: sidebar toggle hidden', (await anon.page.locator('#nh-set-sidebar').count()) === 0)
   ok('anon+lock: device text size still there', (await anon.page.locator('#nh-set-textsize').count()) === 1)
   ok('anon+lock: kiosk per-device settings still there', (await anon.page.locator('#kiosk-pinned').count()) === 1)

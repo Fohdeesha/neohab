@@ -32,6 +32,7 @@ import {
   textScale,
   widgetAccent,
   widgetAccentColor,
+  widgetAccentInk,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -113,6 +114,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                   '--nh-widgetscale': widgetTextScale(w),
                   '--nh-labelalign': widgetLabelAlign(w),
                   '--nh-cellaccent': widgetAccentColor(w),
+                  '--nh-accent-ink': widgetAccentInk(w),
                 } as React.CSSProperties
               }
             >
@@ -158,6 +160,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                 '--nh-widgetscale': widgetTextScale(w),
                 '--nh-labelalign': widgetLabelAlign(w),
                 '--nh-cellaccent': widgetAccentColor(w),
+                '--nh-accent-ink': widgetAccentInk(w),
               } as React.CSSProperties
             }
           >

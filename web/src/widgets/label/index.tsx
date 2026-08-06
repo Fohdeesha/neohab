@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
+import { readableInk } from '../../themes/contrast'
 import { WidgetFrame } from '../common/WidgetFrame'
 
 interface LabelConfig {
@@ -36,7 +38,10 @@ function LabelWidget({ config }: WidgetProps<LabelConfig>) {
             : undefined,
           color: config.color,
           background: chip ? config.fill : undefined,
-        }}
+          // A chip with a fill of its own needs ink that can be read on THAT colour, not on the
+          // theme accent the stylesheet assumed. An explicit Color setting still wins above.
+          '--nh-accent-ink': chip && config.fill ? (readableInk(config.fill) ?? undefined) : undefined,
+        } as CSSProperties}
       >
         {config.text}
       </span>

@@ -171,10 +171,18 @@ try {
   const alignSel = page.locator('#f-w-left-labelAlign')
   const posSel = page.locator('#f-w-left-labelPosition')
   ok('Name alignment select offered', (await alignSel.count()) === 1)
-  ok('alignment defaults to Left, never blank',
-    (await alignSel.inputValue()) === 'left' && (await alignSel.locator('option').count()) === 3,
-    await alignSel.inputValue())
-  ok('Name position defaults to Top', (await posSel.inputValue()) === 'top' && (await posSel.locator('option').count()) === 2)
+  // "Theme default" is a real choice and has to be selectable: several themes set the
+  // alignment they want for every widget, and a widget follows that only while it has made no
+  // choice of its own. Showing "Left" for a widget inheriting a centred theme default described
+  // it wrongly AND pinned Left the moment anyone touched the field.
+  ok('alignment defaults to "Theme default", never blank',
+    (await alignSel.inputValue()) === '' && (await alignSel.locator('option').count()) === 4,
+    JSON.stringify(await alignSel.inputValue()))
+  ok('the theme-default option is named, not an empty row',
+    ((await alignSel.locator('option').first().textContent()) || '').trim() === 'Theme default',
+    await alignSel.locator('option').first().textContent())
+  ok('Name position defaults to "Theme default"',
+    (await posSel.inputValue()) === '' && (await posSel.locator('option').count()) === 3)
 
   await alignSel.selectOption('center')
   await sleep(300)
@@ -185,7 +193,19 @@ try {
   await sleep(300)
   g = await labelGeo(page, '.nh-cell', 'Studio Trim')
   ok('undo restores left in one step', g.found && near(g.txt.l, g.main.l))
-  ok('undo reflected in the select', (await alignSel.inputValue()) === 'left')
+  ok('undo reflected in the select', (await alignSel.inputValue()) === '')
+
+  // Going back to the theme default has to be possible, and has to actually take effect.
+  await alignSel.selectOption('right')
+  await sleep(250)
+  const rightGeo = await labelGeo(page, '.nh-cell', 'Studio Trim')
+  await alignSel.selectOption('')
+  await sleep(250)
+  const backGeo = await labelGeo(page, '.nh-cell', 'Studio Trim')
+  ok('the theme default can be chosen again, and applies',
+    (await alignSel.inputValue()) === '' && rightGeo.found && backGeo.found &&
+      !near(rightGeo.txt.l, backGeo.txt.l) && near(backGeo.txt.l, backGeo.main.l),
+    JSON.stringify({ right: rightGeo.txt.l, back: backGeo.txt.l, main: backGeo.main.l }))
 
   await alignSel.selectOption('center')
   await posSel.selectOption('bottom')

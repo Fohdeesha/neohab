@@ -17,6 +17,7 @@
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useConfigStore } from '../../store/config'
+import { useDeviceThemeStore } from '../../store/deviceTheme'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { commandItem } from '../common/command'
 import { resolveTheme } from '../../themes/themes'
@@ -125,6 +126,9 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   const { theme, customThemes } = useConfigStore(
     useShallow((s) => ({ theme: s.settings.theme, customThemes: s.customThemes }))
   )
+  // The device override beats the shared setting for everything else on screen, so a JS widget
+  // handed the shared tokens would be the one thing on the page wearing the wrong theme.
+  const deviceTheme = useDeviceThemeStore((s) => s.themeId)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const editingRef = useRef(editing)
   editingRef.current = editing
@@ -140,7 +144,10 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
 
     const post = (msg: Record<string, unknown>) => iframe.contentWindow?.postMessage({ neohab: true, ...msg }, '*')
     const themeTokens = () =>
-      resolveTheme(useConfigStore.getState().settings.theme, useConfigStore.getState().customThemes).tokens
+      resolveTheme(
+        useDeviceThemeStore.getState().themeId ?? useConfigStore.getState().settings.theme,
+        useConfigStore.getState().customThemes
+      ).tokens
     const subscribed = new Set<string>()
     const unsubs: (() => void)[] = []
 
@@ -177,8 +184,10 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       }
     }
 
-    // push live updates for subscribed items
+    // Push live updates for subscribed items. The early-out matters: this runs for every JS
+    // widget on every state frame, and one that has asked for nothing yet should cost nothing.
     const storeUnsub = useItemsStore.subscribe((state, prev) => {
+      if (subscribed.size === 0 || state.states === prev.states) return
       for (const n of subscribed) {
         if (state.states[n] !== prev.states[n]) post({ type: 'item', name: n, state: state.states[n] })
       }
@@ -201,10 +210,10 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   useEffect(() => {
     if (!allow) return
     iframeRef.current?.contentWindow?.postMessage(
-      { neohab: true, type: 'theme', theme: resolveTheme(theme, customThemes).tokens },
+      { neohab: true, type: 'theme', theme: resolveTheme(deviceTheme ?? theme, customThemes).tokens },
       '*'
     )
-  }, [allow, theme, customThemes])
+  }, [allow, theme, deviceTheme, customThemes])
 
   if (!allow) {
     return (

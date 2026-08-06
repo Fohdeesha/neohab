@@ -7,12 +7,10 @@ import { useTranslation } from 'react-i18next'
 import { LANGUAGES, setLanguage, storedLanguage } from '../i18n'
 import {
   buildExportBundle,
-  deleteTheme,
   importBundle,
   importPartialBundle,
   planPartialImportOnServer,
   saveSettings,
-  saveTheme,
   useConfigStore,
   validateBundle,
   type ExportBundle,
@@ -25,13 +23,8 @@ import {
   type PartialImportMode,
   type PartialPlan,
 } from '../model/partial'
-import {
-  BUILTIN_THEMES,
-  COLOR_TOKENS,
-  resolveTheme,
-  type Theme,
-  type ThemeTokens,
-} from '../themes/themes'
+import { listThemes, resolveTheme, type Theme } from '../themes/themes'
+import { ThemeEditor } from '../editor/ThemeEditor'
 import { NavButton } from './Sidebar'
 import { navigate } from './router'
 import { setKioskSettings, useKioskStore, type ScreensaverMode } from '../store/kiosk'
@@ -55,6 +48,7 @@ import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { exportComponent } from '../editor/exportComponent'
+import { downloadJson } from '../components/download'
 import { appGoFullscreen } from './ohapp'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 
@@ -82,15 +76,20 @@ export function SettingsView() {
     if (err) setNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
   }
 
+  /**
+   * Start a theme from the active one's COLOURS. Its stylesheet is deliberately not copied: a
+   * structural theme's CSS is full of colours written directly into it that would not follow the
+   * tokens being edited, so a copy looks broken for reasons nothing on screen explains. The
+   * editor offers the copy explicitly instead, and says that.
+   */
   const newFromCurrent = () => {
     const id = 'custom-' + Math.random().toString(36).slice(2, 8)
-    setEditing({
-      id,
-      name: t('My theme'),
-      scheme: activeTheme.scheme,
-      tokens: { ...activeTheme.tokens },
-      css: activeTheme.css,
-    })
+    // `accent-ink` is derived from the accent unless a theme pins it, and the built-ins pin it
+    // for the specific accent they ship with. Carrying that pin into a copy would silently
+    // disable the automatic choice for a theme whose accent is about to become something else -
+    // and leave unreadable text with nothing on screen explaining it.
+    const { 'accent-ink': _pinnedInk, ...tokens } = activeTheme.tokens
+    setEditing({ id, name: t('My theme'), scheme: activeTheme.scheme, tokens })
   }
 
   return (
@@ -106,7 +105,7 @@ export function SettingsView() {
         <section>
           <h2 className="nh-settings__h">{t('Appearance')}</h2>
           <div className="nh-themes">
-            {[...BUILTIN_THEMES, ...customThemes].map((theme) => (
+            {listThemes(customThemes).map((theme) => (
               <div
                 key={theme.id}
                 className={'nh-theme' + (settings.theme === theme.id ? ' nh-theme--active' : '')}
@@ -214,12 +213,7 @@ export function SettingsView() {
         </section>
 
         {editing ? (
-          <ThemeEditor
-            theme={editing}
-            onChange={setEditing}
-            onClose={() => setEditing(null)}
-            onNotice={setNotice}
-          />
+          <ThemeEditor theme={editing} onChange={setEditing} onClose={() => setEditing(null)} onNotice={setNotice} />
         ) : null}
 
         <KioskSection onNotice={setNotice} />
@@ -291,7 +285,7 @@ function DeviceThemeField() {
   const { t } = useTranslation()
   const customThemes = useConfigStore((s) => s.customThemes)
   const override = useDeviceThemeStore((s) => s.themeId)
-  const all = [...BUILTIN_THEMES, ...customThemes]
+  const all = listThemes(customThemes)
   const unknown = override !== null && !all.some((th) => th.id === override)
   return (
     <label className="nh-field" htmlFor="nh-set-devicetheme">
@@ -887,115 +881,6 @@ function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) 
   )
 }
 
-function ThemeEditor({
-  theme,
-  onChange,
-  onClose,
-  onNotice,
-}: {
-  theme: Theme
-  onChange: (t: Theme) => void
-  onClose: () => void
-  onNotice: (msg: string | null) => void
-}) {
-  const { t } = useTranslation()
-  const setToken = (key: keyof ThemeTokens, value: string) =>
-    onChange({ ...theme, tokens: { ...theme.tokens, [key]: value } })
-
-  const save = async () => {
-    onNotice(null)
-    try {
-      await saveTheme(theme)
-      await saveSettings({ theme: theme.id })
-      onClose()
-    } catch (err) {
-      onNotice(t('Saving the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
-    }
-  }
-
-  const remove = async () => {
-    if (!window.confirm(t('Delete theme “{{name}}”?', { name: theme.name }))) return
-    onNotice(null)
-    try {
-      await deleteTheme(theme.id)
-      onClose()
-    } catch (err) {
-      onNotice(t('Deleting the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
-    }
-  }
-
-  return (
-    <section className="nh-themeeditor">
-      <h2 className="nh-settings__h">{t('Theme editor')}</h2>
-      <div className="nh-form">
-        <label className="nh-field" htmlFor="theme-name">
-          <span className="nh-field__label">{t('Name')}</span>
-          <input id="theme-name" type="text" value={theme.name} onChange={(e) => onChange({ ...theme, name: e.target.value })} />
-        </label>
-        <label className="nh-field nh-field--row" htmlFor="theme-scheme">
-          <span className="nh-field__label">{t('Dark scheme')}</span>
-          <input
-            id="theme-scheme"
-            type="checkbox"
-            checked={theme.scheme === 'dark'}
-            onChange={(e) => onChange({ ...theme, scheme: e.target.checked ? 'dark' : 'light' })}
-          />
-        </label>
-        {COLOR_TOKENS.map((key) => (
-          <label key={key} className="nh-field nh-field--row" htmlFor={'tok-' + key}>
-            <span className="nh-field__label">{key}</span>
-            <input
-              id={'tok-' + key}
-              type="color"
-              value={theme.tokens[key] ?? '#888888'}
-              onChange={(e) => setToken(key, e.target.value)}
-            />
-          </label>
-        ))}
-        <label className="nh-field nh-field--row" htmlFor="tok-radius">
-          <span className="nh-field__label">{t('Corner radius (px)')}</span>
-          <input
-            id="tok-radius"
-            type="number"
-            min={0}
-            max={32}
-            value={parseInt(theme.tokens.radius ?? '12', 10)}
-            onChange={(e) => setToken('radius', e.target.value + 'px')}
-          />
-        </label>
-        <label className="nh-field" htmlFor="theme-css">
-          <span className="nh-field__label">{t('Custom CSS')}</span>
-          <textarea
-            id="theme-css"
-            className="nh-defeditor__code"
-            rows={10}
-            spellCheck={false}
-            value={theme.css ?? ''}
-            onChange={(e) => onChange({ ...theme, css: e.target.value || undefined })}
-          />
-          <span className="nh-field__hint">
-            {t(
-              'Advanced: a stylesheet applied together with this theme, for looks the colors above cannot express (fonts, widget-frame styling). Applied when the theme is saved.'
-            )}
-          </span>
-        </label>
-      </div>
-      <div className="nh-settings__row">
-        <button type="button" className="nh-btn nh-btn--danger" onClick={() => void remove()}>
-          {t('Delete')}
-        </button>
-        <span className="nh-dash__spacer" />
-        <button type="button" className="nh-btn nh-btn--ghost" onClick={onClose}>
-          {t('Close')}
-        </button>
-        <button type="button" className="nh-btn nh-btn--primary" onClick={() => void save()}>
-          {t('Save theme')}
-        </button>
-      </div>
-    </section>
-  )
-}
-
 /**
  * Confirmation card for a single-dashboard / widget / theme file. A copy never touches anything
  * that is already here; overwrite is only offered when something would actually be replaced, and
@@ -1073,13 +958,7 @@ function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const exportConfig = async () => {
     onNotice(null)
     try {
-      const bundle = await buildExportBundle(withBackgrounds)
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = 'neohab-config.json'
-      a.click()
-      URL.revokeObjectURL(a.href)
+      downloadJson('neohab-config.json', await buildExportBundle(withBackgrounds))
     } catch (err) {
       onNotice(t('Export failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
     }

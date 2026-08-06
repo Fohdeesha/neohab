@@ -372,6 +372,11 @@ try {
     `${stat.centered} vs ${stat.leftAligned}`)
 
   // ---------- the tick-ring gauge ----------
+  // The sparkline is drawn from persistence, which is fetched asynchronously after the gauge
+  // first paints. Sampling once raced that fetch and failed at random inside a full battery
+  // (where the server is busiest); wait for the trace, and let the assertion below be what
+  // fails if it never arrives.
+  await page.waitForSelector('.nh-dial--ticks .nh-gauge__spark', { timeout: 15000 }).catch(() => {})
   const ring = await probe(page, () => {
     const cell = (t) => [...document.querySelectorAll('.nh-gcell')].find((c) => c.textContent.includes(t))
     const svg = document.querySelector('.nh-dial--ticks')

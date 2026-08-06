@@ -33,6 +33,7 @@ import {
   textScale,
   widgetAccent,
   widgetAccentColor,
+  widgetAccentInk,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -589,6 +590,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
                 '--nh-widgetscale': widgetTextScale(widget),
                 '--nh-labelalign': widgetLabelAlign(widget),
                 '--nh-cellaccent': widgetAccentColor(widget),
+                '--nh-accent-ink': widgetAccentInk(widget),
                 // A move follows the pointer; a resize stretches the box in place (its top-left
                 // is anchored) while the placeholder shows the snapped result.
                 transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,

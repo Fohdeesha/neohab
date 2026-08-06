@@ -16,6 +16,7 @@ import {
   stackedTextScale,
   widgetAccent,
   widgetAccentColor,
+  widgetAccentInk,
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
@@ -190,6 +191,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                   '--nh-widgetscale': widgetTextScale(widget),
                   '--nh-labelalign': widgetLabelAlign(widget),
                   '--nh-cellaccent': widgetAccentColor(widget),
+                  '--nh-accent-ink': widgetAccentInk(widget),
                   transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
                 } as React.CSSProperties
               }

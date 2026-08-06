@@ -139,8 +139,10 @@ phones, tablets and desktops, configured entirely in the browser. No file editin
   an optional sandboxed JavaScript widget API for power users. A small gallery of ready-made
   widgets ships inside the add-on (so it works with no internet at all) and installs with one
   tap; installed widgets are then yours to edit like any other.
-- **First-class theming** — theme editor with live preview, light/dark themes, and custom
-  themes that travel with your backups. Any device can pin its own theme (a light desk browser
+- **First-class theming** — a theme editor that previews as you type, offers every design token
+  grouped and explained, and tells you whether the colours you picked can actually be read.
+  Light/dark themes, and custom themes that travel with your backups. Saving a theme does not
+  switch anyone else over unless you say so. Any device can pin its own theme (a light desk browser
   next to a dark wall panel) without changing what the others share. Every theme can carry its own CSS on top of the color
   tokens, so a theme can change fonts and widget styling too — the bundled Swiss Sheet themes
   (dark and light, in the International Typographic Style) are built that way, and ship with
@@ -195,9 +197,15 @@ community marketplace (planned) or manually via the addons folder.
 React + TypeScript + Vite frontend served by a thin OSGi add-on shell, talking to openHAB
 exclusively through its public REST and SSE APIs.
 
-The browser end-to-end suites live in [`e2e/`](e2e/) — they drive a real browser against a live
-openHAB server with the add-on deployed. See [`e2e/README.md`](e2e/README.md) before running
-them against a server you care about.
+- **[Making a theme](docs/theming.md)** — the design tokens, the class names, and the handful of
+  CSS rules that are not obvious.
+- **[CONTRIBUTING](CONTRIBUTING.md)** — running it locally against your own openHAB (no Java build
+  needed), the checks, and how to add a widget.
+
+`npm run check` in `web/` runs the typecheck, the linter and the unit suite — the same three
+things CI does. The browser end-to-end suites live in [`e2e/`](e2e/); they drive a real browser
+against a live openHAB with the add-on deployed, so read [`e2e/README.md`](e2e/README.md) before
+running them against a server you care about.
 
 ## Icons
 

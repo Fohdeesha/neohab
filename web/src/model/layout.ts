@@ -1,4 +1,5 @@
 /** Pure grid-layout math shared by the runtime grid and the editor. */
+import { readableInk } from '../themes/contrast'
 import type { Dashboard, Rect, WidgetInstance } from './dashboard'
 
 export function rectOf(widget: WidgetInstance): Rect {
@@ -320,6 +321,18 @@ export function widgetLabelBottom(widget: WidgetInstance): boolean {
 export function widgetAccentColor(widget: WidgetInstance): string | undefined {
   const v = (widget.config as Record<string, unknown>).accentColor
   return typeof v === 'string' && v.trim() !== '' && v.length <= 40 ? v.trim() : undefined
+}
+
+/**
+ * Ink for text drawn on this tile's own accent colour (`--nh-accent-ink` on the cell, shadowing
+ * the theme's). Without it a tile given a pale accent keeps the theme's ink and can end up with
+ * white text on yellow; with it, each tile's ink follows the colour it was actually given.
+ * Undefined when the tile has no accent of its own, or names a colour we cannot read — the
+ * theme's own ink then applies, exactly as before.
+ */
+export function widgetAccentInk(widget: WidgetInstance): string | undefined {
+  const color = widgetAccentColor(widget)
+  return color ? (readableInk(color) ?? undefined) : undefined
 }
 
 export function collides(a: Rect, b: Rect): boolean {

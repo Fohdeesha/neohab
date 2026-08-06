@@ -15,6 +15,14 @@
   --nh-radius: 12px;
   --nh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 
+  /* Semantic inks. `--nh-accent-ink` is what gets drawn ON the accent colour; the theme engine
+     sets it to white or near-black depending on which can actually be read on that accent, and
+     a tile with an accent colour of its own overrides it again on the cell. Declared here so the
+     whole token set is inspectable rather than existing only as fallbacks at the use sites. */
+  --nh-good: #3fb950;
+  --nh-bad: #e5484d;
+  --nh-accent-ink: #ffffff;
+  --nh-brand-ink: #ffffff;
 
   color-scheme: dark;
 }
@@ -979,7 +987,7 @@ button {
 .nh-btn--primary {
   background: var(--nh-brand);
   border-color: var(--nh-brand);
-  color: #fff;
+  color: var(--nh-brand-ink, #fff);
 }
 
 .nh-btn--ghost {
@@ -1264,7 +1272,7 @@ button {
 .nh-chip--on {
   background: var(--nh-primary);
   border-color: var(--nh-primary);
-  color: #fff;
+  color: var(--nh-accent-ink, #fff);
 }
 
 /* Which layout the editor is editing. The tablet state is marked, since it is the unusual one. */
@@ -1708,6 +1716,106 @@ button {
 
 .nh-themeeditor .nh-settings__row {
   margin-top: 14px;
+}
+
+.nh-themeeditor__share {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+/* Token groups: one collapsible section per group in the token contract, so the editor offers
+   every themable variable without unfolding twenty-six fields at once. */
+.nh-tokengroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--nh-border);
+}
+
+.nh-tokengroup__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--nh-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+
+.nh-tokengroup__name {
+  flex: 1;
+}
+
+.nh-tokengroup__count {
+  color: var(--nh-text-dim);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.nh-tokenfield__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-tokenfield__row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.nh-tokenfield__row input[type='color'] {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 6px;
+}
+
+/* Whether the colours can be read, while they are being chosen. */
+.nh-contrast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nh-contrast__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--nh-text-dim);
+}
+
+.nh-contrast__what {
+  flex: 1;
+  min-width: 0;
+}
+
+.nh-contrast__ratio {
+  font-variant-numeric: tabular-nums;
+  color: var(--nh-text);
+}
+
+.nh-contrast__level {
+  min-width: 8rem;
+  text-align: right;
+}
+
+.nh-contrast__row--warn .nh-contrast__ratio,
+.nh-contrast__row--warn .nh-contrast__level {
+  color: var(--nh-bad);
+}
+
+.nh-home__settings {
+  margin-top: 0.5rem;
 }
 
 /* ============================================================================
@@ -3500,16 +3608,18 @@ button {
 .nh-acc-filled .nh-widget {
   background: var(--nh-cellaccent, var(--nh-primary));
   border-color: transparent;
-  color: #fff;
+  color: var(--nh-accent-ink, #fff);
 }
 
+/* The name and the unit step back from the reading without changing hue: mixing the ink with
+   transparent works whichever way round the ink went, where a fixed rgba() only ever suited one. */
 .nh-acc-filled .nh-widget__label {
-  color: rgba(0, 0, 0, 0.55);
+  color: color-mix(in srgb, var(--nh-accent-ink, #fff) 62%, transparent);
 }
 
 .nh-acc-filled .nh-value__unit,
 .nh-acc-filled .nh-clock__date {
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--nh-accent-ink, #fff) 80%, transparent);
 }
 
 /* Outlined: the tile keeps its own surface and takes a rule in the accent color - the frame
@@ -3655,7 +3765,7 @@ button {
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--nh-cellaccent, var(--nh-primary));
-  color: #fff;
+  color: var(--nh-accent-ink, #fff);
   font-size: 0.62em;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -3776,7 +3886,7 @@ button {
 .nh-label--chip {
   padding: 0.28em 0.85em;
   background: var(--nh-cellaccent, var(--nh-primary));
-  color: #fff;
+  color: var(--nh-accent-ink, #fff);
   font-weight: 600;
 }
 

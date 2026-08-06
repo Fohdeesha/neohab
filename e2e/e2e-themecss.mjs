@@ -5,8 +5,14 @@
  * widget frames become flat top-ruled sheets (transparent bg, 2px top rule, no radius/shadow,
  * lowercase labels); Home tiles ruled, "+" tile keeps its dashed box; the injected stylesheet
  * survives reload via the pre-paint theme cache; light variant; theme editor gains a Custom CSS
- * textarea (prefilled by "New theme from current", round-trips to the server, applies on save);
+ * textarea (copied on request, round-trips to the server, applies once the theme is adopted);
  * switching to a css-less theme removes the style element; console clean.
+ *
+ * The editor section covers what the theme editor is FOR: a token change previews on the page
+ * before anything is stored, every group of the token contract is offered (not just the original
+ * colours), contrast is reported while the colours are chosen, a new theme does not silently
+ * inherit a structural theme's stylesheet, and saving a theme does not re-point every device at
+ * it - adopting one does that, deliberately.
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-swiss and one theme:custom-* (found by
  * uid diff, deleted in cleanup). The `settings` component is snapshotted first and restored
@@ -24,6 +30,7 @@ const ok = (name, cond, detail = '') => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+const getSettings = async () => (await (await fetch(NS + '/settings', { headers: AUTH })).json())?.config ?? null
 const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
 
 function launch() {
@@ -209,25 +216,98 @@ try {
   const lightRule = await page.$eval('.nh-gcell .nh-widget', (el) => getComputedStyle(el).backgroundImage)
   ok('light variant rules in near-black ink', lightRule.includes('rgb(17, 17, 17)'), lightRule.slice(0, 60))
 
-  // ---------- editor: Custom CSS textarea, prefill, round-trip ----------
+  // ---------- editor: live preview, token groups, contrast, explicit stylesheet copy ----------
   await page.goto(APP + '#/settings')
   await page.waitForSelector('.nh-theme__pick')
-  await page.click('button:has-text("New theme from current")')
+  const sharedBefore = (await getSettings())?.theme
+  await page.click('button:has-text("New theme")')
   await page.waitForSelector('#theme-css', { timeout: 10000 })
-  const prefill = await page.inputValue('#theme-css')
-  ok('CSS prefilled from current theme', prefill.includes("'Instrument Sans'") && prefill.includes('radial-gradient'), prefill.slice(0, 40) + '…')
+
+  // A new theme starts from the active theme's COLOURS, not its stylesheet. Copying the
+  // stylesheet handed anyone starting from a structural theme hundreds of lines referencing
+  // bundled fonts and images, full of colours that would not follow the tokens they were about
+  // to change - so the new theme looked broken and nothing on screen said why.
+  ok('a new theme does not inherit the active theme stylesheet', (await page.inputValue('#theme-css')) === '')
+  await page.click('.nh-tokengroup__head:has-text("Semantic")')
+  await sleep(200)
+  // whichever Swiss variant is active at this point in the suite
+  const activePrimary = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--nh-primary').trim().toLowerCase())
+  ok('a new theme does inherit its colours',
+    (await page.inputValue('#tok-primary')).toLowerCase() === activePrimary,
+    `${await page.inputValue('#tok-primary')} vs ${activePrimary}`)
+  // ...but NOT a pinned accent ink. The built-ins pin it for the accent they ship with; carrying
+  // that into a copy would disable the automatic choice for an accent about to be changed.
+  ok('a new theme does not inherit a pinned accent ink', (await page.inputValue('#tok-accent-ink')) === '',
+    JSON.stringify(await page.inputValue('#tok-accent-ink')))
+
+  // Live preview: the whole point. Editing a token has to show on the page before any save.
+  await page.fill('#tok-primary', '#00ff00')
+  await sleep(350)
+  const previewed = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--nh-primary').trim())
+  ok('live preview: a token change applies before saving', previewed.toLowerCase() === '#00ff00', previewed)
+  const previewUnsaved = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
+  ok('live preview stores nothing on the server', previewUnsaved.length === 0, previewUnsaved.join())
+
+  // Ink on the accent is derived, so text on a filled tile stays readable whatever the accent is.
+  const inkLight = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--nh-accent-ink').trim())
+  await page.fill('#tok-primary', '#101010')
+  await sleep(300)
+  const inkDark = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--nh-accent-ink').trim())
+  ok('accent ink flips with the accent it sits on',
+    inkLight.toLowerCase() !== '#ffffff' && inkDark.toLowerCase() === '#ffffff',
+    JSON.stringify({ onGreen: inkLight, onNearBlack: inkDark }))
+
+  // Every token in the contract is offered, grouped - not just the original nine.
+  await page.click('.nh-tokengroup__head:has-text("Chart palette")')
+  await sleep(200)
+  ok('the chart palette is editable in the UI', (await page.locator('#tok-chart-1').count()) === 1)
+  await page.click('.nh-tokengroup__head:has-text("Instruments")')
+  await sleep(200)
+  ok('the instrument tokens are editable in the UI', (await page.locator('#tok-band-light').count()) === 1)
+
+  // Readability feedback, while the colours are being chosen.
+  ok('contrast is reported for the pairs that meet on screen',
+    (await page.locator('.nh-contrast__row').count()) >= 4,
+    String(await page.locator('.nh-contrast__row').count()))
+
+  // The stylesheet copy is offered explicitly, and says what it is.
+  await page.fill('#tok-primary', activePrimary)
+  await page.click('button:has-text("Start from")')
+  await page.waitForFunction(() => document.querySelector('#theme-css')?.value?.includes('Instrument Sans'), null, { timeout: 10000 })
+  const copied = await page.inputValue('#theme-css')
+  ok('the stylesheet can be copied on request', copied.includes("'Instrument Sans'") && copied.includes('radial-gradient'),
+    copied.slice(0, 40) + '…')
+
   const MARKER = 'body { letter-spacing: 0.31px; }'
   await page.fill('#theme-css', MARKER)
   await page.fill('#theme-name', 'E2E CSS Theme')
+
+  // Saving does NOT switch every device over. Tweaking a theme you are not using used to
+  // re-point the whole installation at it.
   await page.click('button:has-text("Save theme")')
-  await sleep(800)
-  const spacing = await page.evaluate(() => getComputedStyle(document.body).letterSpacing)
-  ok('saved custom CSS applies', spacing === '0.31px', spacing)
+  await sleep(900)
+  ok('saving a theme leaves the shared theme alone', (await getSettings())?.theme === sharedBefore,
+    JSON.stringify({ before: sharedBefore, after: (await getSettings())?.theme }))
+
   const newThemeUids = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
   ok('one custom theme on server', newThemeUids.length === 1, newThemeUids.join())
   if (newThemeUids.length === 1) {
     const comp = await (await fetch(NS + '/' + encodeURIComponent(newThemeUids[0]), { headers: AUTH })).json()
     ok('server component carries css', comp?.config?.css === MARKER, String(comp?.config?.css).slice(0, 40))
+    ok('server component carries the edited tokens', comp?.config?.tokens?.primary?.toLowerCase() === activePrimary,
+      String(comp?.config?.tokens?.primary))
+
+    // ...and adopting it explicitly does apply it everywhere.
+    await page.click(`.nh-theme__pick:has(.nh-theme__name:text-is("E2E CSS Theme"))`)
+    await sleep(900)
+    const spacing = await page.evaluate(() => getComputedStyle(document.body).letterSpacing)
+    ok('picking the saved theme applies its CSS', spacing === '0.31px', spacing)
+    ok('picking it does set the shared theme', (await getSettings())?.theme === newThemeUids[0].slice('theme:'.length),
+      String((await getSettings())?.theme))
   }
 
   // ---------- css-less theme removes the stylesheet ----------
