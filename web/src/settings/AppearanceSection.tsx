@@ -15,6 +15,7 @@ import { listThemes, type Theme } from '../themes/themes'
 import { useActiveTheme } from '../themes/active'
 import { urlThemeForced } from '../themes/urlTheme'
 import { BackgroundField } from '../components/BackgroundField'
+import { NumberSetting } from '../components/NumberSetting'
 import { exportComponent } from '../editor/exportComponent'
 import { ThemeEditor } from './ThemeEditor'
 import { DeviceThemeField } from './DeviceThemeField'
@@ -169,26 +170,26 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
 
         <LanguageField />
 
-        <label className="nh-field" htmlFor="nh-set-textsize">
-          <span className="nh-field__label">{t('Text size on this device (%)')}</span>
-          <input
-            id="nh-set-textsize"
-            type="number"
-            min={50}
-            max={300}
-            step={5}
-            value={textPct}
-            onChange={(e) => {
-              const n = Math.round(Number(e.target.value))
-              if (Number.isFinite(n) && n >= 50 && n <= 300) setDeviceTextSize(n)
-            }}
-          />
-          <span className="nh-field__hint">
-            {t(
-              'Scales dashboard text on this device only — other devices and the dashboards themselves are unchanged. 100 = normal.'
-            )}
-          </span>
-        </label>
+        {/* Live: this one only writes localStorage and a root CSS variable, so previewing as it
+            is typed costs nothing. */}
+        <NumberSetting
+          id="nh-set-textsize"
+          className="nh-field"
+          label={<span className="nh-field__label">{t('Text size on this device (%)')}</span>}
+          mode="live"
+          value={textPct}
+          min={50}
+          max={300}
+          step={5}
+          hint={
+            <span className="nh-field__hint">
+              {t(
+                'Scales dashboard text on this device only — other devices and the dashboards themselves are unchanged. 100 = normal.'
+              )}
+            </span>
+          }
+          onCommit={setDeviceTextSize}
+        />
       </section>
 
       {editing ? (

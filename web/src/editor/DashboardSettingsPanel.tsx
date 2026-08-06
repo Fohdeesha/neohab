@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { IconPicker } from '../components/IconPicker'
 import { BackgroundField } from '../components/BackgroundField'
+import { NumberSetting } from '../components/NumberSetting'
 import { downloadJson } from '../components/download'
 import type { Dashboard } from '../model/dashboard'
 import { partialFileName } from '../model/partial'
@@ -61,10 +62,9 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
     }
   }
 
-  const num = (raw: string, min: number, max: number): number | null => {
-    const n = Math.round(Number(raw))
-    return Number.isFinite(n) && n >= min && n <= max ? n : null
-  }
+  /** The label markup this panel's fields use, so NumberSetting sits in the form like the rest. */
+  const fieldLabel = (text: string) => <span className="nh-field__label">{text}</span>
+  const fieldHint = (text: string) => <span className="nh-field__hint">{text}</span>
 
   return (
     <Sheet side title={t('Dashboard settings')} onClose={() => setDashSettingsOpen(false)}>
@@ -110,20 +110,16 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           </label>
         ) : null}
 
-        <label className="nh-field" htmlFor="nh-dash-columns">
-          <span className="nh-field__label">{t('Grid columns')}</span>
-          <input
-            id="nh-dash-columns"
-            type="number"
-            min={1}
-            max={60}
-            value={dashboard.columns}
-            onChange={(e) => {
-              const n = num(e.target.value, 1, 60)
-              if (n !== null) updateDashboardMeta({ columns: n }, 'dash:columns')
-            }}
-          />
-        </label>
+        <NumberSetting
+          id="nh-dash-columns"
+          className="nh-field"
+          label={fieldLabel(t('Grid columns'))}
+          mode="live"
+          value={dashboard.columns}
+          min={1}
+          max={60}
+          onCommit={(n) => updateDashboardMeta({ columns: n }, 'dash:columns')}
+        />
 
         <label className="nh-field" htmlFor="nh-dash-rowmode">
           <span className="nh-field__label">{t('Row height')}</span>
@@ -140,75 +136,58 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         </label>
 
         {fixed ? (
-          <label className="nh-field" htmlFor="nh-dash-rowpx">
-            <span className="nh-field__label">{t('Row height (px)')}</span>
-            <input
-              id="nh-dash-rowpx"
-              type="number"
-              min={8}
-              max={400}
-              value={dashboard.rowHeight as number}
-              onChange={(e) => {
-                const n = num(e.target.value, 8, 400)
-                if (n !== null) updateDashboardMeta({ rowHeight: n }, 'dash:rowheight')
-              }}
-            />
-          </label>
+          <NumberSetting
+            id="nh-dash-rowpx"
+            className="nh-field"
+            label={fieldLabel(t('Row height (px)'))}
+            mode="live"
+            value={dashboard.rowHeight as number}
+            min={8}
+            max={400}
+            onCommit={(n) => updateDashboardMeta({ rowHeight: n }, 'dash:rowheight')}
+          />
         ) : null}
 
-        <label className="nh-field" htmlFor="nh-dash-gap">
-          <span className="nh-field__label">{t('Grid gap (px)')}</span>
-          <input
-            id="nh-dash-gap"
-            type="number"
-            min={0}
-            max={64}
-            value={dashboard.gap ?? 8}
-            onChange={(e) => {
-              const n = num(e.target.value, 0, 64)
-              if (n !== null) updateDashboardMeta({ gap: n }, 'dash:gap')
-            }}
-          />
-        </label>
+        <NumberSetting
+          id="nh-dash-gap"
+          className="nh-field"
+          label={fieldLabel(t('Grid gap (px)'))}
+          mode="live"
+          value={dashboard.gap ?? 8}
+          min={0}
+          max={64}
+          onCommit={(n) => updateDashboardMeta({ gap: n }, 'dash:gap')}
+        />
 
-        <label className="nh-field" htmlFor="nh-dash-textsize">
-          <span className="nh-field__label">{t('Text size (%)')}</span>
-          <input
-            id="nh-dash-textsize"
-            type="number"
-            min={50}
-            max={300}
-            step={5}
-            value={dashboard.textSize ?? 100}
-            onChange={(e) => {
-              const n = num(e.target.value, 50, 300)
-              if (n !== null) updateDashboardMeta({ textSize: n === 100 ? undefined : n }, 'dash:textsize')
-            }}
-          />
-          <span className="nh-field__hint">
-            {t('Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.')}
-          </span>
-        </label>
+        <NumberSetting
+          id="nh-dash-textsize"
+          className="nh-field"
+          label={fieldLabel(t('Text size (%)'))}
+          mode="live"
+          value={dashboard.textSize ?? 100}
+          min={50}
+          max={300}
+          step={5}
+          hint={fieldHint(t('Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.'))}
+          // 100 is the default, so it is stored as "unset" rather than as a value to carry around.
+          onCommit={(n) => updateDashboardMeta({ textSize: n === 100 ? undefined : n }, 'dash:textsize')}
+        />
 
         {tablet ? (
           <>
-            <label className="nh-field" htmlFor="nh-dash-mdcolumns">
-              <span className="nh-field__label">{t('Columns on tablets')}</span>
-              <input
-                id="nh-dash-mdcolumns"
-                type="number"
-                min={1}
-                max={60}
-                value={mdColumnsOf(dashboard)}
-                onChange={(e) => {
-                  const n = num(e.target.value, 1, 60)
-                  if (n !== null) updateDashboardMeta({ mdColumns: n }, 'dash:mdcolumns')
-                }}
-              />
-              <span className="nh-field__hint">
-                {t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.')}
-              </span>
-            </label>
+            <NumberSetting
+              id="nh-dash-mdcolumns"
+              className="nh-field"
+              label={fieldLabel(t('Columns on tablets'))}
+              mode="live"
+              value={mdColumnsOf(dashboard)}
+              min={1}
+              max={60}
+              hint={fieldHint(
+                t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.')
+              )}
+              onCommit={(n) => updateDashboardMeta({ mdColumns: n }, 'dash:mdcolumns')}
+            />
             <div className="nh-field">
               <span className="nh-field__label">{t('Tablet layout')}</span>
               <button type="button" className="nh-btn nh-btn--ghost" onClick={() => clearTabletLayout()}>

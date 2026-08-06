@@ -8,6 +8,7 @@ import { navigate } from '../app/router'
 import { setKioskSettings, useKioskStore, type ScreensaverMode } from '../store/kiosk'
 import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
 import { ItemPicker } from '../components/ItemPicker'
+import { NumberSetting } from '../components/NumberSetting'
 import { useEditingAllowed } from '../store/auth'
 import { appGoFullscreen } from '../app/ohapp'
 
@@ -121,20 +122,16 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
         </select>
       </label>
       {kioskSettings.screensaver !== 'off' ? (
-        <label className="nh-field nh-field--row" htmlFor="kiosk-saver-min">
-          <span className="nh-field__label">{t('Start after (minutes)')}</span>
-          <input
-            id="kiosk-saver-min"
-            type="number"
-            min={1}
-            max={720}
-            value={kioskSettings.screensaverMinutes}
-            onChange={(e) => {
-              const v = Number(e.target.value)
-              if (Number.isFinite(v) && v >= 1) setKioskSettings({ screensaverMinutes: v })
-            }}
-          />
-        </label>
+        <NumberSetting
+          id="kiosk-saver-min"
+          className="nh-field nh-field--row"
+          label={<span className="nh-field__label">{t('Start after (minutes)')}</span>}
+          mode="live"
+          value={kioskSettings.screensaverMinutes}
+          min={1}
+          max={720}
+          onCommit={(v) => setKioskSettings({ screensaverMinutes: v })}
+        />
       ) : null}
 
       <div className="nh-settings__row">
