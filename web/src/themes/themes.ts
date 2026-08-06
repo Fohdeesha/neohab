@@ -15,6 +15,7 @@
  */
 import { readableInk } from './contrast'
 import { isUsableTokenValue, THEME_TOKENS, type ThemeTokens } from './tokens'
+import { urlThemeId } from './urlTheme'
 
 export { COLOR_TOKENS, THEME_TOKENS, TOKEN_GROUPS, TOKEN_SPECS, tokensInGroup, type ThemeTokens, type TokenSpec } from './tokens'
 
@@ -275,6 +276,7 @@ export const BUILTIN_THEMES: Theme[] = [
     },
     cssModule: undefined,
   },
+
 ]
 
 /** Ids that belong to a built-in and may not be taken by a custom theme. */
@@ -362,14 +364,38 @@ export async function cacheTheme(theme: Theme): Promise<void> {
   }
 }
 
-/** Apply the last-used theme before first paint (called from main.tsx). */
+/**
+ * Apply the last-used theme before first paint (called from main.tsx).
+ *
+ * `?theme=` wins here, and it has to: the cached theme is exactly what a broken one would be
+ * reapplied from, so an escape hatch that only took effect after the app had booted would be
+ * painting over the problem rather than avoiding it.
+ */
 export function applyCachedTheme(): void {
+  const forced = urlThemeOverride()
+  if (forced) {
+    applyTheme(forced)
+    return
+  }
   try {
     const raw = localStorage.getItem(CACHE_KEY)
     if (raw) applyTheme(JSON.parse(raw) as Theme)
   } catch {
     /* fall back to stylesheet defaults */
   }
+}
+
+/**
+ * The theme a `?theme=` parameter forces for this page load, if any.
+ *
+ * An id that is not a built-in — `none`, or a typo — resolves to the default, which is exactly
+ * what someone typing "none" into the address bar wants. Custom themes are deliberately not
+ * honoured: they live in the server configuration, which has not loaded when the pre-paint path
+ * asks, and a hatch that depends on the configuration is no hatch at all.
+ */
+export function urlThemeOverride(): Theme | null {
+  if (urlThemeId === null) return null
+  return BUILTIN_THEMES.find((t) => t.id === urlThemeId) ?? BUILTIN_THEMES[0]
 }
 
 /**

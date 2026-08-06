@@ -183,6 +183,40 @@ describe('the stylesheet checker', () => {
   })
 })
 
+/**
+ * The escape hatch resolves against the built-ins only. The parsing itself is covered in
+ * `urlTheme.test.ts`; this is the half that decides which theme you actually land on.
+ */
+describe('the ?theme= escape hatch', () => {
+  const resolveParam = (id: string | null): Theme | null =>
+    id === null ? null : (BUILTIN_THEMES.find((t) => t.id === id) ?? BUILTIN_THEMES[0])
+
+  it('lands on the default for “none”, which is what someone typing it wants', () => {
+    expect(resolveParam('none')?.id).toBe('dark')
+  })
+
+  it('lands on the default for a typo rather than leaving the broken theme in place', () => {
+    expect(resolveParam('drak')?.id).toBe('dark')
+    expect(resolveParam('')?.id).toBe('dark')
+  })
+
+  it('honours a named built-in', () => {
+    expect(resolveParam('light')?.id).toBe('light')
+    expect(resolveParam('oled')?.id).toBe('oled')
+  })
+
+  it('never resolves to a custom theme, which is the whole point', () => {
+    // A custom theme lives in the server configuration, which has not loaded when the pre-paint
+    // path asks - and if a custom theme is what broke the app, honouring one here would hand the
+    // person straight back to it.
+    expect(resolveParam('custom-abc123')?.id).toBe('dark')
+  })
+
+  it('changes nothing when the parameter is absent', () => {
+    expect(resolveParam(null)).toBe(null)
+  })
+})
+
 describe('theme resolution', () => {
   const custom = (id: string): Theme => ({ id, name: 'Mine', scheme: 'dark', tokens: {} })
 

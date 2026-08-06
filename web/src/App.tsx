@@ -6,7 +6,7 @@ import { loadConfig, useConfigStore } from './store/config'
 import { getRootInfo } from './api/items'
 import { completeLogin } from './api/auth'
 import { refreshAuthStatus } from './store/auth'
-import { applyTheme, cacheTheme, resolveTheme } from './themes/themes'
+import { applyTheme, cacheTheme, resolveTheme, urlThemeOverride } from './themes/themes'
 import { useRoute } from './app/router'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
@@ -33,14 +33,17 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
   const customThemes = useConfigStore((s) => s.customThemes)
   const [ohVersion, setOhVersion] = useState<string>()
 
-  // Apply (and cache) the active theme whenever the choice or a custom theme changes.
-  // A per-device override beats the shared setting; the cache stores whatever was applied,
-  // so the pre-paint path is correct either way.
+  // Apply (and cache) the active theme whenever the choice or a custom theme changes. The cache
+  // stores whatever was applied, so the pre-paint path is correct either way.
+  //
+  // A theme forced by `?theme=` is applied but deliberately NOT cached: it is meant to last for
+  // this page load only, and caching it would make the escape hatch stick to the device.
   useEffect(() => {
     if (!loaded) return
-    const theme = resolveTheme(deviceThemeId ?? themeId, customThemes)
+    const forced = urlThemeOverride()
+    const theme = forced ?? resolveTheme(deviceThemeId ?? themeId, customThemes)
     applyTheme(theme)
-    cacheTheme(theme)
+    if (!forced) cacheTheme(theme)
   }, [loaded, themeId, deviceThemeId, customThemes])
 
   useEffect(() => {

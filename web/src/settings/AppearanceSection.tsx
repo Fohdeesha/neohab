@@ -13,6 +13,7 @@ import { setDeviceTextSize, useTextSizeStore } from '../store/textsize'
 import { useEditingAllowed } from '../store/auth'
 import { listThemes, type Theme } from '../themes/themes'
 import { useActiveTheme } from '../themes/active'
+import { urlThemeForced } from '../themes/urlTheme'
 import { BackgroundField } from '../components/BackgroundField'
 import { exportComponent } from '../editor/exportComponent'
 import { ThemeEditor } from './ThemeEditor'
@@ -62,6 +63,17 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
     <>
       <section>
         <h2 className="nh-settings__h">{t('Appearance')}</h2>
+
+        {/* Someone here via ?theme= is most likely here because a theme broke something. Say what
+            is going on, or the screen looks like it is ignoring the theme they picked. */}
+        {urlThemeForced ? (
+          <p className="nh-settings__notice">
+            {t(
+              'Loaded with “{{name}}” because the address contains ?theme=. Nothing has been changed — reload without it to go back to your own theme, or edit or delete the one causing trouble below.',
+              { name: activeTheme.name }
+            )}
+          </p>
+        ) : null}
 
         <div className="nh-themes">
           {listThemes(customThemes).map((theme) => (
