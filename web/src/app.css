@@ -4004,6 +4004,221 @@ button {
 }
 
 /* ---------------------------------------------------------------------------
+   Floor plan: the plan image styled into the theme, glows blending additively
+   over it, markers as tap targets, preset chips, and the light popup.
+   --------------------------------------------------------------------------- */
+.nh-fplan {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nh-fplan__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The styling pipeline: the upload supplies geometry, these make it sit in the theme.
+   Blueprint expects the usual dark-lines-on-light plan and re-inks it as light linework
+   for dark themes; ink keeps dark linework for light themes; plain shows it untouched. */
+.nh-fplan__img--blueprint {
+  filter: grayscale(1) invert(1) contrast(1.06) brightness(1.02);
+  opacity: 0.52;
+}
+
+.nh-fplan__img--ink {
+  filter: grayscale(1) contrast(1.05);
+  opacity: 0.85;
+}
+
+/* The glow/marker layer covers exactly where the image paints (object-fit math),
+   so percent positions refer to the plan, never the letterboxing. */
+.nh-fplan__layer {
+  position: absolute;
+}
+
+.nh-fplan__glow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  /* Additive, the way overlapping real light behaves; on light themes screen has nothing
+     to brighten, so the glow reads softer - fine, lamps do too in daylight. */
+  mix-blend-mode: screen;
+}
+
+.nh-fplan__marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--nh-text) 65%, transparent);
+  background: color-mix(in srgb, var(--nh-surface) 60%, transparent);
+  cursor: pointer;
+}
+
+.nh-fplan__marker::after {
+  /* the touch target, without growing the visible dot */
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
+.nh-fplan__marker:disabled {
+  cursor: default;
+}
+
+.nh-fplan__marker--edit {
+  width: 20px;
+  height: 20px;
+  border-color: var(--nh-primary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.nh-fplan__marker--sel {
+  background: var(--nh-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--nh-primary) 35%, transparent);
+}
+
+.nh-fplan__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  color: var(--nh-text-dim);
+}
+
+.nh-fplan__bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.nh-chip--action {
+  border-style: dashed;
+}
+
+/* the tap popup and the save dialog */
+.nh-fplan__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.nh-fplan__popup {
+  width: min(320px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  box-shadow: var(--nh-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nh-fplan__popup .nh-color {
+  min-height: 150px;
+}
+
+.nh-fplan__popup--save {
+  width: min(400px, 100%);
+}
+
+.nh-fplan__popuphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-fplan__popupname {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-fplan__popupstate {
+  margin: 0;
+  color: var(--nh-text-dim);
+}
+
+.nh-fplan__onoff {
+  display: flex;
+  gap: 8px;
+}
+
+.nh-fplan__onoff .nh-btn {
+  flex: 1;
+}
+
+.nh-fplan__savelights {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.nh-fplan__savelight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: var(--nh-radius);
+}
+
+.nh-fplan__savelight:hover {
+  background: var(--nh-surface-2);
+}
+
+.nh-fplan__savedot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--nh-border);
+  flex-shrink: 0;
+}
+
+.nh-fplan__savename {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-fplan__saveval {
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
    Lighting presets manager (Settings): one card per scene, the wall-switch
    link editor unfolding inside it.
    --------------------------------------------------------------------------- */
@@ -4052,6 +4267,132 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* ---------------------------------------------------------------------------
+   Floor plan light-placement sheet (edit mode): full-screen surface, the plan
+   at real size beside the light list.
+   --------------------------------------------------------------------------- */
+.nh-planedit {
+  position: fixed;
+  inset: 0;
+  z-index: 55; /* above the settings side panel (50), below the pickers' lists (60) */
+  display: flex;
+  flex-direction: column;
+  background: var(--nh-bg);
+}
+
+.nh-planedit__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-planedit__bar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.nh-planedit__hint {
+  flex: 1;
+  margin: 0;
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-planedit__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.nh-planedit__plan {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.nh-planedit__plan .nh-fplan {
+  flex: 1;
+}
+
+.nh-planedit__side {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-left: 1px solid var(--nh-border);
+  overflow: auto;
+}
+
+.nh-planedit__add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nh-planedit__add .nh-picker {
+  flex: 1;
+}
+
+.nh-planedit__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nh-planedit__none {
+  margin: 0;
+  color: var(--nh-text-dim);
+}
+
+.nh-planedit__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--nh-radius);
+  cursor: pointer;
+}
+
+.nh-planedit__row--sel {
+  border-color: var(--nh-primary);
+  background: var(--nh-surface-2);
+}
+
+.nh-planedit__item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.nh-planedit__label {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .nh-planedit__body {
+    flex-direction: column;
+  }
+
+  .nh-planedit__side {
+    width: auto;
+    max-height: 45%;
+    border-left: none;
+    border-top: 1px solid var(--nh-border);
+  }
 }
 
 /* ============================================================================

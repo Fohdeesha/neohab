@@ -11,6 +11,7 @@ import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
 import { GaugeMarkersField, GaugeSeverityField, GaugeZonesField } from './GaugeFields'
 import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
 import { CameraStreamField } from './CameraStreamField'
+import { PlanImageField, PlanLightsField } from './FloorplanFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -427,6 +428,10 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <GaugeZonesField widget={widget} />
     case 'camerastream':
       return <CameraStreamField field={field} widget={widget} value={value} />
+    case 'planimage':
+      return <PlanImageField field={field} widget={widget} value={value} />
+    case 'planlights':
+      return <PlanLightsField field={field} widget={widget} />
     case 'dashboard':
       return <DashboardField field={field} widget={widget} value={value} />
     case 'hideon':

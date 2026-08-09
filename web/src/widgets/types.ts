@@ -63,6 +63,10 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'dashboard'; label: string }
     /** Which screen sizes this widget is hidden on (phone / tablet / desktop). */
     | { key: string; type: 'hideon'; label: string }
+    /** Background-image style value: a URL or an uploaded `bg:<id>` reference. */
+    | { key: string; type: 'planimage'; label: string }
+    /** The floor plan's lights - a button opening the place-on-the-plan editor sheet. */
+    | { key: string; type: 'planlights'; label: string }
     /* list editors rendered by dedicated components in editor/ */
     | { key: string; type: 'camerastream'; label: string }
     | { key: string; type: 'stateicons'; label: string }

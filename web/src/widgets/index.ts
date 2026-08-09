@@ -17,6 +17,7 @@ import { selectionWidget } from './selection'
 import { dialWidget } from './dial'
 import { chartWidget } from './chart'
 import { timelineWidget } from './timeline'
+import { floorplanWidget } from './floorplan'
 import { frameWidget } from './frame'
 import { cameraWidget } from './camera'
 import { rollershutterWidget } from './rollershutter'
@@ -44,6 +45,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(imageWidget)
   registerWidget(chartWidget)
   registerWidget(timelineWidget)
+  registerWidget(floorplanWidget)
   registerWidget(cameraWidget)
   registerWidget(frameWidget)
   registerWidget(templateWidget)

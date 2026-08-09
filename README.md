@@ -76,6 +76,13 @@ the one thing that cannot come across — its selectors are HABPanel's — so it
 - **Cameras** — live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood; neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.
+- **Floor plan** — upload a plan of your home (any image; a styling pipeline re-inks it to match
+  the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
+  brightness, overlapping lamps blend like real light, and tapping one opens its control. Set the
+  room the way you like it and save it as a **lighting preset** — stored as a real openHAB scene,
+  so your rules and Main UI see it too, and any panel (even signed-out ones) can recall it with a
+  tap. Link a preset to the Switch item your wall switches already use and neohab adds the rule
+  that runs it, with the active preset highlighted on every panel.
 - **Custom widgets** — build your own from HTML templates with live item bindings, plus an
   optional sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one
   tap.
@@ -119,8 +126,9 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 **Your configuration**
 
 - **Import / export** — back up, restore and share complete configurations as JSON, replacing or
-  merging. A single dashboard, widget or theme exports on its own and takes what it uses with it,
-  so it works on someone else's server.
+  merging; lighting presets ride along when the exporting device may read them. A single
+  dashboard, widget or theme exports on its own and takes what it uses with it, so it works on
+  someone else's server.
 - **Version history** — every change is preceded by a restore point. Look back through a dated
   list, see exactly what changed field by field, and roll the whole configuration back. Twenty-five
   are kept by default.
