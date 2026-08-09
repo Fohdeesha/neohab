@@ -4003,6 +4003,57 @@ button {
   line-height: 1.4;
 }
 
+/* ---------------------------------------------------------------------------
+   Lighting presets manager (Settings): one card per scene, the wall-switch
+   link editor unfolding inside it.
+   --------------------------------------------------------------------------- */
+.nh-presetlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nh-presetrow {
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  padding: 10px 12px;
+}
+
+.nh-presetrow__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nh-presetrow__name {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.nh-presetrow__name--ro {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-presetrow__meta {
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.nh-presetrow__bridge {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--nh-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ============================================================================
    Tight cells. Every grid cell is a size container; when the cell is short
    (many-column dashboards, small windows) shed chrome so content stays readable

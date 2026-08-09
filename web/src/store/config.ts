@@ -30,6 +30,8 @@ import {
   type PartialPlan,
 } from '../model/partial'
 import type { CustomWidgetDef } from '../model/widgetdef'
+import { exportableRule, isImportableSceneRule, NEOHAB_TAG, type SceneRule } from '../model/presets'
+import { createOrUpdateRule, deleteRule, listRuleSummaries, listRulesFull, upsertRule } from '../api/rules'
 import type { Theme } from '../themes/themes'
 
 import {
@@ -429,6 +431,13 @@ export interface ExportBundle {
     exportedAt: string
   }
   components: UIComponent[]
+  /**
+   * neohab's lighting presets (scenes and their bridge rules, `nh-scene-*` / `nh-bridge-*`).
+   * Present - possibly empty - when the exporting device could read them (administrator);
+   * absent when it could not. An import only manages the server's presets when the key is
+   * present, so a viewer-made backup never wipes them.
+   */
+  scenes?: SceneRule[]
 }
 
 /** Build a full-configuration backup. Uses live server components when they exist. */
@@ -469,10 +478,19 @@ export async function buildExportBundle(includeBackgrounds = true): Promise<Expo
     .map((c, i) => [c, i] as const)
     .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
     .map(([c]) => c)
-  return {
+  const bundle: ExportBundle = {
     manifest: { app: 'neohab', formatVersion: 1, exportedAt: new Date().toISOString() },
     components,
   }
+  try {
+    // Lighting presets live in the rule registry, not the component namespace. Reading them
+    // whole needs an administrator; a viewer's backup simply carries no `scenes` key.
+    const rules = await listRulesFull(NEOHAB_TAG)
+    bundle.scenes = rules.filter((r) => r.editable !== false && isImportableSceneRule(r)).map(exportableRule)
+  } catch {
+    /* not an administrator (or no rules API) - the backup speaks only for components */
+  }
+  return bundle
 }
 
 /** Validate a parsed backup; returns an error message or null. */
@@ -484,6 +502,13 @@ export function validateBundle(bundle: unknown): string | null {
   if (!Array.isArray(b.components)) return 'Backup contains no components'
   if (b.components.some((c) => typeof c?.uid !== 'string' || typeof c?.component !== 'string')) {
     return 'Backup contains invalid components'
+  }
+  if (b.scenes !== undefined) {
+    // Only neohab's own preset rules may ride in a backup - anything else here is a way to
+    // overwrite arbitrary rules on the server, and is refused rather than filtered.
+    if (!Array.isArray(b.scenes) || !b.scenes.every((r) => isImportableSceneRule(r))) {
+      return 'Backup contains invalid presets'
+    }
   }
   return null
 }
@@ -513,6 +538,25 @@ export async function importBundle(bundle: ExportBundle, mode: ImportMode): Prom
     const keep = new Set(bundle.components.map((c) => c.uid))
     for (const c of existing) {
       if (!keep.has(c.uid)) await deleteComponent(c.uid)
+    }
+  }
+
+  // Presets, only when the backup speaks for them (see ExportBundle.scenes). Same write-first
+  // order as the components: worst case after a failure is a superset. The verb is picked per
+  // uid from a listing, so a normal import logs no fallback 404s.
+  if (Array.isArray(bundle.scenes)) {
+    const scenes = bundle.scenes.filter((r) => isImportableSceneRule(r))
+    const haveRules = new Set((await listRuleSummaries().catch(() => [])).map((r) => r.uid))
+    for (const r of scenes) {
+      if (haveRules.has(r.uid)) await upsertRule(r)
+      else await createOrUpdateRule(r)
+    }
+    if (mode === 'replace') {
+      const keep = new Set(scenes.map((r) => r.uid))
+      const existingRules = await listRulesFull(NEOHAB_TAG).catch(() => [] as SceneRule[])
+      for (const r of existingRules) {
+        if (r.editable !== false && isImportableSceneRule(r) && !keep.has(r.uid)) await deleteRule(r.uid)
+      }
     }
   }
   await loadConfig()

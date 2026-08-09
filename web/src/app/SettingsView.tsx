@@ -14,6 +14,7 @@ import { AppearanceSection } from '../settings/AppearanceSection'
 import { KioskSection } from '../settings/KioskSection'
 import { VoiceAudioSection } from '../settings/VoiceAudioSection'
 import { WidgetDefManager } from '../settings/WidgetDefManager'
+import { PresetsSection } from '../settings/PresetsSection'
 import { CustomIconsSection } from '../settings/CustomIconsSection'
 import { HabpanelImport } from '../settings/HabpanelImport'
 import { GallerySection } from '../settings/GallerySection'
@@ -48,6 +49,8 @@ export function SettingsView() {
         {canEdit ? (
           <>
             <WidgetDefManager onNotice={setNotice} />
+
+            <PresetsSection onNotice={setNotice} />
 
             <CustomIconsSection onNotice={setNotice} />
 
