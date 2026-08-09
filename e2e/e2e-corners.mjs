@@ -340,7 +340,10 @@ await section('8', async () => {
     .map((c) => encodeURIComponent(c.uid.slice('dashboard:'.length)))
   for (const id of ids) {
     await page.goto(APP + '#/d/' + id, { waitUntil: 'domcontentloaded' })
-    await page.waitForSelector('.nh-widget', { timeout: 15000 })
+    // A live dashboard may legitimately be EMPTY (the user just created it): the honest
+    // render then is the "no widgets yet" note, not a widget. Accept either - requiring a
+    // widget made a user's fresh dashboard look like an app regression.
+    await page.waitForSelector('.nh-widget, .nh-dash__empty', { timeout: 15000 })
     await sleep(350)
   }
   ok(`8. all ${ids.length} live dashboards render in fast succession`, ids.length > 0)

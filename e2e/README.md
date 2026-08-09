@@ -100,6 +100,13 @@ id, so the suite cannot invent one:
   writes a restore point it also snapshots and restores the two version-history namespaces.
 - `e2e-proxyauth.mjs` signs in to an imaginary reverse proxy. Nothing is redirected — requests
   are only inspected — so the server sees ordinary reads with an extra header it ignores.
+- `e2e-floorplan.mjs` is the one suite that writes OUTSIDE the UI-component namespaces, because
+  lighting presets are stored as openHAB **scenes**: it creates the rules
+  `nh-scene-nh-e2e-evening` and `nh-bridge-nh-scene-nh-e2e-evening` in the rule registry and one
+  managed test item, `nh_e2e_proxy` (a plain Switch bound to nothing). All three are deleted by
+  exact uid in cleanup, and the suite additionally diffs the server's full rule-uid list against
+  a pre-run capture so a stray cannot survive unnoticed. It never touches file-provided rules or
+  items — those cannot be written through the REST API at all.
 
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
 `e2e-importer.mjs`, `e2e-history.mjs`): these test the empty-server flows (onboarding, first
