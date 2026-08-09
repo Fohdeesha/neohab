@@ -267,6 +267,14 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
                 (item.name === value ? ' nh-picker__option--current' : '')
               }
               onPointerEnter={() => setHighlight(i)}
+              onPointerDown={(e) => {
+                // Keep focus in the input (like the toggle and clear buttons): the default
+                // focus-move would blur it, the blur resets a half-typed search, and the list
+                // re-rendering back to the full set mid-click moves this row out from under
+                // the pointer - the click then lands on nothing and the pick silently dies.
+                // Selection itself stays on click so touch can still scroll the list by drag.
+                e.preventDefault()
+              }}
               onClick={() => select(item)}
             >
               <span className="nh-picker__name">{item.name}</span>
