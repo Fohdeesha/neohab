@@ -59,7 +59,11 @@ export function BackgroundField({
           placeholder={
             !uploaded
               ? t('Image URL, or upload one')
-              : (uploadedBytes ?? 0) >= 1024 * 1024
+              : // an uploaded reference whose component is gone: say so rather than describing
+                // an image that is not there
+                !resolved
+                ? t('The uploaded image is missing — upload another')
+                : (uploadedBytes ?? 0) >= 1024 * 1024
                 ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
                 : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })
           }

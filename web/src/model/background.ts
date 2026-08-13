@@ -34,3 +34,29 @@ export function resolveBackgroundRef(
 export function newBackgroundId(): string {
   return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 }
+
+/**
+ * Every uploaded-background id referenced anywhere inside a stored value.
+ *
+ * A reference is not always a field somebody thought of: the global setting and a dashboard's
+ * own background are top-level, but a widget's config can name one too (a floor plan's plan
+ * image), and so can a custom widget definition's setting defaults. Anything deciding which
+ * uploads are still in use must walk the whole tree, or it deletes an image that is - which is
+ * exactly what happened to floor plans until 1.10. Whitespace is tolerated so the collector
+ * errs towards keeping an image rather than dropping one.
+ */
+export function collectBackgroundRefs(value: unknown, into = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    const v = value.trim()
+    if (isUploadedBackground(v)) into.add(v.slice(BG_REF_PREFIX.length))
+    return into
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectBackgroundRefs(v, into)
+    return into
+  }
+  if (value && typeof value === 'object') {
+    for (const v of Object.values(value)) collectBackgroundRefs(v, into)
+  }
+  return into
+}

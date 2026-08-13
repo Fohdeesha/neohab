@@ -831,6 +831,7 @@
   "The screen is being kept awake.": "La pantalla se mantiene encendida.",
   "The speech item was imported; each device chooses whether (and with which voice) it speaks": "El item de voz se importó; cada dispositivo elige si habla (y con qué voz)",
   "The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.": "El diseño de tableta puede usar otra cuadrícula. Menos columnas significa celdas más grandes en una tableta.",
+  "The uploaded image is missing — upload another": "La imagen subida no está — sube otra",
   "theme": "tema",
   "Theme": "Tema",
   "Theme applied on this device, but saving failed: {{error}} — sign in as an administrator.": "Tema aplicado en este dispositivo, pero no se pudo guardar: {{error}} — inicia sesión como administrador.",

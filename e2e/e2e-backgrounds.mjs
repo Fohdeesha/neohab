@@ -12,8 +12,11 @@
  * backgrounds) at the end of the file and the Backup section can exclude backgrounds
  * entirely for a small, readable export.
  *
- * SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2 (+ dashboard:synthbg via the
- * import check) and its own background:* uploads; the `settings` component is snapshotted and
+ * And the converse of collection: an upload referenced only from inside a WIDGET's config must
+ * survive, whichever widget and whichever key hold the reference.
+ *
+ * SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2/-bg3 (+ dashboard:synthbg via
+ * the import check) and its own background:* uploads; the `settings` component is snapshotted and
  * restored VERBATIM; exact-uid cleanup; commands NOTHING (clock/label widgets only).
  */
 import { chromium } from 'playwright-core'
@@ -35,6 +38,10 @@ async function launch() {
 
 const GLOBAL_URL = 'https://example.invalid/global-bg.png'
 const DASH_URL = 'https://example.invalid/dash-bg.png'
+// an upload held only by a reference inside a widget's config
+const HELD_ID = 'nh-e2e-held'
+const HELD_BG = 'background:' + HELD_ID
+const HELD_DASH = 'dashboard:nh-e2e-bg3'
 // a 2x2 red PNG - tiny but real, so the upload pipeline decodes and re-encodes it
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEJMDGgAgBLcAEPtvE4TQAAAABJRU5ErkJggg==',
@@ -164,6 +171,46 @@ try {
   }
   ok('orphaned upload garbage-collected', gcLeft.length === bgUidsBefore.length, gcLeft.join(','))
 
+  /* -------- an image referenced from inside a widget's config is NOT collected -------- */
+  // The collector deletes uploads nothing points at, and "points at" used to mean the global
+  // setting or a dashboard's own background field. A floor plan keeps its plan image inside the
+  // WIDGET's config, so it counted as unreferenced and was deleted on the next save of any
+  // dashboard. Checked here on the mechanism rather than on one widget: the key below is one no
+  // widget owns, because the collector must not care which widget or which key holds the
+  // reference.
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: HELD_BG,
+      component: 'neohab:background',
+      config: { version: 1, id: HELD_ID, dataUri: 'data:image/png;base64,' + PNG.toString('base64'), bytes: PNG.length },
+    }),
+  })
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: HELD_DASH,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-bg3',
+        name: 'E2E BG Held',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: [{ id: 'w-held', type: 'clock', config: { someImage: 'bg:' + HELD_ID }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+      },
+    }),
+  })
+  // load the app fresh so its store knows about both, then trigger a collection
+  await page.goto(APP + '#/settings')
+  await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
+  await page.fill('#nh-set-bg', GLOBAL_URL + '?2')
+  await sleep(2500)
+  const heldStatus = (await fetch(NS + '/' + encodeURIComponent(HELD_BG), { headers: AUTH })).status
+  ok('an image referenced only from a widget config survives a collection', heldStatus === 200, 'status ' + heldStatus)
+
   /* ---------------- per-dashboard background via the editor ---------------- */
   await page.goto(APP + '#/d/nh-e2e-bg1')
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
@@ -209,7 +256,7 @@ try {
   } catch (e) {
     console.log('cleanup: settings restore FAILED', e)
   }
-  for (const uid of ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', 'dashboard:synthbg']) {
+  for (const uid of ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', HELD_DASH, 'dashboard:synthbg']) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   // any background component this suite created (uid diff against the pre-suite listing)
@@ -220,7 +267,8 @@ try {
   const norm = (o) => JSON.stringify({ ...o, timestamp: undefined })
   ok('cleanup: settings content identical', norm(after) === norm(settingsBefore))
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
-  ok('cleanup: no leftovers', !uids.some((u) => u.includes('nh-e2e-bg') || u === 'dashboard:synthbg'), uids.filter((u) => u.includes('nh-e2e')).join(','))
+  ok('cleanup: no leftovers', !uids.some((u) => u.includes('nh-e2e-bg') || u.includes(HELD_ID) || u === 'dashboard:synthbg'),
+    uids.filter((u) => u.includes('nh-e2e')).join(','))
 
   await browser.close()
   const fails = results.filter((r) => !r.pass)

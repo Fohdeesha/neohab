@@ -18,7 +18,7 @@ import { addComponent, deleteComponent, listComponents, updateComponent } from '
 import { writeWithFallback } from '../api/write'
 import type { UIComponent } from '../api/types'
 import type { CustomBackground } from '../model/background'
-import { BG_REF_PREFIX, isUploadedBackground } from '../model/background'
+import { collectBackgroundRefs } from '../model/background'
 import type { CustomIcon } from '../model/customIcon'
 import { newWidgetId, type Dashboard } from '../model/dashboard'
 import {
@@ -396,18 +396,20 @@ export async function saveBackground(bg: CustomBackground): Promise<void> {
 }
 
 /**
- * Delete uploaded backgrounds nothing references anymore. References live in the global
- * setting and on each saved dashboard (plus the refs the caller knows are about to be used,
- * e.g. an unsaved editor draft) - anything else is a leftover from a replaced upload, and at
- * hundreds of KB each they must not pile up in the config store. Failures are ignored: a
- * missed collection is retried by the next call, and viewing must never break over cleanup.
+ * Delete uploaded backgrounds nothing references anymore - a leftover from a replaced upload,
+ * at hundreds of KB each, must not pile up in the config store. Failures are ignored: a missed
+ * collection is retried by the next call, and viewing must never break over cleanup.
+ *
+ * "Referenced" means anywhere in the settings, in a dashboard (INCLUDING a widget's own config -
+ * a floor plan's plan image is a background reference) or in a custom widget definition, plus
+ * whatever the caller knows is about to be used, e.g. an unsaved editor draft. Deleting on
+ * incomplete knowledge is how an image in use gets thrown away, so a store that never loaded
+ * collects nothing at all.
  */
 export async function collectUnusedBackgrounds(alsoKeep: (string | undefined)[] = []): Promise<void> {
   const s = useConfigStore.getState()
-  const referenced = new Set<string>()
-  for (const ref of [s.settings.background, ...s.dashboards.map((d) => d.background), ...alsoKeep]) {
-    if (ref && isUploadedBackground(ref)) referenced.add(ref.slice(BG_REF_PREFIX.length))
-  }
+  if (!s.loaded) return
+  const referenced = collectBackgroundRefs([s.settings, s.dashboards, s.widgetDefs, alsoKeep])
   for (const bg of s.backgrounds) {
     if (referenced.has(bg.id)) continue
     try {

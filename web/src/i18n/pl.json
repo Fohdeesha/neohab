@@ -895,6 +895,7 @@
   "The screen is being kept awake.": "Ekran nie jest wygaszany.",
   "The speech item was imported; each device chooses whether (and with which voice) it speaks": "Zaimportowano item mowy; każde urządzenie wybiera, czy (i jakim głosem) mówi",
   "The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.": "Układ na tablet może używać innej siatki. Mniej kolumn oznacza większe komórki na tablecie.",
+  "The uploaded image is missing — upload another": "Wgranego obrazu brakuje — wgraj inny",
   "theme": "motyw",
   "Theme": "Motyw",
   "Theme applied on this device, but saving failed: {{error}} — sign in as an administrator.": "Motyw zastosowano na tym urządzeniu, ale zapis się nie powiódł: {{error}} — zaloguj się jako administrator.",

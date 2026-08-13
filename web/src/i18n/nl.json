@@ -831,6 +831,7 @@
   "The screen is being kept awake.": "Het scherm wordt wakker gehouden.",
   "The speech item was imported; each device chooses whether (and with which voice) it speaks": "Het spraakitem is geïmporteerd; elk apparaat kiest zelf of (en met welke stem) het spreekt",
   "The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.": "De tabletindeling kan een ander raster gebruiken. Minder kolommen betekent grotere cellen op een tablet.",
+  "The uploaded image is missing — upload another": "De geüploade afbeelding ontbreekt — upload een andere",
   "theme": "thema",
   "Theme": "Thema",
   "Theme applied on this device, but saving failed: {{error}} — sign in as an administrator.": "Thema toegepast op dit apparaat, maar opslaan mislukte: {{error}} — meld je aan als beheerder.",
