@@ -3,8 +3,9 @@
  * to. Each section lives in `src/settings/` and owns its own state and persistence.
  *
  * The order is deliberate — what every device can change comes first, what changes the server's
- * configuration comes after, and the account is last because it is where you go when something
- * above it refused.
+ * configuration comes after, the account follows because it is where you go when something above
+ * it refused, and About is last: it changes nothing, and it is where you go to find out what you
+ * are running when you are about to report that none of it worked.
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -22,6 +23,7 @@ import { BackupSection } from '../settings/BackupSection'
 import { HistorySection } from '../settings/HistorySection'
 import { EditingLockSection } from '../settings/EditingLockSection'
 import { AccountSection } from '../settings/AccountSection'
+import { AboutSection } from '../settings/AboutSection'
 
 export function SettingsView() {
   const { t } = useTranslation()
@@ -67,6 +69,10 @@ export function SettingsView() {
         <EditingLockSection onNotice={setNotice} />
 
         <AccountSection onNotice={setNotice} />
+
+        {/* Every role: the device that cannot edit is exactly the one whose owner needs to say
+            what it is running. */}
+        <AboutSection />
       </div>
     </div>
   )

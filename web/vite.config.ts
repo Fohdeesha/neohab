@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// The version the About screen reports. Read from package.json rather than an env var so it is
+// right however the build was started - Maven runs npm itself, and npm_package_* is not set then.
+const pkgVersion = (
+  JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')) as { version?: string }
+).version ?? '0.0.0'
 
 // Dev server proxies openHAB endpoints to a live instance.
 // Set OPENHAB_URL in web/.env.local (not committed) to point at your server,
@@ -56,6 +64,9 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    define: {
+      __NEOHAB_VERSION__: JSON.stringify(pkgVersion),
+    },
     server: {
       proxy,
     },

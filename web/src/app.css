@@ -4484,6 +4484,51 @@ button {
   }
 }
 
+/* About & diagnostics. A two-column definition list that becomes one column on a phone, and a
+   selectable report block. Placed before the @container block, which must stay last. */
+.nh-about {
+  display: grid;
+  grid-template-columns: minmax(0, 11em) minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0 0 14px;
+}
+
+.nh-about dt {
+  color: var(--nh-text-dim);
+}
+
+.nh-about dd {
+  margin: 0;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.nh-about__report {
+  /* Wraps rather than scrolls: a user agent string is long, and a report you have to scroll
+     sideways to read is one people paste half of. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  padding: 10px 12px;
+  margin: 0 0 10px;
+  font-size: 0.85em;
+  line-height: 1.5;
+  user-select: text;
+}
+
+@media (max-width: 560px) {
+  .nh-about {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .nh-about dd {
+    margin-bottom: 8px;
+  }
+}
+
 /* Narrow cells: nested padding costs more than the text it frames. At 70px wide the
    body + button insets alone used to eat half the cell, so labels ellipsised to "Gu…"
    however small the font got. Width-keyed, because a tall 1-wide cell needs this too. */

@@ -126,6 +126,10 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
   picks them up by itself.
 - **Your language** — English, German, Spanish, French, Italian, Dutch and Polish (machine-drafted;
   native review welcome), from the browser language with a per-device override.
+- **When something is wrong** — Settings ends with an About screen: the neohab and openHAB versions,
+  what this device is signed in as, whether live states are arriving, and which persistence services
+  the server has. It offers all of that as one block to paste into a bug report, with no addresses,
+  credentials or item names in it.
 
 **Your configuration**
 
@@ -140,6 +144,9 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
   wherever it is read, and a widget that cannot make sense of its own settings becomes one tile
   saying so rather than a blank page. Whatever a hand edit, an old backup or someone else's export
   contains, the dashboard around it keeps working and the editor is still there to fix it.
+  Configuration saved by a *newer* neohab than the one running is left strictly alone rather than
+  guessed at — it is never overwritten or tidied away — so an older wall panel cannot damage what a
+  newer one wrote.
 
 ## Icons
 

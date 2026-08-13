@@ -240,6 +240,62 @@ await section('4', async () => {
   await page.close()
 })
 
+/* ============ 4b. About & diagnostics ============
+   The point of this screen is that someone reporting a problem can say what they are running,
+   so the checks are on the facts being PRESENT and right, not on the wording. */
+await section('4b', async () => {
+  const page = await browser.newPage({ viewport: { width: 1300, height: 900 } })
+  const errs = []
+  page.on('pageerror', (e) => errs.push(String(e.message)))
+  await initToken(page, TOKEN)
+  await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+  // caught: on a build without this screen the wait would abort the section and report one
+  // failure instead of the real ones - let each check below be what fails
+  await page.waitForSelector('.nh-about', { timeout: 15000 }).catch(() => {})
+  await sleep(1200)
+
+  const about = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.nh-about dt')].map((dt) => [
+      dt.textContent ?? '',
+      dt.nextElementSibling?.textContent ?? '',
+    ])
+    return {
+      rows: Object.fromEntries(rows),
+      repo: document.querySelector('.nh-about a[href*="github.com/Fohdeesha/neohab"]')?.getAttribute('href') ?? '',
+      report: document.querySelector('.nh-about__report')?.textContent ?? '',
+    }
+  })
+  // the version comes from package.json at build time, so assert the shape rather than a literal
+  ok('4b. About shows a real neohab version', /neohab \d+\.\d+\.\d+/.test(about.rows['Version'] ?? ''), about.rows['Version'])
+  ok('4b. About names the openHAB it is talking to', /\d+\.\d+/.test(about.rows['openHAB'] ?? ''), about.rows['openHAB'])
+  ok('4b. About names the author', (about.rows['Author'] ?? '').includes('Jon Sands'), about.rows['Author'])
+  ok('4b. About links the repository', about.repo.includes('github.com/Fohdeesha/neohab'), about.repo)
+  ok('4b. About reports what persistence this server has', (about.rows['Persistence'] ?? '').length > 0, about.rows['Persistence'])
+  ok('4b. the pasteable report carries version and browser', /neohab \d/.test(about.report) && /browser:/.test(about.report), about.report.slice(0, 60))
+  // it gets pasted in public: no server address, no token, no item names
+  // the "contains no X" half cannot be allowed to pass on an empty report, so it has to be a
+  // real one first
+  ok(
+    '4b. the report leaks no address or credential',
+    about.report.length > 40 && !about.report.includes(new URL(BASE).hostname) && !about.report.includes(TOKEN),
+    'len=' + about.report.length
+  )
+  // The clipboard API exists only in a secure context, and openHAB on a LAN is usually plain
+  // HTTP - so on the very deployment this targets, a copy button that only calls it does nothing
+  // at all. Here it must fall back to selecting the report.
+  const insecure = await page.evaluate(() => !window.isSecureContext && !navigator.clipboard)
+  if (insecure) {
+    await page.click('.nh-about__report ~ button')
+    await sleep(300)
+    const selected = await page.evaluate(() => (window.getSelection()?.toString() ?? '').trim())
+    ok('4b. copy falls back to selecting the report on a plain-HTTP origin', /neohab \d/.test(selected), 'selected=' + selected.length + ' chars')
+  } else {
+    ok('4b. copy fallback not applicable (secure context)', true, 'skipped')
+  }
+  ok('4b. no page errors', errs.length === 0, errs.join(' | '))
+  await page.close()
+})
+
 /* ============ 5. anonymous viewer + invalid token ============ */
 await section('5', async () => {
   const anon = await browser.newPage({ viewport: { width: 1300, height: 900 } })
