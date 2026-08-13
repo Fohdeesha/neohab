@@ -275,9 +275,14 @@ try {
     await page.goto(APP + '#/d/' + encodeURIComponent(liveGauge.dash), { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     await sleep(2500) // let SSE deliver the bound item's state
-    const text = (
-      await page.locator(`.nh-gcell:has(.nh-widget__labeltext:text-is("${liveGauge.label}")) .nh-dial__value`).first().textContent()
-    )?.trim()
+    // Either renderer: the dial has a classic face AND five ring styles, and which one a live
+    // dashboard uses is the user's choice. This scan takes whichever fractional-step dial the
+    // server happens to list first, so pinning the classic class made the check depend on
+    // component ordering - it passed for months and then landed on an LED gauge. Both honour
+    // the step's precision, which is what is actually under test.
+    const valueSel = '.nh-dial__value, .nh-gauge__value'
+    const cell = `.nh-gcell:has(.nh-widget__labeltext:text-is("${liveGauge.label}"))`
+    const text = (await page.locator(`${cell} :is(${valueSel})`).first().textContent().catch(() => null))?.trim()
     ok('live fractional-step gauge shows a decimal', /^-?\d+\.\d/.test(text ?? ''), `${liveGauge.dash}/${liveGauge.label}: ${text}`)
   } else {
     console.log('SKIP  no live dashboard with a fractional-step dial on this server')
