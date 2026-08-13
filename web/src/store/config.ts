@@ -48,6 +48,7 @@ import {
   WIDGETDEF_COMPONENT,
   WIDGETDEF_PREFIX,
 } from '../model/components'
+import { kindOf, migrateConfig } from '../model/schema'
 
 export interface AppSettings {
   version: number
@@ -109,6 +110,12 @@ interface ConfigState {
   customIcons: CustomIcon[]
   backgrounds: CustomBackground[]
   settings: AppSettings
+  /**
+   * Components a newer neohab wrote, kept exactly as they were read. Not part of the working
+   * configuration - this build cannot be sure what they mean - but visible to everything that
+   * decides what is unused, and refused by the save path so they are never overwritten.
+   */
+  incompatible: UIComponent[]
   /** Component uids that exist on the server (decides create vs update on save). */
   serverUids: Set<string>
   loading: boolean
@@ -123,6 +130,7 @@ export const useConfigStore = create<ConfigState>(() => ({
   customIcons: [],
   backgrounds: [],
   settings: defaultSettings(),
+  incompatible: [],
   serverUids: new Set<string>(),
   loading: false,
   loaded: false,
@@ -171,20 +179,32 @@ function parseComponents(components: UIComponent[]) {
   const widgetDefs: CustomWidgetDef[] = []
   const customIcons: CustomIcon[] = []
   const backgrounds: CustomBackground[] = []
+  // Components written by a NEWER neohab. Kept whole rather than dropped: everything that decides
+  // what is unused - the background collector above all - has to be able to see them, or this
+  // build would delete the images belonging to a dashboard it merely could not read.
+  const incompatible: UIComponent[] = []
   let settings = defaultSettings()
   for (const c of components) {
-    if (c.uid.startsWith(DASHBOARD_PREFIX)) dashboards.push(c.config as unknown as Dashboard)
-    else if (c.uid.startsWith(THEME_PREFIX)) customThemes.push(c.config as unknown as Theme)
-    else if (c.uid.startsWith(WIDGETDEF_PREFIX)) widgetDefs.push(c.config as unknown as CustomWidgetDef)
-    else if (c.uid.startsWith(ICON_PREFIX)) customIcons.push(c.config as unknown as CustomIcon)
-    else if (c.uid.startsWith(BACKGROUND_PREFIX)) backgrounds.push(c.config as unknown as CustomBackground)
-    else if (c.uid === SETTINGS_UID) settings = { ...defaultSettings(), ...(c.config as Partial<AppSettings>) }
+    const kind = kindOf(c.uid)
+    if (!kind) continue
+    const result = migrateConfig(kind, c.config)
+    if (result.status === 'future') {
+      incompatible.push(c)
+      continue
+    }
+    const config = result.config
+    if (kind === 'dashboard') dashboards.push(config as unknown as Dashboard)
+    else if (kind === 'theme') customThemes.push(config as unknown as Theme)
+    else if (kind === 'widgetdef') widgetDefs.push(config as unknown as CustomWidgetDef)
+    else if (kind === 'icon') customIcons.push(config as unknown as CustomIcon)
+    else if (kind === 'background') backgrounds.push(config as unknown as CustomBackground)
+    else settings = { ...defaultSettings(), ...(config as Partial<AppSettings>) }
   }
   // stable, predictable ordering: component list order is storage-arbitrary
   widgetDefs.sort(byName)
   customIcons.sort(byName)
   dashboards.sort(byName)
-  return { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings }
+  return { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings, incompatible }
 }
 
 /**
@@ -200,7 +220,8 @@ export async function loadConfig(): Promise<void> {
   try {
     const components = await listComponents()
     const serverUids = new Set(components.map((c) => c.uid))
-    const { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings } = parseComponents(components)
+    const { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings, incompatible } =
+      parseComponents(components)
     useConfigStore.setState({
       dashboards,
       customThemes,
@@ -208,6 +229,7 @@ export async function loadConfig(): Promise<void> {
       customIcons,
       backgrounds,
       settings,
+      incompatible,
       serverUids,
       loading: false,
       loaded: true,
@@ -221,6 +243,7 @@ export async function loadConfig(): Promise<void> {
       customIcons: [],
       backgrounds: [],
       settings: defaultSettings(),
+      incompatible: [],
       serverUids: new Set<string>(),
       loading: false,
       loaded: true,
@@ -271,6 +294,15 @@ export async function beginBulkConfigWrite(): Promise<void> {
  * the fallback's error would only describe the symptom.
  */
 async function upsert<C>(component: UIComponent<C>): Promise<void> {
+  // A component this build refused to read is one it must never write. Everything that saves
+  // goes through here, so this is the one place that has to know it - and without it, opening
+  // Settings on an older neohab and changing anything at all would overwrite a newer
+  // configuration with this build's misreading of it.
+  if (useConfigStore.getState().incompatible.some((c) => c.uid === component.uid)) {
+    throw new Error(
+      `${component.uid} was written by a newer version of neohab and will not be overwritten by this one.`
+    )
+  }
   const exists = useConfigStore.getState().serverUids.has(component.uid)
   const update = () => updateComponent(component)
   const create = () => addComponent(component)
@@ -409,7 +441,10 @@ export async function saveBackground(bg: CustomBackground): Promise<void> {
 export async function collectUnusedBackgrounds(alsoKeep: (string | undefined)[] = []): Promise<void> {
   const s = useConfigStore.getState()
   if (!s.loaded) return
-  const referenced = collectBackgroundRefs([s.settings, s.dashboards, s.widgetDefs, alsoKeep])
+  // `incompatible` is in here deliberately: a dashboard from a newer neohab still references its
+  // plan image, and not being able to READ a component is no reason at all to delete what it
+  // points at. Same lesson as the widget-config references, one version later.
+  const referenced = collectBackgroundRefs([s.settings, s.dashboards, s.widgetDefs, s.incompatible, alsoKeep])
   for (const bg of s.backgrounds) {
     if (referenced.has(bg.id)) continue
     try {

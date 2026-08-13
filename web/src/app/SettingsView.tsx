@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEditingAllowed } from '../store/auth'
 import { NavButton } from './Sidebar'
+import { IncompatibleNotice } from '../components/IncompatibleNotice'
 import { AppearanceSection } from '../settings/AppearanceSection'
 import { KioskSection } from '../settings/KioskSection'
 import { VoiceAudioSection } from '../settings/VoiceAudioSection'
@@ -41,6 +42,8 @@ export function SettingsView() {
 
       <div className="nh-settings">
         {notice ? <div className="nh-settings__notice">{notice}</div> : null}
+
+        <IncompatibleNotice />
 
         <AppearanceSection onNotice={setNotice} />
 

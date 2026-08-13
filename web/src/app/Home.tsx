@@ -9,6 +9,7 @@ import { navigate } from './router'
 import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
 import { Icon } from '../components/Icon'
+import { IncompatibleNotice } from '../components/IncompatibleNotice'
 import { NewDashboardSheet } from '../editor/NewDashboardSheet'
 import { GenerateSheet } from '../editor/GenerateSheet'
 import { SignInSheet } from '../editor/SignInSheet'
@@ -55,6 +56,10 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           t('connecting to openHAB…')
         )}
       </p>
+
+      {/* Before the tiles: a dashboard missing from this list because it needs a newer neohab
+          looks exactly like one that was deleted, and that is the moment to say otherwise. */}
+      <IncompatibleNotice />
 
       {dashboards.length === 0 ? (
         <div className="nh-welcome">

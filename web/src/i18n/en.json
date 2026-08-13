@@ -27,6 +27,8 @@
   "{{count}} light_other": "{{count}} lights",
   "{{count}} locations, with their equipment as sections_one": "{{count}} location, with its equipment as sections",
   "{{count}} locations, with their equipment as sections_other": "{{count}} locations, with their equipment as sections",
+  "{{count}} part of your configuration needs a newer neohab_one": "{{count}} part of your configuration needs a newer neohab",
+  "{{count}} part of your configuration needs a newer neohab_other": "{{count}} parts of your configuration need a newer neohab",
   "{{count}} set_one": "{{count}} set",
   "{{count}} set_other": "{{count}} set",
   "{{count}} thing to check_one": "{{count}} thing to check",

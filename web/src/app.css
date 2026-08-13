@@ -4484,6 +4484,32 @@ button {
   }
 }
 
+/* "Part of your configuration needs a newer neohab." Deliberately calm rather than alarming:
+   nothing is broken and nothing is lost, so it reads as information, not an error. */
+.nh-incompat {
+  border: 1px solid var(--nh-border);
+  border-left: 3px solid var(--nh-primary);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  padding: 12px 14px;
+  margin: 0 0 16px;
+  max-width: 720px;
+  text-align: left;
+}
+
+.nh-incompat p {
+  margin: 6px 0 0;
+  color: var(--nh-text-dim);
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+
+.nh-incompat__list {
+  overflow-wrap: break-word;
+  font-size: 0.82em;
+  opacity: 0.8;
+}
+
 /* About & diagnostics. A two-column definition list that becomes one column on a phone, and a
    selectable report block. Placed before the @container block, which must stay last. */
 .nh-about {

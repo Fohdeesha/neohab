@@ -15,9 +15,14 @@
  *     blank page was all you got and the editor that could fix it went with it
  *   - a stored tablet rect wider than the tablet grid is clamped into it
  *   - label widget font size scales with the cell like everything else
+ *   - a component written by a NEWER neohab is refused, explained, kept whole and never
+ *     collected: the danger is not that it fails to render, it is that an old build would treat
+ *     everything it referenced as unused and delete it
  *   - ItemPicker: does selecting an item leave the list open? (behaviour probe)
  *
- * SAFE: creates only nh-e2e-a2* components, exact-uid cleanup, commands nothing.
+ * SAFE: creates only nh-e2e-a2* components, exact-uid cleanup, commands nothing. It DOES save
+ * one of its own dashboards through the app, which mints a restore point - that is the point,
+ * since the collector under test runs immediately after a save.
  */
 import { chromium } from 'playwright-core'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
@@ -370,6 +375,83 @@ try {
     }
     ok('label font = authored 40px * textscale @1920', Math.abs(sizes['1920'].font - 40 * sizes['1920'].scale) < 0.5, JSON.stringify(sizes['1920']))
     ok('label font scales down on a narrow screen', sizes['1024'].font < sizes['1920'].font, `1024=${sizes['1024'].font} 1920=${sizes['1920'].font}`)
+  }
+
+  /* --------- a component from a NEWER neohab is refused, and left strictly alone ---------
+     The dangerous case is not that it fails to render, it is what an old build does NEXT: drop
+     it from the working set, then treat everything it referenced as unused. So this checks the
+     refusal AND that the refusal costs nothing - the plan image belonging to a dashboard this
+     build cannot read must survive a collection triggered by an ordinary save. */
+  {
+    const FUT_BG_ID = 'nh-e2e-a2futbg'
+    const FUT_BG = 'background:' + FUT_BG_ID
+    const FUT_DASH = 'dashboard:nh-e2e-a2fut'
+    const PNG = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    await put({
+      uid: FUT_BG,
+      component: 'neohab:background',
+      config: { version: 1, id: FUT_BG_ID, dataUri: 'data:image/png;base64,' + PNG.toString('base64'), bytes: PNG.length },
+    })
+    await put({
+      uid: FUT_DASH,
+      component: 'neohab:dashboard',
+      // version 99: written by a neohab that does not exist yet
+      config: {
+        version: 99,
+        id: 'nh-e2e-a2fut',
+        name: 'E2E A2 From The Future',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: [{ id: 'w-fut', type: 'floorplan', config: { image: 'bg:' + FUT_BG_ID }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } }],
+      },
+    })
+
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    const errs = []
+    page.on('pageerror', (e) => errs.push(String(e)))
+    await page.goto(BASE + '/neohab/index.html#/')
+    await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 })
+    await page.waitForTimeout(1000)
+
+    // evaluate-based rather than a locator wait: on a build without this feature the notice
+    // never appears, and a wait would abort every check after it instead of failing its own.
+    const seen = await page.evaluate(() => ({
+      notice: document.querySelectorAll('.nh-incompat').length,
+      noticeText: document.querySelector('.nh-incompat')?.textContent ?? '',
+      tiles: [...document.querySelectorAll('.nh-tile:not(.nh-tile--new)')].map((el) => el.textContent ?? ''),
+    }))
+    ok('a dashboard from a newer neohab is not rendered', !seen.tiles.some((t) => t.includes('From The Future')), 'tiles=' + seen.tiles.length)
+    ok('the refusal is explained rather than silent', seen.notice === 1, 'notices=' + seen.notice)
+    ok('the notice names the component', seen.noticeText.includes('nh-e2e-a2fut'), seen.noticeText.slice(0, 90))
+    ok('the rest of the configuration still loaded', seen.tiles.length >= 2, 'tiles=' + seen.tiles.length)
+    ok('no page error from a config out of the future', errs.length === 0, errs.join('|'))
+
+    // Now make the app collect. An editor save is the real trigger - and the lesson that put
+    // this check here is that a suite which never saves through the app cannot catch a
+    // save-time bug. Deliberately NOT the global background field: that belongs to the user.
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
+    await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
+    await page.click('[aria-label="Edit dashboard"]')
+    await page.waitForSelector('.nh-grid--edit', { timeout: 8000 })
+    await page.click('[aria-label="Add widget"]')
+    await page.waitForSelector('.nh-sheet', { timeout: 8000 })
+    await page.click('.nh-sheet button:has-text("Clock")')
+    await page.waitForTimeout(300)
+    await page.click('button:has-text("Save")')
+    await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 })
+    await page.waitForTimeout(2000)
+    const futBgStatus = (await fetch(NS + '/' + encodeURIComponent(FUT_BG), { headers: AUTH })).status
+    ok('an image held only by a refused component survives a save-time collection', futBgStatus === 200, 'status ' + futBgStatus)
+
+    // and the component itself was never rewritten by a build that could not read it
+    const stored = await (await fetch(NS + '/' + encodeURIComponent(FUT_DASH), { headers: AUTH })).json()
+    ok('the refused component is stored exactly as it was', Number(stored?.config?.version) === 99, 'version=' + String(stored?.config?.version))
+    await ctx.close()
   }
 
   /* --------- ItemPicker: is the list still open after selecting? --------- */
