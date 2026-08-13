@@ -51,6 +51,23 @@ export const ALL_NS = [
   ['historydata', HISTORY_DATA_NS],
 ]
 
+/**
+ * Is a failing resource one of OURS?
+ *
+ * A live openHAB carries the user's own configuration, and real configurations reference icon
+ * sets that were renamed years ago and hosts that no longer answer. Those 404s are the user's
+ * data, not a defect in the app, and a suite that fails on them cannot be run against a real
+ * server. Anything under the add-on's own path or the REST API is ours and must still fail the
+ * run; an error with no URL at all is a real exception and is always kept.
+ *
+ * Pair it with the URL: `page.on('console')` gives "Failed to load resource: ... 404" with no
+ * hint of WHICH resource, and a failure nobody can act on is barely a failure at all.
+ */
+export function isAppResource(url) {
+  if (!url) return true
+  return url.startsWith(BASE + '/neohab/') || url.startsWith(BASE + '/rest/')
+}
+
 function loadToken() {
   if (process.env.NEOHAB_E2E_TOKEN) return process.env.NEOHAB_E2E_TOKEN.trim()
   if (typeof cfg.token === 'string' && cfg.token) return cfg.token.trim()

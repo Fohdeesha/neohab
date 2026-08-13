@@ -7,18 +7,20 @@
  * backup whose "presets" would overwrite arbitrary rules.
  *
  * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-fplan            (neohab:config)
+ *   - dashboard:nh-e2e-fplan, dashboard:nh-e2e-fplan2   (neohab:config)
+ *   - one background:<id>, from the upload in section H (its uid is found by diffing)
  *   - rules nh-scene-nh-e2e-evening and nh-bridge-nh-scene-nh-e2e-evening
  *   - a managed test item nh_e2e_proxy  (never a file-provided item)
  * The dimmer and color items are commanded (recorded and restored); rule uids are diffed
- * against a pre-run listing so a stray cannot survive unnoticed. No app-path config save
- * happens, so no version-history restore points are minted.
+ * against a pre-run listing so a stray cannot survive unnoticed. Section H saves through the
+ * app, so it DOES mint version-history restore points - clear them if the server is a live one.
  */
 import { chromium } from 'playwright-core'
 import { readFile } from 'node:fs/promises'
-import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-fplan'
+const UID2 = 'dashboard:nh-e2e-fplan2'
 const SCENE_UID = 'nh-scene-nh-e2e-evening'
 const BRIDGE_UID = 'nh-bridge-' + SCENE_UID
 const PROXY_ITEM = 'nh_e2e_proxy'
@@ -81,6 +83,14 @@ const PLAN_SVG =
   `</g></svg>`
 const PLAN_URI = 'data:image/svg+xml;base64,' + Buffer.from(PLAN_SVG).toString('base64')
 
+// A tiny real raster, for the upload path (the field re-encodes it through a canvas).
+const UPLOAD_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVQIW2P8z8Dwn4EIwDiqkL4KAWKgAxHi3jj1AAAAAElFTkSuQmCC',
+  'base64'
+)
+/** The uploaded plan's component uid, discovered by diffing the namespace; deleted in cleanup. */
+let bgUid = null
+
 /** Read the page through a shape that cannot throw, so a missing feature fails its own
  * checks instead of aborting everything after it (the wait-that-never-resolves class). */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
@@ -89,7 +99,15 @@ const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
-page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
+page.on('console', (m) => {
+  if (m.type() !== 'error') return
+  // Record WHICH resource failed - "Failed to load resource" alone is a failure nobody can act
+  // on - and ignore the ones belonging to the user's own configuration: a real server carries
+  // custom widgets pointing at iconsets and hosts that no longer answer.
+  const at = m.location?.()?.url
+  if (!isAppResource(at)) return
+  errs.push(m.text() + (at ? ' <- ' + at : ''))
+})
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
   try {
@@ -153,6 +171,26 @@ try {
     }),
   })
   ok('seed dashboard created', seed.status === 200 || seed.status === 201, 'status ' + seed.status)
+
+  // a second, unrelated dashboard - section H saves it to prove the background collector looks
+  // at every dashboard's widgets, not only the one being written
+  await fetch(NS + '/' + encodeURIComponent(UID2), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID2,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-fplan2',
+        name: 'E2E Floorplan 2',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: [{ id: 'w-clock', type: 'clock', config: {}, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+      },
+    }),
+  })
 
   // deterministic light states for the glow checks
   await sendItem(ITEMS.color, '0,100,100') // pure red, full brightness
@@ -557,13 +595,115 @@ try {
   const serverLights = serverCfg?.config?.widgets?.[0]?.config?.lights ?? []
   ok('sheet edits stay in the draft until Save', serverLights.length === 2, 'server lights=' + serverLights.length)
 
+  /* ---------------- H. the sheet fits, and an uploaded plan survives a save ---------------- */
+  await page.goto(APP + '#/d/nh-e2e-fplan')
+  await page.waitForSelector('.nh-fplan', { timeout: 15000 }).catch(() => {})
+  await page.click('[aria-label="Edit dashboard"]')
+  await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, undefined, { timeout: 15000 }).catch(() => {})
+  await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip')
+  await sleep(500)
+  await page.click('.nh-sheet button:has-text("lights")')
+  await page.waitForSelector('.nh-planedit', { timeout: 10000 }).catch(() => {})
+  const fits = await probe(page, () => {
+    const side = document.querySelector('.nh-planedit__side')
+    const add = document.querySelector('.nh-planedit__add')
+    const btn = add?.querySelector(':scope > button')
+    if (!side || !btn) return {}
+    const s = side.getBoundingClientRect()
+    const b = btn.getBoundingClientRect()
+    return {
+      overhang: Math.round(b.right - s.right),
+      sideOverflow: side.scrollWidth - side.clientWidth,
+      btnW: Math.round(b.width),
+    }
+  })
+  // An <input> has no min-content narrower than its default width, so a picker beside a button
+  // pushes the button off the panel unless the picker's floor is released.
+  ok('the Add button is not pushed off the panel',
+    fits.overhang !== undefined && fits.overhang <= 0 && fits.sideOverflow <= 1 && fits.btnW > 0,
+    `overhang=${fits.overhang}px panelOverflow=${fits.sideOverflow}px`)
+  await page.click('.nh-planedit__bar .nh-btn--primary')
+  await sleep(300)
+
+  // Upload a plan onto the widget that has none, then SAVE. The uploaded image is referenced
+  // only from inside the widget's config, which is exactly the reference the background
+  // collector used to miss - it deleted the image the moment the dashboard was saved.
+  const bgBefore = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
+  await page.click('.nh-grid--edit .nh-cell >> nth=2 >> .nh-cell__grip')
+  await sleep(500)
+  // This widget stores no planStyle, so the select is showing whatever the defaults resolve to.
+  // A select with nothing selected renders blank, which reads as broken beside a plan that is
+  // plainly styled - the widget's default has to agree with the one the renderer applies.
+  const panel = await probe(page, () => {
+    const field = [...document.querySelectorAll('.nh-sheet .nh-field')].find(
+      (f) => f.querySelector('.nh-field__label')?.textContent === 'Plan style'
+    )
+    const sel = field?.querySelector('select')
+    return { style: sel?.value ?? '', styleText: sel?.selectedOptions?.[0]?.textContent ?? '' }
+  })
+  ok('the plan style select shows the style actually in use', panel.style === 'blueprint' && !!panel.styleText,
+    `value=${JSON.stringify(panel.style)} text=${JSON.stringify(panel.styleText)}`)
+
+  await page
+    .locator('.nh-sheet .nh-bgfield input[type="file"]')
+    .setInputFiles({ name: 'plan.png', mimeType: 'image/png', buffer: UPLOAD_PNG })
+  await sleep(3000)
+  const uploaded = await probe(page, () => {
+    const url = document.querySelector('.nh-sheet .nh-bgfield input[type="text"]')
+    return {
+      imgs: document.querySelectorAll('.nh-fplan__img').length,
+      // measured WITH an image set: that is when the row also carries a thumbnail and a clear
+      // button, which is the state that crushed the box to a few characters in the 340px panel
+      urlW: url ? Math.round(url.getBoundingClientRect().width) : 0,
+      thumb: !!document.querySelector('.nh-sheet .nh-bgfield__thumb'),
+    }
+  })
+  const afterUpload = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
+  // ids are random: find the new component by diffing the namespace, never by guessing
+  bgUid = afterUpload.find((u) => u.startsWith('background:') && !bgBefore.includes(u)) ?? null
+  ok('uploading a plan image shows it and stores the upload', uploaded.imgs === 3 && !!bgUid, `imgs=${uploaded.imgs} uid=${bgUid}`)
+  // The background field is also used in the 720px Settings form; in the 340px widget panel
+  // everything on one line left the URL box a few characters wide.
+  ok('the plan image field stays usable in the narrow settings panel',
+    uploaded.thumb === true && uploaded.urlW >= 120, `thumb=${uploaded.thumb} url box ${uploaded.urlW}px`)
+
+  await page.click('button:has-text("Save")')
+  await sleep(3000)
+  const savedCfg = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
+  const savedRef = savedCfg?.config?.widgets?.[2]?.config?.image ?? ''
+  const bgStillThere = (await fetch(NS + '/' + encodeURIComponent(bgUid ?? 'background:none'), { headers: AUTH })).status
+  const shown = await probe(page, () => ({
+    imgs: document.querySelectorAll('.nh-fplan__img').length,
+    empties: document.querySelectorAll('.nh-fplan__empty').length,
+  }))
+  ok('the uploaded plan survives saving the dashboard',
+    bgStillThere === 200 && savedRef === bgUid?.replace('background:', 'bg:') && shown.imgs === 3 && shown.empties === 0,
+    `component=${bgStillThere} ref=${savedRef} imgs=${shown.imgs} empty=${shown.empties}`)
+
+  // ...and saving a DIFFERENT dashboard must not collect it either: the collector has to know
+  // about every dashboard's widgets, not just the one being written.
+  await page.goto(APP + '#/d/nh-e2e-fplan2')
+  await page.waitForSelector('.nh-dash', { timeout: 15000 }).catch(() => {})
+  await page.click('[aria-label="Edit dashboard"]')
+  await sleep(800)
+  await page.click('[aria-label="Dashboard settings"]')
+  await sleep(500)
+  await page.fill('#nh-dash-name', 'E2E Floorplan Two')
+  await sleep(300)
+  await page.click('button:has-text("Save")')
+  await sleep(2500)
+  const bgAfterOther = (await fetch(NS + '/' + encodeURIComponent(bgUid ?? 'background:none'), { headers: AUTH })).status
+  ok("saving another dashboard leaves the floor plan's image alone", bgAfterOther === 200, 'status ' + bgAfterOther)
+
   ok('no page errors (main)', errs.length === 0, errs.slice(0, 3).join(' | '))
   ok('no page errors (anonymous)', anonErrs.length === 0, anonErrs.slice(0, 3).join(' | '))
 } finally {
   /* ---------------- cleanup ---------------- */
   await anonCtx?.close().catch(() => {})
   await browser.close().catch(() => {})
-  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  for (const uid of [UID, UID2, bgUid].filter(Boolean)) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
   for (const uid of [BRIDGE_UID, SCENE_UID]) {
     await fetch(`${BASE}/rest/rules/${uid}`, { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
@@ -576,7 +716,9 @@ try {
   const stray = postRuleUids.filter((u) => !preRunRuleUids.includes(u))
   ok('no stray rules left behind', stray.length === 0, stray.join(','))
   const cfgLeft = await (await fetch(NS, { headers: AUTH })).json()
-  ok('dashboard removed', !cfgLeft.some((c) => c.uid === UID))
+  const mine = [UID, UID2, bgUid].filter(Boolean)
+  const leftovers = cfgLeft.filter((c) => mine.includes(c.uid)).map((c) => c.uid)
+  ok('dashboards and the uploaded plan removed', leftovers.length === 0, leftovers.join(','))
   const itemGone = await fetch(itemUrl(PROXY_ITEM), { headers: AUTH })
   ok('proxy item removed', itemGone.status === 404, 'status ' + itemGone.status)
   const dimmerNow = await itemState(ITEMS.dimmer)

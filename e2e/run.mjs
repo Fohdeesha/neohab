@@ -59,6 +59,7 @@ const SAFE_SUITES = [
   'e2e-ops',
   'e2e-assembly',
   'e2e-floorplan',
+  'e2e-panels',
   'e2e-kiosk',
   'e2e-audit2',
   'e2e-audit3',

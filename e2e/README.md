@@ -106,7 +106,20 @@ id, so the suite cannot invent one:
   managed test item, `nh_e2e_proxy` (a plain Switch bound to nothing). All three are deleted by
   exact uid in cleanup, and the suite additionally diffs the server's full rule-uid list against
   a pre-run capture so a stray cannot survive unnoticed. It never touches file-provided rules or
-  items — those cannot be written through the REST API at all.
+  items — those cannot be written through the REST API at all. Its last section saves through the
+  app, so unlike most safe-additive suites it does mint version-history restore points.
+- `e2e-panels.mjs` adds one of **every** widget the palette offers and measures its settings
+  panel: nothing pushed outside the panel, no editable box too narrow to use, no select showing a
+  blank row, no sideways scrolling. The widget list comes from the palette, so a widget added
+  later is covered without editing the suite. It saves nothing (the draft is discarded on Exit)
+  and binds no items.
+
+**Console errors and somebody else's data.** A real openHAB carries the user's own configuration,
+which routinely points at iconsets renamed years ago and hosts that no longer answer. A suite
+that fails on those 404s cannot be run against a live server, so `isAppResource()` in
+`lib/target.mjs` keeps only failures under the add-on's own path or the REST API — and suites
+record the URL alongside the message, because "Failed to load resource" on its own is a failure
+nobody can act on.
 
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
 `e2e-importer.mjs`, `e2e-history.mjs`): these test the empty-server flows (onboarding, first
