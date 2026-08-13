@@ -130,7 +130,9 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
   defaultSize: { w: 8, h: 6 },
   minPixelHeight: 220,
   hasHeader: true,
-  defaultConfig: () => ({ markers: true, presetBar: true }),
+  // planStyle carries its default here as well as in planStyleOf: a select whose value resolves
+  // to nothing renders blank, which reads as broken next to a plan that is plainly styled.
+  defaultConfig: () => ({ markers: true, presetBar: true, planStyle: 'blueprint' }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'image', type: 'planimage', label: 'Plan image' },
