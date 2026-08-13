@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # GitHub has delivered a push webhook 30 minutes late, and dropped one entirely - when that
+  # happens to CI there is no run to re-run, and the only way to get the checks on a commit is to
+  # push another one. This makes a missing run replayable from the Actions tab.
+  workflow_dispatch:
 
 jobs:
   build:
