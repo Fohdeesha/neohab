@@ -4,6 +4,8 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
 import { getItemHistory } from '../../api/persistence'
+import { classifyHistoryError } from '../../model/persistence'
+import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus'
 import { PERIODS, PERIOD_CHIPS } from '../chart/model'
 import { chartScheme, seriesColor } from '../chart/palette'
 import { stateMatches } from '../common/stateIcon'
@@ -72,7 +74,10 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.period])
 
-  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error' | 'nopersistence'>('loading')
+  // Asked only once the fetch has failed that way - an ordinary dashboard never probes an
+  // admin-only endpoint it has no use for.
+  const advice = usePersistenceAdvice(status === 'nopersistence')
   const [rows, setRows] = useState<TimelineBand[][]>([])
   const [info, setInfo] = useState<string | null>(null)
   // advancing "now": the last band's right edge and the axis follow the clock between fetches
@@ -106,8 +111,8 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       return
     }
     setStatus('loading')
-    load().catch(() => {
-      if (!disposed) setStatus('error')
+    load().catch((err: unknown) => {
+      if (!disposed) setStatus(classifyHistoryError(err))
     })
 
     const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : autoRefreshSeconds(periodMs)
@@ -250,13 +255,19 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
         ) : (
           <div className="nh-tl nh-tl--status">
             <span className="nh-chart__status">
-              {status === 'loading'
-                ? t('Loading history…')
-                : status === 'empty'
-                  ? series.length === 0
-                    ? t('No items configured')
-                    : t('No history data')
-                  : t('Could not load history')}
+              {status === 'loading' ? (
+                t('Loading history…')
+              ) : status === 'empty' ? (
+                series.length === 0 ? (
+                  t('No items configured')
+                ) : (
+                  t('No history data')
+                )
+              ) : status === 'nopersistence' ? (
+                <PersistenceNotice advice={advice} />
+              ) : (
+                t('Could not load history')
+              )}
             </span>
           </div>
         )}

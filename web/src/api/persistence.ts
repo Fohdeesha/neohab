@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { PersistenceService } from '../model/persistence'
 
 export interface HistoryPoint {
   time: number
@@ -35,4 +36,33 @@ export async function getItemHistory(
     { signal: opts.signal }
   )
   return dto.data ?? []
+}
+
+/**
+ * The persistence services this server has, or null if we may not ask.
+ *
+ * `GET /rest/persistence` is admin-only (verified on 4.3.7: anonymous 401), which is exactly why
+ * the auth store uses it to establish admin-ness. Null therefore means "unknown", not "none" -
+ * a viewer must never be told nothing is installed on the strength of a 401.
+ *
+ * Cached for the session because it answers a question about the server's installation, which
+ * does not change while a wall panel is looking at it; a failure is not cached, so a device that
+ * signs in later gets a real answer.
+ */
+let servicesPromise: Promise<PersistenceService[] | null> | null = null
+
+export function listPersistenceServices(): Promise<PersistenceService[] | null> {
+  servicesPromise ??= api
+    .get<PersistenceService[]>('/rest/persistence')
+    .then((list) => (Array.isArray(list) ? list : []))
+    .catch(() => {
+      servicesPromise = null
+      return null
+    })
+  return servicesPromise
+}
+
+/** Forget the cached list - the signed-in role changed, so the answer may have too. */
+export function forgetPersistenceServices(): void {
+  servicesPromise = null
 }

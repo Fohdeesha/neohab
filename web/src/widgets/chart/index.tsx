@@ -8,6 +8,8 @@ import { DEFAULT_MAX_POINTS, PERIODS, PERIOD_CHIPS, effectiveSeries, type ChartC
 import { loadChartData, parseState, type SeriesTable } from './data'
 import { numOpt, plotSeries, resolveChart } from './resolve'
 import { navigate, useRoute } from '../../app/router'
+import { classifyHistoryError } from '../../model/persistence'
+import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus'
 import type { ChartHandle } from './plot'
 import type { HeatmapHandle } from './heatmap'
 
@@ -46,9 +48,12 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.period])
 
-  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error' | 'nopersistence'>('loading')
   const [zoomed, setZoomed] = useState(false)
   const [hidden, setHidden] = useState<number[]>([])
+  // Only asked for once the fetch has actually failed that way, so an ordinary dashboard never
+  // probes an admin endpoint it has no use for.
+  const advice = usePersistenceAdvice(status === 'nopersistence')
 
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<ChartHandle | null>(null)
@@ -184,8 +189,8 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
 
     const run = () => (heatmap ? loadHeatmap() : load())
     setStatus('loading')
-    run().catch(() => {
-      if (!disposed) setStatus('error')
+    run().catch((err: unknown) => {
+      if (!disposed) setStatus(classifyHistoryError(err))
     })
     const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : 300
     const timer = setInterval(() => {
@@ -335,13 +340,19 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         <div className={'nh-chart' + (heatmap ? ' nh-heatmap' : '')} ref={hostRef}>
           {status !== 'ready' ? (
             <span className="nh-chart__status">
-              {status === 'loading'
-                ? t('Loading history…')
-                : status === 'empty'
-                  ? resolved.length === 0
-                    ? t('No series configured')
-                    : t('No history data')
-                  : t('Could not load history')}
+              {status === 'loading' ? (
+                t('Loading history…')
+              ) : status === 'empty' ? (
+                resolved.length === 0 ? (
+                  t('No series configured')
+                ) : (
+                  t('No history data')
+                )
+              ) : status === 'nopersistence' ? (
+                <PersistenceNotice advice={advice} />
+              ) : (
+                t('Could not load history')
+              )}
             </span>
           ) : null}
         </div>

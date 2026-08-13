@@ -398,6 +398,56 @@ try {
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 
   await page.screenshot({ path: 'shot-charts.png', fullPage: false })
+
+  /* ---------- a server with no usable persistence service ----------
+     Last, because it routes the persistence endpoint away and every earlier section wants the
+     real one. The body is exactly what openHAB 4.3.7 answers when asked for history from a
+     service it cannot query (measured; 5.x uses a different STATUS for the same thing, which is
+     why the app matches the message instead). A chart used to call this "Could not load
+     history", which describes a fault rather than a missing prerequisite - and a fresh openHAB
+     has no persistence add-on at all, so it is the first thing many people would see. */
+  {
+    await page.route('**/rest/persistence/items/**', (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'Persistence service not queryable: nosuchservice', 'http-code': 400 } }),
+      })
+    )
+    // the admin-only service list: an empty one means "nothing installed"
+    await page.route('**/rest/persistence', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    )
+    // reload, not goto: the page is already on this hash, and a goto that only changes the
+    // fragment is a same-document navigation - nothing would refetch and the charts would sit
+    // there still showing the data they loaded before the routes existed
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    // caught so a build without the notice fails these checks rather than aborting the suite
+    await page.waitForSelector('.nh-histnotice, .nh-chart__status', { timeout: 20000 }).catch(() => {})
+    await sleep(1500)
+    const notice = await page.evaluate(() => {
+      const el = document.querySelector('.nh-histnotice')
+      return {
+        present: !!el,
+        head: el?.querySelector('.nh-histnotice__head')?.textContent ?? '',
+        detail: el?.querySelector('.nh-histnotice__detail')?.textContent ?? '',
+        stillSaysFault: [...document.querySelectorAll('.nh-chart__status')].some((s) =>
+          (s.textContent ?? '').includes('Could not load history')
+        ),
+      }
+    })
+    ok('no persistence: says a persistence service is needed', notice.present, 'head=' + notice.head)
+    ok('no persistence: not reported as an ordinary fault', !notice.stillSaysFault)
+    // "mentions no add-on" must not be satisfiable by there being no notice at all
+    ok(
+      'no persistence: names no particular add-on',
+      notice.detail.length > 20 && !/rrd4j|influx|mapdb|jdbc/i.test(notice.head + notice.detail),
+      notice.detail.slice(0, 80)
+    )
+    ok('no persistence: an admin is told none is installed', /installed/i.test(notice.detail), notice.detail.slice(0, 80))
+    await page.unroute('**/rest/persistence/items/**')
+    await page.unroute('**/rest/persistence')
+  }
 } catch (err) {
   ok('run completed', false, String(err))
 } finally {

@@ -64,6 +64,10 @@ the one thing that cannot come across — its selectors are HABPanel's — so it
   through time.
 - **Timeline** — the same history as colored state bands, one row per item: the right shape for
   switches, presence and modes.
+
+  Anything that draws history — charts, timelines, gauge sparklines, stat trends — reads it from
+  whichever **persistence service** your openHAB uses. Any of them will do; if none is set up, the
+  widgets say so and tell you what to do about it.
 - **Gauges** — six looks, from a classic arc slider to an LED ring, tick ring, tachometer arc,
   block segments and a 3D clay face. All share color thresholds, alarm ranges, arcs and half
   gauges, tick scales, reference markers, zones, an inline history sparkline, and an optional
