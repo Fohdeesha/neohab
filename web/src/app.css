@@ -1517,6 +1517,11 @@ button {
    ============================================================================ */
 .nh-picker {
   position: relative;
+  /* An <input> has no min-content size smaller than its default width, so a picker used as a
+     flex item is floored at ~240px and pushes whatever sits beside it off the edge - the
+     min-width:0 on the input alone does not help, that only lets the input shrink INSIDE the
+     box. Release the floor here so a row can size the picker. */
+  min-width: 0;
 }
 
 .nh-picker__box {
@@ -3126,12 +3131,15 @@ button {
 /* Background-image field (Settings + dashboard settings panel) */
 .nh-bgfield__row {
   display: flex;
+  /* This field is used in the 720px Settings form AND in the 340px widget settings panel, where
+     everything on one line crushes the URL box to a few characters. Let it take its own line. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
 .nh-bgfield__row input[type='text'] {
-  flex: 1 1 auto;
+  flex: 1 1 160px;
   min-width: 0;
 }
 
@@ -4340,6 +4348,11 @@ button {
 
 .nh-planedit__add .nh-picker {
   flex: 1;
+}
+
+/* The picker takes the free space; Add keeps its own, whatever the panel is worth. */
+.nh-planedit__add > .nh-btn {
+  flex-shrink: 0;
 }
 
 .nh-planedit__list {
