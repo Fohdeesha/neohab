@@ -70,8 +70,10 @@ const browser = await launch()
 const pages = []
 
 try {
-  ok('settings snapshot has no lockEditing yet', settingsBefore.config.lockEditing === undefined,
-    String(settingsBefore.config.lockEditing))
+  // The lock is the server owner's setting, not ours: on a live server it may already be on,
+  // and the sections below describe what a device sees with it OFF. So establish that rather
+  // than assert it - the snapshot above is restored verbatim at the end either way.
+  await putSettings({ ...settingsBefore.config, lockEditing: false })
 
   // ---------- seed (nothing commandable) ----------
   const seed = await fetch(NS, {
