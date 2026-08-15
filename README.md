@@ -89,7 +89,8 @@ translate it.
   Set the room the way you like it and save it as a **lighting preset**. It is stored as a real
   openHAB scene, so your rules and Main UI see it too, and any panel (even signed-out ones) can
   recall it with a tap. Link a preset to the Switch item your wall switches already use and neohab
-  adds the rule that runs it, with the active preset highlighted on every panel.
+  adds the rule that runs it, with the active preset highlighted on every panel. Optionally,
+  tapping the preset that is already on switches its lights back off.
 - **Custom widgets.** Build your own from HTML templates with live item bindings, plus an optional
   sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one tap.
 
