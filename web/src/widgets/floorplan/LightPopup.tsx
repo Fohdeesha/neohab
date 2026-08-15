@@ -3,9 +3,10 @@
  * same picker as the color widget; dimmers a slider; switches two plain buttons. The room
  * follows live - this IS controlling the light, the same as any widget would.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
+import { clearSettling, markSettling } from '../../store/settling'
 import { ColorControl } from '../color/ColorControl'
 import { numericValue } from '../common/format'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
@@ -14,7 +15,7 @@ import { stateKind, type FloorplanLight } from './model'
 
 export function LightPopup({
   light,
-  ctx,
+  ctx: outer,
   onClose,
 }: {
   light: FloorplanLight
@@ -22,6 +23,22 @@ export function LightPopup({
   onClose: () => void
 }) {
   const { t } = useTranslation()
+  // Every command from this popup feeds the settling layer, so the room under it follows the
+  // control instead of the device's pre-fade echo. Wrapped here rather than inside the controls
+  // themselves: ColorControl belongs to the color widget too, and only the plan reads this.
+  const ctx = useMemo<WidgetContext>(
+    () => ({
+      ...outer,
+      sendCommand: (item, command) => {
+        markSettling([{ item, command }])
+        return outer.sendCommand(item, command).then((accepted) => {
+          if (!accepted) clearSettling([item])
+          return accepted
+        })
+      },
+    }),
+    [outer]
+  )
   const state = ctx.getItem(light.item)
   const kind = stateKind(state?.state)
 

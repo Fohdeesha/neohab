@@ -13,6 +13,7 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useBoxSize } from '../../components/useBoxSize'
 import { useConfigStore } from '../../store/config'
+import { useSettledState } from '../../store/settling'
 import { resolveBackgroundRef } from '../../model/background'
 import {
   containRect,
@@ -48,6 +49,10 @@ export function PlanCanvas({
   const [img, setImg] = useState<{ w: number; h: number } | null>(null)
   const [popup, setPopup] = useState<FloorplanLight | null>(null)
 
+  // Glows are drawn through the settling layer: a light mid-fade reports the value it is
+  // leaving before the one it was sent, and the room should not flash back through it.
+  const settled = useSettledState()
+
   const lights = lightsOf(config)
   const scale = glowScaleOf(config)
   const rect = img ? containRect(boxW, boxH, img.w, img.h) : null
@@ -73,7 +78,7 @@ export function PlanCanvas({
           onPointerDown={onPlanPointerDown ? (e) => onPlanPointerDown(e, rect) : undefined}
         >
           {lights.map((l) => {
-            const glow = glowFor(ctx.getItem(l.item)?.state)
+            const glow = glowFor(settled(l.item, ctx.getItem(l.item)?.state))
             if (!glow || glow.intensity <= 0) return null
             const size = (l.size ?? DEFAULT_GLOW_SIZE) * scale
             return (

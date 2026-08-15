@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
 import { activatePreset, loadPresets, usePresetsStore } from '../../store/presets'
 import { subscribeItems, useItemsStore } from '../../store/items'
+import { useSettledState } from '../../store/settling'
 import { presetActive, type PresetSummary } from '../../model/presets'
 import { useIsAdmin } from '../../store/auth'
 import { PresetSaveDialog } from './PresetSave'
@@ -38,13 +39,19 @@ export function PresetBar({ ctx, lights, bottom = 8 }: { ctx: WidgetContext; lig
   )
   useEffect(() => subscribeItems(statusItems), [statusItems])
   const states = useItemsStore((s) => s.states)
+  const settled = useSettledState()
 
   if (!loaded || (summaries.length === 0 && !admin)) return null
 
+  // Through the settling layer, so activating a preset lights its chip at once and leaves it
+  // lit: matched against the raw states, a chip blinks off again the moment a device echoes
+  // the value it is fading away from.
+  const stateOf = (item: string) => settled(item, states[item]?.state)
+
   const isActive = (p: PresetSummary): boolean => {
-    if (p.statusItem) return states[p.statusItem]?.state === (p.statusState === 'OFF' ? 'OFF' : 'ON')
+    if (p.statusItem) return stateOf(p.statusItem) === (p.statusState === 'OFF' ? 'OFF' : 'ON')
     const fullPreset = full[p.uid]
-    return fullPreset ? presetActive(fullPreset.lights, (item) => states[item]?.state) : false
+    return fullPreset ? presetActive(fullPreset.lights, stateOf) : false
   }
 
   return (

@@ -7,10 +7,11 @@
  * backup whose "presets" would overwrite arbitrary rules.
  *
  * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-fplan, dashboard:nh-e2e-fplan2   (neohab:config)
+ *   - dashboard:nh-e2e-fplan, -fplan2, -fplan3   (neohab:config)
  *   - one background:<id>, from the upload in section H (its uid is found by diffing)
- *   - rules nh-scene-nh-e2e-evening and nh-bridge-nh-scene-nh-e2e-evening
- *   - a managed test item nh_e2e_proxy  (never a file-provided item)
+ *   - rules nh-scene-nh-e2e-evening, nh-bridge-nh-scene-nh-e2e-evening,
+ *     nh-scene-nh-e2e-settle-a and -settle-b
+ *   - managed test items nh_e2e_proxy and nh_e2e_glow  (never file-provided items)
  * The dimmer and color items are commanded (recorded and restored); rule uids are diffed
  * against a pre-run listing so a stray cannot survive unnoticed. Section H saves through the
  * app, so it DOES mint version-history restore points - clear them if the server is a live one.
@@ -21,9 +22,14 @@ import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.m
 
 const UID = 'dashboard:nh-e2e-fplan'
 const UID2 = 'dashboard:nh-e2e-fplan2'
+const UID3 = 'dashboard:nh-e2e-fplan3'
 const SCENE_UID = 'nh-scene-nh-e2e-evening'
 const BRIDGE_UID = 'nh-bridge-' + SCENE_UID
+const SETTLE_A = 'nh-scene-nh-e2e-settle-a'
+const SETTLE_B = 'nh-scene-nh-e2e-settle-b'
 const PROXY_ITEM = 'nh_e2e_proxy'
+/** Unbound, so section I can replay a device's fade without a device. */
+const GLOW_ITEM = 'nh_e2e_glow'
 const results = []
 const ok = (name, cond, detail = '') => {
   results.push({ name, pass: !!cond })
@@ -38,6 +44,14 @@ async function itemState(name) {
 }
 async function sendItem(name, value) {
   await fetch(itemUrl(name), { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: String(value) })
+}
+/** A state UPDATE, the way a binding reports one - no command, so no device is driven. */
+async function putState(name, value) {
+  await fetch(itemUrl(name) + '/state', {
+    method: 'PUT',
+    headers: { ...AUTH, 'Content-Type': 'text/plain' },
+    body: String(value),
+  })
 }
 /** Poll until the item's state starts with `want` (device echoes may append decimals). */
 async function pollItem(name, want, tries = 20) {
@@ -695,19 +709,165 @@ try {
   const bgAfterOther = (await fetch(NS + '/' + encodeURIComponent(bgUid ?? 'background:none'), { headers: AUTH })).status
   ok("saving another dashboard leaves the floor plan's image alone", bgAfterOther === 200, 'status ' + bgAfterOther)
 
+  /* ---------------- I. switching presets holds steady while the lights fade ---------------- */
+  // A light does not step to a commanded value: openHAB predicts it at once, the binding then
+  // echoes the channel's PRE-FADE readback, and the real value lands when the fade ends. The
+  // sequence below is the one a DMX strip actually produced on this server, replayed on an
+  // UNBOUND managed item so no device is involved and the timing is ours.
+  await fetch(itemUrl(GLOW_ITEM), {
+    method: 'PUT',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'Color', name: GLOW_ITEM, label: 'NH E2E Glow' }),
+  })
+  for (const [uid, name, command] of [
+    [SETTLE_A, 'NH E2E Settle A', '288,55,40'],
+    [SETTLE_B, 'NH E2E Settle B', '330,81,70'],
+  ]) {
+    await fetch(`${BASE}/rest/rules`, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid,
+        name,
+        tags: ['Scene', 'neohab'],
+        configuration: {},
+        triggers: [],
+        conditions: [],
+        actions: [{ id: '1', type: 'core.ItemCommandAction', configuration: { itemName: GLOW_ITEM, command } }],
+      }),
+    })
+  }
+  await fetch(NS + '/' + encodeURIComponent(UID3), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID3,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-fplan3',
+        name: 'E2E Floorplan Settle',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-plan',
+            type: 'floorplan',
+            config: {
+              label: 'Settle',
+              image: PLAN_URI,
+              lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 50, y: 50, label: 'Glow' }],
+            },
+            layout: { lg: { x: 0, y: 0, w: 9, h: 6 } },
+          },
+        ],
+      },
+    }),
+  })
+  // start held at B, so tapping A is a real switch between two presets
+  await putState(GLOW_ITEM, '330,81,70')
+  // A goto that only changes the hash is a same-document navigation: the app would keep the
+  // dashboard list and the scene list it loaded before this section created either of them.
+  await page.goto(APP + '#/d/nh-e2e-fplan3')
+  await page.reload()
+  await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
+  await sleep(2500)
+
+  // Scoped to this section's own two chips: the bar lists every scene on the server, and on a
+  // live one somebody else's preset may legitimately be held at the same moment.
+  const chipState = (p) =>
+    probe(p, () => {
+      const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+      const on = (n) => {
+        const c = chips.find((x) => x.textContent.trim() === n)
+        return c ? c.classList.contains('nh-chip--on') : null
+      }
+      return { a: on('NH E2E Settle A'), b: on('NH E2E Settle B') }
+    })
+  const before = await chipState(page)
+  ok('the preset currently held is the one highlighted', before.b === true && before.a === false,
+    `A=${before.a} B=${before.b}`)
+
+  // Arm an in-page sampler BEFORE the click: polling over the wire costs a round trip a sample
+  // and would miss the whole window.
+  await page.evaluate(() => {
+    window.__tl = []
+    const read = () => {
+      const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+      // Named in full, never by position or by a trailing character: the bar lists every scene
+      // on the server, and somebody else's may be held or released while this runs.
+      const flag = (n) => {
+        const c = chips.find((x) => x.textContent.trim() === n)
+        return c && c.classList.contains('nh-chip--on') ? '+' : '-'
+      }
+      const glow = [...document.querySelectorAll('.nh-fplan__glow')]
+        .map((g) => (/rgba?\(([^)]*?),\s*[\d.]+\)/.exec(g.style.backgroundImage) || [, '?'])[1])
+        .join('')
+      return `A${flag('NH E2E Settle A')} B${flag('NH E2E Settle B')}|${glow}`
+    }
+    let last = null
+    window.__iv = setInterval(() => {
+      const s = read()
+      if (s !== last) {
+        window.__tl.push(s)
+        last = s
+      }
+    }, 8)
+  })
+  await sleep(120) // let the sampler record the state before the tap
+  // Never let a missing chip abort the section: the checks below must be what fails.
+  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+  // the measured echo: the value being faded AWAY from, a mid-fade value, then the real one
+  await sleep(400)
+  await putState(GLOW_ITEM, '332.481,74.71900,69.804')
+  await sleep(400)
+  await putState(GLOW_ITEM, '323.617,67.62600,54.510')
+  await sleep(700)
+  await putState(GLOW_ITEM, '287.368,55.88300,40')
+  await sleep(1200)
+  const timeline = await page.evaluate(() => {
+    clearInterval(window.__iv)
+    return window.__tl
+  })
+
+  const tl = Array.isArray(timeline) ? timeline : []
+  // tl[0] is the state before the tap; everything after it should be one steady state.
+  const aOn = tl.map((s) => s.startsWith('A+'))
+  const bOn = tl.map((s) => s.includes('B+'))
+  const changes = aOn.filter((v, i) => i > 0 && v !== aOn[i - 1]).length
+  ok('the tapped preset lights up once and stays lit through the fade',
+    changes === 1 && aOn[0] === false && aOn[aOn.length - 1] === true,
+    `highlight changes=${changes} states=${tl.length} | ${tl.join(' > ')}`)
+  ok('the preset being left goes dark and does not come back',
+    bOn[0] === true && bOn.slice(1).every((v) => v === false),
+    `B lit in ${bOn.filter(Boolean).length} of ${tl.length} states`)
+  // No colour is hardcoded: whatever the device reports mid-fade, the room must reach the new
+  // scene's colour once and hold it, rather than flashing back through the one being left.
+  const glows = tl.map((s) => s.split('|')[1] ?? '')
+  const afterTap = [...new Set(glows.slice(1))]
+  ok('the glow changes to the new scene once and never flashes back',
+    afterTap.length === 1 && afterTap[0] !== glows[0] && afterTap[0] !== '',
+    `before=${glows[0]} after=[${afterTap.join(' > ')}]`)
+  const settled = await chipState(page)
+  ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
+    `A=${settled.a} B=${settled.b}`)
+
   ok('no page errors (main)', errs.length === 0, errs.slice(0, 3).join(' | '))
   ok('no page errors (anonymous)', anonErrs.length === 0, anonErrs.slice(0, 3).join(' | '))
 } finally {
   /* ---------------- cleanup ---------------- */
   await anonCtx?.close().catch(() => {})
   await browser.close().catch(() => {})
-  for (const uid of [UID, UID2, bgUid].filter(Boolean)) {
+  for (const uid of [UID, UID2, UID3, bgUid].filter(Boolean)) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  for (const uid of [BRIDGE_UID, SCENE_UID]) {
+  for (const uid of [BRIDGE_UID, SCENE_UID, SETTLE_A, SETTLE_B]) {
     await fetch(`${BASE}/rest/rules/${uid}`, { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  await fetch(itemUrl(PROXY_ITEM), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  for (const item of [PROXY_ITEM, GLOW_ITEM]) {
+    await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
   await sendItem(ITEMS.dimmer, initialDimmer).catch(() => {})
   await restoreColor(ITEMS.color, initialColor).catch(() => {})
 
@@ -716,11 +876,14 @@ try {
   const stray = postRuleUids.filter((u) => !preRunRuleUids.includes(u))
   ok('no stray rules left behind', stray.length === 0, stray.join(','))
   const cfgLeft = await (await fetch(NS, { headers: AUTH })).json()
-  const mine = [UID, UID2, bgUid].filter(Boolean)
+  const mine = [UID, UID2, UID3, bgUid].filter(Boolean)
   const leftovers = cfgLeft.filter((c) => mine.includes(c.uid)).map((c) => c.uid)
   ok('dashboards and the uploaded plan removed', leftovers.length === 0, leftovers.join(','))
-  const itemGone = await fetch(itemUrl(PROXY_ITEM), { headers: AUTH })
-  ok('proxy item removed', itemGone.status === 404, 'status ' + itemGone.status)
+  const itemsLeft = []
+  for (const item of [PROXY_ITEM, GLOW_ITEM]) {
+    if ((await fetch(itemUrl(item), { headers: AUTH })).status !== 404) itemsLeft.push(item)
+  }
+  ok('test items removed', itemsLeft.length === 0, itemsLeft.join(','))
   const dimmerNow = await itemState(ITEMS.dimmer)
   ok('dimmer restored', dimmerNow === initialDimmer || dimmerNow.startsWith(initialDimmer + '.'),
     `${dimmerNow} (want ${initialDimmer})`)

@@ -22,9 +22,11 @@ import {
   SCENE_TAG,
   type Preset,
   type PresetSummary,
+  type StatusState,
 } from '../model/presets'
 import { commandItem } from '../widgets/common/command'
 import { useAuthStore } from './auth'
+import { clearSettling, markSettling } from './settling'
 
 interface PresetsState {
   /** A load has completed at least once (successfully or not). */
@@ -171,14 +173,24 @@ async function deleteBridgeRule(sceneUid: string): Promise<void> {
  * directly, and the status item - which some OTHER system may be consuming - is left alone.
  */
 export async function activatePreset(preset: PresetSummary): Promise<boolean> {
-  const bridged = usePresetsStore.getState().bridged.includes(preset.uid)
-  if (preset.statusItem && bridged) {
-    return commandItem(preset.statusItem, preset.statusState === 'OFF' ? 'OFF' : 'ON')
+  const { bridged, full } = usePresetsStore.getState()
+  if (preset.statusItem && bridged.includes(preset.uid)) {
+    const command: StatusState = preset.statusState === 'OFF' ? 'OFF' : 'ON'
+    markSettling([{ item: preset.statusItem, command }])
+    const accepted = await commandItem(preset.statusItem, command)
+    if (!accepted) clearSettling([preset.statusItem])
+    return accepted
   }
+  // Hold the preset's own values on screen while the lights fade to them, or the first thing
+  // the plan draws is the device echoing the scene we just left. Only an administrator holds
+  // the values, so elsewhere this is empty and the display follows the lights as it always did.
+  const lights = full[preset.uid]?.lights ?? []
+  markSettling(lights)
   try {
     await runRule(preset.uid)
     return true
   } catch (err) {
+    clearSettling(lights.map((l) => l.item))
     // Same contract as commandItem: activation failures must be visible, not console noise.
     notify(
       i18n.t('“{{name}}” could not be activated ({{error}})', {
