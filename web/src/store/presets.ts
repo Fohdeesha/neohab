@@ -17,6 +17,7 @@ import {
   isScene,
   newSceneUid,
   presetFromRule,
+  presetOffCommands,
   presetSummaryFromRule,
   ruleFromPreset,
   SCENE_TAG,
@@ -143,6 +144,23 @@ export async function savePreset(preset: Preset, opts?: { bridge?: boolean; crea
     await deleteBridgeRule(preset.uid)
   }
   await reloadPresets()
+}
+
+/**
+ * Switch a preset off: command each of ITS lights off, leaving anything else on the plan alone.
+ *
+ * Needs the per-light values, which only an administrator can read, so it reports false when it
+ * cannot act and the caller falls back to activating - the same behaviour as before the setting
+ * existed, rather than a tap that silently does nothing.
+ */
+export async function deactivatePreset(preset: PresetSummary): Promise<boolean> {
+  const offs = presetOffCommands(usePresetsStore.getState().full[preset.uid]?.lights ?? [])
+  if (offs.length === 0) return false
+  markSettling(offs)
+  const accepted = await Promise.all(offs.map((o) => commandItem(o.item, o.command)))
+  const refused = offs.filter((_, i) => !accepted[i]).map((o) => o.item)
+  if (refused.length > 0) clearSettling(refused)
+  return accepted.some(Boolean)
 }
 
 /** Delete a preset and its bridge rule, if any (administrator). */

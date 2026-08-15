@@ -31,6 +31,8 @@ export interface FloorplanConfig {
   lights?: FloorplanLight[]
   /** Offer the preset chips over the plan (default on). */
   presetBar?: boolean
+  /** Tapping the highlighted preset switches its lights off instead of running it again. */
+  presetToggleOff?: boolean
   /** Draw a small marker dot at each light (default on) - the tap target. */
   markers?: boolean
   /** Glow size multiplier in percent (100 = normal). */

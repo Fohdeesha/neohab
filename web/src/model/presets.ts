@@ -287,6 +287,27 @@ export function presetActive(lights: PresetLight[], getState: (item: string) => 
   return lights.every((l) => commandMatchesState(l.command, getState(l.item)))
 }
 
+/**
+ * The command that switches a light off, decided from the SHAPE of the value the preset sets it
+ * to - not from the item's type, which a scene does not record.
+ *
+ * A colour is switched off with OFF rather than "0,0,0": openHAB takes the brightness to zero
+ * and keeps the hue, so turning it back on returns the colour it had. A numeric light goes to 0,
+ * which is right for a Dimmer and for a plain Number an OFF would be refused on.
+ */
+export function offCommandFor(command: string): string {
+  if (typeof command !== 'string') return 'OFF'
+  if (looksHsb(command)) return 'OFF'
+  const n = Number(command)
+  return Number.isFinite(n) && command.trim() !== '' ? '0' : 'OFF'
+}
+
+/** Every light of a preset, with the command that switches it off. */
+export function presetOffCommands(lights: PresetLight[]): PresetLight[] {
+  if (!Array.isArray(lights)) return []
+  return lights.map((l) => ({ item: l.item, command: offCommandFor(l.command) }))
+}
+
 /* ---------- capturing current state ---------- */
 
 /**

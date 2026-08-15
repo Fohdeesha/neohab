@@ -4149,6 +4149,14 @@ button {
   border-style: dashed;
 }
 
+/* Sized up from the shared .nh-chip: on a plan these are the primary control, reached from
+   across a room, not a secondary filter row like the chart's period chips. */
+.nh-fplan__bar .nh-chip {
+  min-height: 47px;
+  padding: 8px 16px;
+  font-size: 1.1rem;
+}
+
 /* the tap popup and the save dialog */
 .nh-fplan__scrim {
   position: absolute;

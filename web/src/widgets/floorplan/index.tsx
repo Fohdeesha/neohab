@@ -29,6 +29,9 @@ import {
 import { LightPopup } from './LightPopup'
 import { PresetBar } from './PresetBar'
 
+/** One row of preset chips, plus the bar's own inset: `.nh-fplan__bar .nh-chip` in app.css. */
+const CHIP_ROW = 55
+
 export function PlanCanvas({
   config,
   ctx,
@@ -108,11 +111,13 @@ export function PlanCanvas({
       ) : null}
       {config.presetBar !== false && !children ? (
         // Anchored just under the plan, not the widget: a heavily letterboxed plan (tall
-        // stacked rows on phones) would otherwise leave the chips floating far below it.
+        // stacked rows on phones) would otherwise leave the chips floating far below it. The
+        // offset reserves one chip row, so it tracks .nh-fplan__bar .nh-chip's height in CSS.
         <PresetBar
           ctx={ctx}
           lights={lights}
-          bottom={rect && rect.width > 0 ? Math.max(8, Math.round(boxH - rect.top - rect.height) - 44) : 8}
+          toggleOff={config.presetToggleOff === true}
+          bottom={rect && rect.width > 0 ? Math.max(8, Math.round(boxH - rect.top - rect.height) - CHIP_ROW) : 8}
         />
       ) : null}
       {popup ? <LightPopup light={popup} ctx={ctx} onClose={() => setPopup(null)} /> : null}
@@ -155,6 +160,13 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
     { key: 'lights', type: 'planlights', label: 'Lights' },
     { key: 'markers', type: 'boolean', label: 'Show light markers' },
     { key: 'presetBar', type: 'boolean', label: 'Show preset chips' },
+    {
+      key: 'presetToggleOff',
+      type: 'boolean',
+      label: 'Turn the lights off when unselecting a preset',
+      hint: 'Tapping the highlighted preset again switches off the lights it controls, instead of running it again. Other lights on the plan are left alone.',
+      showIf: (c) => c.presetBar !== false,
+    },
     {
       key: 'glowScale',
       type: 'number',

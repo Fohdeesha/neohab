@@ -3,8 +3,9 @@
  * popups (color/dimmer controls), the preset bar (save/capture, activate, highlight), the
  * openHAB-scene storage (tags, actions, values), the status-item link and the wall-switch
  * bridge rule end to end, anonymous access (list + activate + status highlight, no editing),
- * the light-placement editor sheet, backup export carrying scenes, and the refusal of a
- * backup whose "presets" would overwrite arbitrary rules.
+ * the light-placement editor sheet, backup export carrying scenes, the refusal of a backup whose
+ * "presets" would overwrite arbitrary rules, that a switch between presets holds steady while
+ * the lights fade, and unselecting a preset to switch its own lights off.
  *
  * SAFE with a live config. Creates and deletes exactly:
  *   - dashboard:nh-e2e-fplan, -fplan2, -fplan3   (neohab:config)
@@ -852,6 +853,64 @@ try {
   const settled = await chipState(page)
   ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
     `A=${settled.a} B=${settled.b}`)
+
+  /* ---------------- J. unselecting a preset turns its lights off ---------------- */
+  // The chips are the primary control on a wall panel, reached from across a room.
+  const chipSize = await probe(page, () => {
+    const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
+      (x) => x.textContent.trim() === 'NH E2E Settle A'
+    )
+    if (!c) return {}
+    const s = getComputedStyle(c)
+    return { h: c.getBoundingClientRect().height, font: parseFloat(s.fontSize) }
+  })
+  ok('preset chips are sized for a wall panel', (chipSize.h ?? 0) >= 46 && (chipSize.font ?? 0) >= 17,
+    `height=${chipSize.h} font=${chipSize.font}px`)
+
+  const brightness = async () => Number((await itemState(GLOW_ITEM)).split(',')[2])
+  ok('section I left the tapped preset holding its lights on', (await brightness()) > 0,
+    'brightness=' + (await brightness()))
+
+  // Default: tapping the held preset runs it again, exactly as before the setting existed.
+  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+  await sleep(1500)
+  ok('with the setting off, tapping the held preset leaves the lights on', (await brightness()) > 0,
+    'brightness=' + (await brightness()))
+
+  // Now turn it on for this plan.
+  const planCfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
+  planCfg.config.widgets[0].config.presetToggleOff = true
+  await fetch(NS + '/' + encodeURIComponent(UID3), {
+    method: 'PUT',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify(planCfg),
+  })
+  await page.reload()
+  await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
+  await sleep(2000)
+
+  const heldBefore = await chipState(page)
+  ok('the preset is still shown as held before the toggle', heldBefore.a === true, `A=${heldBefore.a}`)
+  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+  await sleep(300)
+  const rightAfter = await chipState(page)
+  ok('the highlight clears the moment it is tapped off', rightAfter.a === false, `A=${rightAfter.a}`)
+  await sleep(1500)
+  // OFF on a Color item zeroes the brightness and keeps the hue, so the colour survives being
+  // switched back on - which is why the off command is OFF and not "0,0,0".
+  const offState = await itemState(GLOW_ITEM)
+  ok('tapping the held preset switches its lights off', Number(offState.split(',')[2]) === 0, 'state=' + offState)
+  // The exact value, so this cannot pass on a build where nothing was switched off at all.
+  ok('the light keeps its colour so it comes back the same', offState === '288,55,0', 'state=' + offState)
+
+  // ...and tapping it again brings the preset back, so the chip really toggles. Asserting it
+  // was off first, or this passes for free on a build that never switched it off.
+  const wasOff = await brightness()
+  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+  await sleep(1800)
+  const backOn = await chipState(page)
+  ok('tapping it again runs the preset back on', wasOff === 0 && backOn.a === true && (await brightness()) > 0,
+    `wasOff=${wasOff} A=${backOn.a} brightness=${await brightness()}`)
 
   ok('no page errors (main)', errs.length === 0, errs.slice(0, 3).join(' | '))
   ok('no page errors (anonymous)', anonErrs.length === 0, anonErrs.slice(0, 3).join(' | '))

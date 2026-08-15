@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
-import { activatePreset, loadPresets, usePresetsStore } from '../../store/presets'
+import { activatePreset, deactivatePreset, loadPresets, usePresetsStore } from '../../store/presets'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { useSettledState } from '../../store/settling'
 import { presetActive, type PresetSummary } from '../../model/presets'
@@ -20,7 +20,18 @@ import { useIsAdmin } from '../../store/auth'
 import { PresetSaveDialog } from './PresetSave'
 import type { FloorplanLight } from './model'
 
-export function PresetBar({ ctx, lights, bottom = 8 }: { ctx: WidgetContext; lights: FloorplanLight[]; bottom?: number }) {
+export function PresetBar({
+  ctx,
+  lights,
+  bottom = 8,
+  toggleOff = false,
+}: {
+  ctx: WidgetContext
+  lights: FloorplanLight[]
+  bottom?: number
+  /** Tapping the highlighted preset switches its lights off instead of running it again. */
+  toggleOff?: boolean
+}) {
   const { t } = useTranslation()
   const admin = useIsAdmin()
   const { loaded, summaries, full } = usePresetsStore()
@@ -54,6 +65,13 @@ export function PresetBar({ ctx, lights, bottom = 8 }: { ctx: WidgetContext; lig
     return fullPreset ? presetActive(fullPreset.lights, stateOf) : false
   }
 
+  /** Tapping the highlighted preset switches it off, when the plan asks for that; otherwise,
+   *  and whenever the values cannot be read to switch off with, the tap runs the preset. */
+  const tap = async (p: PresetSummary) => {
+    if (toggleOff && isActive(p) && (await deactivatePreset(p))) return
+    await activatePreset(p)
+  }
+
   return (
     <>
       <div className="nh-fplan__bar" style={{ bottom }}>
@@ -63,7 +81,7 @@ export function PresetBar({ ctx, lights, bottom = 8 }: { ctx: WidgetContext; lig
             type="button"
             className={'nh-chip' + (isActive(p) ? ' nh-chip--on' : '')}
             disabled={ctx.editing}
-            onClick={() => void activatePreset(p)}
+            onClick={() => void tap(p)}
           >
             {p.name}
           </button>

@@ -12,7 +12,9 @@ import {
   isNeohabRule,
   isScene,
   newSceneUid,
+  offCommandFor,
   presetActive,
+  presetOffCommands,
   presetFromRule,
   presetSummaryFromRule,
   ruleFromPreset,
@@ -224,6 +226,28 @@ describe('state matching', () => {
     expect(presetActive(lights, (i) => states[i])).toBe(true)
     expect(presetActive(lights, (i) => (i === 'b' ? '0' : states[i]))).toBe(false)
     expect(presetActive([], () => 'ON')).toBe(false)
+  })
+
+  it('switching a preset off uses the right kind of off for each light', () => {
+    // a color goes OFF rather than to black, so its hue survives being switched back on
+    expect(offCommandFor('288,55,40')).toBe('OFF')
+    expect(offCommandFor('64')).toBe('0')
+    expect(offCommandFor('22.5')).toBe('0')
+    expect(offCommandFor('ON')).toBe('OFF')
+    expect(offCommandFor('PLAY')).toBe('OFF')
+  })
+
+  it('an off command is built for every light of the preset, and nothing else', () => {
+    const lights = [
+      { item: 'strip', command: '288,55,40' },
+      { item: 'lamp', command: '64' },
+    ]
+    expect(presetOffCommands(lights)).toEqual([
+      { item: 'strip', command: 'OFF' },
+      { item: 'lamp', command: '0' },
+    ])
+    expect(presetOffCommands([])).toEqual([])
+    expect(presetOffCommands(undefined as never)).toEqual([])
   })
 })
 
