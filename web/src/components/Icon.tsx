@@ -7,7 +7,7 @@
  *   "meteo:<name>"  - bundled Meteocons weather icon (full color, animated)
  *   "custom:<id>"   - user-uploaded icon stored in the neohab:config namespace
  *   "oh:<name>"     - openHAB server icon (classic set), rendered by the server and
- *   "oh:<name>@<iconset>"  state-aware when `state` is given (light on/off, dimmer level…)
+ *   "oh:<name>@<iconset>"  state-aware when `state` is given (light on/off, dimmer level...)
  *
  * A bare name without a prefix is treated as an openHAB icon (what HABPanel configs contain).
  */
@@ -82,7 +82,7 @@ const hideBroken = (e: SyntheticEvent<HTMLImageElement>) => {
  * Whether a mask image can actually be loaded.
  *
  * A monochrome icon is drawn as a coloured box masked to the glyph's shape, and CSS says a
- * mask-image that fails to load resolves to `none` — so the box is drawn UNMASKED. A mistyped
+ * mask-image that fails to load resolves to `none`, so the box is drawn UNMASKED. A mistyped
  * name ("mdi:lightbub") therefore painted a solid block of the icon colour, which reads as a
  * rendering fault rather than a name that does not exist. The `<img>`-based sources hide
  * themselves through `onError`; a mask has no such event, so the URL is probed once instead.

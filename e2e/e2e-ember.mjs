@@ -206,7 +206,7 @@ try {
       const tile = pa.locator('.nh-gcell:has(.nh-widget__labeltext:text-is("Formatted"))')
       await pa.waitForFunction(() => {
         const t = document.querySelectorAll('.nh-value__text')
-        return [...t].some((el) => el.textContent !== '—' && /^\d/.test(el.textContent))
+        return [...t].some((el) => el.textContent !== '-' && /^\d/.test(el.textContent))
       }, { timeout: 15000 }).catch(() => {})
       const numText = await tile.locator('.nh-value__text').textContent({ timeout: 4000 }).catch(() => null)
       const unitText = await tile.locator('.nh-value__unit').textContent({ timeout: 4000 }).catch(() => null)

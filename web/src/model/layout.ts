@@ -16,7 +16,7 @@ function finite(value: unknown, fallback: number): number {
  *
  * Repaired at the read, like the column count and the row height: the editor clamps every rect it
  * writes, but a backup, a shared export or a hand edit is stored verbatim. An unreadable height
- * made `findFreeSpot` return `y: NaN` — which was then saved onto the next widget added — and a
+ * made `findFreeSpot` return `y: NaN`, which was then saved onto the next widget added, and a
  * negative `y` became a `grid-row` counted from the END of the grid, putting the widget somewhere
  * nobody had placed it.
  */
@@ -81,7 +81,7 @@ export function mdColumnsOf(dashboard: Dashboard): number {
 
 /**
  * The gap between cells, as a usable number. The editor clamps it to 0..64; a stored `gap: "wide"`
- * made the cell width NaN and left the grid unable to lay anything out at all — the same failure
+ * made the cell width NaN and left the grid unable to lay anything out at all - the same failure
  * `columns: 0` used to cause, in the one geometry field that had no guard.
  */
 export function gapOf(dashboard: Dashboard): number {
@@ -368,7 +368,7 @@ export function widgetAccentColor(widget: WidgetInstance): string | undefined {
  * Ink for text drawn on this tile's own accent colour (`--nh-accent-ink` on the cell, shadowing
  * the theme's). Without it a tile given a pale accent keeps the theme's ink and can end up with
  * white text on yellow; with it, each tile's ink follows the colour it was actually given.
- * Undefined when the tile has no accent of its own, or names a colour we cannot read — the
+ * Undefined when the tile has no accent of its own, or names a colour we cannot read - the
  * theme's own ink then applies, exactly as before.
  */
 export function widgetAccentInk(widget: WidgetInstance): string | undefined {

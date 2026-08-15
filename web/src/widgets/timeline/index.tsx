@@ -44,7 +44,7 @@ function fmtTick(ms: number, spanMs: number): string {
 }
 
 function fmtRange(band: TimelineBand, spanMs: number): string {
-  return `${fmtTick(band.start, spanMs)} – ${fmtTick(band.end, spanMs)}`
+  return `${fmtTick(band.start, spanMs)} - ${fmtTick(band.end, spanMs)}`
 }
 
 /**

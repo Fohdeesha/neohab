@@ -2,7 +2,7 @@
  * Narrow-viewport (phone) edit surface: the same single-column stack as the runtime grid,
  * with drag-to-reorder via each widget's handle. The first reorder pins an explicit
  * stackOrder on the dashboard; until then the stack follows the grid's row order. Widget
- * position/size on the wide grid is still edited on a wide viewport — here the handle only
+ * position/size on the wide grid is still edited on a wide viewport - here the handle only
  * moves widgets up and down, with a line showing where the drop lands.
  */
 import { useEffect, useRef, useState } from 'react'
@@ -132,7 +132,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     const from = ordered.findIndex((w) => w.id === drag.id)
     setDrag(null)
     // Selection on drop: a no-move press on the handle is a click on the widget, so it behaves
-    // exactly like a body click (Ctrl toggles, Shift adds, plain replace-selects — matching the
+    // exactly like a body click (Ctrl toggles, Shift adds, plain replace-selects - matching the
     // wide grid). A real reorder keeps a multi-selection intact when the widget belongs to it.
     const clickLike = Math.abs(drag.dy) <= 5
     if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)

@@ -29,13 +29,13 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
   const setSpeechItem = async (name: string) => {
     onNotice(null)
     const err = await saveSettings({ speechItem: name || undefined })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   const setVoiceButton = async (on: boolean) => {
     onNotice(null)
     const err = await saveSettings({ voiceButton: on ? undefined : false })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   return (
@@ -43,7 +43,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
       <h2 className="nh-settings__h">{t('Voice & audio')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Rules can play sounds through openHAB’s “Web Audio” sink and announce values via a speech item — every open dashboard is a speaker. Whether THIS device plays along is chosen here; the shared configuration at the bottom needs an administrator.'
+          'Rules can play sounds through openHAB’s “Web Audio” sink and announce values via a speech item - every open dashboard is a speaker. Whether THIS device plays along is chosen here; the shared configuration at the bottom needs an administrator.'
         )}
       </p>
 
@@ -102,7 +102,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
 
       {blocked ? (
         <p className="nh-settings__text">
-          {t('The browser blocked sound because this page has not been interacted with yet — tap or click anywhere once (kiosk browsers usually allow it outright).')}
+          {t('The browser blocked sound because this page has not been interacted with yet - tap or click anywhere once (kiosk browsers usually allow it outright).')}
         </p>
       ) : null}
 
@@ -133,7 +133,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
           ) : null}
           <p className="nh-settings__text">
             {t(
-              'A String item whose new value is spoken aloud whenever it changes — write to it from rules to make announcements. Each device chooses above whether (and with which voice) it speaks.'
+              'A String item whose new value is spoken aloud whenever it changes - write to it from rules to make announcements. Each device chooses above whether (and with which voice) it speaks.'
             )}
           </p>
 

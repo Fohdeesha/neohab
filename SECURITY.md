@@ -9,7 +9,7 @@ Use GitHub's private vulnerability reporting: go to the
 That opens a private thread visible only to the maintainers.
 
 This is a spare-time community project, so please allow a few days for a first reply. Tell me what
-you found, how to reproduce it, and what an attacker gets out of it — a working proof of concept is
+you found, how to reproduce it, and what an attacker gets out of it. A working proof of concept is
 worth more than a scanner result. I will confirm the report, agree a fix and a disclosure timeline
 with you, and credit you in the release notes unless you would rather I did not.
 
@@ -20,34 +20,34 @@ maintenance branches, and the add-on is a single jar you replace in `addons/`.
 
 ## What neohab is, in security terms
 
-neohab is a browser UI. It has no server-side logic of its own beyond serving static files: every
+neohab is a browser UI. It has no server-side logic of its own beyond serving static files. Every
 read and write goes to openHAB's own REST API, and **openHAB enforces authorisation, not neohab**.
-Anything the UI hides from a non-administrator is a convenience, not a boundary — the server
-refuses the write regardless.
+Anything the UI hides from a non-administrator is a convenience, not a boundary, because the
+server refuses the write regardless.
 
 That shapes what is and is not a vulnerability here.
 
 **In scope**
 
-- Escaping the Tier‑1 template sandbox: reaching globals, `Function`, prototypes or the host page
+- Escaping the Tier-1 template sandbox: reaching globals, `Function`, prototypes or the host page
   from a widget template's expressions.
-- Escaping the Tier‑2 JavaScript widget iframe: reaching the app's DOM, its session, `localStorage`
+- Escaping the Tier-2 JavaScript widget iframe: reaching the app's DOM, its session, `localStorage`
   or the openHAB token from inside the sandbox.
-- Stored configuration that becomes executable — a URL, template or stylesheet from a backup,
-  a shared export or a hand edit that runs script in the app's origin.
-- Leaking the openHAB token or proxy credentials anywhere they should not go: a log, a URL, a
-  request to another origin, an export file, a diagnostics report.
+- Stored configuration that becomes executable: a URL, template or stylesheet from a backup, a
+  shared export or a hand edit that runs script in the app's origin.
+- Leaking the openHAB token or proxy credentials anywhere they should not go, such as a log, a
+  URL, a request to another origin, an export file or a diagnostics report.
 - Any way for a **non-administrator** to change stored configuration that openHAB would otherwise
   refuse.
 
 **Not in scope**
 
 - An administrator doing something dangerous on purpose. Custom widgets, theme stylesheets and
-  frame/camera URLs are code an administrator writes and stores deliberately; they run with the
+  frame or camera URLs are code an administrator writes and stores deliberately; they run with the
   privileges of the person viewing them, by design. This is the same trust model HABPanel has.
-- The UI showing or hiding a control based on role. That is cosmetic — see above.
+- The UI showing or hiding a control based on role. That is cosmetic, as above.
 - Anything that requires an attacker to already have your openHAB credentials or admin token.
-- openHAB itself: report those to the
+- openHAB itself. Report those to the
   [openHAB project](https://github.com/openhab/openhab-core/security).
 - Running neohab on plain HTTP over a hostile network. Put openHAB behind TLS if that is a concern.
 

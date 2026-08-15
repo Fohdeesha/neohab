@@ -2,7 +2,7 @@
  * Widget palette.
  *
  * Tap a card and the widget lands at the first free spot; drag a card onto the grid and it lands
- * exactly where it is dropped (the grid previews the cell — see EditableGrid). While a drag is in
+ * exactly where it is dropped (the grid previews the cell - see EditableGrid). While a drag is in
  * flight the sheet gets out of the way, since a bottom sheet covers the rows you are aiming at.
  * Dragging is offered only on the grid surface: the single-column stack has no cells to aim at,
  * so there a card is tap-to-add as before.

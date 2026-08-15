@@ -27,7 +27,7 @@ export function LiveStatus() {
   return (
     <div className="nh-live" role="status" aria-live="polite">
       <span aria-hidden="true">⚠</span>
-      <span>{t('Live updates unavailable — item states may be out of date.')}</span>
+      <span>{t('Live updates unavailable - item states may be out of date.')}</span>
     </div>
   )
 }

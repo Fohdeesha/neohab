@@ -1,11 +1,11 @@
 /**
  * Client-side processing for user-uploaded icons. Everything is normalized before storage:
- * raster images (PNG/JPEG/WebP/BMP/…) are downscaled to fit MAX_DIMENSION and re-encoded as
- * PNG — transparency survives, exotic formats come out uniform. GIFs are kept byte-for-byte
+ * raster images (PNG/JPEG/WebP/BMP/...) are downscaled to fit MAX_DIMENSION and re-encoded as
+ * PNG - transparency survives, exotic formats come out uniform. GIFs are kept byte-for-byte
  * so animation survives; SVGs are sanitized (no scripts) and kept as vectors.
  *
  * The size cap exists because icons live inside openHAB's JSON config store, which is held in
- * memory and rewritten on every change — this is for icons, not artwork. The default cap can
+ * memory and rewritten on every change - this is for icons, not artwork. The default cap can
  * be overridden via the `maxIconKB` app setting.
  */
 import i18n from '../i18n'
@@ -31,7 +31,7 @@ export async function processIconFile(file: File, maxKB: number): Promise<Proces
 function checkSize(bytes: number, maxKB: number, hint: string): void {
   if (bytes > maxKB * 1024) {
     throw new Error(
-      i18n.t('Icon is {{kb}} KB — the limit is {{max}} KB.', { kb: Math.round(bytes / 1024), max: maxKB }) + ' ' + hint
+      i18n.t('Icon is {{kb}} KB - the limit is {{max}} KB.', { kb: Math.round(bytes / 1024), max: maxKB }) + ' ' + hint
     )
   }
 }
@@ -48,7 +48,7 @@ async function processSvg(file: File, maxKB: number): Promise<ProcessedIcon> {
 
 async function processGif(file: File, maxKB: number): Promise<ProcessedIcon> {
   // Kept as-is: re-encoding through a canvas would drop the animation.
-  checkSize(file.size, maxKB, i18n.t('GIFs are stored unchanged to keep animation — shrink it first.'))
+  checkSize(file.size, maxKB, i18n.t('GIFs are stored unchanged to keep animation - shrink it first.'))
   return { dataUri: await readAsDataUrl(file), bytes: file.size }
 }
 
@@ -78,7 +78,7 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
 
 /**
  * Backgrounds go through their own pipeline: stored LOSSLESSLY as PNG (dashboards are looked
- * at all day — compression artifacts would show), at up to 5K, transparency preserved. The
+ * at all day - compression artifacts would show), at up to 5K, transparency preserved. The
  * byte ceiling only guards against pathological images: the server takes components this size
  * comfortably (measured: an 18 MB component writes in ~0.5 s on openHAB 4.3), and when a PNG
  * busts the ceiling the image is downscaled - resolution is the only lossless lever - never

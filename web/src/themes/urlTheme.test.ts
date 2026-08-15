@@ -2,7 +2,7 @@
  * The escape hatch's parser.
  *
  * `urlTheme.ts` reads the parameter once at module load, which is what makes it usable on the
- * pre-paint path — so each case here loads a fresh copy of the module with `window.location` set,
+ * pre-paint path, so each case here loads a fresh copy of the module with `window.location` set,
  * rather than trying to change it afterwards.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'

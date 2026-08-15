@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config'
 
 /**
- * Unit tests for the pure modules — layout maths, the gauge model, chart aggregation, partial
+ * Unit tests for the pure modules - layout maths, the gauge model, chart aggregation, partial
  * exports, the configuration diff, the template evaluator, the theming contract.
  *
  * Node environment on purpose: everything tested here is deliberately free of React and the DOM,

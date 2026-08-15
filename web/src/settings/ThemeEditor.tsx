@@ -2,7 +2,7 @@
  * The custom-theme editor.
  *
  * It previews: every edit is applied to the running app immediately, and the theme the app should
- * really be showing is put back when the editor closes — including after a save that did not
+ * really be showing is put back when the editor closes - including after a save that did not
  * adopt the draft. Picking colours through a save round-trip is guesswork, and a save that also
  * repainted every other device in the house is worse.
  *
@@ -251,7 +251,7 @@ const LEVEL_LABEL: Record<ContrastLevel, string> = {
 
 /**
  * Whether the colours can actually be read. Only the pairs that genuinely meet on screen, and
- * only where both are colours we can parse — a `color-mix()` accent is reported as unknown
+ * only where both are colours we can parse - a `color-mix()` accent is reported as unknown
  * rather than guessed at.
  */
 function ContrastReport({ theme }: { theme: Theme }) {
@@ -275,7 +275,7 @@ function ContrastReport({ theme }: { theme: Theme }) {
           return (
             <div key={pair.label} className={'nh-contrast__row' + (ratio !== null && !ok ? ' nh-contrast__row--warn' : '')}>
               <span className="nh-contrast__what">{t(pair.label)}</span>
-              <span className="nh-contrast__ratio">{ratio === null ? '—' : ratio.toFixed(1) + ':1'}</span>
+              <span className="nh-contrast__ratio">{ratio === null ? '-' : ratio.toFixed(1) + ':1'}</span>
               <span className="nh-contrast__level">{level === null ? t('not measurable') : t(LEVEL_LABEL[level])}</span>
             </div>
           )
@@ -283,7 +283,7 @@ function ContrastReport({ theme }: { theme: Theme }) {
       </div>
       <p className="nh-field__hint">
         {worst !== null && worst < 4.5
-          ? t('Some text on this theme falls below the 4.5:1 the accessibility guidelines ask for. It will still render — this is a warning, not a limit.')
+          ? t('Some text on this theme falls below the 4.5:1 the accessibility guidelines ask for. It will still render - this is a warning, not a limit.')
           : t('Contrast between the colours that meet on screen. 4.5:1 is the guideline for normal text, 3:1 for large.')}
       </p>
     </div>
@@ -295,11 +295,11 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
   const p = issue.params
   switch (issue.rule) {
     case 'attributePaint':
-      return t('“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself — a gradient, or a colour that follows the value. Your rule wins, and pins it to one colour. Style its width or opacity instead.', p)
+      return t('“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself - a gradient, or a colour that follows the value. Your rule wins, and pins it to one colour. Style its width or opacity instead.', p)
     case 'ungatedPadding':
       return t('“{{selector}}” sets padding outside a @container gate, so it also applies in cells too small for it and text will clip. Wrap it in @container (min-height: 105px) and (min-width: 121px).', p)
     case 'activeState':
-      return t('.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state — style both.', p)
+      return t('.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state - style both.', p)
     case 'borderImageRadius':
       return t('border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.', p)
     case 'bareWidget':
@@ -369,7 +369,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
       <StylesheetIssues css={theme.css ?? ''} radius={theme.tokens.radius ?? '12px'} />
       <span className="nh-field__hint">
         {t(
-          'Optional. A stylesheet applied with this theme, for looks the tokens above cannot express — fonts, widget-frame structure. It is applied here as you type, like everything else.'
+          'Optional. A stylesheet applied with this theme, for looks the tokens above cannot express - fonts, widget-frame structure. It is applied here as you type, like everything else.'
         )}{' '}
         <a href="docs/theming.html" target="_blank" rel="noreferrer">
           {t('Class names, the rules that apply, and worked examples')}
@@ -382,7 +382,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
           </button>
           <span className="nh-field__hint">
             {t(
-              'Copies it as a starting point. Be aware it contains colours written directly into it, which will not follow the tokens above — Swiss Sheet is the one built entirely from tokens, so it is the best one to copy.'
+              'Copies it as a starting point. Be aware it contains colours written directly into it, which will not follow the tokens above - Swiss Sheet is the one built entirely from tokens, so it is the best one to copy.'
             )}
           </span>
         </div>

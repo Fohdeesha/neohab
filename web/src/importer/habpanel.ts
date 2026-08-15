@@ -200,7 +200,7 @@ const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
 
 /**
  * HABPanel's seven themes, each with a port of its own. The ids match, so this is a pass-through
- * rather than a table of approximations — and a dashboard that came from HABPanel arrives wearing
+ * rather than a table of approximations, and a dashboard that came from HABPanel arrives wearing
  * something recognisable instead of the default dark.
  */
 export const THEME_MAP: Record<string, string> = {
@@ -593,7 +593,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     // missing. neohab's version of it is a theme's own Custom CSS.
     report.add(
       'warn',
-      'Your extra stylesheet ({{url}}) was not imported — its selectors are HABPanel’s, not neohab’s. Copy what you need into Settings › Appearance › edit a theme › Custom CSS.',
+      'Your extra stylesheet ({{url}}) was not imported - its selectors are HABPanel’s, not neohab’s. Copy what you need into Settings › Appearance › edit a theme › Custom CSS.',
       { url: stylesheet }
     )
   }

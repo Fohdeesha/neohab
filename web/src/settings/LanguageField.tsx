@@ -14,7 +14,7 @@ export function LanguageField() {
       <select id="nh-set-lang" value={value} onChange={(e) => void setLanguage(e.target.value)}>
         <option value="auto">
           {t('Auto (browser language)')}
-          {value === 'auto' ? ` — ${LANGUAGES.find((l) => l.code === i18n.language)?.name ?? i18n.language}` : ''}
+          {value === 'auto' ? ` - ${LANGUAGES.find((l) => l.code === i18n.language)?.name ?? i18n.language}` : ''}
         </option>
         {LANGUAGES.map((l) => (
           <option key={l.code} value={l.code}>

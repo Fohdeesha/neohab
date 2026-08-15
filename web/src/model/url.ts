@@ -17,8 +17,8 @@ export function isSameOrigin(url: string, whenUnparseable: boolean): boolean {
 /**
  * Schemes a URL out of stored configuration may use.
  *
- * Configuration is untrusted input — an imported HABPanel file, a partial export someone shared, a
- * hand edit — and some of the places it lands execute what they are given: an `<iframe src>` or a
+ * Configuration is untrusted input (an imported HABPanel file, a partial export someone shared, a
+ * hand edit), and some of the places it lands execute what they are given: an `<iframe src>` or a
  * `window.open()` of a `javascript:` URL runs in THIS page's origin, with its session and its
  * token. An allow-list rather than a block-list, because the block-list version of this was
  * written once already and let `vbscript:` and `data:text/html` walk straight through.

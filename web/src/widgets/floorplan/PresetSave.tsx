@@ -109,7 +109,7 @@ export function PresetSaveDialog({
               ) : null}
               <span className="nh-fplan__savename">{light.label ?? light.item}</span>
               <span className="nh-fplan__saveval">
-                {command === null ? t('no state — cannot capture') : (state?.displayState ?? command)}
+                {command === null ? t('no state - cannot capture') : (state?.displayState ?? command)}
               </span>
             </label>
           ))}

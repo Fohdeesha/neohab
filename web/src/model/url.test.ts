@@ -4,7 +4,7 @@
  * Where they land matters: an `<iframe src>` or a `window.open()` of a `javascript:` URL executes
  * in THIS page's origin, with its session and its token. A block-list version of this check was
  * written once and let `vbscript:` and `data:text/html` straight through, which is why it is an
- * allow-list — and why the widgets share it with the template engine rather than each having one.
+ * allow-list, and why the widgets share it with the template engine rather than each having one.
  */
 import { describe, expect, it } from 'vitest'
 import { safeUrl } from './url'

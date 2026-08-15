@@ -65,7 +65,7 @@ describe('docs/theming.md against the code', () => {
 
   it('mentions every token it asks people to set', () => {
     for (const spec of TOKEN_SPECS) {
-      // The chart palette is documented as the range `chart-1` … `chart-8`, not eight rows.
+      // The chart palette is documented as the range `chart-1` ... `chart-8`, not eight rows.
       if (/^chart-[2-7]$/.test(spec.key)) continue
       expect(doc.includes('`' + spec.key + '`'), `never mentions the "${spec.key}" token`).toBe(true)
     }

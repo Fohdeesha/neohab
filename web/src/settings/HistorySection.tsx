@@ -90,7 +90,7 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
       {loading ? <p className="nh-settings__text">{t('Loading…')}</p> : null}
       {!loading && snapshots.length === 0 ? (
         <p className="nh-settings__text">
-          {t('No restore points yet — the first one is taken the next time something is saved.')}
+          {t('No restore points yet - the first one is taken the next time something is saved.')}
         </p>
       ) : null}
 
@@ -237,7 +237,7 @@ function HistoryDetail({
       onRestored()
     } catch (err) {
       onNotice(
-        t('Restore failed: {{error}} — are you signed in as an administrator?', {
+        t('Restore failed: {{error}} - are you signed in as an administrator?', {
           error: err instanceof Error ? err.message : String(err),
         })
       )

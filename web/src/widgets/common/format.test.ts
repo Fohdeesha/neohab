@@ -8,7 +8,7 @@ describe('displayValue', () => {
   it('prefers the server-formatted value', () => {
     expect(displayValue(state({ state: '11.5', displayState: '11.5 °F' }))).toBe('11.5 °F')
     expect(displayValue(state({ state: '11.5' }))).toBe('11.5')
-    expect(displayValue(undefined)).toBe('—')
+    expect(displayValue(undefined)).toBe('-')
   })
 })
 
@@ -21,7 +21,7 @@ describe('splitValueUnit', () => {
   })
 
   it('leaves anything that is not a reading alone', () => {
-    for (const text of ['ON', 'Partly cloudy', '2026-08-04T10:00:00', '120,10,4', '—']) {
+    for (const text of ['ON', 'Partly cloudy', '2026-08-04T10:00:00', '120,10,4', '-']) {
       expect(splitValueUnit(text), text).toEqual({ num: text })
     }
   })

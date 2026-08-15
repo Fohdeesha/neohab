@@ -91,7 +91,7 @@ describe('the built-in stylesheets follow the rules', () => {
 
 /**
  * The checker itself. It is what tells a person writing a theme what they got wrong, so it has
- * to catch each mistake and — just as important — stay quiet about correct CSS.
+ * to catch each mistake and - just as important - stay quiet about correct CSS.
  */
 describe('the stylesheet checker', () => {
   const check = (css: string, radius = '12px') => checkThemeCss(css, { radius }).map((i) => i.rule)
@@ -222,7 +222,7 @@ describe('the HABPanel themes', () => {
   /**
    * Every theme HABPanel shipped has a port here, so an imported dashboard arrives looking like
    * it did. A mapping that points at a theme which does not exist resolves to the default
-   * silently — which is what used to happen to five of the seven.
+   * silently, which is what used to happen to five of the seven.
    */
   it('each map to a theme that exists', () => {
     for (const [habpanel, id] of Object.entries(THEME_MAP)) {

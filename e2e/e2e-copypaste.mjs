@@ -3,7 +3,7 @@
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-cpa and dashboard:nh-e2e-cpb and
  * deletes exactly those in cleanup (guarded, runs even if a section throws). The server's own
- * dashboards are never touched. NO item commands anywhere — every seeded widget is a clock or
+ * dashboards are never touched. NO item commands anywhere - every seeded widget is a clock or
  * label (neither sends a command), so nothing on a real device can move.
  */
 import { chromium } from 'playwright-core'
@@ -243,7 +243,7 @@ try {
   await page.evaluate(() => window.scrollTo(0, 0))
   const g = await page.locator('.nh-grid--edit').boundingBox()
   const cellW = (g.width - GAP * (COLS - 1)) / COLS
-  // start on empty background (col ~8, row 0) — proven empty by the marquee itself starting there
+  // start on empty background (col ~8, row 0) - proven empty by the marquee itself starting there
   const emptyX = g.x + 8 * (cellW + GAP) + cellW / 2
   const emptyY = g.y + ROW / 2
   {

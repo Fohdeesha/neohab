@@ -84,12 +84,12 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       await saveWidgetDef({ ...def, id, name })
       onNotice(
         id === def.id
-          ? t('Installed “{{name}}” — it is now in the widget palette.', { name })
+          ? t('Installed “{{name}}” - it is now in the widget palette.', { name })
           : t('Installed as “{{name}}”, leaving your edited copy alone.', { name })
       )
     } catch (err) {
       onNotice(
-        t('Could not install that widget: {{error}} — are you signed in as an administrator?', {
+        t('Could not install that widget: {{error}} - are you signed in as an administrator?', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -150,7 +150,7 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       ) : null}
       <p className="nh-settings__text">
         {t(
-          'Widgets shared on the openHAB community forum cannot be listed here: the forum only answers its own site, and its posts carry no licence to redistribute. A HABPanel widget from a forum post can still be imported — paste it into a new custom widget, or bring in a whole HABPanel configuration above.'
+          'Widgets shared on the openHAB community forum cannot be listed here: the forum only answers its own site, and its posts carry no licence to redistribute. A HABPanel widget from a forum post can still be imported - paste it into a new custom widget, or bring in a whole HABPanel configuration above.'
         )}
       </p>
     </section>

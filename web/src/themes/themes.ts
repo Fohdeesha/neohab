@@ -5,7 +5,7 @@
  * optionally with a stylesheet of its own for looks tokens cannot express (fonts, widget-frame
  * structure). Widgets and chrome only ever read tokens, so setting one restyles everything.
  *
- * The token contract lives in `tokens.ts` — that list is what the theme editor builds itself from
+ * The token contract lives in `tokens.ts` - that list is what the theme editor builds itself from
  * and what `docs/theming.md` documents. The built-in stylesheets live one per module under `css/`
  * and are loaded on demand, so a browser downloads the stylesheet for the theme it is showing and
  * not the other five.
@@ -437,7 +437,7 @@ function injectCss(css: string | undefined): void {
 /**
  * Apply a theme: tokens first (synchronously, so colours are never wrong), then its stylesheet.
  *
- * Token values come from stored configuration, which is untrusted — a rejected value is simply
+ * Token values come from stored configuration, which is untrusted - a rejected value is simply
  * dropped so the base stylesheet's own value applies, rather than writing something odd into the
  * document. `accent-ink` is derived from the accent unless the theme pins it, which is what keeps
  * text on a filled tile readable whatever colour the accent is.
@@ -512,7 +512,7 @@ export function applyCachedTheme(): void {
 /**
  * The theme a `?theme=` parameter forces for this page load, if any.
  *
- * An id that is not a built-in — `none`, or a typo — resolves to the default, which is exactly
+ * An id that is not a built-in - `none`, or a typo - resolves to the default, which is exactly
  * what someone typing "none" into the address bar wants. Custom themes are deliberately not
  * honoured: they live in the server configuration, which has not loaded when the pre-paint path
  * asks, and a hatch that depends on the configuration is no hatch at all.

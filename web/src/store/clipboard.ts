@@ -4,7 +4,7 @@
  * Copied widgets live in this in-app store so a copy survives switching between dashboards
  * within neohab (editing is a per-dashboard draft, so the clipboard must sit outside it). On
  * copy the payload is also mirrored to the OS clipboard as JSON, and paste reads whichever
- * source is available — so a widget can also be pasted into a separate browser tab or window.
+ * source is available, so a widget can also be pasted into a separate browser tab or window.
  *
  * A ClipboardWidget is a widget stripped of its instance id and reduced to type + config +
  * grid rect; ids are minted fresh when it is pasted (see pasteWidgets).
@@ -80,7 +80,7 @@ export function setInAppClipboard(widgets: ClipboardWidget[]): void {
 /**
  * Copy widgets to the clipboard: stored in-app, and best-effort mirrored to the OS clipboard so
  * they can be pasted into another tab or window. The OS write may be blocked (no permission, not
- * focused) — that only forfeits cross-window paste; same-app paste always works from the store.
+ * focused) - that only forfeits cross-window paste; same-app paste always works from the store.
  * Call this from a real user gesture (button click); inside a `copy` event use clipboardData.
  */
 export function setClipboard(widgets: ClipboardWidget[]): void {

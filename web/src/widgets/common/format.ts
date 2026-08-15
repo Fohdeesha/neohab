@@ -1,14 +1,14 @@
 import type { ItemState } from '../../api/types'
 
 /** Best display string for an item state: server displayState if present, else raw state. */
-export function displayValue(state: ItemState | undefined, fallback = '—'): string {
+export function displayValue(state: ItemState | undefined, fallback = '-'): string {
   if (!state) return fallback
   return state.displayState ?? state.state ?? fallback
 }
 
 /**
  * Split a formatted state like "11.5 °F" into the number and a short unit suffix, so the two
- * can be typeset differently (big value, small raised unit — the stat-tile look). Only a
+ * can be typeset differently (big value, small raised unit - the stat-tile look). Only a
  * leading number followed by a short digit-free tail splits; anything else ("ON",
  * "Partly cloudy", timestamps, HSB triples) stays whole.
  */
@@ -22,7 +22,7 @@ export function splitValueUnit(text: string): { num: string; unit?: string } {
 /**
  * Split a numeric display string for segment-display typesetting: when exactly one digit
  * follows the decimal separator ("71.8"), the separator stays with the integer part and the
- * lone tenths digit splits off so a theme can raise and shrink it (the weather-station look —
+ * lone tenths digit splits off so a theme can raise and shrink it (the weather-station look,
  * "29.68" and every other shape stay whole). Inert everywhere else: the two parts always
  * concatenate back to the input.
  */
@@ -34,13 +34,13 @@ export function segParts(num: string): { int: string; frac?: string } {
 /**
  * Ghost-segment underlay text for a display string: every digit becomes '8' (all seven
  * segments lit), everything else is kept so the ghost overlays the real text glyph-for-glyph.
- * Returns undefined for text with no digits — there is nothing to ghost.
+ * Returns undefined for text with no digits - there is nothing to ghost.
  */
 export function ghostFor(text: string): string | undefined {
   return /\d/.test(text) ? text.replace(/\d/g, '8') : undefined
 }
 
-/** True when a display string is plain digits/separators — safe for a 7-segment face. */
+/** True when a display string is plain digits/separators - safe for a 7-segment face. */
 export function isSegmentable(text: string): boolean {
   return /^-?[\d.,: ]+$/.test(text) && /\d/.test(text)
 }

@@ -49,7 +49,7 @@ export function NewDashboardSheet({ onClose, onGenerate }: { onClose: () => void
           />
         </label>
         {error ? (
-          <p className="nh-form__error">{t('Could not create: {{error}} — are you signed in as an administrator?', { error })}</p>
+          <p className="nh-form__error">{t('Could not create: {{error}} - are you signed in as an administrator?', { error })}</p>
         ) : null}
         <button
           type="button"

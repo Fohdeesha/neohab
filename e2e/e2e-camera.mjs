@@ -409,7 +409,7 @@ try {
   ok('name "overlay": black ink on a light shadow', /rgb\(0, 0, 0\)/.test(black.color) && /rgba?\(255, 255, 255/.test(black.shadow), JSON.stringify(black))
 
   // The name must preview while editing. It used to render there but sit underneath the
-  // edit-mode transport badge, which is drawn at the same corner with an opaque background —
+  // edit-mode transport badge, which is drawn at the same corner with an opaque background,
   // so switching to overlay looked like it had done nothing until you left edit mode.
   ok('seed name/overlay edit', await seed([named({ labelMode: 'overlay' })]))
   await open()
@@ -531,5 +531,5 @@ for (const r of results) {
   if (r.pass) { pass++; console.log(`PASS  ${r.name}`) }
   else { fail++; console.log(`FAIL  ${r.name}${r.detail ? '  -> ' + r.detail : ''}`) }
 }
-console.log(`\n${pass}/${pass + fail} passed${skipped ? `, ${skipped} skipped` : ''}${fail ? ' — FAILURES' : ' — ALL PASS'}`)
+console.log(`\n${pass}/${pass + fail} passed${skipped ? `, ${skipped} skipped` : ''}${fail ? ' - FAILURES' : ' - ALL PASS'}`)
 process.exitCode = fail ? 1 : 0

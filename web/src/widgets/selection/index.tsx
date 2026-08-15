@@ -14,7 +14,7 @@ interface SelectionConfig {
    * for long lists and for filter-style controls where the current choice is the point.
    */
   display?: 'buttons' | 'dropdown'
-  /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", …). */
+  /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", ...). */
   icon?: string
   iconSize?: number
   /** Explicit tint for monochrome (mdi) header icons. */
@@ -72,7 +72,7 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
       iconColor={config.iconColor}
     >
       {choices.length === 0 ? (
-        <div className="nh-selection__empty">{t('No choices — set them in the widget settings')}</div>
+        <div className="nh-selection__empty">{t('No choices - set them in the widget settings')}</div>
       ) : config.display === 'dropdown' ? (
         <select
           className="nh-selection__select"

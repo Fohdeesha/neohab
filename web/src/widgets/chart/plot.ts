@@ -255,7 +255,7 @@ export function createChart(p: PlotParams): ChartHandle {
         ...axisStyle,
         ...(category
           ? {
-              // one tick per bucket, named; uPlot's numeric splits would read 0, 5, 10…
+              // one tick per bucket, named; uPlot's numeric splits would read 0, 5, 10...
               splits: (_u: uPlot, _ax: number, min: number, max: number) => {
                 const out: number[] = []
                 for (let v = Math.ceil(min); v <= Math.floor(max); v++) out.push(v)

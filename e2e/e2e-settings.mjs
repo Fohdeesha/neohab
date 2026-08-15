@@ -1,5 +1,5 @@
-﻿// Settings suite: item picker, theme switching, backup export + replace/merge import.
-// Assumes an EMPTY namespace (wipeâ†’restore cycle); creates its own dashboard via REST.
+// Settings suite: item picker, theme switching, backup export + replace/merge import.
+// Assumes an EMPTY namespace (wipe -> restore cycle); creates its own dashboard via REST.
 import { chromium } from 'playwright-core'
 import { readFileSync } from 'node:fs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'

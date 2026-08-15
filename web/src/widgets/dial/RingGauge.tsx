@@ -30,8 +30,8 @@ import {
 } from './gauge'
 
 /**
- * The ring gauge styles: one or two rings — glowing LED beads, a continuous solid band,
- * chunky flat blocks, or clay-shaded 3D — with severity colors and a center readout.
+ * The ring gauge styles: one or two rings - glowing LED beads, a continuous solid band,
+ * chunky flat blocks, or clay-shaded 3D - with severity colors and a center readout.
  */
 export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const kind: RingStyle =

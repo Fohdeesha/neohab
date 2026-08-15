@@ -1,12 +1,12 @@
 import { fontFace, squareControls, tightCellInsets, wholeTileActive } from './shared'
 
 /**
- * LCD Console — a segment-display weather-station console.
+ * LCD Console - a segment-display weather-station console.
  *
  * Panels of glowing seven-segment digits on a pure black void, hairline coloured panel borders,
  * tiny uppercase corner labels, and faint unlit "ghost" segments behind every reading. Values and
  * the digital clock are set in DSEG (bundled, OFL-1.1), with DSEG's 14-segment face for
- * alphanumerics — so "OFF" and the label widget read as segment text too.
+ * alphanumerics, so "OFF" and the label widget read as segment text too.
  *
  * Built for the per-widget "Accent colour" setting: each panel takes its own neon through
  * `--nh-cellaccent` (green outdoor, magenta records, amber warnings), azure when unset. The ghost

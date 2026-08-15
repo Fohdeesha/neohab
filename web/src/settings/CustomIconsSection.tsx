@@ -31,7 +31,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
       await saveCustomIcon({ version: 1, id, name, ...processed })
     } catch (err) {
       onNotice(
-        t('Upload failed: {{error}} — uploads need an administrator sign-in.', {
+        t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -55,7 +55,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
       <h2 className="nh-settings__h">{t('Custom icons')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG — transparency and GIF animation survive) and pick them from the icon picker\'s Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them.'
+          'Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG - transparency and GIF animation survive) and pick them from the icon picker\'s Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them.'
         )}
         {customIcons.length > 0
           ? ' ' + t('Using {{kb}} KB across {{count}} icons.', { kb: totalKB, count: customIcons.length })

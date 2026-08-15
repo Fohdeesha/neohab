@@ -1,7 +1,7 @@
 /**
  * openHAB's semantic model, as much of it as a dashboard generator needs.
  *
- * Items carry semantic tags as plain strings — either a tag's short name (`Kitchen`) or its
+ * Items carry semantic tags as plain strings - either a tag's short name (`Kitchen`) or its
  * fully qualified id (`Location_Indoor_Room_Kitchen`), both of which openHAB accepts. The tag's
  * root segment says what it means: a Location, a piece of Equipment, a Point (a controllable or
  * readable value) or a Property (what that value is about).
@@ -26,7 +26,7 @@ export interface TagInfo {
 export type TagIndex = Map<string, TagInfo>
 
 /**
- * openHAB's default semantic tags. Only used when the server has no `/rest/tags` endpoint —
+ * openHAB's default semantic tags. Only used when the server has no `/rest/tags` endpoint,
  * where it does, its answer is authoritative and includes user-defined tags as well.
  */
 const DEFAULT_TAG_UIDS = [
@@ -104,9 +104,9 @@ export interface Semantics {
   kind: 'location' | 'equipment' | 'point' | null
   /** The Location or Equipment tag, when the item is one. */
   tag?: TagInfo
-  /** The Point tag (Measurement, Control, Setpoint, Status…), when the item is a point. */
+  /** The Point tag (Measurement, Control, Setpoint, Status...), when the item is a point. */
   point?: TagInfo
-  /** The Property tag (Temperature, Light, Power…), when the item carries one. */
+  /** The Property tag (Temperature, Light, Power...), when the item carries one. */
   property?: TagInfo
 }
 
@@ -114,7 +114,7 @@ export interface Semantics {
  * Classify one item.
  *
  * Mirrors openHAB's own rule: the first non-Property tag decides what the item is, and an item
- * carrying only a Property tag is still a point — a measurement when its state is read-only,
+ * carrying only a Property tag is still a point - a measurement when its state is read-only,
  * a control otherwise.
  */
 export function classify(item: Item, index: TagIndex): Semantics {

@@ -1,9 +1,9 @@
 /**
  * Compass: a bearing (wind direction, heading) drawn as a rotating pointer on a compass
  * face, with the nearest cardinal name in the center. An optional center item puts a second
- * reading (typically wind speed) in the middle of the face — the weather-console layout —
- * and the cardinal drops to a small line beneath it. Display-only - a direction is a
- * reading, not a command.
+ * reading (typically wind speed) in the middle of the face, the weather-console layout, and
+ * the cardinal drops to a small line beneath it. Display-only: a direction is a reading, not
+ * a command.
  */
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
@@ -127,7 +127,7 @@ function CompassWidget({ config, ctx }: WidgetProps<CompassConfig>) {
           y={center ? 70 : config.showDegrees && bearing !== null ? 47 : 50}
           fill={bearing !== null ? ink : undefined}
         >
-          {bearing !== null ? cardinalFor(bearing) : '—'}
+          {bearing !== null ? cardinalFor(bearing) : '-'}
         </text>
         {!center && config.showDegrees && bearing !== null ? (
           <text className="nh-compass__deg" x="50" y="66">
@@ -154,7 +154,7 @@ export const compassWidget: WidgetDefinition<CompassConfig> = {
       key: 'centerItem',
       type: 'item',
       label: 'Center item',
-      hint: 'A second reading shown big in the middle of the face — wind speed beside wind direction.',
+      hint: 'A second reading shown big in the middle of the face - wind speed beside wind direction.',
     },
     {
       key: 'centerUnit',

@@ -123,7 +123,7 @@ async function expandFirstRow() {
  * "The panel does not say Loading" is not enough on its own, and this failed about one run in
  * four because of it: switching mode clears the rows and re-fetches, but there is a window
  * between the click and React rendering "Loading…" in which the panel still holds the PREVIOUS
- * comparison and says nothing about loading — so the wait returns immediately and the rows that
+ * comparison and says nothing about loading, so the wait returns immediately and the rows that
  * get counted are the old ones, mid-replacement. Waiting for the panel to be quiet across two
  * polls closes it: whatever the timing, one of them lands after the re-render.
  */

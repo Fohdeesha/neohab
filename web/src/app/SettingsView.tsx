@@ -2,7 +2,7 @@
  * The Settings screen: a shell that stacks the sections, and the one notice line they all write
  * to. Each section lives in `src/settings/` and owns its own state and persistence.
  *
- * The order is deliberate — what every device can change comes first, what changes the server's
+ * The order is deliberate - what every device can change comes first, what changes the server's
  * configuration comes after, the account follows because it is where you go when something above
  * it refused, and About is last: it changes nothing, and it is where you go to find out what you
  * are running when you are about to report that none of it worked.

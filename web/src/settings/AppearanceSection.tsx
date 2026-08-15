@@ -35,13 +35,13 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
   const choose = async (id: string) => {
     onNotice(null)
     const err = await saveSettings({ theme: id })
-    if (err) onNotice(t('Theme applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Theme applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   const toggleSidebarSetting = async (on: boolean) => {
     onNotice(null)
     const err = await saveSettings({ sidebar: on })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   /**
@@ -70,7 +70,7 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
         {urlThemeForced ? (
           <p className="nh-settings__notice">
             {t(
-              'Loaded with “{{name}}” because the address contains ?theme=. Nothing has been changed — reload without it to go back to your own theme, or edit or delete the one causing trouble below.',
+              'Loaded with “{{name}}” because the address contains ?theme=. Nothing has been changed - reload without it to go back to your own theme, or edit or delete the one causing trouble below.',
               { name: activeTheme.name }
             )}
           </p>
@@ -139,7 +139,7 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
               onChange={async (ref) => {
                 onNotice(null)
                 const err = await saveSettings({ background: ref })
-                if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+                if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
                 void collectUnusedBackgrounds()
               }}
             />
@@ -184,7 +184,7 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
           hint={
             <span className="nh-field__hint">
               {t(
-                'Scales dashboard text on this device only — other devices and the dashboards themselves are unchanged. 100 = normal.'
+                'Scales dashboard text on this device only - other devices and the dashboards themselves are unchanged. 100 = normal.'
               )}
             </span>
           }

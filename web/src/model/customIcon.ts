@@ -6,7 +6,7 @@ export interface CustomIcon {
   name: string
   /** Complete data URI (e.g. data:image/png;base64,...). */
   dataUri: string
-  /** Encoded size in bytes — the approximate storage cost in the openHAB config store. */
+  /** Encoded size in bytes - the approximate storage cost in the openHAB config store. */
   bytes: number
 }
 

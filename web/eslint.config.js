@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
  * Lint rules for the frontend.
  *
  * Deliberately close to the recommended sets rather than a house style: the value here is the
- * rules that catch real mistakes — above all `react-hooks/exhaustive-deps`, which is what the
+ * rules that catch real mistakes - above all `react-hooks/exhaustive-deps`, which is what the
  * `eslint-disable` comments scattered through this codebase were written against. A suppression
  * that no linter ever evaluates documents a decision nobody is checking.
  *

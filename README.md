@@ -1,95 +1,97 @@
 # neohab
 
-A modern dashboard UI for [openHAB](https://www.openhab.org/) — touch-friendly dashboards for
+A modern dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for
 phones, tablets and wall panels, configured entirely in the browser. No file editing, ever.
 
-> **Status: in daily use.** The latest release is **1.11.0**. Everything described below is built
-> and tested end to end against a live openHAB server by a browser suite that drives the whole UI;
-> anything added since that release is on `main` and ships with the next one. Marketplace
-> packaging is still to come. Feedback welcome.
+> **Status: in daily use.** The latest release is **1.11.0**. Everything below is built and tested
+> against a live openHAB server by a browser suite that drives the whole UI. Anything added since
+> that release sits on `main` and ships with the next one. Marketplace packaging is still to come.
+> Feedback welcome.
 
 neohab is a community project and is not an official openHAB UI.
 
 ## Install
 
 1. Download the add-on jar from the [releases page](https://github.com/Fohdeesha/neohab/releases).
-2. Drop it into your openHAB `addons/` folder. It is picked up in a few seconds — no restart.
+2. Drop it into your openHAB `addons/` folder. It is picked up in a few seconds, no restart.
 3. Open **http://your-server:8080/neohab/**.
 
-It appears on the openHAB start page too. To remove it, delete the jar. To upgrade, replace it —
+It appears on the openHAB start page too. To remove it, delete the jar. To upgrade, replace it:
 open tabs pick the new version up on their next load, with no cache to clear.
 
 Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs. Viewing works with
-whatever access your server already allows; editing asks you to sign in as an administrator.
+whatever access your server already allows. Editing asks you to sign in as an administrator.
 
 ## Coming from HABPanel
 
-Import your panels from **Settings › HABPanel import** — either straight off your server or from a
-`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across (panel names
-become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`), and you get a report of
-what came over cleanly, what was approximated, and what needs a look.
+Import your panels from **Settings › HABPanel import**, either straight off your server or from a
+`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and panel
+names become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`. You get a report
+of what came over cleanly, what was approximated, and what needs a look.
 
 All seven HABPanel themes have a port here, so an imported dashboard arrives looking like itself.
-Custom AngularJS templates import as neohab template widgets. An `additional_stylesheet_url` is
-the one thing that cannot come across — its selectors are HABPanel's — so it is reported, and
-[the theming guide](docs/theming.md) has the table you need to translate it.
+Custom AngularJS templates import as neohab template widgets.
+
+The one thing that cannot come across is `additional_stylesheet_url`, because its selectors are
+HABPanel's. The import says so, and [the theming guide](docs/theming.md) has the table you need to
+translate it.
 
 ## What it does
 
 **Layout**
 
 - **Mobile-first.** Phones and portrait tablets get a single-column stack you can reorder
-  independently of the grid. On the grid, icons *and* text scale with the cell, and widget chrome
-  slims down in tight cells so labels stay readable. Text size is adjustable per dashboard, per
-  widget and per device.
-- **Tablet layouts.** An optional second arrangement with its own column count, and any widget can
-  be left out on phones, tablets or desktops entirely.
-- **Inline editing.** Arrange dashboards on the live grid: drag to move or resize, drag from the
+  independently of the grid. On the grid, icons and text both scale with the cell, and widget
+  chrome slims down in tight cells so labels stay readable. Text size is adjustable per dashboard,
+  per widget and per device.
+- **Tablet layouts.** An optional second arrangement with its own column count. Any widget can be
+  left out on phones, tablets or desktops entirely.
+- **Inline editing.** Arrange dashboards on the live grid. Drag to move or resize, drag from the
   palette onto the cell you want, multi-select (Ctrl/Cmd-click, Shift-click, marquee, long-press),
-  copy/paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it is
-  rejected; hold it there and the widgets in the way step aside.
+  copy and paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it
+  is rejected; hold it there and the widgets in the way step aside.
 - **Navigate from anywhere.** A pull-out sidebar lists every dashboard. It pushes the dashboard
   aside on desktop, overlays on phones, and can be pinned or switched off.
 - **Dashboards it builds for you.** Point neohab at your items and it lays out dashboards from
-  them — from your semantic model if you have one, otherwise clustered by naming convention or
+  them: from your semantic model if you have one, otherwise clustered by naming convention or
   group, or just tick the items you want. Everything it chose is listed for review first.
 
 **Widgets**
 
-- **Charts** — multiple series with per-series colors and styles, dual y-axes, thresholds and
+- **Charts.** Multiple series with per-series colors and styles, dual y-axes, thresholds and
   bands, a toggling legend, crosshair tooltip, drag-to-zoom, ranges from an hour to a year, and
-  live updates. History can be grouped before drawing (per hour/day/week/month, or by hour of day,
-  day of week, month of year) with each series reducing its bucket its own way. A heatmap mode
-  shows one series as an hour-by-weekday matrix. Any chart opens full screen and steps backwards
-  through time.
-- **Timeline** — the same history as colored state bands, one row per item: the right shape for
+  live updates. History can be grouped before drawing (per hour, day, week or month, or by hour of
+  day, day of week, month of year) with each series reducing its bucket its own way. A heatmap
+  mode shows one series as an hour-by-weekday matrix. Any chart opens full screen and steps
+  backwards through time.
+- **Timeline.** The same history as colored state bands, one row per item. The right shape for
   switches, presence and modes.
 
-  Anything that draws history — charts, timelines, gauge sparklines, stat trends — reads it from
-  whichever **persistence service** your openHAB uses. Any of them will do; if none is set up, the
+  Anything that draws history (charts, timelines, gauge sparklines, stat trends) reads it from
+  whichever **persistence service** your openHAB uses. Any of them will do. If none is set up, the
   widgets say so and tell you what to do about it.
-- **Gauges** — six looks, from a classic arc slider to an LED ring, tick ring, tachometer arc,
+- **Gauges.** Six looks, from a classic arc slider to an LED ring, tick ring, tachometer arc,
   block segments and a 3D clay face. All share color thresholds, alarm ranges, arcs and half
   gauges, tick scales, reference markers, zones, an inline history sparkline, and an optional
   second item as a concentric inner ring.
-- **Stat tiles** — one large reading with its unit set apart, a caption, a second figure beneath,
+- **Stat tiles.** One large reading with its unit set apart, a caption, a second figure beneath,
   and a trend arrow against its own history or another item. Which direction counts as good news
   is yours to say.
-- **Compass** — wind direction or any bearing, with a live pointer, cardinal names, and an
-  optional second item (wind speed) in the middle.
-- **Cameras** — live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
-  MJPEG, HLS, MP4, snapshots and WebRTC are all understood; neohab tries the lowest-latency route
+- **Compass.** Wind direction or any bearing, with a live pointer, cardinal names, and an optional
+  second item (wind speed) in the middle.
+- **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
+  MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.
-- **Floor plan** — upload a plan of your home (any image; a styling pipeline re-inks it to match
+- **Floor plan.** Upload a plan of your home (any image; a styling pipeline re-inks it to match
   the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
-  brightness, overlapping lamps blend like real light, and tapping one opens its control. Set the
-  room the way you like it and save it as a **lighting preset** — stored as a real openHAB scene,
-  so your rules and Main UI see it too, and any panel (even signed-out ones) can recall it with a
-  tap. Link a preset to the Switch item your wall switches already use and neohab adds the rule
-  that runs it, with the active preset highlighted on every panel.
-- **Custom widgets** — build your own from HTML templates with live item bindings, plus an
-  optional sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one
-  tap.
+  brightness, overlapping lamps blend like real light, and tapping one opens its control.
+
+  Set the room the way you like it and save it as a **lighting preset**. It is stored as a real
+  openHAB scene, so your rules and Main UI see it too, and any panel (even signed-out ones) can
+  recall it with a tap. Link a preset to the Switch item your wall switches already use and neohab
+  adds the rule that runs it, with the active preset highlighted on every panel.
+- **Custom widgets.** Build your own from HTML templates with live item bindings, plus an optional
+  sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one tap.
 
 **Theming**
 
@@ -98,9 +100,9 @@ you whether your colors can actually be read, and checks a custom stylesheet aga
 that are easy to get wrong. Saving a theme does not switch anyone else over unless you say so, and
 any device can pin its own. Themes travel with your backups and export on their own.
 
-Beyond colors, a theme can carry its own stylesheet — which is how the bundled **Swiss Sheet**,
-**Ember**, **LCD Console**, **Operations** and **Assembly** themes change fonts and widget
-structure, not just palette. Dashboards can carry background images, global or per dashboard.
+A theme can also carry its own stylesheet, which is how the bundled **Swiss Sheet**, **Ember**,
+**LCD Console**, **Operations** and **Assembly** themes change fonts and widget structure rather
+than only the palette. Dashboards can carry background images, global or per dashboard.
 
 If a theme ever makes the app unusable, `?theme=none` in the address loads with the default one
 for that page load, without changing anything.
@@ -109,65 +111,64 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 
 **Running it**
 
-- **Wall panels & kiosks** — installable as an app (PWA) with an offline-capable shell. Per
+- **Wall panels and kiosks.** Installable as an app (PWA) with an offline-capable shell. Per
   device: keep the screen awake, blank after idle or show a drifting clock, open onto a pinned
   dashboard, and hide all chrome in kiosk mode. A dashboard-control item lets your rules switch
   what every panel shows.
-- **Voice & audio** — openHAB's Web Audio sink plays through the browser, a speech item announces
+- **Voice and audio.** openHAB's Web Audio sink plays through the browser, a speech item announces
   changes out loud, and a microphone button sends spoken commands to the interpreter. Each device
   decides whether it joins in.
-- **As many tabs as you like** — browsers allow only a handful of connections per server, so
+- **As many tabs as you like.** Browsers allow only a handful of connections per server, so
   several dashboards would normally leave one frozen on stale values. neohab shares a single
   connection across the whole browser, and says so if updates ever stop arriving.
-- **View-only devices** — an editing lock hides every editing control from devices not signed in
-  as an administrator. Wall panels and guests get a clean read-only dashboard.
-- **Away from home** — works behind a reverse proxy or openHAB Cloud; credentials are kept in
+- **View-only devices.** An editing lock hides every editing control from devices not signed in as
+  an administrator. Wall panels and guests get a clean read-only dashboard.
+- **Away from home.** Works behind a reverse proxy or openHAB Cloud. Credentials are kept in
   memory for the session, never written to the device. Inside the official openHAB phone app it
   picks them up by itself.
-- **Your language** — English, German, Spanish, French, Italian, Dutch and Polish (machine-drafted;
+- **Your language.** English, German, Spanish, French, Italian, Dutch and Polish (machine-drafted,
   native review welcome), from the browser language with a per-device override.
-- **When something is wrong** — Settings ends with an About screen: the neohab and openHAB versions,
-  what this device is signed in as, whether live states are arriving, and which persistence services
-  the server has. It offers all of that as one block to paste into a bug report, with no addresses,
-  credentials or item names in it.
+- **When something is wrong.** Settings ends with an About screen: the neohab and openHAB
+  versions, what this device is signed in as, whether live states are arriving, and which
+  persistence services the server has. It offers all of that as one block to paste into a bug
+  report, with no addresses, credentials or item names in it.
 
 **Your configuration**
 
-- **Import / export** — back up, restore and share complete configurations as JSON, replacing or
-  merging; lighting presets ride along when the exporting device may read them. A single
+- **Import and export.** Back up, restore and share complete configurations as JSON, replacing or
+  merging. Lighting presets ride along when the exporting device may read them. A single
   dashboard, widget or theme exports on its own and takes what it uses with it, so it works on
   someone else's server.
-- **Version history** — every change is preceded by a restore point. Look back through a dated
-  list, see exactly what changed field by field, and roll the whole configuration back. Twenty-five
-  are kept by default.
-- **Hard to break** — configuration that did not come from the editor is treated as untrusted
+- **Version history.** Every change is preceded by a restore point. Look back through a dated
+  list, see exactly what changed field by field, and roll the whole configuration back.
+  Twenty-five are kept by default.
+- **Hard to break.** Configuration that did not come from the editor is treated as untrusted
   wherever it is read, and a widget that cannot make sense of its own settings becomes one tile
   saying so rather than a blank page. Whatever a hand edit, an old backup or someone else's export
   contains, the dashboard around it keeps working and the editor is still there to fix it.
-  Configuration saved by a *newer* neohab than the one running is left strictly alone rather than
-  guessed at — it is never overwritten or tidied away — so an older wall panel cannot damage what a
+  Configuration saved by a newer neohab than the one running is left strictly alone rather than
+  guessed at. It is never overwritten or tidied away, so an older wall panel cannot damage what a
   newer one wrote.
 
 ## Icons
 
-Nearly 10,000 icons are bundled in the add-on, so everything works fully offline — plus your
-openHAB server's own icon sets and your own uploads:
+Nearly 10,000 icons are bundled in the add-on, so everything works fully offline. Your openHAB
+server's own icon sets and your own uploads are available alongside them:
 
-- **Color** — [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (flat style, curated for
+- **Color.** [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (flat style, curated for
   dashboards; © Microsoft, MIT) and
   [icons8 flat-color-icons](https://github.com/icons8/flat-color-icons) (MIT)
-- **Mono** — [Material Design Icons](https://pictogrammers.com/library/mdi/)
+- **Mono.** [Material Design Icons](https://pictogrammers.com/library/mdi/)
   (© Pictogrammers, [Apache License 2.0](https://github.com/Templarian/MaterialDesign/blob/master/LICENSE)),
   tinted by your theme or any color you pick per widget
-- **Weather** — [Meteocons](https://github.com/basmilius/meteocons) animated weather icons
+- **Weather.** [Meteocons](https://github.com/basmilius/meteocons) animated weather icons
   (© Bas Milius, MIT)
-- **openHAB** — the server's classic icon set (state-aware where the set provides variants)
-- **Custom** — upload your own PNG, JPG, GIF, WebP, BMP or SVG from the icon picker; transparency
+- **openHAB.** The server's classic icon set, state-aware where the set provides variants
+- **Custom.** Upload your own PNG, JPG, GIF, WebP, BMP or SVG from the icon picker. Transparency
   and GIF animation survive, and uploads are stored in your openHAB config so backups include them
 
-Stateful widgets can show a different icon — and a different mono tint — per state: rules map
-exact states or numeric ranges, so a dimmer at `0`, `1-49` and `50-100` can be three different
-bulbs.
+Stateful widgets can show a different icon, and a different mono tint, per state. Rules map exact
+states or numeric ranges, so a dimmer at `0`, `1-49` and `50-100` can be three different bulbs.
 
 ## Fonts
 
@@ -185,9 +186,9 @@ public REST and SSE APIs.
 
 **[CONTRIBUTING](CONTRIBUTING.md)** covers running it locally against your own openHAB with no Java
 build, the checks, and how to add a widget. `npm run check` in `web/` runs the typecheck, the
-linter and the unit suite — the same three things CI does.
+linter and the unit suite, which is what CI runs.
 
-The browser end-to-end suites live in [`e2e/`](e2e/); they drive a real browser against a live
+The browser end-to-end suites live in [`e2e/`](e2e/). They drive a real browser against a live
 openHAB with the add-on deployed, so read [`e2e/README.md`](e2e/README.md) before running them
 against a server you care about.
 

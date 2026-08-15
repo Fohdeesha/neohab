@@ -1,7 +1,7 @@
 import { tightCellInsets, wholeTileActive } from './shared'
 
 /**
- * Ember — a weather-station instrument panel: flat stat tiles on deep slate-navy with one vivid
+ * Ember - a weather-station instrument panel: flat stat tiles on deep slate-navy with one vivid
  * ember-orange accent.
  *
  * The tile IS the unit: hairline edges, tight insets, small mixed-case labels, and a huge bold

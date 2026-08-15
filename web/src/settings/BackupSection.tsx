@@ -156,14 +156,14 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       setPendingPartial(null)
       onNotice(
         result.written === 0
-          ? t('Nothing to import — that file matches what you already have.')
+          ? t('Nothing to import - that file matches what you already have.')
           : result.renamed.length > 0
             ? t('Imported as a copy: {{name}}.', { name: result.primaryUid.slice(result.primaryUid.indexOf(':') + 1) })
             : t('Imported {{count}} item(s).', { count: result.written })
       )
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} — are you signed in as an administrator?', {
+        t('Import failed: {{error}} - are you signed in as an administrator?', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -187,7 +187,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       onNotice(mode === 'replace' ? t('Backup imported.') : t('Backup merged into the current configuration.'))
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} — are you signed in as an administrator?', {
+        t('Import failed: {{error}} - are you signed in as an administrator?', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -201,7 +201,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       <h2 className="nh-settings__h">{t('Backup')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have. The same Import button also takes a single dashboard, custom widget or theme file — those are offered as a copy so nothing of yours is replaced.'
+          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have. The same Import button also takes a single dashboard, custom widget or theme file - those are offered as a copy so nothing of yours is replaced.'
         )}
       </p>
       {backgrounds.length > 0 ? (
@@ -217,7 +217,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
           </label>
           <p className="nh-settings__text">
             {t(
-              'Uploaded background images can make the export large. Turn this off for a smaller, easier-to-read file — dashboards will then reference images the export does not contain.'
+              'Uploaded background images can make the export large. Turn this off for a smaller, easier-to-read file - dashboards will then reference images the export does not contain.'
             )}
           </p>
         </>

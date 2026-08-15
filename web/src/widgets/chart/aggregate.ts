@@ -382,7 +382,7 @@ export function calendarLabel(unit: CalendarUnit, window: TimeWindow, locale?: s
     case 'week': {
       const end = new Date((window.to - 1) * 1000)
       const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
-      return `${fmt.format(d)} – ${fmt.format(end)} ${d.getFullYear()}`
+      return `${fmt.format(d)} - ${fmt.format(end)} ${d.getFullYear()}`
     }
     case 'month':
       return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(d)

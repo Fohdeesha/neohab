@@ -24,7 +24,7 @@ export function IncompatibleNotice() {
       </strong>
       <p>
         {t(
-          'It was saved by a newer version than the one running here, so this version has left it completely alone rather than guess at it — nothing has been lost, and it will not be overwritten or deleted. Upgrade the add-on to use it again.'
+          'It was saved by a newer version than the one running here, so this version has left it completely alone rather than guess at it - nothing has been lost, and it will not be overwritten or deleted. Upgrade the add-on to use it again.'
         )}
       </p>
       <p className="nh-incompat__list">{incompatible.map((c) => c.uid).join(', ')}</p>

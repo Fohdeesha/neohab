@@ -64,7 +64,7 @@ export function PlanCanvas({
           onLoad={(e) => setImg({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
         />
       ) : (
-        <p className="nh-fplan__empty">{t('No plan image yet — pick one in the widget settings.')}</p>
+        <p className="nh-fplan__empty">{t('No plan image yet - pick one in the widget settings.')}</p>
       )}
       {rect && rect.width > 0 ? (
         <div

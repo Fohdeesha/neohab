@@ -1,6 +1,6 @@
 /**
  * Dashboard-level settings (name, grid geometry) for the draft being edited, plus deletion.
- * Edits apply to the draft immediately — live preview, coalesced undo, persisted on Save —
+ * Edits apply to the draft immediately (live preview, coalesced undo, persisted on Save),
  * exactly like the widget settings panel.
  */
 import { useTranslation } from 'react-i18next'

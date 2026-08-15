@@ -51,7 +51,7 @@ export interface PlanCluster {
   include: boolean
 }
 
-/** An item that cannot become a widget at all, and why — reported rather than dropped silently. */
+/** An item that cannot become a widget at all, and why - reported rather than dropped silently. */
 export interface PlanSkip {
   item: string
   reason: 'container' | 'image'

@@ -5,7 +5,7 @@
  *  - the semantic model: real rooms and equipment, when the install has one;
  *  - group membership: whatever structure the user built out of Group items;
  *  - naming conventions: `kitchen_main_lights_level` and friends, which is all many installs
- *    have — no server-side model needed;
+ *    have - no server-side model needed;
  *  - a hand-picked set of items.
  *
  * All pure: given the item list (and the tag index for the semantic source) the clusters are

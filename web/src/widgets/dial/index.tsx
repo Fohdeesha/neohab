@@ -97,7 +97,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'Fill from zero (bidirectional)',
       showIf: ring,
-      hint: 'Lights from zero — or the range midpoint — toward the value.',
+      hint: 'Lights from zero - or the range midpoint - toward the value.',
     },
     {
       key: 'color',
@@ -166,7 +166,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       label: 'Second item (inner ring)',
       itemTypes: ['Dimmer', 'Number'],
       showIf: ring,
-      hint: 'Set an item to draw a second, inner ring — the dual gauge.',
+      hint: 'Set an item to draw a second, inner ring - the dual gauge.',
     },
     { key: 'min2', type: 'number', label: 'Inner minimum', showIf: ringInner },
     { key: 'max2', type: 'number', label: 'Inner maximum', showIf: ringInner },

@@ -25,7 +25,7 @@ interface IconPickerProps {
 type Tab = 'color' | 'mono' | 'weather' | 'oh' | 'custom'
 
 interface PackEntry {
-  /** Complete icon reference ("fluent:house", "mdi:sofa", …). */
+  /** Complete icon reference ("fluent:house", "mdi:sofa", ...). */
   ref: string
   label: string
   search: string
@@ -228,7 +228,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     } catch (err) {
       setUploadError(
         (err instanceof Error ? err.message : String(err)) +
-          (/40[13]/.test(String(err)) ? ' ' + t('— sign in as an administrator to upload icons.') : '')
+          (/40[13]/.test(String(err)) ? ' ' + t('- sign in as an administrator to upload icons.') : '')
       )
     } finally {
       setUploading(false)
@@ -247,7 +247,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           id={id}
           type="text"
           autoComplete="off"
-          placeholder={t('No icon — browse or type mdi:name / oh:name')}
+          placeholder={t('No icon - browse or type mdi:name / oh:name')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={openList}
@@ -347,13 +347,13 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
             {matches.length === 0 && packsReady ? (
               <span className="nh-picker__empty">
                 {tab === 'custom' && customIcons.length === 0
-                  ? t('No custom icons yet — upload one above')
+                  ? t('No custom icons yet - upload one above')
                   : t('No matching icons')}
               </span>
             ) : null}
           </div>
           {truncated > 0 ? (
-            <div className="nh-iconpicker__more">{t('…and {{count}} more — type to narrow', { count: truncated })}</div>
+            <div className="nh-iconpicker__more">{t('…and {{count}} more - type to narrow', { count: truncated })}</div>
           ) : null}
         </div>
       ) : null}

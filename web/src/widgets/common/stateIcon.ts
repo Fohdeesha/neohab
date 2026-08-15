@@ -32,7 +32,7 @@ export interface ResolvedIcon {
 /**
  * HABPanel toggle semantics: a toggle button is "active" exactly when the raw item state
  * equals the command, and only then sends the alternate command. isOn()-style heuristics must
- * NOT be used there — for a Rollershutter at an intermediate position (e.g. a half-stopped
+ * NOT be used there - for a Rollershutter at an intermediate position (e.g. a half-stopped
  * garage door at 50) they invert the imported button's behavior. Numeric-tolerant so a stored
  * '100' still matches a server '100.0'. Shared with per-state icon rules for the same reason.
  */

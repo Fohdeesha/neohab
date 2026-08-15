@@ -62,7 +62,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
   const toggleJs = async (enabled: boolean) => {
     onNotice(null)
     const err = await saveSettings({ allowJsWidgets: enabled })
-    if (err) onNotice(t('Saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   return (

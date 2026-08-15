@@ -1,8 +1,8 @@
 /**
  * A numeric field that can be typed into.
  *
- * The naive version — parse every keystroke, reject anything outside the range, and drive the
- * input from the stored value — cannot be typed into at all when the range starts above a single
+ * The naive version (parse every keystroke, reject anything outside the range, and drive the
+ * input from the stored value) cannot be typed into at all when the range starts above a single
  * digit. Typing "12" into a field whose minimum is 8 offers "1" first, which is rejected, so the
  * controlled input snaps back and the second keystroke lands somewhere unexpected. Row heights,
  * text sizes and retention counts were all unreachable that way, by every value whose first digit

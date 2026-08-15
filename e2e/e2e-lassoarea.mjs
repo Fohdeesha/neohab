@@ -2,12 +2,12 @@
  * Lasso-below-the-grid fix verification.
  *
  * The reported repro: in edit mode, a lasso could not be started anywhere below the "Drag by the
- * handle" hint — that area was outside the grid (dead page background, .nh-dash never actually
+ * handle" hint - that area was outside the grid (dead page background, .nh-dash never actually
  * filled the viewport). After the fix the edit grid stretches down to the hint, which itself
  * sits at the bottom of the page, so a marquee can start anywhere below the widgets.
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-lasso and deletes exactly that uid in
- * cleanup (guarded). NO item commands anywhere — seeded widgets are clocks/labels only.
+ * cleanup (guarded). NO item commands anywhere - seeded widgets are clocks/labels only.
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'

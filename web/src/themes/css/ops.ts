@@ -1,15 +1,15 @@
 import { fontFace } from './shared'
 
 /**
- * Operations — a control-room board.
+ * Operations - a control-room board.
  *
  * A dark lit field of instrument panels, tiny wide-spaced uppercase captions, and very large
  * light geometric figures with their units raised beside them. Green reads as on target and red
- * as off it, on the values, the gauge rings, the trend arrows and the chart alike — all of which
+ * as off it, on the values, the gauge rings, the trend arrows and the chart alike - all of which
  * come from the `good`, `bad` and chart-palette tokens rather than being written in here.
  *
  * Every widget is a panel: a translucent navy surface the page's light falls across, framed by a
- * bezel that is brightest at its top edge — a border gradient, not a flat hairline. `border-image`
+ * bezel that is brightest at its top edge - a border gradient, not a flat hairline. `border-image`
  * is what carries that, which is why this theme's radius token is 0: a border gradient squares off
  * rounded corners, so the two cannot be combined.
  *

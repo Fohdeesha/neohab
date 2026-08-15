@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon'
 
 interface WidgetFrameProps {
   label?: string
-  /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", …). */
+  /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", ...). */
   icon?: string
   iconSize?: number
   /** Current item state, for state-aware openHAB icons. */

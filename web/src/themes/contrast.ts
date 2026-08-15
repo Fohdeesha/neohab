@@ -8,7 +8,7 @@
  *  - telling someone editing a theme whether the colours they picked can actually be read.
  *
  * Pure, dependency-free and unit-tested. Only the colour forms a person can type into the theme
- * editor or a theme file are understood — hex and rgb()/rgba(). Anything else (a named colour, a
+ * editor or a theme file are understood - hex and rgb()/rgba(). Anything else (a named colour, a
  * gradient, `color-mix(...)`, a var reference) returns null, and every caller treats null as
  * "cannot judge this" and falls back to the safe default rather than guessing.
  */
@@ -90,7 +90,7 @@ export type ContrastLevel = 'AAA' | 'AA' | 'AA-large' | 'fail'
 
 /**
  * Which WCAG bar a ratio clears, for normal-size text. 'AA-large' means it is only good enough
- * for large or bold text — which most of the places these colours meet actually are (a widget's
+ * for large or bold text, which most of the places these colours meet actually are (a widget's
  * reading, a tile title), so it is reported honestly rather than as a failure.
  */
 export function contrastLevel(ratio: number): ContrastLevel {
@@ -107,7 +107,7 @@ const WHITE: Rgb = { r: 255, g: 255, b: 255 }
  * actually read there. Near-black rather than pure black because a solid #000 on a mid colour
  * reads as a hole; this keeps a trace of the surface in it.
  *
- * Returns null when the background cannot be parsed, so the caller keeps whatever it had —
+ * Returns null when the background cannot be parsed, so the caller keeps whatever it had,
  * never a guess that might be worse than the status quo.
  */
 export const DARK_INK = '#10161c'

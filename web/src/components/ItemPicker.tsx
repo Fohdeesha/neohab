@@ -285,7 +285,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             </li>
           ))}
           {truncated > 0 ? (
-            <li className="nh-picker__empty">{t('…and {{count}} more — type to narrow the list', { count: truncated })}</li>
+            <li className="nh-picker__empty">{t('…and {{count}} more - type to narrow the list', { count: truncated })}</li>
           ) : null}
           {matches.length === 0 ? (
             <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li>

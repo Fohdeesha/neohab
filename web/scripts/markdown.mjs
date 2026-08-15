@@ -18,7 +18,7 @@ const escapeHtml = (s) =>
 /**
  * A private-use character, used to park code spans while the rest of the line is marked up.
  * It cannot occur in the source docs, so the placeholder can never collide with the prose around
- * it — a bare index like " 3 " could, and would rewrite any sentence containing a small number
+ * it - a bare index like " 3 " could, and would rewrite any sentence containing a small number
  * into whatever code span happened to have that index.
  */
 const MARK = ''
@@ -33,13 +33,13 @@ function inline(text, where) {
     codes.push(`<code>${escapeHtml(code)}</code>`)
     return `${MARK}${codes.length - 1}${MARK}`
   })
-  if (s.includes('`')) throw new Error(`${where}: unclosed backtick — ${text}`)
+  if (s.includes('`')) throw new Error(`${where}: unclosed backtick - ${text}`)
 
   s = escapeHtml(s)
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) => `<a href="${escapeHtml(href)}">${label}</a>`)
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
 
-  if (/\]\(/.test(s)) throw new Error(`${where}: a link did not parse — ${text}`)
+  if (/\]\(/.test(s)) throw new Error(`${where}: a link did not parse - ${text}`)
   return s.replace(new RegExp(`${MARK}(\\d+)${MARK}`, 'g'), (_, i) => codes[Number(i)])
 }
 
@@ -126,8 +126,8 @@ export function renderMarkdown(src, name = 'markdown') {
       continue
     }
 
-    if (/^\s*>/.test(line)) throw new Error(`${where()}: blockquotes are not supported — ${line.trim()}`)
-    if (/^!\[/.test(line.trim())) throw new Error(`${where()}: images are not supported — ${line.trim()}`)
+    if (/^\s*>/.test(line)) throw new Error(`${where()}: blockquotes are not supported - ${line.trim()}`)
+    if (/^!\[/.test(line.trim())) throw new Error(`${where()}: images are not supported - ${line.trim()}`)
 
     // Paragraph: consecutive plain lines, joined into one.
     const para = []

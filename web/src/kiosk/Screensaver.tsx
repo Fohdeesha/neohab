@@ -13,7 +13,7 @@ const CHECK_MS = 1000
 
 /**
  * Reactive "the screen is covered right now", for anything whose work is pointless while nobody
- * can see it — the camera widget above all, which otherwise kept four decoders and four sockets
+ * can see it - the camera widget above all, which otherwise kept four decoders and four sockets
  * busy all night behind a black rectangle. The saver is an overlay, so neither `visibilityState`
  * nor an IntersectionObserver notices it; this flag is the only way to know.
  */

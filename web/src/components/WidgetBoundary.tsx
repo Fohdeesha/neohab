@@ -4,7 +4,7 @@
  * Everything a widget renders from is stored configuration, which is untrusted input: a backup, a
  * shared export or a hand edit is written verbatim. Individual reads are guarded where they are
  * made, but "every read, forever, in every widget" is not an invariant a codebase can hold by
- * discipline alone — and without a boundary, one widget throwing during render unmounts the entire
+ * discipline alone, and without a boundary, one widget throwing during render unmounts the entire
  * React tree. The dashboard, the editor and the way to Settings all disappear together, leaving a
  * blank page and no route back to the configuration that caused it.
  *

@@ -1,12 +1,12 @@
 import { fontFace, wholeTileActive } from './shared'
 
 /**
- * Assembly — a dark green glass production board.
+ * Assembly - a dark green glass production board.
  *
  * Translucent panels that blur what is behind them (the page's own soft-lit green, or a
  * background image when one is set), hairline mint borders with an inner top light, vivid green
  * instruments with brightened value tips, and the active control drawn as the board's selected
- * card — green outline, tinted fill, soft glow.
+ * card - green outline, tinted fill, soft glow.
  *
  * The gauge band films are switched on through the `band-light` and `band-shade` tokens: the
  * widget draws them at zero strength everywhere, so they are invisible until a theme raises them.

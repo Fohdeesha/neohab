@@ -3,7 +3,7 @@
  *
  * neohab is served by the add-on at `<openHAB>/neohab/`, so every API path it uses (`/rest`,
  * `/auth`, `/icon`, `/static`) hangs off whatever prefix openHAB itself is under. Directly that
- * prefix is empty and an absolute `/rest/...` is correct — but behind a reverse proxy that mounts
+ * prefix is empty and an absolute `/rest/...` is correct, but behind a reverse proxy that mounts
  * openHAB at a sub-path (`https://home.example/openhab/`), an absolute path leaves the prefix out
  * and every request 404s. That is a common enough deployment to be worth getting right.
  *

@@ -308,8 +308,8 @@ button {
 
 /* An empty dashboard still needs a visible editing surface to drop widgets onto.
    position: relative anchors the rubber-band selection box (.nh-marquee) to the grid.
-   user-select: none — a marquee dragged across widgets must not smear text selection.
-   flex: 1 — the grid owns all the empty space below the widgets (down to the edit hint),
+   user-select: none - a marquee dragged across widgets must not smear text selection.
+   flex: 1 - the grid owns all the empty space below the widgets (down to the edit hint),
    so a lasso can start anywhere on it, not just between the rows. */
 .nh-grid--edit {
   position: relative;

@@ -3,7 +3,7 @@
  *
  * Everything here is pure and free of React, so the generator's decisions can be exercised
  * directly. The item's type decides the shape of the control; the semantic model, where there
- * is one, refines it — a Switch tagged as a Status point is an indicator, not a control — and
+ * is one, refines it (a Switch tagged as a Status point is an indicator, not a control) and
  * supplies an icon.
  */
 import type { Item } from '../api/types'
@@ -208,7 +208,7 @@ function optionLines(item: Item): string | null {
   return options.map((o) => `${o.value}=${o.label ?? o.value}`).join('\n')
 }
 
-/** A numeric range the item itself declares — never invented, so a slider can't send nonsense. */
+/** A numeric range the item itself declares - never invented, so a slider can't send nonsense. */
 function declaredRange(item: Item): { min: number; max: number; step: number } | null {
   const sd = item.stateDescription
   if (!sd || typeof sd.minimum !== 'number' || typeof sd.maximum !== 'number') return null
@@ -289,7 +289,7 @@ export function configFor(
 }
 
 /**
- * Pick a widget for an item, or null when there is nothing sensible to show — a plain Group is a
+ * Pick a widget for an item, or null when there is nothing sensible to show - a plain Group is a
  * container rather than a value, and an Image item's state is raw image data no widget renders.
  */
 export function suggestWidget(item: Item, sem: Semantics, label: string, equipmentTag?: string): Suggestion | null {
@@ -333,7 +333,7 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
 
 /**
  * A readable widget name for an item: its label when it has one, otherwise its item name made
- * presentable — with the cluster's own prefix removed, so a "Kitchen" dashboard reads
+ * presentable - with the cluster's own prefix removed, so a "Kitchen" dashboard reads
  * "Main Lights Level" instead of repeating "kitchen" on every widget.
  */
 export function prettyLabel(item: Item, stripPrefix?: string): string {

@@ -168,7 +168,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   else if (mixed) overlay = t('This page is served over HTTPS, so it cannot show a stream from an insecure http:// address.')
   else if (!wanted) overlay = null
   else if (status.phase === 'connecting') overlay = t('Connecting…')
-  else if (status.phase === 'failed') overlay = t('No stream. Tried: {{list}}', { list: status.failed.map((f) => TRANSPORT_LABEL[f]).join(', ') || '—' })
+  else if (status.phase === 'failed') overlay = t('No stream. Tried: {{list}}', { list: status.failed.map((f) => TRANSPORT_LABEL[f]).join(', ') || '-' })
 
   const labelMode = config.labelMode ?? 'header'
   const name = (config.label ?? '').trim()

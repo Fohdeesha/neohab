@@ -71,7 +71,7 @@ export function DashboardView({ id }: { id: string }) {
   const selectedIds = editor.selectedIds
   // The settings panel is for one widget at a time, and only when the selection was an explicit
   // single-select (panelOpen). Ctrl/Shift-click, marquee and long-press never open it, even at
-  // selection size 1 — they signal multi-select intent.
+  // selection size 1 - they signal multi-select intent.
   const selected =
     editing && editor.panelOpen && selectedIds.length === 1
       ? editor.draft!.widgets.find((w) => w.id === selectedIds[0])
@@ -210,7 +210,7 @@ export function DashboardView({ id }: { id: string }) {
       <header className="nh-dash__bar">
         {editing ? (
           <>
-            <span className="nh-dash__title">{t('Editing — {{name}}', { name: dashboard.name })}</span>
+            <span className="nh-dash__title">{t('Editing - {{name}}', { name: dashboard.name })}</span>
             <span className="nh-dash__spacer" />
             {gridSurface ? (
               <button
@@ -280,7 +280,7 @@ export function DashboardView({ id }: { id: string }) {
       </header>
       )}
 
-      {/* Contextual selection/clipboard actions (also the touch path — no Ctrl keys there). */}
+      {/* Contextual selection/clipboard actions (also the touch path - no Ctrl keys there). */}
       {editing && (selectedIds.length > 0 || clipboardCount > 0) ? (
         <div className="nh-selbar" role="toolbar" aria-label={t('Selection actions')}>
           {selectedIds.length > 0 ? (
@@ -313,7 +313,7 @@ export function DashboardView({ id }: { id: string }) {
 
       {editing && editor.saveError ? (
         <div className="nh-dash__error">
-          {t('Save failed: {{error}} — are you signed in as an administrator?', { error: editor.saveError })}
+          {t('Save failed: {{error}} - are you signed in as an administrator?', { error: editor.saveError })}
         </div>
       ) : null}
 

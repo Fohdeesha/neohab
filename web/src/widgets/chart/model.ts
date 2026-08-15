@@ -156,7 +156,7 @@ export const PERIOD_CHIPS = ['1h', '12h', '24h', '7d', '30d', '1y']
  * `item` as an implied series, so configs from before multi-series keep rendering.
  *
  * Guarded with `Array.isArray` rather than `?? []`: this runs during render, and stored
- * configuration is untrusted input — a `series` that is not a list threw straight out of the
+ * configuration is untrusted input - a `series` that is not a list threw straight out of the
  * chart's render, which with no boundary above it took the whole app down rather than one tile.
  */
 export function effectiveSeries(config: ChartConfig): ChartSeries[] {

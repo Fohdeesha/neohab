@@ -62,7 +62,7 @@ export function AboutSection() {
       : services === null
         ? t('needs an administrator to check')
         : services.length === 0
-          ? t('none installed — charts, timelines and history need one')
+          ? t('none installed - charts, timelines and history need one')
           : serviceNames(services).join(', ')
 
   // One block a person can select and paste into an issue, so a report arrives with the facts
@@ -147,7 +147,7 @@ export function AboutSection() {
 
       <p className="nh-settings__text">
         {t(
-          'If you report a problem, paste the block below into the issue — it says what you are running. It contains no addresses, credentials or item names.'
+          'If you report a problem, paste the block below into the issue - it says what you are running. It contains no addresses, credentials or item names.'
         )}
       </p>
       <pre className="nh-about__report" ref={reportRef}>
@@ -157,7 +157,7 @@ export function AboutSection() {
         {copyState === 'copied'
           ? t('Copied')
           : copyState === 'selected'
-            ? t('Selected — press Ctrl+C')
+            ? t('Selected - press Ctrl+C')
             : t('Copy this report')}
       </button>
     </section>

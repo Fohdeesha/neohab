@@ -33,7 +33,7 @@ interface EditorState {
   selectedIds: string[]
   /**
    * Whether the single-widget settings panel is open. Only an explicit single-select (a plain
-   * click, a drag-drop, adding from the palette) opens it — Ctrl/Shift-click, marquee and
+   * click, a drag-drop, adding from the palette) opens it - Ctrl/Shift-click, marquee and
    * long-press signal multi-select intent, and popping the panel open there both surprises and
    * reflows the grid 340px mid-flow, moving the very widgets the user is about to click.
    */
@@ -306,7 +306,7 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
     }
     draft.widgets.push(widget)
   })
-  // A freshly added widget opens its settings — the natural next step is configuring it.
+  // A freshly added widget opens its settings - the natural next step is configuring it.
   useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false })
 }
 

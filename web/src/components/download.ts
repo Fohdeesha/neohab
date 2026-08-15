@@ -11,7 +11,7 @@ export function cssUrl(url: string): string {
  *
  * The object URL is released on a later task rather than immediately after `click()`: revoking it
  * in the same tick races the browser's own read of the blob, and a backup carrying uploaded
- * background images is megabytes of it — long enough for the download to arrive truncated or not
+ * background images is megabytes of it - long enough for the download to arrive truncated or not
  * at all. A minute is far longer than any browser needs and costs one blob until then.
  */
 const RELEASE_DELAY_MS = 60_000

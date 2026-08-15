@@ -103,7 +103,7 @@ describe('diffEntries', () => {
 
 describe('formatValue', () => {
   it('renders a value short and safe', () => {
-    expect(formatValue(undefined)).toBe('—')
+    expect(formatValue(undefined)).toBe('-')
     expect(formatValue(null)).toBe('null')
     expect(formatValue('hi')).toBe('hi')
     expect(formatValue({ a: 1 })).toBe('{"a":1}')

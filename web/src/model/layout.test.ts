@@ -1,7 +1,7 @@
 /**
  * Layout maths.
  *
- * Two things are being defended here. One is the geometry itself — bumping, free-spot search,
+ * Two things are being defended here. One is the geometry itself - bumping, free-spot search,
  * the scaling rules. The other is that stored configuration is untrusted input: a backup, a
  * shared export or a hand edit is written verbatim, so every value read for arithmetic needs its
  * guard at the read. Those are the cases that have actually taken a dashboard down.

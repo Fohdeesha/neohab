@@ -4,7 +4,7 @@
  *
  * A token is a CSS custom property on the document root, named `--nh-<key>`. Widgets and chrome
  * only ever read tokens, so setting one restyles everything that uses it. A token a theme leaves
- * unset falls back to the base value in app.css — which is why the editor offers "Auto" on every
+ * unset falls back to the base value in app.css, which is why the editor offers "Auto" on every
  * field rather than forcing a value.
  *
  * This file is the single source of truth. Adding a token here makes it appear in the theme
@@ -33,7 +33,7 @@ export interface TokenSpec {
 /**
  * Every token, in editor order.
  *
- * The Core group is the original palette — the eight colours and the corner radius every theme
+ * The Core group is the original palette - the eight colours and the corner radius every theme
  * has always had. Everything below it existed as a working CSS variable long before it appeared
  * here; promoting them was the point, because a variable a person cannot discover is not a
  * feature they have.
@@ -44,7 +44,7 @@ export const TOKEN_SPECS: TokenSpec[] = [
   { key: 'surface', group: 'Core', kind: 'color', label: 'Widget surface', fallback: '#1a212a', hint: 'The face of a widget tile, a sheet and a Home tile.' },
   { key: 'surface-2', group: 'Core', kind: 'color', label: 'Raised surface', fallback: '#222c37', hint: 'A step above the surface: buttons, dropdowns, slider tracks.' },
   { key: 'border', group: 'Core', kind: 'color', label: 'Border', fallback: '#2c3844', hint: 'Every hairline: tile edges, field outlines, separators.' },
-  { key: 'text', group: 'Core', kind: 'color', label: 'Text', fallback: '#dde3ea', hint: 'Readings, labels and controls — the main ink.' },
+  { key: 'text', group: 'Core', kind: 'color', label: 'Text', fallback: '#dde3ea', hint: 'Readings, labels and controls - the main ink.' },
   { key: 'text-dim', group: 'Core', kind: 'color', label: 'Secondary text', fallback: '#8a94a0', hint: 'Widget names, captions, hints and units.' },
   { key: 'primary', group: 'Core', kind: 'color', label: 'Accent', fallback: '#38b6ff', hint: 'The theme accent: active controls, gauges, the tile-accent setting.' },
   { key: 'brand', group: 'Core', kind: 'color', label: 'Brand', fallback: '#e35a2b', hint: 'neohab’s own colour: the wordmark, primary buttons, editor handles.' },
@@ -52,7 +52,7 @@ export const TOKEN_SPECS: TokenSpec[] = [
   { key: 'shadow', group: 'Core', kind: 'shadow', label: 'Tile shadow', fallback: '0 1px 3px rgba(0, 0, 0, 0.3)', hint: 'The drop shadow under a widget tile. `none` makes the design flat.' },
 
   /* -------------------------------- Semantic -------------------------------- */
-  { key: 'good', group: 'Semantic', kind: 'color', label: 'Good', fallback: '#3fb950', hint: 'A reading that moved the way you want — the stat tile’s trend arrow.' },
+  { key: 'good', group: 'Semantic', kind: 'color', label: 'Good', fallback: '#3fb950', hint: 'A reading that moved the way you want - the stat tile’s trend arrow.' },
   { key: 'bad', group: 'Semantic', kind: 'color', label: 'Bad', fallback: '#e5484d', hint: 'A reading that moved the wrong way.' },
   {
     key: 'accent-ink',
@@ -81,8 +81,8 @@ export const TOKEN_SPECS: TokenSpec[] = [
   { key: 'rim-lo', group: 'Instruments', kind: 'color', label: 'Gauge rim shadow', fallback: 'the border colour', hint: 'The rim’s far edge, where the light falls away.' },
   { key: 'face-hi', group: 'Instruments', kind: 'color', label: 'Gauge face light', fallback: 'transparent', hint: 'Glow inside a gauge face. Transparent by default, so faces are flat unless a theme lights them.' },
   { key: 'face-lo', group: 'Instruments', kind: 'color', label: 'Gauge face shadow', fallback: 'transparent', hint: 'The dark end of that glow.' },
-  { key: 'band-light', group: 'Instruments', kind: 'unit', label: 'Gauge band highlight', fallback: '0', hint: 'Strength (0–1) of the bright film at the tip of a solid-arc gauge’s band. 0 is off.' },
-  { key: 'band-shade', group: 'Instruments', kind: 'unit', label: 'Gauge band shading', fallback: '0', hint: 'Strength (0–1) of the sunk film at the start of that band. 0 is off.' },
+  { key: 'band-light', group: 'Instruments', kind: 'unit', label: 'Gauge band highlight', fallback: '0', hint: 'Strength (0-1) of the bright film at the tip of a solid-arc gauge’s band. 0 is off.' },
+  { key: 'band-shade', group: 'Instruments', kind: 'unit', label: 'Gauge band shading', fallback: '0', hint: 'Strength (0-1) of the sunk film at the start of that band. 0 is off.' },
 ]
 
 export type TokenKey = string

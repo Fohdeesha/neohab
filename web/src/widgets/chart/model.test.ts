@@ -2,7 +2,7 @@
  * What a chart configuration describes.
  *
  * These read stored configuration during render, which makes them the place a hostile or
- * half-written component turns into a thrown exception — and a widget throwing during render used
+ * half-written component turns into a thrown exception, and a widget throwing during render used
  * to unmount the whole app, not one tile.
  */
 import { describe, expect, it } from 'vitest'

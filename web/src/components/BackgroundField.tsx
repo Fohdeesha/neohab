@@ -39,7 +39,7 @@ export function BackgroundField({
       await onChange(BG_REF_PREFIX + bgId)
     } catch (err) {
       notify(
-        t('Upload failed: {{error}} — uploads need an administrator sign-in.', {
+        t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -62,7 +62,7 @@ export function BackgroundField({
               : // an uploaded reference whose component is gone: say so rather than describing
                 // an image that is not there
                 !resolved
-                ? t('The uploaded image is missing — upload another')
+                ? t('The uploaded image is missing - upload another')
                 : (uploadedBytes ?? 0) >= 1024 * 1024
                 ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
                 : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })

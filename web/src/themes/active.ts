@@ -2,9 +2,9 @@
  * The theme actually in effect on this device.
  *
  * Three things decide it, in order: a `?theme=` parameter forcing one for this page load (the
- * escape hatch — see `urlTheme.ts`), then this device's own override, then the shared
+ * escape hatch - see `urlTheme.ts`), then this device's own override, then the shared
  * `settings.theme` every device follows by default. Resolving that in each place that needs it
- * went wrong the obvious way — several places read the shared setting alone, so a device with an
+ * went wrong the obvious way - several places read the shared setting alone, so a device with an
  * override showed one theme while the settings screen, the theme editor and the template widgets
  * all reasoned about another. This module is the one answer, so there is nothing to keep in sync.
  */

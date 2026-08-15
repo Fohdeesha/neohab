@@ -1,7 +1,7 @@
 import { bareAndNewTile, fontFace, squareControls, tightCellInsets } from './shared'
 
 /**
- * Swiss Sheet — the International Typographic Style.
+ * Swiss Sheet - the International Typographic Style.
  *
  * Everything is flat; structure comes from rules and typography rather than boxes. Widgets are
  * unboxed sections under a two-tone rule (a red index segment running into ink), resting controls
@@ -9,7 +9,7 @@ import { bareAndNewTile, fontFace, squareControls, tightCellInsets } from './sha
  * the empty space between sections.
  *
  * Every colour derives from the tokens through `color-mix`, which is what lets this one
- * stylesheet serve both the dark and the light variant — and what makes it the right one to copy
+ * stylesheet serve both the dark and the light variant, and what makes it the right one to copy
  * when starting a theme of your own.
  */
 export const SWISS_CSS = `${fontFace('Instrument Sans', 'instrument-sans.woff2', '400 700', 'woff2-variations')}/* The page is a drafting sheet: red baseline ruling + grey column lines fill every empty

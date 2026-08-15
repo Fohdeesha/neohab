@@ -31,7 +31,7 @@ export function EditingLockSection({ onNotice }: { onNotice: (m: string | null) 
       </label>
       <p className="nh-settings__text">
         {t(
-          'Hides the edit pencil, dashboard creation and the configuration sections of this screen on every device that is not signed in as an administrator — wall panels and guests get a clean, view-only dashboard. Administrator devices (like this one) are never affected, and a locked device can still sign in under Account below.'
+          'Hides the edit pencil, dashboard creation and the configuration sections of this screen on every device that is not signed in as an administrator - wall panels and guests get a clean, view-only dashboard. Administrator devices (like this one) are never affected, and a locked device can still sign in under Account below.'
         )}
       </p>
     </section>

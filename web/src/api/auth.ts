@@ -176,7 +176,7 @@ export function applyAuthHeader(headers: Headers, token: string): void {
 /**
  * Base64 of a string that may hold anything a person can type.
  *
- * `btoa` takes bytes, not text, and throws on any character above U+00FF — so a proxy password
+ * `btoa` takes bytes, not text, and throws on any character above U+00FF, so a proxy password
  * with an umlaut, an accent or an emoji in it made EVERY request fail, with an error about
  * character ranges rather than about credentials. Encoding to UTF-8 first is what RFC 7617
  * expects anyway.

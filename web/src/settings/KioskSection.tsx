@@ -48,7 +48,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
   const setControlItem = async (name: string) => {
     onNotice(null)
     const err = await saveSettings({ controlItem: name || undefined })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} — sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
   }
 
   const toggleFullscreen = () => {
@@ -67,7 +67,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
       <h2 className="nh-settings__h">{t('Kiosk & wall panel')}</h2>
       <p className="nh-settings__text">
         {t(
-          'These settings apply to this device only, so a wall panel and a phone can each have their own. The dashboard-control item at the bottom is the exception — it is shared.'
+          'These settings apply to this device only, so a wall panel and a phone can each have their own. The dashboard-control item at the bottom is the exception - it is shared.'
         )}
       </p>
 
@@ -146,7 +146,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
       </label>
       <p className="nh-settings__text">
         {t(
-          'Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap any screen corner five times in a row, or open the app with {{off}} in the address. {{on}} turns it on for one session — handy as the pinned address in a kiosk-browser app.',
+          'Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap any screen corner five times in a row, or open the app with {{off}} in the address. {{on}} turns it on for one session - handy as the pinned address in a kiosk-browser app.',
           { off: '?kiosk=off', on: '?kiosk=on' }
         )}
       </p>
@@ -182,7 +182,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
           ) : null}
           <p className="nh-settings__text">
             {t(
-              'A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard — the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device\'s own choice above (kiosk-mode devices follow by default).'
+              'A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard - the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device\'s own choice above (kiosk-mode devices follow by default).'
             )}
           </p>
         </>

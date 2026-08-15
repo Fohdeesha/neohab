@@ -4,7 +4,7 @@
  * Four steps: choose where the structure comes from, choose which groups of items to use (or
  * pick items by hand), review every widget it would create, then create them. Nothing is written
  * to the server until the last step, and the review lets any row be dropped or given a different
- * widget — a generator that guesses on forty items has to be correctable.
+ * widget - a generator that guesses on forty items has to be correctable.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -349,7 +349,7 @@ function PickStep({
         ))}
         {shown.length === 0 ? <p className="nh-settings__text">{t('No matching items')}</p> : null}
         {matches.length > shown.length ? (
-          <p className="nh-settings__text">{t('…and {{count}} more — type to narrow', { count: matches.length - shown.length })}</p>
+          <p className="nh-settings__text">{t('…and {{count}} more - type to narrow', { count: matches.length - shown.length })}</p>
         ) : null}
       </div>
 
@@ -458,7 +458,7 @@ function PreviewStep({
 
       {error ? (
         <p className="nh-form__error">
-          {t('Could not create: {{error}} — are you signed in as an administrator?', { error })}
+          {t('Could not create: {{error}} - are you signed in as an administrator?', { error })}
         </p>
       ) : null}
 

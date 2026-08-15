@@ -60,7 +60,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   if (props.dashboard.widgets.length === 0) {
     return (
       <div ref={ref} className="nh-grid">
-        <p className="nh-dash__empty">{t('This dashboard has no widgets yet — tap ✎ to start adding some.')}</p>
+        <p className="nh-dash__empty">{t('This dashboard has no widgets yet - tap ✎ to start adding some.')}</p>
       </div>
     )
   }

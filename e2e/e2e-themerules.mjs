@@ -34,7 +34,7 @@ const check = (ok, name, detail = '') => {
     console.log(`  ok   ${name}`)
   } else {
     fail++
-    console.log(`  FAIL ${name}${detail ? ' — ' + detail : ''}`)
+    console.log(`  FAIL ${name}${detail ? ' - ' + detail : ''}`)
   }
 }
 

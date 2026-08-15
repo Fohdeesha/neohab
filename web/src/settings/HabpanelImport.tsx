@@ -48,7 +48,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
           : '',
         source: sourceName,
       }) +
-        (warnCount ? ' ' + t('{{count}} things will need attention — a report is shown afterwards.', { count: warnCount }) : '') +
+        (warnCount ? ' ' + t('{{count}} things will need attention - a report is shown afterwards.', { count: warnCount }) : '') +
         ' ' +
         t('Existing dashboards are kept.')
     )
@@ -71,7 +71,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       setResult(converted)
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} — are you signed in as an administrator?', {
+        t('Import failed: {{error}} - are you signed in as an administrator?', {
           error: err instanceof Error ? err.message : String(err),
         })
       )
@@ -109,7 +109,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
             return (
               <div key={c.uid} className="nh-hpimport__row">
                 <span>
-                  {t('HABPanel configuration “{{uid}}” found on this server — {{count}} dashboards', {
+                  {t('HABPanel configuration “{{uid}}” found on this server - {{count}} dashboards', {
                     uid: c.uid,
                     count: dashCount,
                   })}

@@ -173,7 +173,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
   const notice = missingDef
     ? i18n.t('Custom widget “{{id}}” was not found.', { id: config.customwidget })
     : !template.trim()
-      ? i18n.t('Empty template — configure this widget.')
+      ? i18n.t('Empty template - configure this widget.')
       : error
 
   const body = notice ? (

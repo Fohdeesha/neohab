@@ -6,13 +6,13 @@
  * placeholder shows the snapped target cell; green = free, red = occupied. Dropping on an
  * occupied spot reverts, unless the drag has *dwelled* there long enough to arm a bump - see
  * BUMP_DWELL_MS. Grid layout edits need the full grid, so they require a wide viewport; narrow
- * screens edit the single-column stack instead (settings, add/remove, drag-to-reorder — see
+ * screens edit the single-column stack instead (settings, add/remove, drag-to-reorder - see
  * StackedEditGrid).
  *
  * Selection: a plain click selects one widget (opening its settings); Ctrl/Cmd-click toggles a
  * widget in/out of a multi-selection and Shift-click adds to it; touch long-press starts a
- * multi-selection; and a mouse drag from ANYWHERE that is not a handle — widget bodies included,
- * because a dense dashboard has next to no bare background — draws a rubber-band box selecting
+ * multi-selection; and a mouse drag from ANYWHERE that is not a handle - widget bodies included,
+ * because a dense dashboard has next to no bare background - draws a rubber-band box selecting
  * everything it touches (widgets move only by their handle strip, so a body-drag is unambiguous).
  * A multi-selection drives batch copy/cut/delete from the toolbar (see DashboardView).
  */
@@ -82,7 +82,7 @@ interface DragState {
 }
 
 /** Rubber-band selection box, in container-local pixels. Exists only once the pointer has
- * moved past MARQUEE_THRESHOLD_PX — before that the press is a potential click (see pending). */
+ * moved past MARQUEE_THRESHOLD_PX - before that the press is a potential click (see pending). */
 interface MarqueeState {
   startX: number
   startY: number
@@ -290,7 +290,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     suppressClickRef.current = false // clear any stale flag from a press whose click never fired
     if (e.pointerType === 'mouse') {
       // A mouse press on a widget body is a potential marquee start (widgets only move by
-      // their handle, so a body-drag is unambiguous — and dense dashboards have no bare
+      // their handle, so a body-drag is unambiguous, and dense dashboards have no bare
       // background to start one from). No movement = a normal click, handled by onWidgetClick.
       if (e.button === 0) {
         pendingRef.current = {
@@ -321,7 +321,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
    * Keyboard editing.
    *
    * Everything else here is pointer-driven, which left the editor unusable without one. Arrows
-   * move a widget a cell at a time and Shift+arrows resize it — through the same `setWidgetRect`
+   * move a widget a cell at a time and Shift+arrows resize it - through the same `setWidgetRect`
    * a drag uses, so the overlap rules, the clamping and the single-undo-entry behaviour are
    * identical. A move that would overlap is simply refused, exactly as a drop on an occupied
    * cell is.
@@ -461,7 +461,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     if (!drag) return
     if (drag.valid) setWidgetRect(drag.id, drag.target, drag.bump ?? undefined)
     // Selection on drop. A no-move press on the handle strip is just a click on the widget, so
-    // it behaves exactly like a body click — Ctrl toggles, Shift adds, plain replace-selects
+    // it behaves exactly like a body click - Ctrl toggles, Shift adds, plain replace-selects
     // (even out of a multi-selection: a bare click always means "just this one"). Only a real
     // move preserves an existing multi-selection the dragged widget belongs to; otherwise the
     // drop selects the moved widget (opening its settings panel).
@@ -601,14 +601,14 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           >
             <WidgetHost instance={widget} editing />
 
-            {/* Edit overlay: tap selects, handle strip drags, corner resizes — and a real
+            {/* Edit overlay: tap selects, handle strip drags, corner resizes. It is a real
                 button, so the whole editor is reachable from the keyboard. Tab moves between
                 widgets, Enter/Space selects, arrows move the selection and Shift+arrows resize
                 it (see onCellKeyDown). */}
             <button
               type="button"
               className="nh-cell__overlay"
-              aria-label={t('{{type}} widget — press Enter to select, arrow keys to move', {
+              aria-label={t('{{type}} widget - press Enter to select, arrow keys to move', {
                 type: widget.type,
               })}
               aria-pressed={isSelected}

@@ -3,7 +3,7 @@
  *
  * A theme stylesheet is injected after the app's own, so a rule of equal specificity wins. That
  * is what makes theming work, and it is also why a handful of ordinary-looking selectors quietly
- * break things — an `.nh-button` rule flattens the active state, a `padding` rule undoes the
+ * break things - an `.nh-button` rule flattens the active state, a `padding` rule undoes the
  * small-cell sheds, a `fill` rule pins a gauge to one colour.
  *
  * Everything here is pure string analysis over the stylesheet text, so the same checks run in
@@ -14,12 +14,12 @@
  */
 
 /**
- * Classes whose paint comes from an SVG **attribute** the widget computes — a per-instance
+ * Classes whose paint comes from an SVG **attribute** the widget computes - a per-instance
  * gradient, a severity colour, a live value's tint. A stylesheet `fill` or `stroke` on any of
  * them beats the attribute and pins the element to one colour, which is how a lit gauge bead
  * ends up black on a light theme and a compass cardinal ends up grey.
  *
- * A theme may style anything else about them (width, opacity, font, filter) — just not the paint.
+ * A theme may style anything else about them (width, opacity, font, filter) - just not the paint.
  */
 export const ATTRIBUTE_PAINTED = [
   'nh-gauge__rim',
@@ -151,7 +151,7 @@ export function checkThemeCss(css: string, { radius = '12px' }: { radius?: strin
   }
 
   // A blanket tile rule catches the two tiles that asked not to be one. A theme may genuinely
-  // want to panel the bare widgets — it just has to say so, so the deviation is on record.
+  // want to panel the bare widgets - it just has to say so, so the deviation is on record.
   if (stylesClass(selectors, 'nh-widget') && stylesClass(selectors, 'nh-tile')) {
     if (!selectors.some((s) => s.includes('nh-widget--bare')) && !css.includes('nh-theme-allow: bare-panelled')) {
       issues.push({ rule: 'bareWidget', params: {} })

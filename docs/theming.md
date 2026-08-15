@@ -29,7 +29,7 @@ colours or all 27.
 | `surface` | A widget tile, a sheet, a Home tile |
 | `surface-2` | A step above that: buttons, dropdowns, slider tracks |
 | `border` | Every hairline: tile edges, field outlines, separators |
-| `text` | Readings, labels and controls — the main ink |
+| `text` | The main ink: readings, labels and controls |
 | `text-dim` | Widget names, captions, hints and units |
 | `primary` | The accent: active controls, gauges, the tile-accent setting |
 | `brand` | neohab's own colour: the wordmark, primary buttons, editor handles |
@@ -61,20 +61,20 @@ All off by default, so gauges stay flat unless a theme lights them.
 |---|---|
 | `rim-hi` / `rim-lo` | Shades a gauge's outer rim, lit at one end |
 | `face-hi` / `face-lo` | A glow inside the gauge face |
-| `band-light` / `band-shade` | 0–1. Bright film at the tip of a solid-arc band, sunk film at its start |
+| `band-light` / `band-shade` | 0 to 1. Bright film at the tip of a solid-arc band, sunk film at its start |
 
 ## Readability
 
 The editor reports the contrast ratio for each pair of colours that actually meets on screen.
-4.5:1 is the guideline for normal text, 3:1 for large. It is a warning, not a limit — but red
-numbers mean the theme is genuinely hard to read.
+4.5:1 is the guideline for normal text, 3:1 for large. It is a warning rather than a limit, but
+red numbers mean the theme is genuinely hard to read.
 
-A colour written as `color-mix(...)`, or as a `var()` reference, cannot be measured and is
-reported as *not measurable* rather than guessed at.
+A colour written as `color-mix(...)`, or as a `var()` reference, cannot be measured. It is
+reported as **not measurable** rather than guessed at.
 
 ## A theme's own stylesheet
 
-Tokens cannot change fonts or the *shape* of a widget. For that a theme can carry a stylesheet,
+Tokens cannot change fonts or the **shape** of a widget. For that a theme can carry a stylesheet,
 applied with it and removed when you switch away: **Settings › Appearance › edit a theme ›
 Custom CSS**. It previews as you type, like everything else.
 
@@ -82,12 +82,12 @@ This is real CSS with no sandbox, stored in your openHAB configuration like the 
 setup. Treat a theme file from someone else the way you would treat any other code from them.
 
 The editor checks your stylesheet against the rules below as you write it, and lists anything it
-finds under the box. It is advice, not a refusal — the CSS is applied either way.
+finds under the box. It is advice, not a refusal: the CSS is applied either way.
 
 ### If a theme breaks the app
 
 A theme applies to everything, including the Settings screen you would use to undo it, and it is
-cached locally — so reloading reapplies it. Add **`?theme=none`** to the address to load with the
+cached locally, so reloading reapplies it. Add **`?theme=none`** to the address to load with the
 default theme instead:
 
 ```
@@ -95,7 +95,7 @@ http://your-server:8080/neohab/index.html?theme=none
 ```
 
 It works before or inside the `#`, ignores the shared theme, this device's override and the cache,
-and is **not** saved — it lasts for that page load only. From there, edit or delete the offending
+and is **not** saved. It lasts for that page load only. From there, edit or delete the offending
 theme normally. A built-in's id works too (`?theme=light`) if you want to look at one without
 adopting it.
 
@@ -122,15 +122,15 @@ adopting it.
 
 Two variables are set per cell rather than globally, and a theme can read both:
 
-- `--nh-cellaccent` — that tile's own Accent colour, if it has one.
-- `--nh-labelalign` — the tile's Name alignment. A theme may set a **default** on
+- `--nh-cellaccent` is that tile's own Accent colour, if it has one.
+- `--nh-labelalign` is the tile's Name alignment. A theme may set a **default** on
   `.nh-gcell, .nh-cell`; a widget that made its own choice still wins, because that arrives as an
   inline style.
 
 ### Six rules that are not obvious
 
 Your stylesheet loads **after** neohab's, so a rule of equal specificity beats the base one. That
-is what makes theming work — and it is why these six exist. The editor checks all of them, and so
+is what makes theming work, and it is why these six exist. The editor checks all of them, and so
 does the test suite for every built-in theme.
 
 **1. Gate your padding.** neohab sheds padding in short and narrow cells so text stays readable.
@@ -146,9 +146,9 @@ Gate yours on the complementary range:
 **2. Style both halves of a control state.** `.nh-button` and `.nh-button--active` have the same
 specificity, so styling the base flattens the active state. Style both.
 
-**3. Never set `fill` or `stroke` on these.** Their paint is an *attribute* the widget computes —
-a per-instance gradient, a severity colour, a live tint — and a stylesheet declaration beats an
-attribute:
+**3. Never set `fill` or `stroke` on these.** Their paint is an **attribute** the widget computes,
+such as a per-instance gradient, a severity colour or a live tint, and a stylesheet declaration
+beats an attribute:
 
 ```
 .nh-gauge__rim    .nh-gauge__band     .nh-gauge__bandlight  .nh-gauge__bandshade
@@ -156,7 +156,7 @@ attribute:
 .nh-compass__cardinal                 .nh-compass__value
 ```
 
-Width, opacity, font and filter are all fine — just not the colour.
+Width, opacity, font and filter are all fine. Just not the colour.
 
 **4. `border-image` needs `radius: 0`.** A border gradient squares off rounded corners, so the two
 cannot be combined. Set the `radius` token to `0px` if you want a gradient bezel.
@@ -211,15 +211,15 @@ The editor offers to copy the stylesheet of the theme you are looking at. Know w
 - **Swiss Sheet** is built entirely from tokens through `color-mix()`, which is how one stylesheet
   serves both its dark and light variants. This is the one to copy.
 - **Ember**, **LCD Console**, **Operations** and **Assembly** contain colours written directly
-  into them, plus bundled fonts and (for Assembly) a background image. They will *not* follow the
-  tokens you change. Copy them to study, not to recolour.
+  into them, plus bundled fonts and, for Assembly, a background image. They will **not** follow
+  the tokens you change. Copy them to study, not to recolour.
 
 ## Coming from HABPanel
 
-All seven of HABPanel's themes have a port here — Default (as *Aqua*), Material, Material dark,
-Pale blue, Translucent, Madras and Orange Tree — and an import picks the matching one
-automatically. They are ports, not clones: where a colour fell below a readable contrast ratio it
-was moved the smallest distance that fixes it.
+All seven of HABPanel's themes have a port here: Default (as **Aqua**), Material, Material dark,
+Pale blue, Translucent, Madras and Orange Tree. An import picks the matching one automatically.
+They are ports, not clones: where a colour fell below a readable contrast ratio it was moved the
+smallest distance that fixes it.
 
 HABPanel's `additional_stylesheet_url` is **not** imported. Its selectors are HABPanel's, which
 neohab does not have. Paste what you want to keep into a theme's Custom CSS and translate the

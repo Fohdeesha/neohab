@@ -22,7 +22,7 @@ export interface FieldChange {
 
 export interface ComponentDiff {
   uid: string
-  /** `dashboard`, `theme`, `icon`, `settings`, … taken from the uid prefix. */
+  /** `dashboard`, `theme`, `icon`, `settings`, ... taken from the uid prefix. */
   category: string
   name: string
   kind: ChangeKind
@@ -181,7 +181,7 @@ export function diffEntries(before: SnapshotEntry[], after: SnapshotEntry[]): Co
 
 /** Short, safe rendering of a before/after value for the change list. */
 export function formatValue(value: unknown): string {
-  if (value === undefined) return '—'
+  if (value === undefined) return '-'
   if (value === null) return 'null'
   if (typeof value === 'string') return value.length > MAX_VALUE_CHARS ? value.slice(0, MAX_VALUE_CHARS) + '…' : value
   let text: string
