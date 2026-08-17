@@ -13,7 +13,14 @@ import { subscribeItems, useItemsStore } from '../store/items'
 import type { WidgetInstance } from '../model/dashboard'
 import type { SettingField, WidgetContext } from '../widgets/types'
 import { PlanCanvas } from '../widgets/floorplan'
-import { lightsOf, newLightId, type FloorplanConfig, type FloorplanLight } from '../widgets/floorplan/model'
+import {
+  GLOW_DIRECTION_OPTIONS,
+  glowDirectionOf,
+  lightsOf,
+  newLightId,
+  type FloorplanConfig,
+  type FloorplanLight,
+} from '../widgets/floorplan/model'
 
 export function PlanImageField({
   field,
@@ -131,28 +138,48 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
                 className={'nh-planedit__row' + (sel === l.id ? ' nh-planedit__row--sel' : '')}
                 onClick={() => setSel(l.id)}
               >
-                <span className="nh-planedit__item" title={l.item}>
-                  {l.item}
-                </span>
-                <input
-                  type="text"
-                  className="nh-planedit__label"
-                  placeholder={t('Label')}
-                  value={l.label ?? ''}
-                  onChange={(e) => patchLight(l.id, { label: e.target.value || undefined })}
-                />
-                <button
-                  type="button"
-                  className="nh-iconbtn"
-                  aria-label={t('Remove light')}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setLights(lights.filter((x) => x.id !== l.id))
-                    if (sel === l.id) setSel(null)
-                  }}
-                >
-                  ✕
-                </button>
+                <div className="nh-planedit__rowline">
+                  <span className="nh-planedit__item" title={l.item}>
+                    {l.item}
+                  </span>
+                  <button
+                    type="button"
+                    className="nh-iconbtn"
+                    aria-label={t('Remove light')}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setLights(lights.filter((x) => x.id !== l.id))
+                      if (sel === l.id) setSel(null)
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="nh-planedit__rowline">
+                  <input
+                    type="text"
+                    className="nh-planedit__label"
+                    placeholder={t('Label')}
+                    value={l.label ?? ''}
+                    onChange={(e) => patchLight(l.id, { label: e.target.value || undefined })}
+                  />
+                  <select
+                    className="nh-planedit__dir"
+                    aria-label={t('Glow direction')}
+                    title={t('Glow direction')}
+                    value={l.glowDir ?? 'all'}
+                    onChange={(e) => {
+                      const dir = glowDirectionOf(e.target.value)
+                      patchLight(l.id, { glowDir: dir === 'all' ? undefined : dir })
+                    }}
+                  >
+                    {GLOW_DIRECTION_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             ))}
           </div>

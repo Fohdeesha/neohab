@@ -19,7 +19,12 @@ export interface FloorplanLight {
   label?: string
   /** Glow diameter in percent of the plan width. */
   size?: number
+  /** Which way the light throws its glow. Absent = all directions. */
+  glowDir?: GlowDirection
 }
+
+/** Where a light throws its glow: everywhere, or out of one side only. */
+export type GlowDirection = 'all' | 'up' | 'down' | 'left' | 'right'
 
 export type PlanStyle = 'blueprint' | 'ink' | 'plain'
 
@@ -61,6 +66,7 @@ export function lightsOf(config: FloorplanConfig): FloorplanLight[] {
     const l = raw as Record<string, unknown>
     if (typeof l.item !== 'string' || l.item === '') continue
     const size = num(l.size)
+    const dir = glowDirectionOf(l.glowDir)
     lights.push({
       id: typeof l.id === 'string' && l.id !== '' ? l.id : `${l.item}#${i}`,
       item: l.item,
@@ -68,6 +74,7 @@ export function lightsOf(config: FloorplanConfig): FloorplanLight[] {
       y: clamp(num(l.y) ?? 50, 0, 100),
       label: typeof l.label === 'string' && l.label !== '' ? l.label : undefined,
       size: size === undefined ? undefined : clamp(size, 4, 80),
+      glowDir: dir === 'all' ? undefined : dir,
     })
   }
   return lights
@@ -160,12 +167,69 @@ export function glowFor(state: string | undefined): Glow | null {
 }
 
 /**
+ * How each direction spills, in ONE table so the box and the gradient inside it can never
+ * disagree about where the lamp is: the point the light radiates from, the box that holds the
+ * spill as fractions of the omnidirectional diameter, and the transform that puts the lamp
+ * itself on the emitting edge rather than in the middle.
+ */
+const GLOW_DIRECTIONS: Record<GlowDirection, { at: string; wide: number; tall: number; transform: string }> = {
+  all: { at: '50% 50%', wide: 1, tall: 1, transform: 'translate(-50%, -50%)' },
+  up: { at: '50% 100%', wide: 1, tall: 0.5, transform: 'translate(-50%, -100%)' },
+  down: { at: '50% 0%', wide: 1, tall: 0.5, transform: 'translate(-50%, 0)' },
+  left: { at: '100% 50%', wide: 0.5, tall: 1, transform: 'translate(-100%, -50%)' },
+  right: { at: '0% 50%', wide: 0.5, tall: 1, transform: 'translate(0, -50%)' },
+}
+
+/** A stored glow direction, or all directions for anything else. */
+export function glowDirectionOf(value: unknown): GlowDirection {
+  return value === 'up' || value === 'down' || value === 'left' || value === 'right' ? value : 'all'
+}
+
+/**
+ * What the editor offers, derived from the same set the renderer draws, so a direction can
+ * never exist without a way to pick it. Arrows because these are plan directions - up is the
+ * top of the plan, not the ceiling - and an arrow says that in any language. English source
+ * strings, translated where they are rendered, like every widget's settings schema.
+ */
+export const GLOW_DIRECTION_OPTIONS: { value: GlowDirection; label: string }[] = [
+  { value: 'all', label: 'All directions' },
+  { value: 'up', label: '↑ Up' },
+  { value: 'down', label: '↓ Down' },
+  { value: 'left', label: '← Left' },
+  { value: 'right', label: '→ Right' },
+]
+
+export interface GlowGeometry {
+  /** Box width, in percent of the plan width. */
+  width: number
+  /** Fixes the box's shape in pixels, so a glow stays round whatever the plan's aspect. */
+  aspectRatio: string
+  transform: string
+}
+
+/**
+ * The box one glow paints in. A directional glow is a half disc of the same radius: half the
+ * height (or width) of the omnidirectional box, hung off the side the light throws towards.
+ */
+export function glowGeometry(direction: GlowDirection | undefined, size: number): GlowGeometry {
+  const d = GLOW_DIRECTIONS[glowDirectionOf(direction)]
+  return { width: size * d.wide, aspectRatio: `${d.wide} / ${d.tall}`, transform: d.transform }
+}
+
+/**
  * The radial gradient for one glow. Perceptual: intensity eases with a square root so a light
  * at 20% still visibly glows, the way a dim lamp still reads as "on" in a dark room.
+ *
+ * A directional glow radiates from the edge its lamp sits on, and takes its radius from the
+ * farthest side - which in the half-height box of glowGeometry is exactly the radius the
+ * omnidirectional glow has, so pointing a light somewhere never changes how far it reaches.
  */
-export function glowCss(glow: Glow): string {
+export function glowCss(glow: Glow, direction?: GlowDirection): string {
   const [r, g, b] = glow.rgb
   const a = Math.sqrt(clamp(glow.intensity, 0, 1))
   const stop = (alpha: number, at: number) => `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)}) ${at}%`
-  return `radial-gradient(closest-side, ${stop(0.85 * a, 0)}, ${stop(0.4 * a, 45)}, ${stop(0, 72)})`
+  const stops = `${stop(0.85 * a, 0)}, ${stop(0.4 * a, 45)}, ${stop(0, 72)}`
+  const dir = glowDirectionOf(direction)
+  if (dir === 'all') return `radial-gradient(closest-side, ${stops})`
+  return `radial-gradient(circle farthest-side at ${GLOW_DIRECTIONS[dir].at}, ${stops})`
 }

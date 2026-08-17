@@ -8,6 +8,7 @@ import {
   bridgeRuleFor,
   bridgeUidFor,
   commandForState,
+  commandKind,
   commandMatchesState,
   isNeohabRule,
   isScene,
@@ -272,5 +273,32 @@ describe('capturing current state', () => {
     expect(commandForState('Dimmer', 'NULL')).toBeNull()
     expect(commandForState('Color', 'UNDEF')).toBeNull()
     expect(commandForState('Switch', undefined)).toBeNull()
+  })
+})
+
+describe('editing a stored value', () => {
+  it('picks the control from the command shape, not from an item type', () => {
+    expect(commandKind('120,50,80')).toBe('color')
+    expect(commandKind('ON')).toBe('onoff')
+    expect(commandKind('OFF')).toBe('onoff')
+    expect(commandKind('64')).toBe('level')
+    expect(commandKind('0')).toBe('level')
+    expect(commandKind('100')).toBe('level')
+    expect(commandKind('movie')).toBe('text')
+  })
+
+  it('keeps a text box for numbers a slider would mangle', () => {
+    // a slider steps in whole percent, so a setpoint would be rounded the moment it was touched
+    expect(commandKind('22.5')).toBe('text')
+    expect(commandKind('350')).toBe('text')
+    expect(commandKind('-1')).toBe('text')
+  })
+
+  it('survives the shapes a hand-edited scene can hold', () => {
+    expect(commandKind('')).toBe('text')
+    expect(commandKind(' ')).toBe('text')
+    expect(commandKind(undefined as unknown as string)).toBe('text')
+    expect(commandKind(42 as unknown as string)).toBe('text')
+    expect(commandKind('1,2')).toBe('text')
   })
 })

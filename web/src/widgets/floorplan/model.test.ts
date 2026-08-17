@@ -7,13 +7,17 @@ import { describe, expect, it } from 'vitest'
 import {
   containRect,
   DEFAULT_GLOW_SIZE,
+  GLOW_DIRECTION_OPTIONS,
   glowCss,
+  glowDirectionOf,
   glowFor,
+  glowGeometry,
   glowScaleOf,
   lightsOf,
   planStyleOf,
   stateKind,
   type FloorplanConfig,
+  type GlowDirection,
 } from './model'
 
 describe('lightsOf', () => {
@@ -165,5 +169,72 @@ describe('glowCss', () => {
     const css = glowCss({ rgb: [255, 0, 0], intensity: 0 })
     expect(css).not.toContain('0.850')
     expect(css).toContain('rgba(255, 0, 0, 0.000) 0%')
+  })
+
+  it('a directional glow radiates from the edge its lamp sits on', () => {
+    const lit = { rgb: [255, 0, 0] as [number, number, number], intensity: 1 }
+    // the lamp is at the BOTTOM of a box that reaches up, and vice versa
+    expect(glowCss(lit, 'up')).toContain('at 50% 100%')
+    expect(glowCss(lit, 'down')).toContain('at 50% 0%')
+    expect(glowCss(lit, 'left')).toContain('at 100% 50%')
+    expect(glowCss(lit, 'right')).toContain('at 0% 50%')
+    // same radius as the omnidirectional glow: pointing a light does not change its reach
+    expect(glowCss(lit, 'up')).toContain('circle farthest-side')
+  })
+
+  it('leaves the omnidirectional gradient exactly as it was', () => {
+    const lit = { rgb: [12, 34, 56] as [number, number, number], intensity: 0.5 }
+    const plain = 'radial-gradient(closest-side, rgba(12, 34, 56, 0.601) 0%, rgba(12, 34, 56, 0.283) 45%, rgba(12, 34, 56, 0.000) 72%)'
+    expect(glowCss(lit)).toBe(plain)
+    expect(glowCss(lit, 'all')).toBe(plain)
+    expect(glowCss(lit, 'nonsense' as GlowDirection)).toBe(plain)
+  })
+})
+
+describe('glow direction', () => {
+  it('takes only the four directions, anything else lights the whole room', () => {
+    expect(glowDirectionOf('up')).toBe('up')
+    expect(glowDirectionOf('right')).toBe('right')
+    expect(glowDirectionOf('all')).toBe('all')
+    expect(glowDirectionOf(undefined)).toBe('all')
+    expect(glowDirectionOf('north')).toBe('all')
+    expect(glowDirectionOf(3)).toBe('all')
+    expect(glowDirectionOf({ up: true })).toBe('all')
+  })
+
+  it('a stored direction survives, garbage does not persist as one', () => {
+    const lights = lightsOf({
+      lights: [
+        { id: 'a', item: 'A', x: 1, y: 1, glowDir: 'left' },
+        { id: 'b', item: 'B', x: 1, y: 1, glowDir: 'sideways' },
+        { id: 'c', item: 'C', x: 1, y: 1 },
+      ],
+    } as FloorplanConfig)
+    expect(lights[0].glowDir).toBe('left')
+    expect(lights[1].glowDir).toBeUndefined()
+    expect(lights[2].glowDir).toBeUndefined()
+  })
+
+  it('a half disc is half the box, hung off the side the light throws towards', () => {
+    // omnidirectional: a square centred on the lamp
+    expect(glowGeometry('all', 20)).toEqual({ width: 20, aspectRatio: '1 / 1', transform: 'translate(-50%, -50%)' })
+    // up: full width, half height, and the box sits ENTIRELY above the lamp
+    expect(glowGeometry('up', 20)).toEqual({ width: 20, aspectRatio: '1 / 0.5', transform: 'translate(-50%, -100%)' })
+    expect(glowGeometry('down', 20)).toEqual({ width: 20, aspectRatio: '1 / 0.5', transform: 'translate(-50%, 0)' })
+    // left/right: half width, full height, hung off the side
+    expect(glowGeometry('left', 20)).toEqual({ width: 10, aspectRatio: '0.5 / 1', transform: 'translate(-100%, -50%)' })
+    expect(glowGeometry('right', 20)).toEqual({ width: 10, aspectRatio: '0.5 / 1', transform: 'translate(0, -50%)' })
+  })
+
+  it('an unreadable direction still yields a drawable box', () => {
+    expect(glowGeometry(undefined, 20)).toEqual(glowGeometry('all', 20))
+    expect(glowGeometry('sideways' as GlowDirection, 20)).toEqual(glowGeometry('all', 20))
+  })
+
+  it('every direction the renderer draws is one the editor offers', () => {
+    const offered = GLOW_DIRECTION_OPTIONS.map((o) => o.value)
+    expect(offered).toEqual(['all', 'up', 'down', 'left', 'right'])
+    expect(new Set(offered).size).toBe(offered.length)
+    expect(GLOW_DIRECTION_OPTIONS.every((o) => o.label.trim() !== '')).toBe(true)
   })
 })

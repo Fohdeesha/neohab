@@ -4076,11 +4076,11 @@ button {
   position: absolute;
 }
 
+/* The box, its shape and its offset come from glowGeometry inline: a light throwing its glow
+   one way hangs a half-height box off that side, and the two must agree with the gradient
+   inside it about where the lamp is, so they are decided in one place. */
 .nh-fplan__glow {
   position: absolute;
-  transform: translate(-50%, -50%);
-  aspect-ratio: 1;
-  border-radius: 50%;
   pointer-events: none;
   /* Additive, the way overlapping real light behaves; on light themes screen has nothing
      to brighten, so the glow reads softer - fine, lamps do too in daylight. */
@@ -4260,6 +4260,163 @@ button {
 }
 
 /* ---------------------------------------------------------------------------
+   "Manage presets" (from the plan): a full-screen sheet, because a preset's
+   editor holds a colour picker per light and the plan itself may be a small
+   tile. Sits above the app's sheets, below the pickers' lists (60).
+   --------------------------------------------------------------------------- */
+.nh-pmgr {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  background: var(--nh-bg);
+}
+
+.nh-pmgr__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-pmgr__bar h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-pmgr__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* The reading width of a form; the sheet is full screen so it can hold a picker's popup. */
+  width: min(620px, 100%);
+  margin: 0 auto;
+}
+
+.nh-pmgr__error {
+  margin: 0;
+  color: var(--nh-primary);
+}
+
+.nh-pmgr__none {
+  margin: 0;
+  color: var(--nh-text-dim);
+}
+
+.nh-pmgr__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+}
+
+.nh-pmgr__name {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-pmgr__dots {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.nh-pmgr__meta {
+  color: var(--nh-text-dim);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.nh-pmgr__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nh-pmgr__h {
+  margin: 6px 0 0;
+  font-size: 0.95rem;
+}
+
+.nh-pmgr__lights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nh-pmgr__light {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+}
+
+.nh-pmgr__lighthead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nh-pmgr__lightname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* The colour picker is sized for a widget cell; here it has a whole sheet. */
+.nh-pmgr__light .nh-color {
+  min-height: 120px;
+}
+
+.nh-pmgr__add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.nh-pmgr__add select {
+  flex: 1;
+  min-width: 0;
+}
+
+.nh-pmgr__add > .nh-btn {
+  flex-shrink: 0;
+}
+
+.nh-pmgr__value {
+  width: 100%;
+}
+
+.nh-pmgr__edit .nh-form__footer {
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------------------
    Lighting presets manager (Settings): one card per scene, the wall-switch
    link editor unfolding inside it.
    --------------------------------------------------------------------------- */
@@ -4399,14 +4556,22 @@ button {
   color: var(--nh-text-dim);
 }
 
+/* Two lines: the item and its remove button, then the label and the glow direction. One line
+   would leave the label box a few characters wide in the 320px panel. */
 .nh-planedit__row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 6px 8px;
   border: 1px solid transparent;
   border-radius: var(--nh-radius);
   cursor: pointer;
+}
+
+.nh-planedit__rowline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nh-planedit__row--sel {
@@ -4423,9 +4588,17 @@ button {
   font-size: 0.9rem;
 }
 
+/* An <input> is floored at its default width as a flex item, so it needs min-width to shrink;
+   the select takes what it needs of the rest. */
 .nh-planedit__label {
-  width: 110px;
-  flex-shrink: 0;
+  flex: 1 1 90px;
+  min-width: 0;
+}
+
+.nh-planedit__dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 145px;
 }
 
 @media (max-width: 720px) {

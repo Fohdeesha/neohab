@@ -308,6 +308,27 @@ export function presetOffCommands(lights: PresetLight[]): PresetLight[] {
   return lights.map((l) => ({ item: l.item, command: offCommandFor(l.command) }))
 }
 
+/* ---------- editing a stored value ---------- */
+
+export type CommandKind = 'color' | 'level' | 'onoff' | 'text'
+
+/**
+ * Which control fits a stored command, decided from the command's SHAPE - a scene records no
+ * item type, and the item may not even be on the plan being edited.
+ *
+ * Only a whole number in 0-100 gets a slider. That is a dimmer; anything else numeric (a 22.5
+ * setpoint, a value past 100) keeps a text box, because a slider would round it to something
+ * the user never asked for the moment it was touched.
+ */
+export function commandKind(command: string): CommandKind {
+  if (typeof command !== 'string') return 'text'
+  if (looksHsb(command)) return 'color'
+  if (command === 'ON' || command === 'OFF') return 'onoff'
+  const n = Number(command)
+  if (Number.isFinite(n) && command.trim() !== '' && Number.isInteger(n) && n >= 0 && n <= 100) return 'level'
+  return 'text'
+}
+
 /* ---------- capturing current state ---------- */
 
 /**

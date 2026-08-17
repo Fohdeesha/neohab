@@ -84,13 +84,16 @@ translate it.
   first and falls back until one works. Streams stop when nobody is looking.
 - **Floor plan.** Upload a plan of your home (any image; a styling pipeline re-inks it to match
   the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
-  brightness, overlapping lamps blend like real light, and tapping one opens its control.
+  brightness, thrown in every direction or out of one side only for a sconce or a cove, and
+  overlapping lamps blend like real light. Tapping a light opens its control.
 
   Set the room the way you like it and save it as a **lighting preset**. It is stored as a real
   openHAB scene, so your rules and Main UI see it too, and any panel (even signed-out ones) can
-  recall it with a tap. Link a preset to the Switch item your wall switches already use and neohab
-  adds the rule that runs it, with the active preset highlighted on every panel. Optionally,
-  tapping the preset that is already on switches its lights back off.
+  recall it with a tap. Presets are managed from the plan: rename one, change what it sets each
+  light to without setting the room first, add a light to it or drop one, and delete it. Link a
+  preset to the Switch item your wall switches already use and neohab adds the rule that runs it,
+  with the active preset highlighted on every panel. Optionally, tapping the preset that is
+  already on switches its lights back off.
 - **Custom widgets.** Build your own from HTML templates with live item bindings, plus an optional
   sandboxed JavaScript API. A small gallery ships inside the add-on and installs with one tap.
 

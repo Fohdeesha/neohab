@@ -20,6 +20,7 @@ import {
   DEFAULT_GLOW_SIZE,
   glowCss,
   glowFor,
+  glowGeometry,
   glowScaleOf,
   lightsOf,
   planStyleOf,
@@ -28,9 +29,6 @@ import {
 } from './model'
 import { LightPopup } from './LightPopup'
 import { PresetBar } from './PresetBar'
-
-/** One row of preset chips, plus the bar's own inset: `.nh-fplan__bar .nh-chip` in app.css. */
-const CHIP_ROW = 55
 
 export function PlanCanvas({
   config,
@@ -83,12 +81,19 @@ export function PlanCanvas({
           {lights.map((l) => {
             const glow = glowFor(settled(l.item, ctx.getItem(l.item)?.state))
             if (!glow || glow.intensity <= 0) return null
-            const size = (l.size ?? DEFAULT_GLOW_SIZE) * scale
+            const geom = glowGeometry(l.glowDir, (l.size ?? DEFAULT_GLOW_SIZE) * scale)
             return (
               <span
                 key={'g' + l.id}
                 className="nh-fplan__glow"
-                style={{ left: `${l.x}%`, top: `${l.y}%`, width: `${size}%`, backgroundImage: glowCss(glow) }}
+                style={{
+                  left: `${l.x}%`,
+                  top: `${l.y}%`,
+                  width: `${geom.width}%`,
+                  aspectRatio: geom.aspectRatio,
+                  transform: geom.transform,
+                  backgroundImage: glowCss(glow, l.glowDir),
+                }}
               />
             )
           })}
@@ -112,12 +117,12 @@ export function PlanCanvas({
       {config.presetBar !== false && !children ? (
         // Anchored just under the plan, not the widget: a heavily letterboxed plan (tall
         // stacked rows on phones) would otherwise leave the chips floating far below it. The
-        // offset reserves one chip row, so it tracks .nh-fplan__bar .nh-chip's height in CSS.
+        // bar places itself within the room it is given, since only it knows how tall it is.
         <PresetBar
           ctx={ctx}
           lights={lights}
           toggleOff={config.presetToggleOff === true}
-          bottom={rect && rect.width > 0 ? Math.max(8, Math.round(boxH - rect.top - rect.height) - CHIP_ROW) : 8}
+          spaceBelow={rect && rect.width > 0 ? Math.round(boxH - rect.top - rect.height) : 0}
         />
       ) : null}
       {popup ? <LightPopup light={popup} ctx={ctx} onClose={() => setPopup(null)} /> : null}

@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ItemPicker } from '../components/ItemPicker'
+import { PresetBridgeFields } from '../components/PresetBridgeFields'
 import { useIsAdmin } from '../store/auth'
 import { activatePreset, deletePreset, loadPresets, savePreset, usePresetsStore } from '../store/presets'
 import type { Preset, StatusState } from '../model/presets'
@@ -166,39 +166,15 @@ function BridgeEditor({
 
   return (
     <div className="nh-presetrow__bridge">
-      <div className="nh-field">
-        <label className="nh-field__label" htmlFor={'preset-status-' + uid}>
-          {t('Status item (a Switch your wall switches already use)')}
-        </label>
-        <ItemPicker
-          id={'preset-status-' + uid}
-          value={item}
-          itemTypes={['Switch']}
-          onChange={(v) => setItem(typeof v === 'string' ? v : '')}
-        />
-      </div>
-      <label className="nh-field" htmlFor={'preset-state-' + uid}>
-        <span className="nh-field__label">{t('Active when the item is')}</span>
-        <select id={'preset-state-' + uid} value={state} onChange={(e) => setState(e.target.value === 'OFF' ? 'OFF' : 'ON')}>
-          <option value="ON">ON</option>
-          <option value="OFF">OFF</option>
-        </select>
-      </label>
-      <label className="nh-field nh-field--row" htmlFor={'preset-bridge-' + uid}>
-        <span className="nh-field__label">{t('Run this preset when the item reaches that state')}</span>
-        <input
-          id={'preset-bridge-' + uid}
-          type="checkbox"
-          checked={bridge}
-          disabled={item === ''}
-          onChange={(e) => setBridge(e.target.checked)}
-        />
-      </label>
-      <p className="nh-field__hint">
-        {t(
-          'Leave this off while another system still reacts to the item, or the lights would be set twice. With it on, neohab adds a small rule so the wall switch drives this preset directly.'
-        )}
-      </p>
+      <PresetBridgeFields
+        idPrefix={'preset-' + uid}
+        item={item}
+        state={state}
+        bridge={bridge}
+        onItem={setItem}
+        onState={setState}
+        onBridge={setBridge}
+      />
       <button
         type="button"
         className="nh-btn nh-btn--primary"

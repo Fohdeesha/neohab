@@ -165,7 +165,13 @@ export async function deactivatePreset(preset: PresetSummary): Promise<boolean> 
 
 /** Delete a preset and its bridge rule, if any (administrator). */
 export async function deletePreset(uid: string): Promise<void> {
-  await deleteBridgeRule(uid)
+  // Which rules exist is asked of the server rather than taken from the cached list: deleting a
+  // bridge that was never there answers 404, which the browser logs as an error nobody can act
+  // on, and skipping one that IS there leaves a rule pointing at a scene that no longer exists.
+  // If the listing itself fails, try the delete anyway - a stray 404 beats an orphaned rule.
+  const bridgeUid = bridgeUidFor(uid)
+  const rules = await listRuleSummaries().catch(() => null)
+  if (rules === null || rules.some((r) => r.uid === bridgeUid)) await deleteBridgeRule(uid)
   try {
     await deleteRule(uid)
   } catch (err) {

@@ -5,13 +5,14 @@
  * bridge rule end to end, anonymous access (list + activate + status highlight, no editing),
  * the light-placement editor sheet, backup export carrying scenes, the refusal of a backup whose
  * "presets" would overwrite arbitrary rules, that a switch between presets holds steady while
- * the lights fade, and unselecting a preset to switch its own lights off.
+ * the lights fade, unselecting a preset to switch its own lights off, the direction a light
+ * throws its glow, and editing, renaming and deleting presets from the plan.
  *
  * SAFE with a live config. Creates and deletes exactly:
  *   - dashboard:nh-e2e-fplan, -fplan2, -fplan3   (neohab:config)
  *   - one background:<id>, from the upload in section H (its uid is found by diffing)
  *   - rules nh-scene-nh-e2e-evening, nh-bridge-nh-scene-nh-e2e-evening,
- *     nh-scene-nh-e2e-settle-a and -settle-b
+ *     nh-scene-nh-e2e-settle-a and -settle-b, nh-scene-nh-e2e-managed and -doomed
  *   - managed test items nh_e2e_proxy and nh_e2e_glow  (never file-provided items)
  * The dimmer and color items are commanded (recorded and restored); rule uids are diffed
  * against a pre-run listing so a stray cannot survive unnoticed. Section H saves through the
@@ -28,6 +29,9 @@ const SCENE_UID = 'nh-scene-nh-e2e-evening'
 const BRIDGE_UID = 'nh-bridge-' + SCENE_UID
 const SETTLE_A = 'nh-scene-nh-e2e-settle-a'
 const SETTLE_B = 'nh-scene-nh-e2e-settle-b'
+/** Section L edits this one and deletes that one through the manager. */
+const MGR_UID = 'nh-scene-nh-e2e-managed'
+const DOOMED_UID = 'nh-scene-nh-e2e-doomed'
 const PROXY_ITEM = 'nh_e2e_proxy'
 /** Unbound, so section I can replay a device's fade without a device. */
 const GLOW_ITEM = 'nh_e2e_glow'
@@ -912,6 +916,348 @@ try {
   ok('tapping it again runs the preset back on', wasOff === 0 && backOn.a === true && (await brightness()) > 0,
     `wasOff=${wasOff} A=${backOn.a} brightness=${await brightness()}`)
 
+  /* ---------------- K. a light can throw its glow one way ---------------- */
+  // Sections K and L drive UI that a build without these features does not have, so every
+  // interaction is guarded: an unguarded click on a missing element throws and takes every
+  // later check with it, which reports one failure where the discrimination run needs all of
+  // them. The assertions are what fail.
+  const tap = (p, sel) => p.click(sel, { timeout: 8000 }).catch(() => {})
+  const type = (p, sel, v) => p.fill(sel, v, { timeout: 8000 }).catch(() => {})
+  const pick = (p, sel, v) => p.selectOption(sel, v, { timeout: 8000 }).catch(() => {})
+
+  // Measured as geometry, not as a gradient string: a half disc is the same radius as the
+  // omnidirectional glow, hung off the side the lamp throws towards, and that is what the
+  // browser can be asked about without depending on how it serialises a gradient.
+  const glowBox = async () =>
+    probe(page, () => {
+      const layer = document.querySelector('.nh-fplan__layer')
+      const g = document.querySelector('.nh-fplan__glow')
+      if (!layer || !g) return {}
+      const l = layer.getBoundingClientRect()
+      const r = g.getBoundingClientRect()
+      return {
+        // where the lamp is (the light sits at 50%/50% of the plan on this dashboard)
+        lampX: l.left + l.width * 0.5,
+        lampY: l.top + l.height * 0.5,
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom,
+        w: r.width,
+        h: r.height,
+        image: g.style.backgroundImage,
+      }
+    })
+
+  const setGlowDir = async (dir) => {
+    const cfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
+    cfg.config.widgets[0].config.lights[0].glowDir = dir
+    await fetch(NS + '/' + encodeURIComponent(UID3), {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    })
+    await page.goto(APP + '#/d/nh-e2e-fplan3')
+    await page.reload()
+    await page.waitForSelector('.nh-fplan__glow', { timeout: 20000 }).catch(() => {})
+    await sleep(1200)
+  }
+
+  await setGlowDir(undefined)
+  const omni = await glowBox()
+  const approx = (a, b, tol = 2) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tol
+  ok('an ordinary light still glows evenly around itself',
+    approx(omni.w, omni.h) && approx(omni.left + omni.w / 2, omni.lampX) && approx(omni.top + omni.h / 2, omni.lampY),
+    `box ${Math.round(omni.w)}x${Math.round(omni.h)} centre ${Math.round(omni.left + omni.w / 2)},${Math.round(omni.top + omni.h / 2)} lamp ${Math.round(omni.lampX)},${Math.round(omni.lampY)}`)
+
+  await setGlowDir('up')
+  const up = await glowBox()
+  ok('throwing a glow up puts the whole spill above the lamp',
+    approx(up.bottom, up.lampY) && approx(up.h, up.w / 2) && approx(up.left + up.w / 2, up.lampX),
+    `bottom=${Math.round(up.bottom)} lamp=${Math.round(up.lampY)} box ${Math.round(up.w)}x${Math.round(up.h)}`)
+  ok('it reaches exactly as far as it did in every direction', approx(up.w, omni.w) && approx(up.h, omni.h / 2),
+    `up ${Math.round(up.w)}x${Math.round(up.h)} vs all ${Math.round(omni.w)}x${Math.round(omni.h)}`)
+  ok('the gradient radiates from the edge the lamp sits on', /farthest-side/.test(up.image ?? ''), up.image ?? '')
+
+  await setGlowDir('left')
+  const left = await glowBox()
+  ok('throwing a glow left puts the spill to the left of the lamp',
+    approx(left.right, left.lampX) && approx(left.w, left.h / 2) && approx(left.top + left.h / 2, left.lampY),
+    `right=${Math.round(left.right)} lamp=${Math.round(left.lampX)} box ${Math.round(left.w)}x${Math.round(left.h)}`)
+
+  // the editor offers it, and the plan under the editor follows the pick immediately
+  await page.click('[aria-label="Edit dashboard"]')
+  await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, undefined, { timeout: 15000 }).catch(() => {})
+  await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip')
+  await sleep(500)
+  await tap(page, '.nh-sheet button:has-text("lights")')
+  await page.waitForSelector('.nh-planedit', { timeout: 10000 }).catch(() => {})
+  const dirField = await probe(page, () => {
+    const sel = document.querySelector('.nh-planedit__row select')
+    if (!sel) return {}
+    const label = document.querySelector('.nh-planedit__label')
+    return {
+      value: sel.value,
+      options: [...sel.options].map((o) => o.value),
+      blank: [...sel.options].some((o) => o.textContent.trim() === ''),
+      // the label box has to survive sharing its line with the new select
+      labelW: label ? Math.round(label.getBoundingClientRect().width) : 0,
+      overflow: document.querySelector('.nh-planedit__side').scrollWidth - document.querySelector('.nh-planedit__side').clientWidth,
+    }
+  })
+  ok('the light editor offers every direction, and shows the one in use',
+    dirField.value === 'left' && dirField.options?.join(',') === 'all,up,down,left,right' && dirField.blank === false,
+    `value=${dirField.value} options=${dirField.options?.join(',')}`)
+  ok('the label box still fits beside it', (dirField.labelW ?? 0) >= 90 && (dirField.overflow ?? 9) <= 1,
+    `label=${dirField.labelW}px panelOverflow=${dirField.overflow}px`)
+
+  await pick(page, '.nh-planedit__row select', 'down')
+  await sleep(500)
+  const previewed = await probe(page, () => {
+    const layer = document.querySelector('.nh-planedit .nh-fplan__layer')
+    const g = document.querySelector('.nh-planedit .nh-fplan__glow')
+    if (!layer || !g) return {}
+    const l = layer.getBoundingClientRect()
+    const r = g.getBoundingClientRect()
+    return { top: r.top, lampY: l.top + l.height * 0.5, h: r.height, w: r.width }
+  })
+  ok('picking a direction shows it on the plan at once',
+    approx(previewed.top, previewed.lampY) && approx(previewed.h, previewed.w / 2),
+    `top=${Math.round(previewed.top ?? -1)} lamp=${Math.round(previewed.lampY ?? -1)}`)
+  await page.click('.nh-planedit__bar .nh-btn--primary') // Done
+  await sleep(300)
+  await page.click('button:has-text("Exit")')
+  await sleep(1000)
+
+  /* ---------------- L. managing presets from the plan ---------------- */
+  for (const [uid, name, actions] of [
+    [MGR_UID, 'NH E2E Managed', [
+      { id: '1', type: 'core.ItemCommandAction', configuration: { itemName: ITEMS.dimmer, command: '30' } },
+      { id: '2', type: 'core.ItemCommandAction', configuration: { itemName: ITEMS.color, command: '200,80,60' } },
+    ]],
+    [DOOMED_UID, 'NH E2E Doomed', [
+      { id: '1', type: 'core.ItemCommandAction', configuration: { itemName: ITEMS.dimmer, command: '10' } },
+    ]],
+  ]) {
+    await fetch(`${BASE}/rest/rules`, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, name, tags: ['Scene', 'neohab'], configuration: {}, triggers: [], conditions: [], actions }),
+    })
+  }
+
+  await page.goto(APP + '#/d/nh-e2e-fplan')
+  await page.reload()
+  await page.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 20000 }).catch(() => {})
+  await sleep(1500)
+
+  const manageChip = '.nh-fplan__bar .nh-chip:has-text("Manage presets")'
+  ok('the plan offers preset management to an administrator', (await page.locator(manageChip).count()) === 1)
+
+  await anon.reload()
+  await anon.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 20000 }).catch(() => {})
+  await sleep(800)
+  // The bar has to be listing presets before "no manage chip" means anything: on a panel with
+  // no bar at all, every negative check here passes for free.
+  const anonBar2 = await probe(anon, () => ({
+    chips: [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].map((c) => c.textContent.trim()),
+  }))
+  ok('a signed-out panel activates presets but is offered none of the management',
+    anonBar2.chips?.includes('NH E2E Managed') === true && (await anon.locator(manageChip).count()) === 0,
+    (anonBar2.chips ?? []).join(' | '))
+
+  await tap(page, manageChip)
+  await page.waitForSelector('.nh-pmgr', { timeout: 10000 }).catch(() => {})
+  const list = await probe(page, () => {
+    const rows = [...document.querySelectorAll('.nh-pmgr__row')]
+    const mine = rows.find((r) => r.querySelector('.nh-pmgr__name')?.textContent === 'NH E2E Managed')
+    const sheet = document.querySelector('.nh-pmgr')?.getBoundingClientRect()
+    return {
+      rows: rows.length,
+      meta: mine?.querySelector('.nh-pmgr__meta')?.textContent ?? '',
+      dots: mine?.querySelectorAll('.nh-fplan__savedot').length ?? 0,
+      buttons: [...(mine?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()),
+      sheetW: sheet ? Math.round(sheet.width) : 0,
+      sheetH: sheet ? Math.round(sheet.height) : 0,
+      viewW: window.innerWidth,
+      viewH: window.innerHeight,
+    }
+  })
+  // Every grid cell is a size container, which makes it the containing block for fixed
+  // descendants: a sheet rendered inside the widget would be laid out to that tile and clipped
+  // by it, leaving a colour picker a couple of hundred pixels wide.
+  ok('the manager gets the screen, not the widget it was opened from',
+    list.sheetW === list.viewW && list.sheetH === list.viewH,
+    `sheet ${list.sheetW}x${list.sheetH} viewport ${list.viewW}x${list.viewH}`)
+  ok('the manager lists the presets with what each one covers', list.rows >= 2 && /2/.test(list.meta),
+    `rows=${list.rows} meta=${JSON.stringify(list.meta)}`)
+  ok('a preset previews the colours it sets', list.dots === 1, 'dots=' + list.dots)
+  ok('each preset offers editing and deleting', list.buttons?.join(',') === 'Edit,Delete', list.buttons?.join(','))
+
+  const dimmerBeforeEdit = await itemState(ITEMS.dimmer)
+  await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Managed")) button:has-text("Edit")')
+  await page.waitForSelector('.nh-pmgr__edit', { timeout: 10000 }).catch(() => {})
+  const editor = await probe(page, () => {
+    const cards = [...document.querySelectorAll('.nh-pmgr__light')]
+    const nameOf = (c) => c.querySelector('.nh-pmgr__lightname')?.textContent ?? ''
+    return {
+      cards: cards.length,
+      names: cards.map(nameOf),
+      // the light's own kind of control, chosen from the value the scene stores
+      colorPickers: document.querySelectorAll('.nh-pmgr__light .nh-color').length,
+      sliders: document.querySelectorAll('.nh-pmgr__light .nh-slider__input').length,
+      name: document.querySelector('.nh-pmgr__edit input[type="text"]')?.value ?? '',
+      statusPicker: !!document.querySelector('.nh-pmgr__edit input[role="combobox"]'),
+    }
+  })
+  ok('editing a preset shows what it sets each light to', editor.cards === 2 && editor.name === 'NH E2E Managed',
+    `cards=${editor.cards} name=${JSON.stringify(editor.name)}`)
+  ok('each light gets the control its stored value needs', editor.colorPickers === 1 && editor.sliders === 1,
+    `colour=${editor.colorPickers} slider=${editor.sliders}`)
+  ok('the labels come from the plan, not the item names', editor.names?.includes('Main') && editor.names?.includes('Bulb'),
+    (editor.names ?? []).join(','))
+  ok('the wall-switch link is editable here too', editor.statusPicker === true)
+
+  // change what the preset sets the dimmer to, rename it, and drop the colour light
+  await type(page, '.nh-pmgr__light:has(.nh-pmgr__lightname:text-is("Main")) .nh-slider__input', '55')
+  await type(page, '.nh-pmgr__edit input[type="text"]', 'NH E2E Managed 2')
+  await tap(page, '.nh-pmgr__light:has(.nh-pmgr__lightname:text-is("Bulb")) .nh-iconbtn')
+  await sleep(300)
+  const staged = await probe(page, () => ({
+    cards: document.querySelectorAll('.nh-pmgr__light').length,
+    shown: document.querySelector('.nh-pmgr__light .nh-slider__value')?.textContent ?? '',
+  }))
+  ok('the editor stages the change before anything is written', staged.cards === 1 && staged.shown === '55',
+    `cards=${staged.cards} value=${JSON.stringify(staged.shown)}`)
+  const duringEdit = await getRule(MGR_UID)
+  ok('nothing is written until Save',
+    staged.cards === 1 && duringEdit?.name === 'NH E2E Managed' && duringEdit?.actions?.length === 2,
+    `staged=${staged.cards} name=${duringEdit?.name} actions=${duringEdit?.actions?.length}`)
+
+  await tap(page, '.nh-pmgr__edit .nh-btn--primary')
+  await sleep(2000)
+  const saved = await getRule(MGR_UID)
+  const savedActions = (saved?.actions ?? []).map((a) => `${a.configuration?.itemName}=${a.configuration?.command}`)
+  ok('saving writes the new name and value to the scene',
+    saved?.name === 'NH E2E Managed 2' && savedActions.join(',') === `${ITEMS.dimmer}=55`,
+    `name=${saved?.name} actions=${savedActions.join(',')}`)
+  ok('the scene is still a neohab scene after being rewritten',
+    saved?.name === 'NH E2E Managed 2' && saved?.tags?.includes('Scene') && saved?.tags?.includes('neohab'),
+    `name=${saved?.name} tags=${(saved?.tags ?? []).join(',')}`)
+  // Editing a preset must not touch the room: the values change, the lights do not.
+  const dimmerAfterEdit = await itemState(ITEMS.dimmer)
+  ok('editing a preset writes the value and commands no lights',
+    saved?.name === 'NH E2E Managed 2' && dimmerAfterEdit === dimmerBeforeEdit,
+    `saved=${saved?.name} dimmer ${dimmerBeforeEdit} -> ${dimmerAfterEdit}`)
+
+  // put the colour light back, from the plan
+  await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Managed 2")) button:has-text("Edit")')
+  await page.waitForSelector('.nh-pmgr__edit', { timeout: 10000 }).catch(() => {})
+  const addable = await probe(page, () => ({
+    options: [...(document.querySelector('.nh-pmgr__add select')?.options ?? [])].map((o) => o.value).filter(Boolean),
+  }))
+  ok('a light on the plan can be added to the preset', addable.options?.includes(ITEMS.color) === true,
+    (addable.options ?? []).join(','))
+  const colorNow = await itemState(ITEMS.color)
+  await pick(page, '.nh-pmgr__add select', ITEMS.color)
+  await tap(page, '.nh-pmgr__add button:has-text("Add")')
+  await sleep(300)
+
+  // ...and link the status item in the same edit, so the wall-switch fields are proved to reach
+  // the scene rather than just to render. A typed partial search then a click: filling the exact
+  // name auto-binds it and would hide a dead picker entirely. The bridge box is left alone, so
+  // no rule is created and the item is never commanded.
+  await tap(page, '.nh-pmgr__edit input[role="combobox"]')
+  await page.keyboard.type(ITEMS.switch.slice(0, 6).toLowerCase(), { delay: 40 }).catch(() => {})
+  await sleep(600)
+  await tap(page, `.nh-picker__option:has-text("${ITEMS.switch}")`)
+  const pickedStatus = await probe(page, () => ({
+    value: document.querySelector('.nh-pmgr__edit input[role="combobox"]')?.value ?? '',
+  }))
+  ok('the status item can be picked in the preset editor', pickedStatus.value === ITEMS.switch,
+    `value=${JSON.stringify(pickedStatus.value)}`)
+
+  await tap(page, '.nh-pmgr__edit .nh-btn--primary')
+  await sleep(2000)
+  const readded = await getRule(MGR_UID)
+  const readdedColor = (readded?.actions ?? []).find((a) => a.configuration?.itemName === ITEMS.color)
+  // The link rides in the scene's own configuration AND a tag, because 4.x omits configuration
+  // from the summary a signed-out panel reads. Both, or the highlight silently does not exist there.
+  ok('the wall-switch link the editor collected is written to the scene',
+    readded?.configuration?.statusItem === ITEMS.switch &&
+      (readded?.tags ?? []).includes(`neohab:status:${ITEMS.switch}:ON`),
+    `configuration=${readded?.configuration?.statusItem} tags=${(readded?.tags ?? []).join(',')}`)
+  // Linking alone must not create the bridge rule: that box was deliberately left unticked.
+  ok('linking an item does not build the bridge rule on its own',
+    readded?.configuration?.statusItem === ITEMS.switch && (await getRule('nh-bridge-' + MGR_UID)) === null)
+  ok('the added light is stored at the value it is set to right now',
+    (readded?.actions ?? []).length === 2 && !!readdedColor && near(String(readdedColor.configuration.command), colorNow, 3),
+    `stored=${readdedColor?.configuration?.command} live=${colorNow}`)
+
+  // deleting: the confirm has to be answered, and then the preset is gone from the bar too
+  await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Doomed")) button:has-text("Delete")')
+  await sleep(200)
+  const confirmShown = await page.locator('.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Doomed")) button:has-text("Really delete")').count()
+  ok('deleting asks first, and has not deleted anything yet',
+    confirmShown === 1 && (await getRule(DOOMED_UID)) !== null, 'confirm buttons=' + confirmShown)
+  await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Doomed")) button:has-text("Really delete")')
+  await sleep(2500)
+  const gone = await getRule(DOOMED_UID)
+  const stillListed = await probe(page, () => ({
+    rows: [...document.querySelectorAll('.nh-pmgr__name')].map((n) => n.textContent),
+  }))
+  ok('confirming deletes the scene from the server', gone === null)
+  ok('and it leaves the manager list, which still holds the others',
+    (stillListed.rows ?? []).length > 0 && stillListed.rows.includes('NH E2E Doomed') === false,
+    (stillListed.rows ?? []).join(','))
+
+  await tap(page, '.nh-pmgr__bar .nh-iconbtn')
+  await sleep(800)
+
+  // A house with several presets wraps the chips onto two or three rows on a phone. The bar
+  // has to place itself by its own height: reserving one row puts the rest over the plan,
+  // hiding the lights the chips control.
+  const phone = await anonCtx.newPage()
+  await phone.setViewportSize({ width: 393, height: 850 })
+  await phone.goto(APP + '#/d/nh-e2e-fplan')
+  await phone.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 20000 }).catch(() => {})
+  await sleep(1500)
+  const stacked = await probe(phone, () => {
+    const bar = document.querySelector('.nh-fplan__bar')?.getBoundingClientRect()
+    const img = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
+    const box = document.querySelector('.nh-fplan')?.getBoundingClientRect()
+    const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+    const rows = new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size
+    return bar && img && box
+      ? {
+          rows,
+          chips: chips.length,
+          barTop: Math.round(bar.top),
+          barBottom: Math.round(bar.bottom),
+          barH: Math.round(bar.height),
+          planBottom: Math.round(img.bottom),
+          boxBottom: Math.round(box.bottom),
+          room: Math.round(box.bottom - img.bottom),
+        }
+      : {}
+  })
+  // Two regimes, and the bar has to know which it is in: hang under the plan where the rows
+  // fit, and sit on the bottom of the widget where they do not. Anything between the two is a
+  // bar that guessed its own height and parked several rows of chips over the lights.
+  const barFits = (stacked.room ?? 0) >= (stacked.barH ?? 0)
+  ok('the chip bar places itself by how tall it really is',
+    (stacked.rows ?? 0) >= 2 &&
+      (barFits ? stacked.barTop >= stacked.planBottom - 4 : stacked.barBottom >= stacked.boxBottom - 12),
+    `${stacked.chips} chips on ${stacked.rows} rows (${stacked.barH}px) with ${stacked.room}px under the plan; ` +
+      `bar ${stacked.barTop}-${stacked.barBottom}, plan ends ${stacked.planBottom}, widget ends ${stacked.boxBottom}`)
+  await phone.close().catch(() => {})
+  const barAfter = await probe(page, () => ({
+    chips: [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].map((c) => c.textContent.trim()),
+  }))
+  ok('closing returns to the plan, with the chips in step',
+    barAfter.chips?.includes('NH E2E Managed 2') === true && barAfter.chips?.includes('NH E2E Doomed') === false,
+    (barAfter.chips ?? []).join(' | '))
+
   ok('no page errors (main)', errs.length === 0, errs.slice(0, 3).join(' | '))
   ok('no page errors (anonymous)', anonErrs.length === 0, anonErrs.slice(0, 3).join(' | '))
 } finally {
@@ -921,7 +1267,7 @@ try {
   for (const uid of [UID, UID2, UID3, bgUid].filter(Boolean)) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  for (const uid of [BRIDGE_UID, SCENE_UID, SETTLE_A, SETTLE_B]) {
+  for (const uid of [BRIDGE_UID, SCENE_UID, SETTLE_A, SETTLE_B, MGR_UID, DOOMED_UID]) {
     await fetch(`${BASE}/rest/rules/${uid}`, { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   for (const item of [PROXY_ITEM, GLOW_ITEM]) {

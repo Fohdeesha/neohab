@@ -9,26 +9,32 @@
  * stored values are matched against the live states. A signed-out panel cannot read values,
  * so status-item-less presets simply do not highlight there.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
+import { useBoxSize } from '../../components/useBoxSize'
 import { activatePreset, deactivatePreset, loadPresets, usePresetsStore } from '../../store/presets'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { useSettledState } from '../../store/settling'
 import { presetActive, type PresetSummary } from '../../model/presets'
 import { useIsAdmin } from '../../store/auth'
 import { PresetSaveDialog } from './PresetSave'
+import { PresetManageDialog } from './PresetManage'
 import type { FloorplanLight } from './model'
+
+/** First-paint guess, before the bar has been measured: `.nh-fplan__bar .nh-chip` in app.css. */
+const ONE_CHIP_ROW = 55
 
 export function PresetBar({
   ctx,
   lights,
-  bottom = 8,
+  spaceBelow = 0,
   toggleOff = false,
 }: {
   ctx: WidgetContext
   lights: FloorplanLight[]
-  bottom?: number
+  /** Room between the bottom of the plan image and the bottom of the widget, in pixels. */
+  spaceBelow?: number
   /** Tapping the highlighted preset switches its lights off instead of running it again. */
   toggleOff?: boolean
 }) {
@@ -36,6 +42,14 @@ export function PresetBar({
   const admin = useIsAdmin()
   const { loaded, summaries, full } = usePresetsStore()
   const [saving, setSaving] = useState(false)
+  const [managing, setManaging] = useState(false)
+
+  // The bar hangs just under the plan, and it is measured rather than assumed to be one row
+  // high: a house with several presets wraps the chips onto two or three rows on a phone, and a
+  // guessed height puts all of them over the plan, hiding the very lights they control.
+  const barRef = useRef<HTMLDivElement>(null)
+  const { height: barHeight } = useBoxSize(barRef)
+  const bottom = Math.max(8, Math.round(spaceBelow - (barHeight || ONE_CHIP_ROW)))
 
   // Admin status changes what a load returns (the full values), so it re-runs on the flip.
   useEffect(() => {
@@ -74,7 +88,7 @@ export function PresetBar({
 
   return (
     <>
-      <div className="nh-fplan__bar" style={{ bottom }}>
+      <div className="nh-fplan__bar" ref={barRef} style={{ bottom }}>
         {summaries.map((p) => (
           <button
             key={p.uid}
@@ -97,8 +111,19 @@ export function PresetBar({
             {t('＋ Save preset')}
           </button>
         ) : null}
+        {admin && summaries.length > 0 ? (
+          <button
+            type="button"
+            className="nh-chip nh-chip--action"
+            disabled={ctx.editing}
+            onClick={() => setManaging(true)}
+          >
+            {t('⚙ Manage presets')}
+          </button>
+        ) : null}
       </div>
       {saving ? <PresetSaveDialog ctx={ctx} lights={lights} onClose={() => setSaving(false)} /> : null}
+      {managing ? <PresetManageDialog lights={lights} onClose={() => setManaging(false)} /> : null}
     </>
   )
 }
