@@ -33,6 +33,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const items = useCatalogStore((s) => s.items)
   const catalogLoading = useCatalogStore((s) => s.loading)
+  const catalogLoaded = useCatalogStore((s) => s.loaded)
   const dashboards = useConfigStore((s) => s.dashboards)
   const [index, setIndex] = useState<TagIndex | null>(null)
   const [step, setStep] = useState<Step>('source')
@@ -56,7 +57,14 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     return () => controller.abort()
   }, [])
 
-  const survey = useMemo(() => (index ? surveySources(items, index) : null), [items, index])
+  // Both halves have to be in before this means anything. Surveying an empty `items` the moment
+  // the tag index arrives makes every source report "nothing found" while the catalog is still
+  // downloading - a wrong answer rather than a wait, and one that only shows up on a big
+  // install: at 130 items the gap is invisible, at 3000 it is on screen long enough to read.
+  const survey = useMemo(
+    () => (index && catalogLoaded ? surveySources(items, index) : null),
+    [items, index, catalogLoaded]
+  )
 
   const clustersFor = (kind: SourceKind): Cluster[] => {
     if (!survey) return []
