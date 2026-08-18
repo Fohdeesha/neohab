@@ -72,6 +72,18 @@ export function settingsWith(snapshot, patch) {
 export const patchSettings = (snapshot, patch) => putComponent(NS, settingsWith(snapshot, patch))
 
 /**
+ * The snapshot with the named config keys REMOVED, ready to write. `settingsWith` can only add
+ * or overwrite (a spread cannot delete), and a suite that needs the app's DEFAULT for a setting
+ * the server owner has turned on must be able to establish "the key is absent".
+ */
+export function settingsWithoutKeys(snapshot, keys) {
+  const base = snapshot ?? { uid: 'settings', component: 'neohab:settings', config: { version: 1 } }
+  const config = { ...(base.config ?? { version: 1 }) }
+  for (const k of keys) delete config[k]
+  return { ...base, config }
+}
+
+/**
  * Put settings back exactly as they were found, INCLUDING not existing at all.
  * Returns `{ ok, mode, detail }` for the suite to report as its own cleanup check.
  */

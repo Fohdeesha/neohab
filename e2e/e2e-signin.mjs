@@ -1,7 +1,9 @@
 /**
  * Sign-in flow e2e: the "Log in with openHAB" button must actually START the PKCE flow -
- * navigate to the core-served /auth login page with a well-formed S256 challenge - from both
- * entry points (Settings > Account, and the dashboard pencil), on ANY origin. On plain-HTTP
+ * navigate to the core-served /auth login page with a well-formed S256 challenge - from
+ * Settings > Account, on ANY origin. (The dashboard pencil used to be a second entry point;
+ * it is not one any more: a view-only device has no pencil at all, and with anonymous editing
+ * allowed the pencil goes straight into the editor - e2e-lock proves both.) On plain-HTTP
  * origins SubtleCrypto does not exist, and a missing fallback once left the button silently
  * dead (found by a user, not by the suites - hence this suite). Also proves a failure inside
  * authorize() surfaces as a notice instead of vanishing into an unhandled rejection.
@@ -85,28 +87,9 @@ try {
     await page.close()
   }
 
-  // ---------- entry point 2: the dashboard pencil (when this server shows one) ----------
-  {
-    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
-    await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-    await page.waitForSelector('.nh-home', { timeout: 15000 })
-    const tile = page.locator('.nh-tile:not(.nh-tile--new)').first()
-    if ((await tile.count()) === 0) {
-      console.log('SKIP  no dashboards on this server - pencil entry point not exercised')
-    } else {
-      await tile.click()
-      await page.waitForSelector('.nh-dash__bar', { timeout: 10000 })
-      const pencil = page.locator('[aria-label="Edit dashboard"]')
-      if ((await pencil.count()) === 0) {
-        console.log('SKIP  editing lock hides the pencil for anonymous devices - entry point not exercised')
-      } else {
-        await pencil.click()
-        const url = await clickLogin(page)
-        checkAuthUrl(url, 'pencil')
-      }
-    }
-    await page.close()
-  }
+  // The dashboard pencil is deliberately NOT exercised here any more: a view-only device has
+  // no pencil, and with anonymous editing allowed it opens the editor rather than a sign-in.
+  // Both behaviours (and Settings > Account remaining the way in) are proven by e2e-lock.
 
   // ---------- the full credential exchange (needs the throwaway login) ----------
   if (!TEST_USER) {

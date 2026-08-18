@@ -352,7 +352,10 @@ try {
   /* ---------------- 6. the first-run screen, signed out ---------------- */
   {
     // A server with no dashboards yet, without wiping anything: the component list is mocked
-    // empty, and the page starts with no token so the sign-in gate is the one under test.
+    // empty, and the page starts with no token. Signed out is a view-only device by default,
+    // so the screen must offer a sign-in and NOT the setup actions; signing in (this suite's
+    // admin token) reveals the four actions with no reload, and Generate then opens the
+    // generator directly rather than through a gate.
     const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
     page.on('pageerror', (e) => errs.push(String(e.message)))
     page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
@@ -366,23 +369,44 @@ try {
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-welcome', { timeout: 15000 })
     ok(
-      'the first-run screen offers generating',
-      (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 1
+      'signed out, the first-run screen offers no setup actions',
+      (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 0
+    )
+    ok(
+      'signed out, the first-run screen offers a sign-in',
+      (await page.locator('.nh-welcome__actions .nh-btn:text-is("Sign in")').count()) === 1
     )
 
-    // Signed out, the gate asks for a sign-in and must resume the action that was asked for.
-    await page.click('.nh-welcome__actions .nh-btn:has-text("Generate from my items")')
-    await page.waitForSelector('.nh-signin', { timeout: 5000 })
-    ok('generating signed out asks for a sign-in first', true)
-    await page.click('button:has-text("Use an API token instead")')
-    await page.fill('#nh-token', TOKEN)
-    await page.click('button:has-text("Use token")')
-    await page.waitForSelector('[data-source="prefix"], #nh-newdash-name', { timeout: 10000 })
-    ok(
-      'signing in resumes the generator, not the empty-dashboard form',
-      (await page.locator('[data-source="prefix"]').count()) === 1 &&
-        (await page.locator('#nh-newdash-name').count()) === 0
-    )
+    // Guarded clicks: on a build without the sign-in button the assertions must be what fails,
+    // not a thrown timeout that hides the rest of the section.
+    await page.click('.nh-welcome__actions .nh-btn:text-is("Sign in")', { timeout: 10000 }).catch(() => {})
+    const sheetOpened = await page
+      .waitForSelector('.nh-signin', { timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
+    ok('the welcome sign-in opens the sign-in sheet', sheetOpened)
+    let revealed = false
+    if (sheetOpened) {
+      await page.click('button:has-text("Use an API token instead")')
+      await page.fill('#nh-token', TOKEN)
+      await page.click('button:has-text("Use token")')
+      // The four actions appear reactively once the device turns out to be an administrator.
+      revealed = await page
+        .waitForSelector('.nh-welcome__actions .nh-btn:has-text("Generate from my items")', { timeout: 15000 })
+        .then(() => true)
+        .catch(() => false)
+    }
+    ok('signing in reveals the setup actions without a reload', revealed, sheetOpened ? '' : 'no sign-in sheet')
+    if (revealed) {
+      await page.click('.nh-welcome__actions .nh-btn:has-text("Generate from my items")')
+      const sheet = await page
+        .waitForSelector('[data-source="prefix"]', { timeout: 10000 })
+        .then(() => true)
+        .catch(() => false)
+      ok('Generate then opens the generator directly, no gate', sheet && (await page.locator('.nh-signin').count()) === 0)
+    } else {
+      ok('Generate then opens the generator directly, no gate', false, 'setup actions never appeared')
+    }
     await page.close()
   }
 

@@ -88,15 +88,39 @@ try {
   ok('brand-colored n present', (await page.$('.nh-wordmark__n')) !== null)
   await page.waitForSelector('.nh-welcome', { timeout: 10000 })
   ok('first-run welcome shows on empty config', true)
+  // This page is signed out, and signed out is a view-only device by default - the welcome
+  // must offer a sign-in and nothing that edits.
   ok(
-    'welcome offers create/generate/import/restore',
-    (await page.locator('.nh-welcome__actions .nh-btn').count()) === 4
+    'signed out, the welcome offers exactly a sign-in',
+    (await page.locator('.nh-welcome__actions .nh-btn').count()) === 1 &&
+      (await page.locator('.nh-welcome__actions .nh-btn:text-is("Sign in")').count()) === 1
   )
   ok(
-    'welcome offers generating from the server’s items',
-    (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 1
+    'signed out, no setup actions',
+    (await page.locator('.nh-welcome__actions .nh-btn:has-text("Generate from my items")').count()) === 0
   )
   ok('no dashboard tiles yet', (await page.locator('.nh-tile').count()) === 0)
+
+  // Signed in as an administrator, the same screen offers the four ways to start.
+  {
+    const adminPage = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await adminPage.addInitScript((t) => {
+      try { localStorage.setItem('neohab:apiToken', t) } catch {}
+    }, TOKEN)
+    await adminPage.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await adminPage.waitForSelector('.nh-welcome', { timeout: 10000 })
+    // The buttons appear once the token has proven itself an administrator - wait for one.
+    const offered = await adminPage
+      .waitForSelector('.nh-welcome__actions .nh-btn:has-text("Generate from my items")', { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false)
+    ok('signed in, welcome offers generating from the server’s items', offered)
+    ok(
+      'signed in, welcome offers create/generate/import/restore',
+      (await adminPage.locator('.nh-welcome__actions .nh-btn').count()) === 4
+    )
+    await adminPage.close()
+  }
 
   // --- Create the suite's dashboard via REST, reload home ---
   const resp = await fetch(NS, {

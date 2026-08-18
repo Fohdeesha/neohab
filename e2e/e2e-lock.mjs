@@ -1,22 +1,28 @@
 /**
- * Admin-role gating + editing lock e2e.
+ * Admin-role gating + anonymous-editing e2e.
  *
- * Covers: the admin probe (GET /rest/persistence) runs for credentialed devices and is SKIPPED
- * for anonymous ones; lock OFF keeps today's onboarding behavior (pencil visible everywhere,
- * tapping prompts sign-in); a signed-in-but-not-admin device (garbage token -> 401) is sent to
- * the sign-in sheet instead of a doomed editor session; lock ON hides the pencil, the
- * new-dashboard tile and the config sections of Settings from non-admin devices while admin
- * devices keep everything; a locked device can still sign in via Settings > Account and the
- * affordances appear reactively without a reload; the Editing lock section itself is
- * admin-only.
+ * The model under test (like openHAB's own UIs): by DEFAULT only administrator devices see any
+ * editing affordance - everyone else gets a view-only panel (no pencil, no new-dashboard tile,
+ * no config sections in Settings) whose widgets still work, with Settings > Account as the way
+ * in. The admin-only "Anonymous editing" switch (`allowAnonymousEditing`) opens the editing
+ * controls to every device, and the pencil then goes STRAIGHT into the editor - no sign-in
+ * sheet - with the server still deciding which writes it accepts.
+ *
+ * Also covers: the admin probe (GET /rest/persistence) runs for credentialed devices and is
+ * SKIPPED for anonymous ones; a locked device can sign in via Settings > Account and the
+ * affordances appear reactively without a reload; per-device settings (device theme, text size,
+ * kiosk) stay available to view-only devices; the switch itself is admin-only in BOTH states.
+ *
+ * Anonymous item COMMANDS staying live is proven where widgets are actually driven signed-out:
+ * e2e.mjs runs entirely anonymous, and e2e-floorplan activates presets from an anonymous panel.
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-lock (clock/label - nothing
  * commandable), snapshots the `settings` component first and restores it VERBATIM, and fails
  * hard if any context ever POSTs to /rest/items.
  */
 import { chromium } from 'playwright-core'
-import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { getSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-lock'
 
@@ -58,8 +64,14 @@ async function makePage(browser, token) {
 
 // ---------- pre-suite snapshot ----------
 const settingsBefore = await getSettings()
-const putSettings = async (patch) => {
-  const res = await patchSettings(settingsBefore, patch)
+// The suite drives both states itself, from a base with BOTH the new key and the retired
+// lockEditing removed - the owner's own choice comes back verbatim from the snapshot at the end.
+const baseSettings = settingsWithoutKeys(settingsBefore, ['lockEditing', 'allowAnonymousEditing'])
+const setAnonEditing = async (on) => {
+  const comp = on
+    ? { ...baseSettings, config: { ...baseSettings.config, allowAnonymousEditing: true } }
+    : baseSettings
+  const res = await putComponent(NS, comp)
   if (!res.ok) throw new Error('settings write failed: ' + res.status)
 }
 
@@ -67,10 +79,8 @@ const browser = await launch()
 const pages = []
 
 try {
-  // The lock is the server owner's setting, not ours: on a live server it may already be on,
-  // and the sections below describe what a device sees with it OFF. So establish that rather
-  // than assert it - the snapshot above is restored verbatim at the end either way.
-  await putSettings({ lockEditing: false })
+  // ---------- establish the app DEFAULT (no key at all) ----------
+  await setAnonEditing(false)
 
   // ---------- seed (nothing commandable) ----------
   const seed = await fetch(NS, {
@@ -95,122 +105,146 @@ try {
   })
   ok('seed dashboard created', seed.ok, String(seed.status))
 
-  // ================= lock OFF =================
+  // ================= DEFAULT: view-only for everyone but administrators =================
 
   // ---------- admin device ----------
   const admin = await makePage(browser, TOKEN)
   pages.push(admin)
   await admin.page.goto(APP + '#/d/nh-e2e-lock', { waitUntil: 'domcontentloaded' })
   await admin.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('admin: pencil visible (lock off)', (await admin.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
+  ok('admin: pencil visible by default', (await admin.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
   await sleep(1000)
   ok('admin: probe ran and returned 200', admin.track.probes.length >= 1 && admin.track.probeStatus === 200,
     `probes=${admin.track.probes.length} status=${admin.track.probeStatus}`)
 
   await admin.page.goto(APP + '#/settings')
   await admin.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
-  await admin.page.waitForSelector('section:has(h2:text-is("Editing lock"))', { timeout: 10000 })
-  ok('admin: Editing lock section present', true)
-  ok('admin: lock checkbox unchecked', !(await admin.page.isChecked('#nh-set-lock')))
+  // Guarded: on a build without the feature this section never appears, and the assertion has
+  // to be what fails - an unguarded wait would abort every later check.
+  const adminSection = await admin.page
+    .waitForSelector('section:has(h2:text-is("Anonymous editing"))', { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false)
+  ok('admin: Anonymous editing section present', adminSection)
+  ok('admin: anonymous-editing checkbox unchecked by default',
+    adminSection && !(await admin.page.isChecked('#nh-set-anonedit').catch(() => true)))
   ok('admin: account says administrator',
     (await admin.page.locator('section:has(h2:text-is("Account"))').innerText()).includes('administrator'))
+  ok('admin: Backup section visible', (await admin.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
 
-  // ---------- anonymous device ----------
+  // ---------- anonymous device: view-only ----------
   const anon = await makePage(browser, null)
   pages.push(anon)
   await anon.page.goto(APP + '#/d/nh-e2e-lock', { waitUntil: 'domcontentloaded' })
   await anon.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('anon: pencil visible (lock off, onboarding path)', (await anon.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
-  await anon.page.click('[aria-label="Edit dashboard"]')
-  await anon.page.waitForSelector('.nh-signin', { timeout: 10000 })
-  ok('anon: tapping the pencil prompts sign-in', true)
-  ok('anon: did not enter edit mode', (await anon.page.locator('.nh-dash__title:has-text("Editing")').count()) === 0)
-  await anon.page.keyboard.press('Escape')
-  await anon.page.click('.nh-sheet__close').catch(() => {})
+  ok('anon: dashboard renders (viewing is never gated)', (await anon.page.locator('.nh-widget').count()) >= 2)
+  ok('anon: pencil hidden by default', (await anon.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
   await sleep(1000)
   ok('anon: admin probe skipped entirely', anon.track.probes.length === 0, String(anon.track.probes.length))
 
-  await anon.page.goto(APP + '#/settings')
-  await anon.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
-  ok('anon: no Editing lock section', (await anon.page.locator('section:has(h2:text-is("Editing lock"))').count()) === 0)
-  ok('anon: Backup section still visible (lock off)', (await anon.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
-  const anonAccount = anon.page.locator('section:has(h2:text-is("Account"))')
-  ok('anon: Account offers Sign in', (await anonAccount.locator('button:text-is("Sign in")').count()) === 1)
+  await anon.page.goto(APP + '#/')
+  await anon.page.waitForSelector('.nh-tile', { timeout: 20000 })
+  ok('anon: no new-dashboard tile by default', (await anon.page.locator('.nh-tile--new').count()) === 0)
 
-  // ---------- signed in but not an admin (garbage token -> 401) ----------
+  await anon.page.goto(APP + '#/settings')
+  await anon.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
+  for (const h of ['Custom widgets', 'Lighting presets', 'Custom icons', 'Backup', 'Anonymous editing']) {
+    ok(`anon: "${h}" section hidden by default`, (await anon.page.locator(`section:has(h2:text-is("${h}"))`).count()) === 0)
+  }
+  // NOT :has-text("HABPanel") - the built-in "Aqua (HABPanel classic)" theme card would match.
+  ok('anon: HABPanel import hidden', (await anon.page.locator('section:has(h2:text-is("Migrate from HABPanel"))').count()) === 0)
+  ok('anon: shared theme cards hidden (they write panel config)', (await anon.page.locator('.nh-theme__pick').count()) === 0)
+  ok('anon: per-device theme select still there', (await anon.page.locator('#nh-set-devicetheme').count()) === 1)
+  ok('anon: no "New theme"', (await anon.page.locator('button:has-text("New theme")').count()) === 0)
+  ok('anon: sidebar toggle hidden', (await anon.page.locator('#nh-set-sidebar').count()) === 0)
+  ok('anon: device text size still there', (await anon.page.locator('#nh-set-textsize').count()) === 1)
+  ok('anon: kiosk per-device settings still there', (await anon.page.locator('#kiosk-pinned').count()) === 1)
+  ok('anon: control-item picker hidden', (await anon.page.locator('#kiosk-controlitem').count()) === 0)
+  ok('anon: speech-item picker hidden', (await anon.page.locator('#nh-set-speechitem').count()) === 0)
+  ok('anon: Account Sign in still there',
+    (await anon.page.locator('section:has(h2:text-is("Account")) button:text-is("Sign in")').count()) === 1)
+
+  // ---------- signed in but not an admin (garbage token -> 401): view-only too ----------
   const user = await makePage(browser, 'oh.notreal.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   pages.push(user)
   await user.page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
-  await user.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
+  await user.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
   await user.page.waitForSelector('section:has(h2:text-is("Account")):has-text("no administrator rights")', { timeout: 10000 })
   ok('user-level: account explains missing admin rights', true)
+  ok('user-level: Backup section hidden by default', (await user.page.locator('section:has(h2:text-is("Backup"))').count()) === 0)
   await user.page.goto(APP + '#/d/nh-e2e-lock')
   await user.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('user-level: pencil visible (lock off)', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
-  await user.page.click('[aria-label="Edit dashboard"]')
-  await user.page.waitForSelector('.nh-signin', { timeout: 10000 })
-  ok('user-level: pencil leads to sign-in, not a doomed editor', (await user.page.locator('.nh-dash__title:has-text("Editing")').count()) === 0)
+  ok('user-level: pencil hidden by default', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
 
-  // ================= lock ON =================
-  await putSettings({ lockEditing: true })
+  // ================= ANONYMOUS EDITING ALLOWED =================
+  await setAnonEditing(true)
 
   await anon.page.goto(APP + '#/d/nh-e2e-lock')
   await anon.page.reload({ waitUntil: 'domcontentloaded' })
   await anon.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('anon+lock: pencil hidden', (await anon.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
+  ok('anon+allow: pencil visible', (await anon.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
+  await anon.page.click('[aria-label="Edit dashboard"]').catch(() => {})
+  const entered = await anon.page.waitForSelector('.nh-grid--edit', { timeout: 10000 }).then(() => true).catch(() => false)
+  ok('anon+allow: pencil goes straight into the editor', entered)
+  ok('anon+allow: no sign-in sheet in the way', (await anon.page.locator('.nh-signin').count()) === 0)
+  await anon.page.click('button:has-text("Exit")').catch(() => {})
+  await anon.page.waitForSelector('.nh-grid--edit', { state: 'detached', timeout: 10000 }).catch(() => {})
+  ok('anon+allow: exited the editor clean', (await anon.page.locator('.nh-grid--edit').count()) === 0)
 
   await anon.page.goto(APP + '#/')
   await anon.page.waitForSelector('.nh-tile', { timeout: 20000 })
-  ok('anon+lock: no new-dashboard tile', (await anon.page.locator('.nh-tile--new').count()) === 0)
+  ok('anon+allow: new-dashboard tile visible', (await anon.page.locator('.nh-tile--new').count()) === 1)
 
   await anon.page.goto(APP + '#/settings')
-  await anon.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
-  for (const h of ['Custom widgets', 'Custom icons', 'Backup', 'Editing lock']) {
-    ok(`anon+lock: "${h}" section hidden`, (await anon.page.locator(`section:has(h2:text-is("${h}"))`).count()) === 0)
-  }
-  // NOT :has-text("HABPanel") - the built-in "Aqua (HABPanel classic)" theme card would match.
-  ok('anon+lock: HABPanel import hidden', (await anon.page.locator('section:has(h2:text-is("Migrate from HABPanel"))').count()) === 0)
-  ok('anon+lock: theme cards still shown', (await anon.page.locator('.nh-theme__pick').count()) > 0)
-  ok('anon+lock: no "New theme"', (await anon.page.locator('button:has-text("New theme")').count()) === 0)
-  ok('anon+lock: sidebar toggle hidden', (await anon.page.locator('#nh-set-sidebar').count()) === 0)
-  ok('anon+lock: device text size still there', (await anon.page.locator('#nh-set-textsize').count()) === 1)
-  ok('anon+lock: kiosk per-device settings still there', (await anon.page.locator('#kiosk-pinned').count()) === 1)
-  ok('anon+lock: control-item picker hidden', (await anon.page.locator('#kiosk-controlitem').count()) === 0)
-  ok('anon+lock: Account Sign in still there',
-    (await anon.page.locator('section:has(h2:text-is("Account")) button:text-is("Sign in")').count()) === 1)
+  await anon.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
+  ok('anon+allow: Backup section visible', (await anon.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
+  ok('anon+allow: shared theme cards visible', (await anon.page.locator('.nh-theme__pick').count()) > 0)
+  ok('anon+allow: sidebar toggle visible', (await anon.page.locator('#nh-set-sidebar').count()) === 1)
+  ok('anon+allow: the switch itself stays admin-only',
+    (await anon.page.locator('section:has(h2:text-is("Anonymous editing"))').count()) === 0)
 
   await user.page.goto(APP + '#/d/nh-e2e-lock')
   await user.page.reload({ waitUntil: 'domcontentloaded' })
   await user.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('user-level+lock: pencil hidden', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
+  ok('user-level+allow: pencil visible', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
+  await user.page.click('[aria-label="Edit dashboard"]').catch(() => {})
+  const userEntered = await user.page.waitForSelector('.nh-grid--edit', { timeout: 10000 }).then(() => true).catch(() => false)
+  ok('user-level+allow: enters the editor directly too', userEntered)
+  await user.page.click('button:has-text("Exit")').catch(() => {})
 
-  await admin.page.goto(APP + '#/d/nh-e2e-lock')
-  await admin.page.reload({ waitUntil: 'domcontentloaded' })
-  await admin.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('admin+lock: pencil still visible', (await admin.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
   await admin.page.goto(APP + '#/settings')
-  await admin.page.waitForSelector('#nh-set-lock', { timeout: 20000 })
-  ok('admin+lock: lock checkbox checked', await admin.page.isChecked('#nh-set-lock'))
-  ok('admin+lock: Backup section still visible', (await admin.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
+  await admin.page.reload({ waitUntil: 'domcontentloaded' })
+  const adminAnonEdit = await admin.page
+    .waitForSelector('#nh-set-anonedit', { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false)
+  ok('admin+allow: checkbox reflects the stored setting',
+    adminAnonEdit && (await admin.page.isChecked('#nh-set-anonedit').catch(() => false)))
 
-  // ---------- locked device signs in via Settings > Account, affordances appear live ----------
+  // ================= back to the default, then the way in =================
+  await setAnonEditing(false)
+
+  // ---------- view-only device signs in via Settings > Account, affordances appear live ----------
   const wall = await makePage(browser, null)
   pages.push(wall)
   await wall.page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
-  await wall.page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
-  ok('locked wall: config sections hidden before sign-in',
+  await wall.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
+  ok('view-only wall: config sections hidden before sign-in',
     (await wall.page.locator('section:has(h2:text-is("Backup"))').count()) === 0)
   await wall.page.click('section:has(h2:text-is("Account")) button:text-is("Sign in")')
   await wall.page.waitForSelector('.nh-signin', { timeout: 10000 })
   await wall.page.click('button:has-text("Use an API token instead")')
   await wall.page.fill('#nh-token', TOKEN)
   await wall.page.click('button:has-text("Use token")')
-  await wall.page.waitForSelector('section:has(h2:text-is("Editing lock"))', { timeout: 15000 })
-  ok('locked wall: admin sections appear after sign-in, no reload', true)
-  ok('locked wall: Backup back too', (await wall.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
+  const wallRevealed = await wall.page
+    .waitForSelector('section:has(h2:text-is("Anonymous editing"))', { timeout: 15000 })
+    .then(() => true)
+    .catch(() => false)
+  ok('view-only wall: admin sections appear after sign-in, no reload', wallRevealed)
+  ok('view-only wall: Backup back too', (await wall.page.locator('section:has(h2:text-is("Backup"))').count()) === 1)
   await wall.page.goto(APP + '#/d/nh-e2e-lock')
   await wall.page.waitForSelector('.nh-widget', { timeout: 20000 })
-  ok('locked wall: pencil visible after sign-in', (await wall.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
+  ok('view-only wall: pencil visible after sign-in', (await wall.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
 
   // ---------- hygiene ----------
   for (const [name, p] of [['admin', admin], ['anon', anon], ['user', user], ['wall', wall]]) {
