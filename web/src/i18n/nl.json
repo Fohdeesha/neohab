@@ -896,6 +896,7 @@
   "This is the neohab voice on this device.": "Dit is de neohab-stem op dit apparaat.",
   "This light has no state to copy": "Deze lamp heeft geen status om over te nemen",
   "This needs a persistence service": "Hiervoor is een persistentieservice nodig",
+  "This openHAB server needs you to sign in before it will show anything.": "Deze openHAB-server toont pas iets nadat je bent aangemeld.",
   "This page is served over HTTPS, so it cannot show a stream from an insecure http:// address.": "Deze pagina wordt via HTTPS aangeboden en kan daarom geen stream van een onveilig http://-adres tonen.",
   "This preset sets no lights.": "Dit preset stelt geen lampen in.",
   "This server has no group items": "Deze server heeft geen groepsitems",

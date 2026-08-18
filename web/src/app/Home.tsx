@@ -20,6 +20,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   // Selectors, not the whole store: Home re-rendered on every settings change otherwise.
   const dashboards = useConfigStore((s) => s.dashboards)
   const error = useConfigStore((s) => s.error)
+  const authRequired = useConfigStore((s) => s.authRequired)
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [newOpen, setNewOpen] = useState(false)
@@ -64,7 +65,21 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
       {dashboards.length === 0 ? (
         <div className="nh-welcome">
           <h2 className="nh-welcome__title">{t('Welcome to neohab')}</h2>
-          {error ? (
+          {authRequired ? (
+            <>
+              {/* This server does not let signed-out visitors read anything, which is the normal
+                  posture once openHAB's implicit user role is turned off. Saying "401" here left
+                  people looking at a REST call for a problem whose answer is simply to sign in. */}
+              <p className="nh-welcome__text">
+                {t('This openHAB server needs you to sign in before it will show anything.')}
+              </p>
+              <div className="nh-welcome__actions">
+                <button type="button" className="nh-btn nh-btn--primary" onClick={() => setSignInOpen(true)}>
+                  {t('Sign in')}
+                </button>
+              </div>
+            </>
+          ) : error ? (
             <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
           ) : (
             <p className="nh-welcome__text">
@@ -73,7 +88,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               )}
             </p>
           )}
-          {canEdit ? (
+          {canEdit && !authRequired ? (
             <div className="nh-welcome__actions">
               <button type="button" className="nh-btn nh-btn--primary" onClick={createFirst}>
                 {t('Create your first dashboard')}

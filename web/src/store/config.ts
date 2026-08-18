@@ -15,6 +15,7 @@
  */
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
+import { ApiError } from '../api/client'
 import { writeWithFallback } from '../api/write'
 import type { UIComponent } from '../api/types'
 import type { CustomBackground } from '../model/background'
@@ -121,6 +122,12 @@ interface ConfigState {
   loading: boolean
   loaded: boolean
   error: string | null
+  /**
+   * The configuration could not be read because this device is not signed in - openHAB's
+   * `implicitUserRole` is off, which is the normal posture on a secured server. Kept apart
+   * from `error` because the remedy is different: not "something broke" but "sign in".
+   */
+  authRequired: boolean
 }
 
 export const useConfigStore = create<ConfigState>(() => ({
@@ -135,6 +142,7 @@ export const useConfigStore = create<ConfigState>(() => ({
   loading: false,
   loaded: false,
   error: null,
+  authRequired: false,
 }))
 
 const dashboardComponent = (d: Dashboard): UIComponent<Dashboard> => ({
@@ -216,7 +224,7 @@ function byName<T extends { name?: string; id?: string }>(a: T, b: T): number {
 }
 
 export async function loadConfig(): Promise<void> {
-  useConfigStore.setState({ loading: true, error: null })
+  useConfigStore.setState({ loading: true, error: null, authRequired: false })
   try {
     const components = await listComponents()
     const serverUids = new Set(components.map((c) => c.uid))
@@ -248,6 +256,7 @@ export async function loadConfig(): Promise<void> {
       loading: false,
       loaded: true,
       error: err instanceof Error ? err.message : String(err),
+      authRequired: err instanceof ApiError && (err.status === 401 || err.status === 403),
     })
   }
 }

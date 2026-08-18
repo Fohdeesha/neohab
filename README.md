@@ -19,8 +19,15 @@ neohab is a community project and is not an official openHAB UI.
 It appears on the openHAB start page too. To remove it, delete the jar. To upgrade, replace it:
 open tabs pick the new version up on their next load, with no cache to clear.
 
-Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs. Viewing works with
-whatever access your server already allows. Editing asks you to sign in as an administrator.
+Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs - tested against 4.3.7
+and 5.2.1. Viewing works out of the box on a server that allows anonymous read, which is
+openHAB's default. Editing asks you to sign in as an administrator.
+
+If you have turned openHAB's implicit user role **off**, neohab asks you to sign in before it
+shows anything, and commands and configuration then work normally. Live item values are the
+exception: they arrive over an `EventSource`, which browsers do not let us attach a token to, so
+on a server locked down that way the dashboard renders but its values do not update. neohab says
+so on screen rather than showing stale numbers.
 
 ## Coming from HABPanel
 

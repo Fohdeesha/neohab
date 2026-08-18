@@ -962,6 +962,7 @@
   "This is the neohab voice on this device.": "To jest głos neohab na tym urządzeniu.",
   "This light has no state to copy": "To światło nie ma stanu do skopiowania",
   "This needs a persistence service": "To wymaga usługi persystencji",
+  "This openHAB server needs you to sign in before it will show anything.": "Ten serwer openHAB pokaże cokolwiek dopiero po zalogowaniu.",
   "This page is served over HTTPS, so it cannot show a stream from an insecure http:// address.": "Ta strona jest serwowana przez HTTPS, więc nie może pokazać strumienia z niezabezpieczonego adresu http://.",
   "This preset sets no lights.": "Ten preset nie ustawia żadnych świateł.",
   "This server has no group items": "Ten serwer nie ma itemów grupowych",
