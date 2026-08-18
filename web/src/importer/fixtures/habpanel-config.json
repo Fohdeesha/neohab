@@ -1,0 +1,239 @@
+{
+  "dashboards": [
+    {
+      "id": "Ground Floor",
+      "name": "Ground Floor",
+      "columns": 12,
+      "widget_margin": 4,
+      "tile": { "icon": "firstfloor", "iconset": "eclipse-smarthome-classic" },
+      "widgets": [
+        {
+          "type": "switch",
+          "name": "Hall Light",
+          "item": "Hall_Light",
+          "col": 0,
+          "row": 0,
+          "sizeX": 2,
+          "sizeY": 2,
+          "icon": "light",
+          "iconset": "eclipse-smarthome-classic",
+          "icon_size": 48
+        },
+        {
+          "type": "slider",
+          "name": "Hall Dimmer",
+          "item": "Hall_Dimmer",
+          "col": 2,
+          "row": 0,
+          "sizeX": 4,
+          "sizeY": 2,
+          "floor": 10,
+          "ceil": 90,
+          "step": 5,
+          "unit": "%",
+          "vertical": true
+        },
+        {
+          "type": "colorpicker",
+          "name": "Lounge Colour",
+          "item": "Lounge_Colour",
+          "col": 6,
+          "row": 0,
+          "sizeX": 3,
+          "sizeY": 3
+        },
+        {
+          "type": "knob",
+          "name": "Boiler Flow",
+          "item": "Boiler_Flow",
+          "col": 9,
+          "row": 0,
+          "sizeX": 3,
+          "sizeY": 3,
+          "floor": 20,
+          "ceil": 80,
+          "step": 0.5,
+          "unit": "°C",
+          "readOnly": true
+        },
+        {
+          "type": "dummy",
+          "name": "Outside Temp",
+          "item": "Outside_Temp",
+          "col": 0,
+          "row": 2,
+          "sizeX": 2,
+          "sizeY": 1,
+          "unit": "°C",
+          "format": "%.1f"
+        },
+        {
+          "type": "label",
+          "name": "Heating",
+          "col": 2,
+          "row": 2,
+          "sizeX": 2,
+          "sizeY": 1,
+          "font_size": 22,
+          "foreground": "#ffcc00",
+          "background": "#202020"
+        },
+        {
+          "type": "button",
+          "name": "All Off",
+          "item": "Scene_AllOff",
+          "col": 4,
+          "row": 2,
+          "sizeX": 2,
+          "sizeY": 1,
+          "action_type": "toggle",
+          "command": "ON",
+          "command_alt": "OFF",
+          "icon": "switch",
+          "iconset": "eclipse-smarthome-classic",
+          "icon_replacestext": true,
+          "background": "#333333"
+        },
+        {
+          "type": "button",
+          "name": "Upstairs",
+          "col": 6,
+          "row": 3,
+          "sizeX": 2,
+          "sizeY": 1,
+          "action_type": "navigate",
+          "navigate_dashboard": "First Floor"
+        },
+        {
+          "type": "selection",
+          "name": "AV Input",
+          "item": "AV_Input",
+          "col": 8,
+          "row": 3,
+          "sizeX": 4,
+          "sizeY": 1,
+          "choices": "HDMI1=Apple TV, HDMI2=Console , HDMI3=PC",
+          "choices_columns": 3
+        }
+      ]
+    },
+    {
+      "id": "First Floor",
+      "name": "First Floor",
+      "columns": 8,
+      "row_height": 60,
+      "widget_margin": 8,
+      "font_scale": 1.5,
+      "drawer": { "hide": true },
+      "widgets": [
+        {
+          "type": "image",
+          "name": "Porch",
+          "url": "http://cam.example/porch.jpg",
+          "col": 0,
+          "row": 0,
+          "sizeX": 4,
+          "sizeY": 3,
+          "refresh": 10,
+          "image_source": "item"
+        },
+        {
+          "type": "frame",
+          "name": "Weather",
+          "frameUrl": "http://weather.example/embed",
+          "col": 4,
+          "row": 0,
+          "sizeX": 4,
+          "sizeY": 3,
+          "refresh": 60,
+          "hidelabel": true
+        },
+        {
+          "type": "clock",
+          "mode": "Analog",
+          "col": 0,
+          "row": 3,
+          "sizeX": 2,
+          "sizeY": 2
+        },
+        {
+          "type": "clock",
+          "mode": "Digital",
+          "digital_format": "HH:mm:ss",
+          "col": 2,
+          "row": 3,
+          "sizeX": 2,
+          "sizeY": 2
+        },
+        {
+          "type": "chart",
+          "name": "Temperatures",
+          "charttype": "interactive",
+          "period": "W",
+          "service": "rrd4j",
+          "showlegend": "never",
+          "series": [
+            { "item": "Outside_Temp", "name": "Outside", "color": "#3fa9f5", "display_area": false },
+            { "item": "Indoor_Temp", "name": "Indoor", "axis": "y2", "display_dots": true },
+            { "name": "no item, dropped" }
+          ],
+          "axis": { "y": { "min": -10, "max": 40 }, "y2": { "enabled": true, "includezero": true } },
+          "col": 4,
+          "row": 3,
+          "sizeX": 4,
+          "sizeY": 3
+        },
+        {
+          "type": "timeline",
+          "name": "Occupancy",
+          "period": "2D",
+          "series": [{ "item": "Presence", "name": "Someone home" }],
+          "colorMaps": [
+            { "state": "ON", "color": "#4caf50" },
+            { "state": "OFF", "color": "#555555" },
+            { "state": "", "color": "#ignored" }
+          ],
+          "col": 0,
+          "row": 5,
+          "sizeX": 8,
+          "sizeY": 2
+        },
+        {
+          "type": "template",
+          "name": "Custom Gauge",
+          "customwidget": "fancygauge",
+          "config": { "item": "Boiler_Flow", "scale": 2 },
+          "dontwrap": true,
+          "col": 0,
+          "row": 7,
+          "sizeX": 4,
+          "sizeY": 2
+        },
+        {
+          "type": "rollershutter",
+          "name": "Not a HABPanel type",
+          "col": 4,
+          "row": 7,
+          "sizeX": 2,
+          "sizeY": 2
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "theme": "material-dark",
+    "background_image": "http://example/bg.png",
+    "additional_stylesheet_url": "/static/mystyles.css",
+    "speech_synthesis_item": "Speak",
+    "hide_speak_button": true,
+    "panel_name": "Home"
+  },
+  "customwidgets": {
+    "fancygauge": {
+      "id": "fancygauge",
+      "name": "Fancy Gauge",
+      "template": "<div>{{ itemValue(config.item) }}</div>",
+      "settings": [{ "id": "item", "type": "item", "label": "Item" }]
+    }
+  }
+}

@@ -8,6 +8,8 @@
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    // so a test can load a fixture that is a genuine file of the kind a user uploads
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
