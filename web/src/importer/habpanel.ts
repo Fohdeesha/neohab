@@ -11,6 +11,7 @@ import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
+import { lookup } from '../model/lookup'
 import type { AppSettings } from '../store/config'
 
 /* ------------------------------- source model ------------------------------- */
@@ -166,6 +167,7 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v !== '' ? v : undefined
 }
 
+
 /** One HABPanel interactive-chart series -> a neohab chart series (defaults omitted). */
 function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -182,7 +184,7 @@ function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
 
 // Every HABPanel chart period has an exact neohab counterpart; `exact: false` only remains
 // for unknown values falling back to a day.
-const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
+export const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   h: { period: '1h', exact: true },
   '4h': { period: '4h', exact: true },
   '8h': { period: '8h', exact: true },
@@ -390,7 +392,7 @@ const CONVERTERS: Record<string, Converter> = {
   },
 
   chart: (w, report) => {
-    const p = PERIOD_MAP[str(w.period) ?? 'D'] ?? { period: '24h', exact: false }
+    const p = lookup(PERIOD_MAP, str(w.period) ?? 'D') ?? { period: '24h', exact: false }
     if (!p.exact) report.add('info', 'Some chart periods were mapped to the nearest available period')
     const hpSeries = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
     let series: Record<string, unknown>[]
@@ -433,7 +435,7 @@ const CONVERTERS: Record<string, Converter> = {
     const colorMaps = hpMaps
       .filter((m) => m && m.state !== undefined && m.state !== '' && str(m.color))
       .map((m) => ({ state: String(m.state), color: str(m.color) }))
-    const p = PERIOD_MAP[str(w.period) ?? 'D'] ?? { period: '24h', exact: false }
+    const p = lookup(PERIOD_MAP, str(w.period) ?? 'D') ?? { period: '24h', exact: false }
     return {
       type: 'timeline',
       config: {
@@ -497,12 +499,10 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
 
   let counter = 0
   for (const hpWidget of hp.widgets) {
-    // hasOwn, not a bare lookup: a widget typed "constructor"/"toString" would otherwise find an
+    // `lookup`, not a bare index: a widget typed "constructor"/"toString" would otherwise find an
     // Object.prototype member, get called as a converter, and crash the import instead of being
     // reported as an unknown type.
-    const converter = Object.prototype.hasOwnProperty.call(CONVERTERS, hpWidget.type)
-      ? CONVERTERS[hpWidget.type]
-      : undefined
+    const converter = lookup(CONVERTERS, hpWidget.type)
     if (!converter) {
       report.add('skip', 'Unknown HABPanel widget type “{{type}}” was skipped', { type: String(hpWidget.type) })
       continue
@@ -571,7 +571,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   const settingsPatch: Partial<AppSettings> = {}
   const hpTheme = str(cfg.settings.theme)
   if (hpTheme) {
-    const themeId = THEME_MAP[hpTheme] ?? null
+    const themeId = lookup(THEME_MAP, hpTheme) ?? null
     if (themeId) {
       settingsPatch.theme = themeId
       if (hpTheme !== 'default') {

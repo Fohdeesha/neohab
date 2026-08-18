@@ -7,6 +7,7 @@
  * supplies an icon.
  */
 import type { Item } from '../api/types'
+import { lookup } from '../model/lookup'
 import type { Semantics } from './semantics'
 
 /**
@@ -46,7 +47,7 @@ export const GENERATED_SIZES: Record<string, { w: number; h: number }> = {
 }
 
 export function sizeFor(type: string): { w: number; h: number } {
-  return GENERATED_SIZES[type] ?? { w: 2, h: 2 }
+  return lookup(GENERATED_SIZES, type) ?? { w: 2, h: 2 }
 }
 
 /** Icons for the common semantic properties, so a generated dashboard is not a wall of text. */
@@ -180,16 +181,16 @@ const LOCATION_ICONS: Record<string, string> = {
 const mdi = (name: string | undefined): string | undefined => (name ? 'mdi:' + name : undefined)
 
 export function locationIcon(tagName: string | undefined): string | undefined {
-  return mdi(tagName ? LOCATION_ICONS[tagName] : undefined)
+  return mdi(lookup(LOCATION_ICONS, tagName))
 }
 
 export function equipmentIcon(tagName: string | undefined): string | undefined {
-  return mdi(tagName ? EQUIPMENT_ICONS[tagName] : undefined)
+  return mdi(lookup(EQUIPMENT_ICONS, tagName))
 }
 
 /** The icon for one point: its property first, falling back to the equipment it belongs to. */
 export function pointIcon(sem: Semantics, equipmentTag?: string): string | undefined {
-  return mdi(sem.property ? PROPERTY_ICONS[sem.property.name] : undefined) ?? equipmentIcon(equipmentTag)
+  return mdi(lookup(PROPERTY_ICONS, sem.property?.name)) ?? equipmentIcon(equipmentTag)
 }
 
 /** Base type of an item: `Number:Temperature` -> `Number`, a typed Group -> its member type. */
@@ -241,7 +242,7 @@ export function widgetChoices(item: Item, suggested: string): string[] {
     DateTime: ['value'],
     Location: ['value'],
   }
-  const list = byType[type] ?? ['value']
+  const list = lookup(byType, type) ?? ['value']
   return [suggested, ...list.filter((t) => t !== suggested)]
 }
 
