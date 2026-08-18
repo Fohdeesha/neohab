@@ -45,6 +45,34 @@ describe('safeUrl', () => {
     }
   })
 
+  // The URL parser removes ASCII tab, newline and carriage return from ANY position, and strips
+  // leading and trailing C0 controls or spaces, all BEFORE it decides what the scheme is. So a
+  // check that reads the raw string sees something the browser never will. This got six of seven
+  // executable URLs past the allow-list: the scheme regex stopped matching, the value was filed
+  // as a relative address and handed back untouched, and the browser then executed it.
+  it('refuses a scheme hidden by the characters the URL parser strips', () => {
+    for (const url of [
+      'jav\u0009ascript:alert(1)',
+      'jav\u000aascript:alert(1)',
+      'jav\u000dascript:alert(1)',
+      'java\u0009script:alert(document.domain)',
+      'vb\u0009script:msgbox(1)',
+      'data\u0009:text/html,<script>alert(1)</script>',
+      '\u0000javascript:alert(1)',
+      '\u000bjavascript:alert(1)',
+      '  \u0009 javascript:alert(1)',
+    ]) {
+      expect(safeUrl(url), JSON.stringify(url)).toBeNull()
+    }
+  })
+
+  it('hands back the address the browser will actually use', () => {
+    // Returning the raw string would leave the caller embedding something other than what was
+    // judged safe, which is the same mismatch one layer down.
+    expect(safeUrl('  https://example.org/a  ')).toBe('https://example.org/a')
+    expect(safeUrl('https://exa\u0009mple.org/a')).toBe('https://example.org/a')
+  })
+
   it('treats nothing as nothing', () => {
     for (const url of ['', '   ', undefined]) expect(safeUrl(url)).toBeNull()
   })

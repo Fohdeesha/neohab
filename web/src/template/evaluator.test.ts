@@ -143,6 +143,57 @@ describe('the sandbox', () => {
     }
   })
 
+  // A second pass over the sandbox, taking the routes a reader of the first list would try next:
+  // building the key rather than writing it, reaching it through optional chaining or a template
+  // literal, and borrowing a function's own `call`/`bind`/`apply` to change the receiver.
+  it('cannot reach a constructor by a computed or disguised key', () => {
+    const s2 = scope({ text: 'x', obj: { a: 1 }, list: [1], fn: () => 1 })
+    for (const expr of [
+      'obj["const" + "ructor"]',
+      'obj[["cons", "tructor"].join("")]',
+      'obj?.constructor',
+      'obj?.["constructor"]',
+      'text?.constructor?.constructor',
+      'obj[`constructor`]',
+      'list["const" + "ructor"]',
+      'fn["constr" + "uctor"]',
+    ]) {
+      expect(evaluate(expr, s2), expr).toBeUndefined()
+    }
+  })
+
+  it('does not let a function be re-pointed at the host', () => {
+    const s2 = scope({ fn: function (this: unknown) { return this }, obj: { a: 1 } })
+    for (const expr of [
+      'fn.call(obj)',
+      'fn.bind(obj)()',
+      'fn.apply(obj)',
+      'fn.constructor("return globalThis")()',
+    ]) {
+      const out = evaluate(expr, s2)
+      // whatever it answers, it must never hand back a live global object
+      expect(out === globalThis, expr).toBe(false)
+      expect(typeof out === 'object' && out !== null && 'process' in (out as object), expr).toBe(false)
+    }
+  })
+
+  it('exposes no ambient names a script would expect', () => {
+    const s2 = scope({})
+    for (const name of [
+      'arguments', 'Symbol', 'Reflect', 'Proxy', 'Object', 'Array', 'JSON', 'Math',
+      'setTimeout', 'fetch', 'document', 'location', 'self', 'top', 'parent', 'localStorage',
+    ]) {
+      expect(evaluate(name, s2), name).toBeUndefined()
+    }
+  })
+
+  it('cannot assign its way onto Object.prototype through a computed key', () => {
+    const target = scope({ obj: {} })
+    evaluate('obj["__pro" + "to__"] = {polluted: 1}', target)
+    evaluate('obj.__proto__.polluted = 1', target)
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined()
+  })
+
   it('answers undefined for a call on something that is not a function', () => {
     expect(evaluate('text()', s)).toBeUndefined()
     expect(evaluate('obj.a()', s)).toBeUndefined()

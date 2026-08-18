@@ -29,9 +29,28 @@ export function isSameOrigin(url: string, whenUnparseable: boolean): boolean {
 const SAFE_URL_SCHEME = /^(?:https?:|mailto:|tel:|ftp:|blob:|data:image\/)/i
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
+/**
+ * The same normalisation the URL parser performs before it decides what the scheme is: leading
+ * and trailing C0 controls or spaces are removed, then ASCII tab, newline and carriage return are
+ * removed from ANY position.
+ *
+ * Without it the check reads a different string from the browser: put a tab inside the scheme,
+ * as in `jav<TAB>ascript:alert(1)`, and the scheme regex stops matching, so the value is filed as
+ * a harmless relative address and returned untouched - then the browser strips the tab and runs
+ * it. Six of seven executable URLs got past the allow-list that way, reaching an `<iframe src>`,
+ * a `window.open` and every interpolated `href` in a template. Normalise first, then decide, and
+ * return the normalised form so what was judged is what the caller uses.
+ */
+function urlNormalize(raw: string): string {
+  // Deliberate control characters: these ARE the ones the URL parser strips, and matching
+  // them is the whole point of this function.
+  // eslint-disable-next-line no-control-regex
+  return raw.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\u0009\u000a\u000d]/g, '')
+}
+
 /** The URL if it is safe to navigate to or embed, otherwise null. */
 export function safeUrl(url: string | undefined): string | null {
-  const v = (url ?? '').trim()
+  const v = urlNormalize(url ?? '')
   if (!v) return null
   if (!HAS_SCHEME.test(v)) return v
   return SAFE_URL_SCHEME.test(v) ? v : null
