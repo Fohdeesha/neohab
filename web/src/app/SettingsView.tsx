@@ -22,16 +22,14 @@ import { HabpanelImport } from '../settings/HabpanelImport'
 import { GallerySection } from '../settings/GallerySection'
 import { BackupSection } from '../settings/BackupSection'
 import { HistorySection } from '../settings/HistorySection'
-import { AnonymousEditingSection } from '../settings/AnonymousEditingSection'
 import { AccountSection } from '../settings/AccountSection'
 import { AboutSection } from '../settings/AboutSection'
 
 export function SettingsView() {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
-  // Non-admin devices get a viewer's Settings by default: the per-device options stay,
-  // everything that changes the server configuration goes away (unless anonymous editing
-  // has been allowed, which is what useEditingAllowed answers).
+  // Non-admin devices get a viewer's Settings: the per-device options stay, everything that
+  // changes the server configuration goes away.
   const canEdit = useEditingAllowed()
 
   return (
@@ -69,8 +67,6 @@ export function SettingsView() {
             <HistorySection onNotice={setNotice} />
           </>
         ) : null}
-
-        <AnonymousEditingSection onNotice={setNotice} />
 
         <AccountSection onNotice={setNotice} />
 

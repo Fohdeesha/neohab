@@ -71,14 +71,11 @@ export interface AppSettings {
    * per-device choice (kiosk-mode devices follow by default).
    */
   controlItem?: string
-  /**
-   * Show the editing affordances to devices that are NOT signed in as an administrator. Off
-   * by default: like openHAB's own UIs, visitors get a view-only panel (widgets still work,
-   * nothing about the panel can be changed) until they sign in via Settings > Account.
-   * Turning this on shows every editing control to everyone; the server still decides which
-   * writes it accepts. Replaces the old `lockEditing` key, which is ignored if present.
-   */
-  allowAnonymousEditing?: boolean
+  // Editing is administrators-only, like openHAB's own UIs: visitors get a view-only panel
+  // whose widgets still work, and sign in via Settings > Account. Two retired keys are ignored
+  // if a stored config still carries them: `lockEditing` (this behavior used to be opt-in) and
+  // `allowAnonymousEditing` (briefly a way to open editing to everyone, removed - the server
+  // refuses non-admin writes anyway, so it only ever produced work that could not be saved).
   /**
    * Default background image behind every dashboard and the Home screen - a URL, or
    * `bg:<id>` for an uploaded one. A dashboard's own `background` overrides it.

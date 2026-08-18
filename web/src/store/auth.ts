@@ -17,7 +17,6 @@
 import { create } from 'zustand'
 import { api, ApiError } from '../api/client'
 import { getAccessToken, getApiToken, isLoggedIn } from '../api/auth'
-import { useConfigStore } from './config'
 
 export type AuthStatus =
   | 'unknown' // probe not run yet, or it failed for a non-auth reason (server unreachable)
@@ -97,22 +96,17 @@ export function useIsAdmin(): boolean {
  * Should this device show editing affordances (the dashboard pencil, the new-dashboard tile,
  * the config-changing Settings sections)?
  *
- * Administrator devices always edit. Every other device gets a view-only panel - widgets
- * still work, nothing about the panel itself can be changed, and Settings > Account is the
- * way to sign in - unless the shared `allowAnonymousEditing` setting is on, which shows the
- * editing controls to everyone. Either way the server keeps enforcing its own roles on every
- * write; this only decides what renders.
+ * Administrator devices only, like openHAB's own UIs: everyone else gets a view-only panel -
+ * widgets still work, nothing about the panel itself can be changed, and Settings > Account is
+ * the way in. The server enforces the same rule on every write regardless; this only decides
+ * what renders, which is why it stays a separate name from `useIsAdmin`: it is the policy
+ * seam, not a role check.
  */
 export function useEditingAllowed(): boolean {
-  const admin = useAuthStore((s) => s.status === 'admin')
-  const open = useConfigStore((s) => s.settings.allowAnonymousEditing === true)
-  return admin || open
+  return useAuthStore((s) => s.status === 'admin')
 }
 
 /** The same answer outside a component, for handlers deciding between the editor and a sign-in. */
 export function editingAllowed(): boolean {
-  return (
-    useAuthStore.getState().status === 'admin' ||
-    useConfigStore.getState().settings.allowAnonymousEditing === true
-  )
+  return useAuthStore.getState().status === 'admin'
 }

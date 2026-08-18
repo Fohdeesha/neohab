@@ -41,29 +41,20 @@ describe('editingAllowed', () => {
     return editingAllowed()
   }
 
-  it('always lets an administrator device edit', () => {
+  it('lets an administrator device edit', () => {
     expect(withState('admin', {})).toBe(true)
-    expect(withState('admin', { allowAnonymousEditing: true })).toBe(true)
   })
 
-  it('locks everyone else by default - absent means locked', () => {
+  it('everyone else is view-only', () => {
     expect(withState('anonymous', {})).toBe(false)
     expect(withState('user', {})).toBe(false)
     expect(withState('unknown', {})).toBe(false)
   })
 
-  it('opens every device when allowAnonymousEditing is on', () => {
-    expect(withState('anonymous', { allowAnonymousEditing: true })).toBe(true)
-    expect(withState('user', { allowAnonymousEditing: true })).toBe(true)
-  })
-
-  it('only true opens it - stored junk stays locked', () => {
-    expect(withState('anonymous', { allowAnonymousEditing: 'yes' as unknown as boolean })).toBe(false)
-    expect(withState('anonymous', { allowAnonymousEditing: 1 as unknown as boolean })).toBe(false)
-  })
-
-  it('ignores the retired lockEditing key: a config that had the lock off no longer opens editing', () => {
+  it('ignores both retired keys: neither an unlocked lockEditing nor the removed switch opens editing', () => {
     expect(withState('anonymous', { lockEditing: false })).toBe(false)
     expect(withState('anonymous', { lockEditing: true })).toBe(false)
+    expect(withState('anonymous', { allowAnonymousEditing: true })).toBe(false)
+    expect(withState('user', { allowAnonymousEditing: true })).toBe(false)
   })
 })
