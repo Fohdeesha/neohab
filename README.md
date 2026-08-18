@@ -3,7 +3,7 @@
 A modern dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for
 phones, tablets and wall panels, configured entirely in the browser. No file editing, ever.
 
-> **Status: in daily use.** The latest release is **1.15.0**. Everything below is built and tested
+> **Status: in daily use.** The latest release is **1.15.1**. Everything below is built and tested
 > against a live openHAB server by a browser suite that drives the whole UI. Anything added since
 > that release sits on `main` and ships with the next one. Marketplace packaging is still to come.
 > Feedback welcome.
