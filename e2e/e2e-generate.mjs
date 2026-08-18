@@ -10,7 +10,7 @@
  * appeared, so nothing else is touched. No item commands at all.
  */
 import { chromium } from 'playwright-core'
-import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -121,7 +121,10 @@ try {
     await page.click('[data-source="prefix"]')
     await page.waitForSelector('.nh-gen__list', { timeout: 5000 })
     ok('choosing a source moves to the cluster step', true)
-    await page.click('button:has-text("Back")')
+    // Scoped to the sheet and matched exactly: `:has-text` is a case-insensitive SUBSTRING, so on
+    // a server with no dashboards the welcome card's "Restore a backup" behind the sheet matches
+    // "Back" too, Playwright takes the first, and the click is swallowed by the sheet on top.
+    await page.click('.nh-sheet button:text-is("Back")')
     await page.waitForSelector('[data-source="prefix"]', { timeout: 5000 })
     ok('Back returns to the source step', true)
     await page.close()
@@ -216,7 +219,23 @@ try {
     ok('no widget overlaps another', overlapping(cfg?.widgets ?? []) === null, JSON.stringify(overlapping(cfg?.widgets ?? [])))
     ok('every widget fits the grid', cfg?.widgets.every((w) => w.layout.lg.x + w.layout.lg.w <= cfg.columns))
     ok('every widget is bound and labelled', cfg?.widgets.every((w) => (typeof w.config.item === 'string' && w.config.item) || Array.isArray(w.config.series)))
-    ok('labels have the cluster prefix stripped', cfg?.widgets.every((w) => !String(w.config.label ?? '').toLowerCase().startsWith(firstName.toLowerCase() + ' ')), JSON.stringify(cfg?.widgets.map((w) => w.config.label)))
+    // The rule is: prefer the item's OWN label, and only when it has none derive one from the
+    // name with the cluster prefix stripped. Asserting the stripping over every widget tests the
+    // wrong branch on a server whose items are all labelled - and their labels may legitimately
+    // start with the cluster name, because that is where the cluster name came from.
+    const labelled = new Map(
+      (await (await fetch(`${BASE}/rest/items?fields=name,label`, { headers: AUTH })).json()).map((i) => [i.name, i.label])
+    )
+    const derivedLabels = (cfg?.widgets ?? []).filter((w) => typeof w.config.item === 'string' && !labelled.get(w.config.item))
+    if (derivedLabels.length === 0) {
+      ok('labels have the cluster prefix stripped (SKIPPED: every item here carries its own label)', true)
+    } else {
+      ok(
+        'labels have the cluster prefix stripped',
+        derivedLabels.every((w) => !String(w.config.label ?? '').toLowerCase().startsWith(firstName.toLowerCase() + ' ')),
+        JSON.stringify(derivedLabels.map((w) => w.config.label))
+      )
+    }
 
     // the generated dashboard renders
     await sleep(1200)

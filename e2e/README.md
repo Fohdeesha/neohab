@@ -72,7 +72,35 @@ item's initial state first and restores it in cleanup, even when checks fail.
 - One suite: `node e2e-<name>.mjs`. It prints `PASS` or `FAIL` per check and a summary, and the
   exit code is non-zero on any failure.
 - The battery: `npm run battery` (or `node run.mjs`) runs every safe-additive suite in sequence
-  and summarizes.
+  and summarizes. It prints the server, its openHAB version and the served bundle at both ends of
+  the run, so a log always says what it was about.
+
+### More than one server
+
+neohab supports openHAB 4.x and 5.x, so the suites are meant to be run against both. Keep a
+target file per server and pick one with `NEOHAB_E2E_TARGET`:
+
+```
+NEOHAB_E2E_TARGET=/path/to/target.oh5.json node run.mjs
+```
+
+Any `e2e/target.*.json` is gitignored except `target.example.json`. Deploy the **same jar** to
+both servers first and check the bundle in the banner matches, or the two runs are not comparable.
+
+A server's own state changes what the suites can see, and two differences matter enough to plan
+for:
+
+- **A fresh server has no `settings` component** (it appears the first time somebody changes a
+  setting). Suites that snapshot it read it through `lib/components.mjs`, which answers `null`
+  rather than throwing, and cleanup then removes the component instead of writing one back.
+- **A fresh server has no persistence history**, so chart, gauge, timeline and aggregation checks
+  have nothing to draw, and some of them need days of it: bars per day, an hour-of-day axis, a
+  weekday axis and a heatmap all want data spread across the calendar. rrd4j refuses a value
+  stamped in the past, so waiting is the only way to fill it. A **Modifiable** service (the
+  in-memory one, say) accepts `PUT /rest/persistence/items/<item>?time=&state=`, which backfills
+  weeks in seconds; make it the default so the suites read what you seeded. Mind how much it
+  keeps: the in-memory service holds 512 entries per item, so resolution and window trade off
+  against each other, and different checks want different ones.
 
 ## Safety model: read before running against a server you care about
 
@@ -81,7 +109,9 @@ The suites fall into two classes.
 **Safe-additive** (everything `run.mjs` runs): they only ever create config components with
 `nh-e2e-*` ids, delete exactly those ids in cleanup, snapshot and restore the `settings` component
 verbatim when they touch it, and restore item states. They are designed to run against a server
-with a real configuration on it without disturbing it.
+with a real configuration on it without disturbing it. On a server that has no `settings`
+component yet, a suite that needs one creates it and **deletes it again** in cleanup: leaving it
+behind would be a change like any other.
 
 One deliberate exception: `e2e-generate.mjs` exercises "one dashboard per group", where the
 generator names the dashboards after the groups it found, so their ids are not `nh-e2e-*`. It

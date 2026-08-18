@@ -17,7 +17,7 @@
  * those uids in cleanup (guarded). NO item commands anywhere.
  */
 import { chromium } from 'playwright-core'
-import { APP, NS, TOKEN, AUTH, CAMERA } from './lib/target.mjs'
+import { APP, NS, TOKEN, AUTH, CAMERA, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-camera'
 const UID_TALL = 'dashboard:nh-e2e-camtall'
@@ -44,7 +44,12 @@ page.on('console', (m) => {
   // A refused cross-origin WebSocket is the expected, handled outcome for a server that has
   // not opted in; it is the reason the chain exists and must not fail the console check.
   if (/WebSocket connection to .* failed/.test(t)) return
-  errs.push('console: ' + t)
+  // "Failed to load resource: 404" names nothing on its own, and a failure nobody can act on is
+  // barely a failure. Pair it with the URL, and let a camera host that does not answer be the
+  // camera's problem rather than the app's - this suite deliberately points at unreachable ones.
+  const url = m.location()?.url ?? ''
+  if (url && !isAppResource(url)) return
+  errs.push('console: ' + t + (url ? ' <- ' + url : ''))
 })
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)

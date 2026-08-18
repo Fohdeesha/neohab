@@ -12,6 +12,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const UID_A = 'dashboard:nh-e2e-kiosk'
 const UID_B = 'dashboard:nh-e2e-kiosk2'
@@ -52,6 +53,8 @@ async function setKiosk(page, obj) {
 const browser = await launch()
 let secureBrowser = null
 let settingsSnapshot = null
+/** Whether this suite wrote the settings component, so cleanup knows to put it back. */
+let settingsTouched = false
 let initialLevel = null
 
 try {
@@ -319,15 +322,12 @@ try {
   // ================= 8. dashboard-control item =================
   {
     // snapshot + patch the global settings component
-    const s = await fetch(NS + '/settings', { headers: AUTH })
-    settingsSnapshot = s.ok ? await s.json() : null
-    ok('settings snapshot taken', !!settingsSnapshot, String(s.status))
-    const patched = structuredClone(settingsSnapshot)
-    patched.config = { ...patched.config, controlItem: CONTROL_ITEM }
-    const put = await fetch(NS + '/settings', {
-      method: 'PUT', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(patched),
-    })
-    ok('controlItem configured', put.ok, String(put.status))
+    // A fresh server has no settings component at all: snapshotting null is correct, and
+    // cleanup then removes what this suite created rather than leaving it behind.
+    settingsSnapshot = await getSettings()
+    settingsTouched = true
+    const put = await patchSettings(settingsSnapshot, { controlItem: CONTROL_ITEM })
+    ok('controlItem configured', put.ok, `${put.status} (server had settings: ${!!settingsSnapshot})`)
 
     const target = initialLevel === '57' ? '58' : '57' // dashboard B is named "57"
     const expectHash = initialLevel === '57' ? null : '#/d/nh-e2e-kiosk2'
@@ -386,13 +386,9 @@ try {
     const d = await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' deleted', d.ok || d.status === 404, String(d.status))
   }
-  if (settingsSnapshot) {
-    const put = await fetch(NS + '/settings', {
-      method: 'PUT', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(settingsSnapshot),
-    })
-    const back = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-    ok('cleanup: settings restored verbatim', put.ok && JSON.stringify(back.config) === JSON.stringify(settingsSnapshot.config),
-      JSON.stringify(back.config))
+  if (settingsTouched) {
+    const back = await restoreSettings(settingsSnapshot)
+    ok(`cleanup: settings ${back.mode}`, back.ok, back.detail)
   }
   if (initialLevel !== null) {
     const cur = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state')).text()).trim()

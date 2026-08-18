@@ -20,6 +20,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings as readSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-swiss'
 
@@ -30,7 +31,7 @@ const ok = (name, cond, detail = '') => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const getSettings = async () => (await (await fetch(NS + '/settings', { headers: AUTH })).json())?.config ?? null
+const getSettings = async () => (await readSettings())?.config ?? null
 const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
 
 function launch() {
@@ -41,7 +42,7 @@ function launch() {
 }
 
 // ---------- pre-suite snapshots ----------
-const settingsBefore = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+const settingsBefore = await readSettings()
 const themeUidsBefore = (await listUids()).filter((u) => u.startsWith('theme:'))
 
 const browser = await launch()
@@ -327,16 +328,9 @@ try {
     await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
     const leftoverThemes = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
     for (const u of leftoverThemes) await fetch(NS + '/' + encodeURIComponent(u), { method: 'DELETE', headers: AUTH })
-    const putSettings = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsBefore),
-    })
-    const settingsAfter = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-    const same =
-      JSON.stringify({ ...settingsBefore, timestamp: 0 }) === JSON.stringify({ ...settingsAfter, timestamp: 0 })
+    const back = await restoreSettings(settingsBefore)
     console.log(
-      `CLEANUP  dashboard deleted, ${leftoverThemes.length} theme(s) deleted, settings restore ${putSettings.status}, verbatim=${same}`,
+      `CLEANUP  dashboard deleted, ${leftoverThemes.length} theme(s) deleted, settings ${back.mode} (${back.detail})`,
     )
     const uids = await listUids()
     console.log('CLEANUP  leftovers: ' + uids.filter((u) => u.includes('nh-e2e') || u.includes('custom-')).join(', ') || 'none')

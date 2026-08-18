@@ -20,6 +20,7 @@
  */
 import { chromium } from 'playwright-core'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, FORMATTED_ITEM } from './lib/target.mjs'
+import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-ember'
 const results = []
@@ -75,9 +76,8 @@ const samplePlot = (sel) => {
 
 const browser = await launch()
 const errs = []
-// null when the server has no settings component yet - cleanup then deletes rather than PUTs
-const settingsRes = await fetch(NS + '/settings', { headers: AUTH })
-const settingsBefore = settingsRes.status === 200 ? await settingsRes.json() : null
+// null when the server has no settings component yet - cleanup then deletes rather than writes
+const settingsBefore = await getSettings()
 const initialDimmer = await itemState(ITEMS.dimmer)
 
 async function newPage(themeOverride) {
@@ -197,9 +197,15 @@ try {
   // (theme-independent; the formatted item is only ever read) ----------
   if (FORMATTED_ITEM) {
     const fmtState = await (await fetch(itemUrl(FORMATTED_ITEM), { headers: AUTH })).json()
-    // the unit the server appends is whatever follows the format spec in the pattern
+    // The unit the server appends is whatever follows the format spec in the pattern - except
+    // on a unit-of-measurement item, where the pattern's tail is the placeholder `%unit%` and
+    // the server substitutes the item's real unit into the state itself ("21.5 °C"). Take it
+    // from the state in that case. Still the SERVER's answer either way, never the app's, or
+    // the check would be comparing the app against itself.
     const pattern = fmtState.stateDescription?.pattern ?? ''
-    const unitWanted = pattern.replace(/^\s*%[\d.,+\-# ]*[a-zA-Z]/, '').replace(/%%/g, '%').trim()
+    const patternTail = pattern.replace(/^\s*%[\d.,+\-# ]*[a-zA-Z]/, '').replace(/%%/g, '%').trim()
+    const unitWanted =
+      patternTail === '%unit%' ? String(fmtState.state ?? '').replace(/^-?[\d.,]+\s*/, '').trim() : patternTail
     if (!unitWanted) {
       ok('formatted item splits (SKIPPED: its display pattern carries no unit)', true, 'pattern=' + pattern)
     } else {
@@ -344,21 +350,8 @@ try {
   const del = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
   const gone = (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).status === 404
   ok('cleanup: ' + UID + ' deleted', gone, 'del=' + del.status)
-  if (settingsBefore) {
-    const putSettings = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsBefore),
-    })
-    const settingsAfter = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-    const same =
-      JSON.stringify({ ...settingsBefore, timestamp: 0 }) === JSON.stringify({ ...settingsAfter, timestamp: 0 })
-    ok('cleanup: settings restored verbatim', putSettings.status < 300 && same, `put=${putSettings.status} verbatim=${same}`)
-  } else {
-    const delSettings = await fetch(NS + '/settings', { method: 'DELETE', headers: AUTH })
-    ok('cleanup: settings removed (server had none before)', delSettings.status === 200 || delSettings.status === 404,
-      'del=' + delSettings.status)
-  }
+  const settingsBack = await restoreSettings(settingsBefore)
+  ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
   await sendItem(ITEMS.dimmer, initialDimmer)
   await sleep(700)
   const restored = await itemState(ITEMS.dimmer)

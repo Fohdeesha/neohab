@@ -312,8 +312,20 @@ try {
   )
   const decimLast = decimSegs[decimSegs.length - 1]
   // averaging emits ONE point per time bucket (~200 for minute data) - the old min/max
-  // collapsed flat buckets to ~105 segments, so the >150 floor discriminates the algorithms
-  ok('maxPoints averages the series down (~200 buckets of 1440)', decimLast > 150 && decimLast < 300, `segs=${decimLast}`)
+  // collapsed flat buckets to ~105 segments, so the >150 floor discriminates the algorithms.
+  // It can only discriminate when there is something to decimate, so establish that rather than
+  // assume it: a server whose history is sparser than maxPoints draws every point it has and
+  // would fail a check that was never about it.
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  const raw = await fetch(`${BASE}/rest/persistence/items/${ITEMS.dimmer}?starttime=${since}`, { headers: AUTH })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => Number(j?.datapoints ?? 0))
+    .catch(() => 0)
+  if (raw <= 220) {
+    ok(`maxPoints decimation (SKIPPED: only ${raw} stored points in 24h, nothing to average down)`, true)
+  } else {
+    ok('maxPoints averages the series down (~200 buckets)', decimLast > 150 && decimLast < 300, `segs=${decimLast} of ${raw} raw`)
+  }
 
   // ---------- live SSE append (no refetch) ----------
   await page.mouse.move(10, 10)

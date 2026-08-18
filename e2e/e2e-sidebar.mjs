@@ -14,6 +14,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await chromium.launch({ channel: c, headless: true }) } catch {} } return chromium.launch({ headless: true }) }
 
@@ -32,8 +33,12 @@ const put = async (comp) => {
   return r.ok
 }
 
-/** The live settings component: the sidebar-off section rewrites it, so keep the original. */
-const settingsBefore = (await (await fetch(NS)).json()).find((c) => c.uid === 'settings')
+/**
+ * The live settings component: the sidebar-off section rewrites it, so keep the original.
+ * Null on a server where nobody has changed a setting yet, and cleanup then removes the one
+ * this suite created rather than leaving it behind.
+ */
+const settingsBefore = await getSettings()
 
 const widget = (id) => ({
   id,
@@ -470,16 +475,7 @@ try {
 
   /* ---------------- the setting turns it all off ---------------- */
   {
-    const r = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: 'settings',
-        component: 'neohab:settings',
-        tags: [],
-        config: { ...(settingsBefore?.config ?? { version: 1, theme: 'dark' }), sidebar: false },
-      }),
-    })
+    const r = await patchSettings(settingsBefore, { sidebar: false })
     ok('setting sidebar:false persisted', r.ok, 'status=' + r.status)
 
     const ctx = await openCtx(1400, 900)
@@ -502,8 +498,8 @@ try {
     await page.locator('#nh-set-sidebar').check()
     await page.waitForTimeout(600)
     ok('ticking it brings the ☰ back immediately', (await page.locator('.nh-side__trigger').count()) === 1)
-    const stored = await (await fetch(NS + '/settings')).json()
-    ok('…and persists it', stored.config.sidebar === true, JSON.stringify(stored.config))
+    const stored = await getSettings()
+    ok('…and persists it', stored?.config?.sidebar === true, JSON.stringify(stored?.config))
     await ctx.close()
   }
 } catch (err) {
@@ -511,20 +507,9 @@ try {
 } finally {
   await browser.close()
 
-  // restore the live settings component byte-for-byte
-  if (settingsBefore) {
-    const r = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsBefore),
-    })
-    const back = await (await fetch(NS + '/settings')).json()
-    ok(
-      'cleanup: settings restored to the original',
-      r.ok && JSON.stringify(back.config) === JSON.stringify(settingsBefore.config),
-      JSON.stringify(back.config)
-    )
-  }
+  // put the settings component back exactly as it was found, including not existing
+  const settingsBack = await restoreSettings(settingsBefore)
+  ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 
   for (const uid of created) {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })

@@ -10,6 +10,7 @@
  */
 import { chromium } from 'playwright-core'
 import { APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-voice'
 const results = []
@@ -32,8 +33,7 @@ function launch() {
 }
 
 // ---------- snapshots ----------
-const settingsRes = await fetch(NS + '/settings', { headers: AUTH })
-const settingsOrig = settingsRes.ok ? await settingsRes.json() : null
+const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 console.log(`snapshot: settings ${settingsOrig ? 'present' : 'absent'}, ${dimmer}=${dimmerOrig}`)
@@ -88,13 +88,8 @@ try {
   // ---------- section 2: TTS speech item ----------
   {
     // point the shared speech item at the dimmer (restored verbatim afterwards)
-    const patched = structuredClone(settingsOrig ?? { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'dark' } })
-    patched.config = { ...patched.config, speechItem: dimmer }
-    await fetch(NS + '/settings', {
-      method: settingsOrig ? 'PUT' : 'POST',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(patched),
-    })
+    const wrote = await patchSettings(settingsOrig, { speechItem: dimmer })
+    ok('speech item configured', wrote.ok, `${wrote.status} (server had settings: ${!!settingsOrig})`)
 
     const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
     await page.addInitScript((t) => {
@@ -215,19 +210,8 @@ try {
 
 // ---------- cleanup (always) ----------
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
-if (settingsOrig) {
-  await fetch(NS + '/settings', {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify(settingsOrig),
-  })
-  const after = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-  const strip = (c) => JSON.stringify({ ...c, timestamp: undefined })
-  ok('cleanup: settings restored verbatim', strip(after) === strip(settingsOrig))
-} else {
-  await fetch(NS + '/settings', { method: 'DELETE', headers: AUTH })
-  ok('cleanup: settings component removed (was absent)', true)
-}
+const settingsBack = await restoreSettings(settingsOrig)
+ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 await postItem(dimmer, dimmerOrig)
 await new Promise((r) => setTimeout(r, 1200))
 const dimmerAfter = (await getItem(dimmer)).state

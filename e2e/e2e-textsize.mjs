@@ -224,7 +224,12 @@ try {
 
   // ---------- importer maps font_scale ----------
   await page.goto(APP + '#/settings')
-  await page.waitForSelector('.nh-hpimport__row', { timeout: 15000 })
+  // Anchor on the section's own heading, not on the "found on this server" row: that row only
+  // renders when the server happens to have a HABPanel configuration, and this check imports a
+  // FILE, which needs no such thing. Keyed on the row it could only ever run on a server that
+  // had HABPanel installed.
+  const hpSection = page.locator('section:has(h2:text-is("Migrate from HABPanel"))')
+  await hpSection.waitFor({ timeout: 15000 })
   const synthetic = {
     dashboards: [
       {
@@ -235,8 +240,8 @@ try {
       },
     ],
   }
-  await page
-    .locator('section:has(.nh-hpimport__row) input[type="file"]')
+  await hpSection
+    .locator('input[type="file"]')
     .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
   const imported = await (await fetch(NS + '/' + encodeURIComponent(IMPORT_UID), { headers: AUTH })).json()

@@ -16,6 +16,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-lock'
 
@@ -56,14 +57,10 @@ async function makePage(browser, token) {
 }
 
 // ---------- pre-suite snapshot ----------
-const settingsBefore = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-const putSettings = async (config) => {
-  const res = await fetch(NS + '/settings', {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...settingsBefore, config }),
-  })
-  if (!res.ok) throw new Error('settings PUT failed: ' + res.status)
+const settingsBefore = await getSettings()
+const putSettings = async (patch) => {
+  const res = await patchSettings(settingsBefore, patch)
+  if (!res.ok) throw new Error('settings write failed: ' + res.status)
 }
 
 const browser = await launch()
@@ -73,7 +70,7 @@ try {
   // The lock is the server owner's setting, not ours: on a live server it may already be on,
   // and the sections below describe what a device sees with it OFF. So establish that rather
   // than assert it - the snapshot above is restored verbatim at the end either way.
-  await putSettings({ ...settingsBefore.config, lockEditing: false })
+  await putSettings({ lockEditing: false })
 
   // ---------- seed (nothing commandable) ----------
   const seed = await fetch(NS, {
@@ -155,7 +152,7 @@ try {
   ok('user-level: pencil leads to sign-in, not a doomed editor', (await user.page.locator('.nh-dash__title:has-text("Editing")').count()) === 0)
 
   // ================= lock ON =================
-  await putSettings({ ...settingsBefore.config, lockEditing: true })
+  await putSettings({ lockEditing: true })
 
   await anon.page.goto(APP + '#/d/nh-e2e-lock')
   await anon.page.reload({ waitUntil: 'domcontentloaded' })
@@ -225,25 +222,17 @@ try {
   }
 } finally {
   // ---------- cleanup: settings verbatim, seed deleted ----------
-  try {
-    const res = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsBefore),
-    })
-    console.log('cleanup: settings restored', res.status)
-  } catch (e) {
-    console.log('cleanup: settings restore FAILED', e)
-  }
+  const settingsBack = await restoreSettings(settingsBefore).catch((e) => ({ mode: 'restore FAILED', detail: String(e) }))
+  console.log(`cleanup: settings ${settingsBack.mode} (${settingsBack.detail})`)
   try {
     const res = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
     console.log('cleanup: seed deleted', res.status)
   } catch (e) {
     console.log('cleanup: seed delete FAILED', e)
   }
-  const after = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-  const norm = (o) => JSON.stringify({ ...o, timestamp: undefined })
-  ok('cleanup: settings content identical', norm(after) === norm(settingsBefore))
+  const after = await getSettings()
+  const norm = (o) => (o ? JSON.stringify({ ...o, timestamp: undefined }) : '(no settings component)')
+  ok('cleanup: settings content identical', norm(after) === norm(settingsBefore), norm(after))
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
   ok('cleanup: no leftovers', !uids.includes(UID))
 

@@ -21,6 +21,7 @@
  */
 import { chromium } from 'playwright-core'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -49,7 +50,7 @@ const PNG = Buffer.from(
 )
 
 const bgUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid).filter((u) => u.startsWith('background:'))
-const settingsBefore = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+const settingsBefore = await getSettings()
 const bgUidsBefore = await bgUids()
 
 const seed = async (id, name, config = {}) => {
@@ -91,7 +92,7 @@ try {
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL)
   await sleep(1200)
-  const savedSettings = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const savedSettings = await getSettings()
   ok('global background persisted', savedSettings.config.background === GLOBAL_URL, String(savedSettings.config.background))
 
   await page.goto(APP + '#/')
@@ -116,7 +117,7 @@ try {
     const inp = document.querySelector('#nh-set-bg')
     return inp && inp.placeholder.includes('KB')
   }, { timeout: 15000 })
-  const afterUpload = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const afterUpload = await getSettings()
   ok('upload stored as a bg: reference', /^bg:/.test(afterUpload.config.background ?? ''), String(afterUpload.config.background))
   const uploaded = await bgUids()
   ok('one background component created', uploaded.length === bgUidsBefore.length + 1, uploaded.join(','))
@@ -238,7 +239,7 @@ try {
     .locator('section:has(h2:text-is("Migrate from HABPanel")) input[type="file"]')
     .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
-  const importedSettings = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const importedSettings = await getSettings()
   ok('importer set the global background', importedSettings.config.background === 'https://example.invalid/habpanel-bg.jpg', String(importedSettings.config.background))
   ok('import report mentions the background', (await page.locator('.nh-report__item:has-text("background")').count()) >= 1)
 
@@ -246,16 +247,8 @@ try {
   const realErrs = errs.filter((e) => !/ERR_NAME_NOT_RESOLVED/.test(e))
   ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } finally {
-  try {
-    const res = await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(settingsBefore),
-    })
-    console.log('cleanup: settings restored', res.status)
-  } catch (e) {
-    console.log('cleanup: settings restore FAILED', e)
-  }
+  const settingsBack = await restoreSettings(settingsBefore).catch((e) => ({ ok: false, mode: 'restore FAILED', detail: String(e) }))
+  console.log(`cleanup: settings ${settingsBack.mode} (${settingsBack.detail})`)
   for (const uid of ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', HELD_DASH, 'dashboard:synthbg']) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
@@ -263,7 +256,7 @@ try {
   for (const uid of await bgUids()) {
     if (!bgUidsBefore.includes(uid)) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
   }
-  const after = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const after = await getSettings()
   const norm = (o) => JSON.stringify({ ...o, timestamp: undefined })
   ok('cleanup: settings content identical', norm(after) === norm(settingsBefore))
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)

@@ -5,6 +5,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const JSON_HDR = { ...AUTH, 'Content-Type': 'application/json' }
 
@@ -18,7 +19,7 @@ const sendCmd = (item, cmd) =>
 // ---- original states + settings to restore ----
 const origSwitch = await getState(ITEMS.switch)
 const origLevel = await getState(ITEMS.dimmer)
-const origSettings = await (await fetch(NS + '/settings')).json()
+const origSettings = await getSettings()
 
 const TEMP_UIDS = ['widgetdef:nh-e2e-tpl', 'widgetdef:nh-e2e-js', 'dashboard:nh-e2e-tpltest']
 const post = (body) => fetch(NS, { method: 'POST', headers: JSON_HDR, body: JSON.stringify(body) })
@@ -157,18 +158,14 @@ try {
   ok('sandbox iframe present by default', (await page.locator('iframe.nh-template__frame').count()) === 1)
 
   // an administrator can still stop them running
-  await fetch(NS + '/settings', {
-    method: 'PUT',
-    headers: JSON_HDR,
-    body: JSON.stringify({ ...origSettings, config: { ...origSettings.config, allowJsWidgets: false } }),
-  })
+  await patchSettings(origSettings, { allowJsWidgets: false })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await sleep(1500)
   ok('turning them off shows the notice', await page.locator('.nh-template__text:has-text("disabled")').isVisible())
   ok('no sandbox iframe while off', (await page.locator('iframe.nh-template__frame').count()) === 0)
 
   // back to the stored settings (no key at all = the default, on)
-  await fetch(NS + '/settings', { method: 'PUT', headers: JSON_HDR, body: JSON.stringify(origSettings) })
+  await restoreSettings(origSettings)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('iframe.nh-template__frame', { timeout: 15000 })
   const frame = page.frameLocator('iframe.nh-template__frame')
@@ -201,12 +198,11 @@ try {
 for (const uid of TEMP_UIDS) {
   await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
 }
-await fetch(NS + '/settings', { method: 'PUT', headers: JSON_HDR, body: JSON.stringify(origSettings) })
 await sendCmd(ITEMS.switch, origSwitch)
 await sendCmd(ITEMS.dimmer, origLevel)
 await sleep(1500)
-const finalSettings = await (await fetch(NS + '/settings')).json()
-ok('settings restored', JSON.stringify(finalSettings.config) === JSON.stringify(origSettings.config), JSON.stringify(finalSettings.config))
+const settingsBack = await restoreSettings(origSettings)
+ok(`settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 // Scoped to what THIS suite made: asserting on every `nh-e2e` component made one suite's stray
 // leftover fail three unrelated suites in the same battery run.
 const left = (await (await fetch(NS)).json()).filter((c) => TEMP_UIDS.includes(c.uid))

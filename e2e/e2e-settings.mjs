@@ -88,6 +88,11 @@ try {
   ok('dropdown button is visible', await page.locator('.nh-picker__toggle').isVisible())
   await page.locator('.nh-picker__toggle').click()
   await page.waitForSelector('.nh-picker__list', { timeout: 3000 })
+  // The list appears saying "Loading items..." and fills in when the catalog lands - about 440ms
+  // against a 3000-item server, and invisibly fast against a small one. Counting the moment the
+  // list exists reads 0 on a big install and passes everywhere else, which is the worst kind of
+  // check: green on the servers where it does not matter.
+  await page.waitForSelector('.nh-picker__option', { timeout: 15000 }).catch(() => {})
   const optionCount = await page.locator('.nh-picker__option').count()
   ok('dropdown lists color items', optionCount >= 1, `options=${optionCount}`)
   const firstMeta = await page.locator('.nh-picker__option .nh-picker__meta').first().textContent()

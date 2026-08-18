@@ -10,6 +10,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-sticons'
 const UID2 = 'dashboard:nh-e2e-sticons2'
@@ -37,7 +38,7 @@ const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 const dimmerNow = Math.round(Number(dimmerOrig))
 const switchState = (await getItem(ITEMS.switch)).state // never commanded, only matched
-const settingsBefore = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+const settingsBefore = await getSettings()
 console.log(`snapshot: ${dimmer}=${dimmerOrig}, ${ITEMS.switch}=${switchState}, theme=${settingsBefore?.config?.theme}`)
 
 const lowIcon = 'mdi:lightbulb-outline'
@@ -215,7 +216,7 @@ try {
   ok('override applies instantly (OLED black)', bgOverride === 'rgb(0, 0, 0)', bgOverride)
   ok('override hint shown', (await page.locator('text=This device keeps its own theme').count()) === 1)
 
-  const settingsMid = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const settingsMid = await getSettings()
   ok('shared theme setting untouched', settingsMid?.config?.theme === settingsBefore?.config?.theme, String(settingsMid?.config?.theme))
 
   await page.reload({ waitUntil: 'domcontentloaded' })

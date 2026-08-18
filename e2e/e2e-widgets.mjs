@@ -7,7 +7,7 @@
  * widgets for real -> delete everything via REST so the VM stays pristine.
  */
 import { chromium } from 'playwright-core'
-import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
+import { BASE, APP, NS, TOKEN, ITEMS, isAppResource } from './lib/target.mjs'
 
 
 // WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
@@ -49,7 +49,15 @@ const initialStates = {
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
 const consoleErrors = []
-page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
+// Record the URL with the text: "Failed to load resource: 404" names nothing on its own, and a
+// failure nobody can act on is barely a failure. A resource that is not ours belongs to whatever
+// the server's own configuration references, not to the app.
+page.on('console', (m) => {
+  if (m.type() !== 'error') return
+  const url = m.location()?.url ?? ''
+  if (url && !isAppResource(url)) return
+  consoleErrors.push(m.text() + (url ? ' <- ' + url : ''))
+})
 page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => localStorage.setItem('neohab:apiToken', t), TOKEN)

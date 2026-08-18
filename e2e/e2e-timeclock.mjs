@@ -11,6 +11,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-timeclock'
 const IMPORTED = 'dashboard:nh-e2e-hpx'
@@ -34,10 +35,7 @@ function launch() {
 }
 
 // ---------- snapshots ----------
-const settingsOrig = await (async () => {
-  const r = await fetch(NS + '/settings', { headers: AUTH })
-  return r.ok ? r.json() : null
-})()
+const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 console.log(`snapshot: ${dimmer}=${dimmerOrig}, settings ${settingsOrig ? 'present' : 'absent'}`)
@@ -241,7 +239,7 @@ try {
   )
   ok('timeline period mapped', w0?.config?.period === '24h', String(w0?.config?.period))
   ok('capitalized Analog mode imported as analog clock', w1?.type === 'clock' && w1?.config?.mode === 'analog', JSON.stringify(w1?.config))
-  const settingsNow = await (await fetch(NS + '/settings', { headers: AUTH })).json()
+  const settingsNow = await getSettings()
   ok('speech item imported into settings', settingsNow?.config?.speechItem === 'NH_E2E_Speech', String(settingsNow?.config?.speechItem))
 
   const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
@@ -255,18 +253,8 @@ try {
 // ---------- cleanup (always) ----------
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + IMPORTED, { method: 'DELETE', headers: AUTH })
-if (settingsOrig) {
-  await fetch(NS + '/settings', {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify(settingsOrig),
-  })
-  const settingsAfter = await (await fetch(NS + '/settings', { headers: AUTH })).json()
-  const strip = (c) => JSON.stringify({ ...c, timestamp: undefined })
-  ok('cleanup: settings restored verbatim', strip(settingsAfter) === strip(settingsOrig))
-} else {
-  await fetch(NS + '/settings', { method: 'DELETE', headers: AUTH })
-}
+const settingsBack = await restoreSettings(settingsOrig)
+ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 await postItem(dimmer, dimmerOrig)
 await sleep(1200)
 const dimmerAfter = (await getItem(dimmer)).state

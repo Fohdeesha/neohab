@@ -8,6 +8,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { getSettings, putComponent, restoreSettings } from './lib/components.mjs'
 
 const JSON_HDR = { ...AUTH, 'Content-Type': 'application/json' }
 
@@ -17,7 +18,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`)).text()
 
 const origLevel = await getState(ITEMS.dimmer)
-const origSettingsComp = await (await fetch(NS + '/settings')).json()
+const origSettingsComp = await getSettings()
 const TEMP_UIDS = ['dashboard:nh-corner-edit', 'dashboard:nh-corner-tpl', 'widgetdef:nh-corner-missingref']
 
 // temp dashboards
@@ -202,8 +203,17 @@ await section('3', async () => {
   await initToken(page, TOKEN)
 
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.nh-tile')
-  ok('3. home renders on phone', (await page.locator('.nh-tile').count()) >= 12)
+  // What matters on a phone is that Home lays out and does not scroll sideways. How MANY tiles
+  // there are is the server owner's business: this used to require twelve, which is a fact about
+  // one particular install and fails on every other one, including a fresh server whose Home is
+  // the welcome card.
+  await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 })
+  const home = await page.evaluate(() => ({
+    tiles: document.querySelectorAll('.nh-tile').length,
+    welcome: document.querySelectorAll('.nh-welcome').length,
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  }))
+  ok('3. home renders on phone', (home.tiles > 0 || home.welcome === 1) && home.overflow <= 0, JSON.stringify(home))
 
   await page.goto(APP + '#/d/nh-corner-edit', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-grid--stacked', { timeout: 10000 })
@@ -304,14 +314,10 @@ await section('5', async () => {
   // on, a non-admin device correctly has no pencil at all and the section would time out on a
   // server that is configured exactly as intended. e2e-lock covers the locked behaviour, and
   // this suite's cleanup restores the settings component verbatim either way.
-  if (origSettingsComp.config?.lockEditing === true) {
+  if (origSettingsComp?.config?.lockEditing === true) {
     const unlocked = { ...origSettingsComp.config }
     delete unlocked.lockEditing
-    await fetch(NS + '/settings', {
-      method: 'PUT',
-      headers: JSON_HDR,
-      body: JSON.stringify({ ...origSettingsComp, config: unlocked }),
-    })
+    await putComponent(NS, { ...origSettingsComp, config: unlocked })
   }
 
   const anon = await browser.newPage({ viewport: { width: 1300, height: 900 } })
@@ -418,7 +424,11 @@ await section('8', async () => {
     await page.waitForSelector('.nh-widget, .nh-dash__empty', { timeout: 15000 })
     await sleep(350)
   }
-  ok(`8. all ${ids.length} live dashboards render in fast succession`, ids.length > 0)
+  // A server with no dashboards of its own is a legitimate target (a fresh install), and there
+  // is then nothing to switch between. Say so rather than failing, so the section reports what it
+  // actually covered.
+  if (ids.length === 0) ok('8. live dashboards (SKIPPED: this server has none of its own)', true)
+  else ok(`8. all ${ids.length} live dashboards render in fast succession`, true)
   const realConsole = consoleErrs.filter((e) => !/ERR_NAME_NOT_RESOLVED|ERR_CONNECTION|ERR_ADDRESS|net::|404 |Failed to load resource|Blocked autofocusing/.test(e))
   ok('8. no page errors', errs.length === 0, errs.join(' | '))
   ok('8. no app console errors (LAN loads excluded)', realConsole.length === 0, realConsole.slice(0, 3).join(' | '))
@@ -431,13 +441,12 @@ await browser.close()
 for (const uid of TEMP_UIDS) {
   await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
 }
-await fetch(NS + '/settings', { method: 'PUT', headers: JSON_HDR, body: JSON.stringify(origSettingsComp) })
 await fetch(`${BASE}/rest/items/${ITEMS.dimmer}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: origLevel })
 await sleep(1200)
 const leftover = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-corner'))
 ok('cleanup: temp components removed', leftover.length === 0, `left=${leftover.length}`)
-const settingsNow = await (await fetch(NS + '/settings')).json()
-ok('cleanup: settings restored', JSON.stringify(settingsNow.config) === JSON.stringify(origSettingsComp.config), JSON.stringify(settingsNow.config))
+const settingsBack = await restoreSettings(origSettingsComp)
+ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 ok('cleanup: item restored', (await getState(ITEMS.dimmer)) === origLevel)
 
 let allPass = true

@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { BASE } from './lib/target.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -92,6 +93,22 @@ if (overlap.length > 0) {
   process.exit(2)
 }
 
+/**
+ * Say which server and which build this run is about. The battery runs against openHAB 4.x AND
+ * 5.x, and a log that names neither cannot be compared with the other one - the first 5.x run
+ * turned out to have been against a different bundle entirely.
+ */
+const version = await fetch(BASE + '/rest/')
+  .then((r) => r.json())
+  .then((j) => j.runtimeInfo?.version ?? '?')
+  .catch(() => '?')
+const bundle = await fetch(BASE + '/neohab/index.html')
+  .then((r) => r.text())
+  .then((t) => t.match(/assets[/]index-[A-Za-z0-9_-]+[.]js/)?.[0] ?? '(no bundle named in index.html)')
+  .catch((e) => '(index.html unreadable: ' + e.message + ')')
+const banner = `target: ${BASE}  |  openHAB ${version}  |  ${bundle}`
+console.log(banner)
+
 const only = process.argv.slice(2)
 const suites = only.length > 0 ? only.map((s) => s.replace(/\.mjs$/, '')) : SAFE_SUITES
 
@@ -110,5 +127,6 @@ for (const r of results) {
   if (r.code !== 0) failed++
   console.log(`${r.code === 0 ? 'PASS' : 'FAIL'}  ${r.suite}  (${r.secs}s)`)
 }
+console.log(banner)
 console.log(failed === 0 ? `\nALL ${results.length} SUITES PASS` : `\n${failed} of ${results.length} suites FAILED`)
 process.exitCode = failed === 0 ? 0 : 1

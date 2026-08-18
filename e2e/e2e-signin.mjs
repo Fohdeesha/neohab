@@ -148,8 +148,12 @@ try {
 
     // a real admin write through the session token: create a dashboard, verify, delete it
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-    await page.waitForSelector('.nh-tile--new', { timeout: 10000 })
-    await page.click('.nh-tile--new')
+    // The "+" tile on a server that has dashboards, the welcome card's button on one that has
+    // none: both lead to the same sheet, and the point here is the admin WRITE, not which
+    // affordance got us there.
+    await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 10000 })
+    const viaTile = (await page.locator('.nh-tile--new').count()) === 1
+    await page.click(viaTile ? '.nh-tile--new' : '.nh-welcome__actions button:has-text("Create your first dashboard")')
     await page.waitForSelector('#nh-newdash-name', { timeout: 5000 })
     await page.fill('#nh-newdash-name', 'nh-e2e-pkce')
     await page.click('button:has-text("Create dashboard")')

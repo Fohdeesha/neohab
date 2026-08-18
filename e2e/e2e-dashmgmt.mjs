@@ -33,9 +33,14 @@ await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', 
 try {
   // ---------- create from Home ----------
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.nh-tile--new', { timeout: 15000 })
-  ok('new-dashboard tile on Home', true)
-  await page.click('.nh-tile--new')
+  // How you reach "create" depends on what the server already has: the "+" tile beside the
+  // existing dashboards, or the welcome card's button on a server with none. Both are real
+  // entry points, so take whichever this server offers rather than assuming a lived-in one.
+  await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 15000 })
+  const viaTile = (await page.locator('.nh-tile--new').count()) === 1
+  ok('a way to create a dashboard on Home', viaTile || (await page.locator('.nh-welcome').count()) === 1,
+    viaTile ? 'the + tile' : 'the welcome card')
+  await page.click(viaTile ? '.nh-tile--new' : '.nh-welcome__actions button:has-text("Create your first dashboard")')
   await page.waitForSelector('#nh-newdash-name', { timeout: 5000 })
   await page.fill('#nh-newdash-name', 'nh-e2e-mgmt')
   await page.click('button:has-text("Create dashboard")')
