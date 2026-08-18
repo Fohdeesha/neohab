@@ -210,12 +210,18 @@ try {
   )
 
   // ---------- tooltip ----------
+  // Polled, with the cursor re-nudged each round: a hover that fires before both series have
+  // been applied lists only one row, and under battery load a single 300ms sample caught
+  // exactly that frame. The cap keeps the assertion able to fail.
   const canvasBox = await (await page.$(chartSel(CELL.multi) + ' canvas')).boundingBox()
-  await page.mouse.move(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height * 0.5)
-  await sleep(300)
+  let ttRows = 0
+  for (let i = 0; i < 20 && ttRows < 2; i++) {
+    await page.mouse.move(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height * 0.5 + (i % 2))
+    await sleep(250)
+    ttRows = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
+  }
   const tt = page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show')
   ok('crosshair tooltip appears on hover', (await tt.count()) === 1)
-  const ttRows = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
   ok('tooltip lists the series under the cursor', ttRows >= 2, `rows=${ttRows}`)
   const ttTime = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-time').textContent()
   ok('tooltip has a time header', !!ttTime && ttTime.trim().length > 4, ttTime ?? '')

@@ -2,11 +2,11 @@
  * Sign-in flow e2e: the "Log in with openHAB" button must actually START the PKCE flow -
  * navigate to the core-served /auth login page with a well-formed S256 challenge - from
  * Settings > Account, on ANY origin. (The dashboard pencil used to be a second entry point;
- * it is not one any more: a view-only device has no pencil at all, and with anonymous editing
- * allowed the pencil goes straight into the editor - e2e-lock proves both.) On plain-HTTP
- * origins SubtleCrypto does not exist, and a missing fallback once left the button silently
- * dead (found by a user, not by the suites - hence this suite). Also proves a failure inside
- * authorize() surfaces as a notice instead of vanishing into an unhandled rejection.
+ * it is not one any more: a view-only device has no pencil at all - e2e-lock proves it.)
+ * On plain-HTTP origins SubtleCrypto does not exist, and a missing fallback once left the
+ * button silently dead (found by a user, not by the suites - hence this suite). Also proves a
+ * failure inside authorize() surfaces as a notice instead of vanishing into an unhandled
+ * rejection.
  *
  * When the target configuration provides a throwaway login (`user` in target.local.json, see
  * README), the FULL exchange runs too: credentials into the server's form, redirect back,
@@ -88,8 +88,7 @@ try {
   }
 
   // The dashboard pencil is deliberately NOT exercised here any more: a view-only device has
-  // no pencil, and with anonymous editing allowed it opens the editor rather than a sign-in.
-  // Both behaviours (and Settings > Account remaining the way in) are proven by e2e-lock.
+  // no pencil at all. That (and Settings > Account remaining the way in) is proven by e2e-lock.
 
   // ---------- the full credential exchange (needs the throwaway login) ----------
   if (!TEST_USER) {

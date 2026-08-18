@@ -8,7 +8,7 @@
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
-import { getSettings, putComponent, restoreSettings } from './lib/components.mjs'
+import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const JSON_HDR = { ...AUTH, 'Content-Type': 'application/json' }
 
@@ -308,38 +308,18 @@ await section('4b', async () => {
 
 /* ============ 5. anonymous viewer + invalid token ============ */
 await section('5', async () => {
-  // By default a device that is not signed in as an administrator gets a view-only panel: the
-  // widgets are live but there is no pencil. The admin-only "Anonymous editing" switch opens
-  // the editor to everyone, and the pencil then goes straight in with no sign-in sheet. Both
-  // states are established here rather than assumed - the setting belongs to whoever runs the
-  // server - and this suite's cleanup restores the settings component verbatim either way.
-  // e2e-lock covers the model in depth.
-  const stripped = { ...(origSettingsComp?.config ?? { version: 1 }) }
-  delete stripped.lockEditing
-  delete stripped.allowAnonymousEditing
-  const base = origSettingsComp
-    ? { ...origSettingsComp, config: stripped }
-    : { uid: 'settings', component: 'neohab:settings', config: stripped }
-  await putComponent(NS, base)
-
+  // A device that is not signed in as an administrator gets a view-only panel: the widgets are
+  // live but there is no pencil, and no server setting can change that (the retired lockEditing
+  // and anonymous-editing keys are ignored - e2e-lock proves it by writing them). So there is
+  // no precondition to establish here at all.
   const anon = await browser.newPage({ viewport: { width: 1300, height: 900 } })
   const errs = []
   anon.on('pageerror', (e) => errs.push(String(e.message)))
   await anon.goto(APP + '#/d/nh-corner-edit', { waitUntil: 'domcontentloaded' })
   await anon.waitForSelector('.nh-grid')
   ok('5. anonymous viewing works', (await anon.locator('.nh-widget').count()) === 3)
-  ok('5. anonymous viewer gets no pencil by default', (await anon.locator('[aria-label="Edit dashboard"]').count()) === 0)
-
-  await putComponent(NS, { ...base, config: { ...stripped, allowAnonymousEditing: true } })
-  await anon.reload({ waitUntil: 'domcontentloaded' })
-  await anon.waitForSelector('.nh-grid')
-  await anon.click('[aria-label="Edit dashboard"]').catch(() => {})
-  const entered = await anon.waitForSelector('.nh-grid--edit', { timeout: 10000 }).then(() => true).catch(() => false)
-  ok('5. with anonymous editing allowed, the pencil goes straight into the editor', entered)
-  ok('5. no sign-in sheet in the way', (await anon.locator('.nh-signin').count()) === 0)
+  ok('5. anonymous viewer gets no pencil', (await anon.locator('[aria-label="Edit dashboard"]').count()) === 0)
   await anon.close()
-
-  await putComponent(NS, base)
 
   const badTok = await browser.newPage({ viewport: { width: 1300, height: 900 } })
   const errs2 = []

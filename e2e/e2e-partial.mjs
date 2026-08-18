@@ -216,7 +216,7 @@ try {
     ...dashFile,
     components: [
       ...dashFile.components,
-      { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'oled', allowAnonymousEditing: true } },
+      { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'oled', sidebar: false } },
     ],
   })
   const strayNotice = await noticeOrCard()
