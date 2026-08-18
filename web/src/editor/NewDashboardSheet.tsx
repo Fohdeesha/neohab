@@ -1,6 +1,8 @@
 /**
  * Create a new empty dashboard: display name → URL-safe id, persisted to the server
- * immediately (creation is gated on being signed in, like entering edit mode).
+ * immediately (the way here is gated like the edit pencil: administrators, or anyone once
+ * anonymous editing is allowed - in which case the server may still refuse the save, and the
+ * error below says so).
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'

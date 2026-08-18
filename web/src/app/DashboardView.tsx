@@ -25,8 +25,7 @@ import {
   toClipboardWidget,
   useClipboardStore,
 } from '../store/clipboard'
-import { isLoggedIn } from '../api/auth'
-import { useAuthStore, useEditingAllowed } from '../store/auth'
+import { editingAllowed, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
@@ -173,9 +172,9 @@ export function DashboardView({ id }: { id: string }) {
   }
 
   const enterEdit = () => {
-    // Signed in but definitively not an administrator: the save would only ever fail, so ask
-    // for admin credentials up front. An 'unknown' probe result never blocks a signed-in user.
-    if (isLoggedIn() && useAuthStore.getState().status !== 'user') startEditing(dashboard)
+    // An administrator (or anyone, when anonymous editing is allowed) goes straight into the
+    // editor; otherwise ask for credentials up front rather than after the work.
+    if (editingAllowed()) startEditing(dashboard)
     else setSignInOpen(true)
   }
 

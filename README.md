@@ -132,8 +132,9 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 - **As many tabs as you like.** Browsers allow only a handful of connections per server, so
   several dashboards would normally leave one frozen on stale values. neohab shares a single
   connection across the whole browser, and says so if updates ever stop arriving.
-- **View-only devices.** An editing lock hides every editing control from devices not signed in as
-  an administrator. Wall panels and guests get a clean read-only dashboard.
+- **View-only by default.** Like openHAB's own UIs, devices not signed in as an administrator get
+  a clean read-only panel: buttons and sliders still work, but dashboards, themes, presets and
+  settings cannot be changed. A settings switch can open editing to everyone instead.
 - **Away from home.** Works behind a reverse proxy or openHAB Cloud. Credentials are kept in
   memory for the session, never written to the device. Inside the official openHAB phone app it
   picks them up by itself.

@@ -72,11 +72,13 @@ export interface AppSettings {
    */
   controlItem?: string
   /**
-   * Hide all editing affordances from devices that are not signed in as an administrator
-   * (wall panels, guests). Administrator devices are never affected; a locked device can
-   * still sign in via Settings > Account. Off by default so a fresh install can be edited.
+   * Show the editing affordances to devices that are NOT signed in as an administrator. Off
+   * by default: like openHAB's own UIs, visitors get a view-only panel (widgets still work,
+   * nothing about the panel can be changed) until they sign in via Settings > Account.
+   * Turning this on shows every editing control to everyone; the server still decides which
+   * writes it accepts. Replaces the old `lockEditing` key, which is ignored if present.
    */
-  lockEditing?: boolean
+  allowAnonymousEditing?: boolean
   /**
    * Default background image behind every dashboard and the Home screen - a URL, or
    * `bg:<id>` for an uploaded one. A dashboard's own `background` overrides it.

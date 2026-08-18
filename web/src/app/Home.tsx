@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import { useKioskMode } from '../store/kiosk'
 import { appExitToApp, appPinToHome, canExitToApp, canPinToHome } from './ohapp'
-import { isLoggedIn } from '../api/auth'
-import { useAuthStore, useEditingAllowed } from '../store/auth'
+import { editingAllowed, useEditingAllowed } from '../store/auth'
 import { navigate } from './router'
 import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
@@ -27,18 +26,22 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
   /** Which sheet the sign-in prompt was standing in for, so signing in resumes what was asked. */
-  const [afterSignIn, setAfterSignIn] = useState<'new' | 'generate'>('new')
+  const [afterSignIn, setAfterSignIn] = useState<'new' | 'generate' | 'none'>('none')
 
   const start = (what: 'new' | 'generate') => {
-    // The same test the dashboard's edit pencil makes: signed in but definitively NOT an
-    // administrator means the save at the end can only fail, so ask for credentials up front
-    // rather than after the work. An 'unknown' probe result never blocks a signed-in user.
-    const canSave = isLoggedIn() && useAuthStore.getState().status !== 'user'
-    if (!canSave) {
+    // The same test the dashboard's edit pencil makes: an administrator (or anyone, when
+    // anonymous editing is allowed) goes straight in; otherwise ask for credentials up front
+    // rather than after the work.
+    if (!editingAllowed()) {
       setAfterSignIn(what)
       setSignInOpen(true)
     } else if (what === 'new') setNewOpen(true)
     else setGenerateOpen(true)
+  }
+  const openSignIn = () => {
+    // A plain sign-in, standing in for nothing: finishing it should not pop a sheet nobody asked for.
+    setAfterSignIn('none')
+    setSignInOpen(true)
   }
   const createFirst = () => start('new')
   const generateFirst = () => start('generate')
@@ -74,18 +77,22 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
                 {t('This openHAB server needs you to sign in before it will show anything.')}
               </p>
               <div className="nh-welcome__actions">
-                <button type="button" className="nh-btn nh-btn--primary" onClick={() => setSignInOpen(true)}>
+                <button type="button" className="nh-btn nh-btn--primary" onClick={openSignIn}>
                   {t('Sign in')}
                 </button>
               </div>
             </>
           ) : error ? (
             <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
-          ) : (
+          ) : canEdit ? (
             <p className="nh-welcome__text">
               {t(
                 'There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.'
               )}
+            </p>
+          ) : (
+            <p className="nh-welcome__text">
+              {t('There are no dashboards yet. Sign in as an openHAB administrator to set neohab up.')}
             </p>
           )}
           {canEdit && !authRequired ? (
@@ -101,6 +108,13 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               </button>
               <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
                 {t('Restore a backup')}
+              </button>
+            </div>
+          ) : null}
+          {!canEdit && !authRequired && !error ? (
+            <div className="nh-welcome__actions">
+              <button type="button" className="nh-btn nh-btn--primary" onClick={openSignIn}>
+                {t('Sign in')}
               </button>
             </div>
           ) : null}
@@ -167,7 +181,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
           onToken={() => {
             setSignInOpen(false)
             if (afterSignIn === 'generate') setGenerateOpen(true)
-            else setNewOpen(true)
+            else if (afterSignIn === 'new') setNewOpen(true)
           }}
         />
       ) : null}

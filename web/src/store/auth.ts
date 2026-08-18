@@ -97,13 +97,22 @@ export function useIsAdmin(): boolean {
  * Should this device show editing affordances (the dashboard pencil, the new-dashboard tile,
  * the config-changing Settings sections)?
  *
- * Administrators always edit. Without the `lockEditing` setting everyone still sees the
- * affordances - tapping them prompts for a sign-in, which is how a fresh install gets edited
- * in the first place. With the lock on, non-admin devices show none of it (Settings > Account
- * remains the way to sign in on such a device).
+ * Administrator devices always edit. Every other device gets a view-only panel - widgets
+ * still work, nothing about the panel itself can be changed, and Settings > Account is the
+ * way to sign in - unless the shared `allowAnonymousEditing` setting is on, which shows the
+ * editing controls to everyone. Either way the server keeps enforcing its own roles on every
+ * write; this only decides what renders.
  */
 export function useEditingAllowed(): boolean {
   const admin = useAuthStore((s) => s.status === 'admin')
-  const locked = useConfigStore((s) => s.settings.lockEditing === true)
-  return admin || !locked
+  const open = useConfigStore((s) => s.settings.allowAnonymousEditing === true)
+  return admin || open
+}
+
+/** The same answer outside a component, for handlers deciding between the editor and a sign-in. */
+export function editingAllowed(): boolean {
+  return (
+    useAuthStore.getState().status === 'admin' ||
+    useConfigStore.getState().settings.allowAnonymousEditing === true
+  )
 }

@@ -76,50 +76,56 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
           </p>
         ) : null}
 
-        <div className="nh-themes">
-          {listThemes(customThemes).map((theme) => (
-            <div key={theme.id} className={'nh-theme' + (settings.theme === theme.id ? ' nh-theme--active' : '')}>
-              <button type="button" className="nh-theme__pick" onClick={() => void choose(theme.id)}>
-                <span className="nh-theme__dots">
-                  {(['bg', 'surface', 'primary', 'brand'] as const).map((k) => (
-                    <span key={k} className="nh-theme__dot" style={{ background: theme.tokens[k] }} />
-                  ))}
-                </span>
-                <span className="nh-theme__name">{theme.name}</span>
-              </button>
-              {canEdit && customThemes.includes(theme) ? (
-                <>
-                  <button
-                    type="button"
-                    className="nh-theme__export"
-                    aria-label={t('Export theme {{name}}', { name: theme.name })}
-                    title={t('Export this theme as a file')}
-                    onClick={() => void exportComponent('theme', theme.id, onNotice)}
-                  >
-                    ⭳
+        {/* The cards set the SHARED theme - panel configuration, so view-only devices do not
+            get them. Their own way to a different look is the per-device select below. */}
+        {canEdit ? (
+          <>
+            <div className="nh-themes">
+              {listThemes(customThemes).map((theme) => (
+                <div key={theme.id} className={'nh-theme' + (settings.theme === theme.id ? ' nh-theme--active' : '')}>
+                  <button type="button" className="nh-theme__pick" onClick={() => void choose(theme.id)}>
+                    <span className="nh-theme__dots">
+                      {(['bg', 'surface', 'primary', 'brand'] as const).map((k) => (
+                        <span key={k} className="nh-theme__dot" style={{ background: theme.tokens[k] }} />
+                      ))}
+                    </span>
+                    <span className="nh-theme__name">{theme.name}</span>
                   </button>
-                  <button
-                    type="button"
-                    className="nh-theme__edit"
-                    aria-label={t('Edit theme {{name}}', { name: theme.name })}
-                    onClick={() => setEditing(structuredClone(theme))}
-                  >
-                    ✎
-                  </button>
-                </>
-              ) : null}
+                  {customThemes.includes(theme) ? (
+                    <>
+                      <button
+                        type="button"
+                        className="nh-theme__export"
+                        aria-label={t('Export theme {{name}}', { name: theme.name })}
+                        title={t('Export this theme as a file')}
+                        onClick={() => void exportComponent('theme', theme.id, onNotice)}
+                      >
+                        ⭳
+                      </button>
+                      <button
+                        type="button"
+                        className="nh-theme__edit"
+                        aria-label={t('Edit theme {{name}}', { name: theme.name })}
+                        onClick={() => setEditing(structuredClone(theme))}
+                      >
+                        ✎
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* The cards set the SHARED theme, so the highlighted one is not necessarily the one on
-            screen. Say so, or the highlight reads as a bug. */}
-        {activeTheme.id !== settings.theme ? (
-          <p className="nh-settings__text">
-            {t('The highlighted theme is the shared one. This device is showing “{{name}}” instead, set below.', {
-              name: activeTheme.name,
-            })}
-          </p>
+            {/* The cards set the SHARED theme, so the highlighted one is not necessarily the one
+                on screen. Say so, or the highlight reads as a bug. */}
+            {activeTheme.id !== settings.theme ? (
+              <p className="nh-settings__text">
+                {t('The highlighted theme is the shared one. This device is showing “{{name}}” instead, set below.', {
+                  name: activeTheme.name,
+                })}
+              </p>
+            ) : null}
+          </>
         ) : null}
 
         {canEdit ? (

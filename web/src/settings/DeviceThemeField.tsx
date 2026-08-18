@@ -31,7 +31,7 @@ export function DeviceThemeField() {
       </select>
       {override !== null ? (
         <span className="nh-field__hint">
-          {t('This device keeps its own theme; the cards above change the theme every other device shares.')}
+          {t('This device keeps its own theme; the theme every other device shares is unchanged.')}
         </span>
       ) : null}
     </label>

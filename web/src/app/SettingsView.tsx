@@ -22,15 +22,16 @@ import { HabpanelImport } from '../settings/HabpanelImport'
 import { GallerySection } from '../settings/GallerySection'
 import { BackupSection } from '../settings/BackupSection'
 import { HistorySection } from '../settings/HistorySection'
-import { EditingLockSection } from '../settings/EditingLockSection'
+import { AnonymousEditingSection } from '../settings/AnonymousEditingSection'
 import { AccountSection } from '../settings/AccountSection'
 import { AboutSection } from '../settings/AboutSection'
 
 export function SettingsView() {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
-  // With the editing lock on, non-admin devices get a viewer's Settings: appearance and the
-  // per-device options stay, everything that changes the server configuration goes away.
+  // Non-admin devices get a viewer's Settings by default: the per-device options stay,
+  // everything that changes the server configuration goes away (unless anonymous editing
+  // has been allowed, which is what useEditingAllowed answers).
   const canEdit = useEditingAllowed()
 
   return (
@@ -69,7 +70,7 @@ export function SettingsView() {
           </>
         ) : null}
 
-        <EditingLockSection onNotice={setNotice} />
+        <AnonymousEditingSection onNotice={setNotice} />
 
         <AccountSection onNotice={setNotice} />
 
