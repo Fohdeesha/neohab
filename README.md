@@ -60,7 +60,10 @@ translate it.
   palette onto the cell you want, multi-select (Ctrl/Cmd-click, Shift-click, marquee, long-press),
   copy and paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it
   is rejected; hold it there and the widgets in the way step aside. Escape backs out: first
-  whatever panel is open, then the selection, then edit mode itself.
+  whatever panel is open, then the selection, then edit mode itself. What you see while editing is
+  what a save produces: the editor's own chrome is drawn only on the widget you are pointing at,
+  and opening a settings panel zooms the grid out to make room rather than squeezing it into a
+  narrower dashboard.
 - **A closer look at any widget.** Hold a tile, or right-click it, and a sheet opens with the
   current value, when it last changed, recent history and a link to the item in Main UI. A tile is
   a deliberate summary; this answers what it has actually been doing, without leaving the

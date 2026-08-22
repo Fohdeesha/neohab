@@ -55,18 +55,24 @@ const at = (r) => (r ? `${r.x},${r.y} ${r.w}x${r.h}` : 'null')
 
 /**
  * Press the nth cell's handle and drag it by whole cells; caller dwells, asserts, releases.
- * The grid is re-measured every time: the settings panel takes 340px off the surface when it
- * is open, so the column pitch differs between drags.
+ *
+ * The grid is re-measured every time, and in DRAWN pixels: while a settings panel is docked the
+ * grid is laid out at its full run-mode width and zoomed to fit what is left (so the editor shows
+ * what a save will produce), which makes every pitch on screen the layout pitch times the zoom.
+ * The mouse moves in drawn pixels, so the row height - a layout number from the dashboard - has
+ * to be scaled the same way the measured width already is. Both are the plain values at zoom 1.
  */
 async function grabAndMove(i, dCols, dRows) {
-  const g = await page.locator('.nh-grid--edit').boundingBox()
-  const cellW = (g.width - GAP * (COLS - 1)) / COLS
+  const grid = page.locator('.nh-grid--edit')
+  const g = await grid.boundingBox()
+  const k = await grid.evaluate((el) => (el.offsetWidth > 0 ? el.getBoundingClientRect().width / el.offsetWidth : 1))
+  const cellW = (g.width - GAP * k * (COLS - 1)) / COLS
   const box = await page.locator('.nh-cell').nth(i).locator('.nh-cell__handle').boundingBox()
   const sx = box.x + box.width / 2
   const sy = box.y + box.height / 2
   await page.mouse.move(sx, sy)
   await page.mouse.down()
-  await page.mouse.move(sx + dCols * (cellW + GAP), sy + dRows * (ROW + GAP), { steps: 6 })
+  await page.mouse.move(sx + dCols * (cellW + GAP * k), sy + dRows * (ROW + GAP) * k, { steps: 6 })
 }
 const bumpedCount = () => page.locator('.nh-cell--bumped').count()
 const invalidCount = () => page.locator('.nh-drop--invalid').count()
@@ -134,6 +140,8 @@ try {
   const aBox = await page.locator('.nh-cell').nth(A).boundingBox()
   ok('delete sits at the cell top-right', dBox.y < aBox.y + 30 && dBox.x + dBox.width > aBox.x + aBox.width - 12, `x+w=${Math.round(dBox.x + dBox.width)} cell right=${Math.round(aBox.x + aBox.width)}`)
 
+  // the delete button accepts a press only while its cell's chrome is drawn (see e2e-copypaste)
+  await page.locator('.nh-cell').nth(6).hover()
   await page.locator('.nh-cell').nth(6).locator('.nh-cell__delete').click()
   await sleep(250)
   ok('delete removes the widget', (await page.locator('.nh-cell').count()) === 6, String(await page.locator('.nh-cell').count()))
@@ -254,6 +262,58 @@ try {
   ok('step 0.1 dial shows one decimal', /^\d+\.\d$/.test(tenths), String(tenths))
   ok('step 1 dial shows no decimal', /^\d+$/.test(whole), String(whole))
   ok('both dials agree on the value', Math.round(parseFloat(tenths)) === parseInt(whole, 10), `${tenths} vs ${whole}`)
+
+  // ---------- the editor shows what a save will produce ----------
+  //
+  // Reported: a weather widget lost its readings while being edited and got them back on Exit.
+  // Two causes, both geometry. The handle strip reserved a 26px band above every widget, and a
+  // docked settings panel took 340px off the surface - and a cell that is narrower or shorter is
+  // a different widget: text and icons scale with it, and every container query it sheds content
+  // on moves with it. So the same dashboard is measured three ways here, and the LAYOUT geometry
+  // has to be identical in all of them. `offsetWidth`/`offsetHeight` are layout pixels, which is
+  // what the widgets are laid out in; the panel now zooms the grid rather than squeezing it, so
+  // only the DRAWN width changes.
+  const layoutOf = () =>
+    page.evaluate(() => {
+      const grid = document.querySelector('.nh-grid')
+      const cells = [...document.querySelectorAll('.nh-gcell, .nh-cell')]
+      const panel = document.querySelector('.nh-sheet--side')
+      return {
+        gridLayout: grid?.offsetWidth ?? 0,
+        gridDrawn: grid ? Math.round(grid.getBoundingClientRect().width) : 0,
+        gridRight: grid ? Math.round(grid.getBoundingClientRect().right) : 0,
+        panelLeft: panel ? Math.round(panel.getBoundingClientRect().left) : null,
+        cells: cells.map((c) => `${c.offsetWidth}x${c.offsetHeight}`).join(' '),
+        font: cells[0] ? getComputedStyle(cells[0]).fontSize : '',
+        iconScale: grid ? getComputedStyle(grid).getPropertyValue('--nh-iconscale').trim() : '',
+        widgetFillsCell: cells.every((c) => {
+          const w = c.querySelector('.nh-widget')
+          return !w || Math.round(w.getBoundingClientRect().height - c.getBoundingClientRect().height) === 0
+        }),
+      }
+    })
+
+  const run = await layoutOf()
+  await page.click('[aria-label="Edit dashboard"]')
+  await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
+  await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length === 7, { timeout: 5000 })
+  await page.mouse.move(4, 4)
+  await sleep(300)
+  const edit = await layoutOf()
+  ok('editing lays the cells out exactly as run mode does', edit.cells === run.cells && edit.gridLayout === run.gridLayout, `${edit.cells} vs ${run.cells}`)
+  ok('editing scales text and icons exactly as run mode does', edit.font === run.font && edit.iconScale === run.iconScale, `${edit.font}/${edit.iconScale} vs ${run.font}/${run.iconScale}`)
+  ok('a widget fills its cell while editing', edit.widgetFillsCell && run.widgetFillsCell, JSON.stringify({ run: run.widgetFillsCell, edit: edit.widgetFillsCell }))
+
+  await page.locator('.nh-cell').nth(A).locator('.nh-cell__overlay').click()
+  await page.waitForSelector('.nh-sheet--side', { timeout: 5000 })
+  await sleep(400)
+  const panel = await layoutOf()
+  ok('a docked panel changes nothing about the layout', panel.cells === run.cells && panel.gridLayout === run.gridLayout, `${panel.cells} vs ${run.cells}`)
+  ok('a docked panel changes nothing about the scaling', panel.font === run.font && panel.iconScale === run.iconScale, `${panel.font}/${panel.iconScale}`)
+  ok('the grid is drawn smaller to make room for the panel', panel.gridDrawn < run.gridDrawn - 100, `${panel.gridDrawn} vs ${run.gridDrawn}`)
+  ok('the panel does not cover the grid', panel.panelLeft !== null && panel.gridRight <= panel.panelLeft, `grid right ${panel.gridRight} vs panel left ${panel.panelLeft}`)
+  await page.click('button:has-text("Exit")')
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
 
   // ---------- a live fractional-step gauge, if this server has one (read-only) ----------
   // Look for any live dashboard carrying a dial with a fractional step - the original

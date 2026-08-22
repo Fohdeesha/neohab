@@ -83,16 +83,24 @@ const openPalette = async () => {
   await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
 }
 const cellCount = () => page.$$eval('.nh-cell', (els) => els.length)
-/** Centre of grid cell (col,row), in page coordinates, from the live grid geometry. */
+/**
+ * Centre of grid cell (col,row), in page coordinates, from the live grid geometry.
+ *
+ * The gap and the row height come from the computed style, which is in LAYOUT pixels, while the
+ * box is where the grid is actually DRAWN - and those diverge as soon as a settings panel is
+ * docked, because the editor then lays the grid out at its full run-mode width and zooms it to
+ * fit what is left. The ratio between the two is that zoom, and 1 when there is none.
+ */
 const cellPoint = async (col, row) =>
   page.evaluate(
     ({ col, row }) => {
       const grid = document.querySelector('.nh-grid--edit')
       const box = grid.getBoundingClientRect()
       const cs = getComputedStyle(grid)
-      const gap = parseFloat(cs.gap) || 0
+      const k = grid.offsetWidth > 0 ? box.width / grid.offsetWidth : 1
+      const gap = (parseFloat(cs.gap) || 0) * k
       const colWidth = (box.width - gap * 11) / 12
-      const rowHeight = parseFloat(cs.gridAutoRows) || 60
+      const rowHeight = (parseFloat(cs.gridAutoRows) || 60) * k
       return {
         x: box.left + col * (colWidth + gap) + colWidth / 2,
         y: box.top + row * (rowHeight + gap) + rowHeight / 2,
@@ -188,6 +196,39 @@ try {
   ok('dropping on an occupied cell adds nothing', (await cellCount()) === 2, String(await cellCount()))
   ok('the palette stays open after a refused drop', (await page.locator('.nh-palette__card').count()) > 0)
   ok('the palette is no longer stepped aside', (await page.locator('.nh-sheet--collapsed').count()) === 0)
+
+  /* ------------------- a drop lands where it is pointed, panel or no panel ------------------- */
+  // With a widget selected the settings panel is docked, and the editor then draws the grid
+  // zoomed out rather than reflowing it into the narrower space - so every pointer coordinate
+  // the placement maths sees is in drawn pixels while the cells it snaps to are in layout ones.
+  await page.locator('.nh-cell').first().locator('.nh-cell__overlay').click()
+  await page.waitForSelector('.nh-sheet--side', { timeout: 10000 })
+  await sleep(400)
+  const zoomed = await page.evaluate(() => {
+    const g = document.querySelector('.nh-grid--edit')
+    return g.offsetWidth > 0 ? g.getBoundingClientRect().width / g.offsetWidth : 1
+  })
+  ok('the docked panel zooms the grid rather than narrowing it', zoomed < 0.95 && zoomed > 0.4, String(zoomed))
+  await openPalette()
+  const zoomTarget = await cellPoint(9, 2)
+  await dragCardTo('Clock', zoomTarget)
+  const zoomPreview = await dropInfo()
+  ok('the preview follows the pointer while zoomed', zoomPreview?.col === '10' && zoomPreview?.row === '3', JSON.stringify(zoomPreview))
+  await page.mouse.up()
+  await sleep(600)
+  const zoomPlaced = await page.evaluate(() => {
+    const el = document.querySelector('.nh-cell--selected')
+    if (!el) return null
+    const cs = getComputedStyle(el)
+    return { col: cs.gridColumnStart, row: cs.gridRowStart }
+  })
+  ok('and the widget lands there', zoomPlaced?.col === '10' && zoomPlaced?.row === '3', JSON.stringify(zoomPlaced))
+  // back to a clean two-widget board for the sections below
+  await page.click('button:has-text("Exit")')
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 })
+  await seed()
+  await enterEdit()
+  await openPalette()
 
   /* --------------------------- releasing off the grid cancels --------------------------- */
   const offGrid = await page.evaluate(() => {

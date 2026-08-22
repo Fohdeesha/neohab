@@ -1033,10 +1033,6 @@ button {
 /* editable grid cells */
 .nh-cell {
   position: relative;
-  /* Room for the handle strip: widget content sits below it so nothing a widget draws in its
-     top row (its label, a chart's period chips) is ever covered while editing. The strip is
-     absolutely positioned into this padding band. */
-  padding-top: 26px;
 }
 
 .nh-cell--dragging {
@@ -1064,6 +1060,50 @@ button {
   border: none;
   border-radius: var(--nh-radius);
   cursor: pointer;
+}
+
+/* The handle strip and the resize corner are editor chrome drawn OVER the widget's own top and
+   bottom-right corners, not a band reserved beside them: a cell that reserved 26px would render
+   its widget 26px shorter than the same widget in run mode, which is enough to make it shed
+   content the finished dashboard will show. So they are only DRAWN on the cell being pointed at,
+   selected, focused or dragged - at rest, an editing dashboard is what a save produces.
+
+   They stay hit-testable while invisible, deliberately: a mouse reveals a cell's chrome by being
+   over it, so hiding it from the pointer as well would only break the press that follows, and on
+   a touch screen a press on the strip is a press on the widget (a handle that never moves selects
+   the widget, exactly as tapping its body does). The delete button is the exception below. */
+.nh-cell__handle,
+.nh-cell__resize {
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+
+.nh-cell:hover > .nh-cell__handle,
+.nh-cell:focus-within > .nh-cell__handle,
+.nh-cell--selected > .nh-cell__handle,
+.nh-cell--dragging > .nh-cell__handle {
+  opacity: 1;
+}
+
+/* the corner keeps its softer resting alpha - it sits over the widget's own bottom corner */
+.nh-cell:hover > .nh-cell__resize,
+.nh-cell:focus-within > .nh-cell__resize,
+.nh-cell--selected > .nh-cell__resize,
+.nh-cell--dragging > .nh-cell__resize {
+  opacity: 0.7;
+}
+
+/* Deleting is the one thing here that cannot be shrugged off, so it waits to be seen: a tap on
+   an invisible corner must never remove a widget. */
+.nh-cell__delete {
+  pointer-events: none;
+}
+
+.nh-cell:hover .nh-cell__delete,
+.nh-cell:focus-within .nh-cell__delete,
+.nh-cell--selected .nh-cell__delete,
+.nh-cell--dragging .nh-cell__delete {
+  pointer-events: auto;
 }
 
 .nh-cell__handle {
@@ -1139,7 +1179,6 @@ button {
   touch-action: none;
   background: linear-gradient(135deg, transparent 50%, var(--nh-brand) 50%);
   border-radius: 0 0 var(--nh-radius) 0;
-  opacity: 0.7;
 }
 
 .nh-drop {
@@ -1351,6 +1390,21 @@ button {
 .nh-sheet__body {
   overflow-y: auto;
   padding: 14px;
+}
+
+/* Wrapper around the editing grid, carrying the zoom that keeps the editor honest while a
+   panel is docked. A LAYOUT zoom, not a transform: the grid inside is laid out at the full
+   run-mode width - so cells, text scaling and every container query match what a save will
+   produce - and only drawn smaller to fit the space the panel leaves. `--nh-editzoom` is 1
+   whenever no panel is docked, and a browser without `zoom` simply gets the old squeeze.
+   See editZoom() in model/layout.ts for the arithmetic, and SIDE_PANEL_WIDTH for the 340
+   this shares with the rule below. */
+.nh-editzoom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  zoom: var(--nh-editzoom, 1);
 }
 
 @media (min-width: 900px) {

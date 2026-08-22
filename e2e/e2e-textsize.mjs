@@ -151,29 +151,49 @@ try {
   const cellA2 = await cellFont('.nh-cell:nth-child(1)')
   ok('clearing the field restores normal', Math.abs(cellA2 / cellB - 1) < 0.05, String(cellA2))
 
-  // ---------- edit mode: handle strip never covers content ----------
+  // ---------- edit mode: the widget is drawn where a save will draw it ----------
+  // The handle strip used to reserve a 26px band above every widget, so an editing dashboard drew
+  // each one 26px shorter than the saved dashboard - enough to make a widget shed content the
+  // finished one shows (a weather panel lost its readings that way). The strip overlays the
+  // widget's own top edge now, and is only DRAWN on the cell being pointed at.
+  // nothing selected and the pointer away, so what is measured is a cell at rest
+  await page.click('.nh-sheet--side .nh-sheet__close')
+  await page.mouse.move(5, 5)
+  await sleep(300)
   const geo = await page.evaluate(() => {
     const out = []
     for (const cell of document.querySelectorAll('.nh-cell')) {
-      const handle = cell.querySelector('.nh-cell__handle')?.getBoundingClientRect()
       const widget = cell.querySelector('.nh-widget')?.getBoundingClientRect()
-      if (handle && widget) out.push({ hb: handle.bottom, wt: widget.top })
+      const handle = cell.querySelector('.nh-cell__handle')
+      const c = cell.getBoundingClientRect()
+      if (widget && handle) {
+        out.push({
+          dTop: Math.round(widget.top - c.top),
+          dHeight: Math.round(c.height - widget.height),
+          op: getComputedStyle(handle).opacity,
+        })
+      }
     }
     return out
   })
   ok(
-    'widget content starts below the strip in every cell',
-    geo.length === 3 && geo.every((g) => g.wt >= g.hb - 0.5),
+    'a widget fills its whole cell while editing',
+    geo.length === 3 && geo.every((g) => g.dTop === 0 && g.dHeight === 0),
     JSON.stringify(geo)
   )
+  ok('editor chrome is not drawn until the cell is pointed at', geo.length === 3 && geo.every((g) => g.op === '0'), JSON.stringify(geo.map((g) => g.op)))
+  await page.locator('.nh-cell').nth(0).hover()
+  await sleep(250)
+  const hovered = await page.$eval('.nh-cell .nh-cell__handle', (el) => getComputedStyle(el).opacity)
+  ok('pointing at a cell draws its handle strip', hovered === '1', hovered)
   const chips = await page.evaluate(() => {
     const chip = document.querySelector('.nh-cell .nh-chart__chips')
     if (!chip) return null
     const c = chip.getBoundingClientRect()
-    const h = chip.closest('.nh-cell').querySelector('.nh-cell__handle').getBoundingClientRect()
-    return { top: c.top, hb: h.bottom, h: c.height }
+    const w = chip.closest('.nh-widget').getBoundingClientRect()
+    return { h: c.height, inside: c.top >= w.top - 0.5 && c.bottom <= w.bottom + 0.5 }
   })
-  ok('chart period chips visible below the strip', chips && chips.h > 0 && chips.top >= chips.hb - 0.5, JSON.stringify(chips))
+  ok('chart period chips render inside the widget', chips && chips.h > 0 && chips.inside, JSON.stringify(chips))
   await page.click('button:has-text("Exit")')
   await sleep(500)
 

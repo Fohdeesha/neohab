@@ -196,10 +196,11 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       const box = el.getBoundingClientRect()
       if (clientX < box.left || clientX > box.right || clientY < box.top || clientY > box.bottom) return null
       const m = cellMetrics(dashRef.current, el.clientWidth)
+      const k = el.offsetWidth > 0 && box.width > 0 ? box.width / el.offsetWidth : 1
       const rect = clampRect(
         {
-          x: Math.floor((clientX - box.left) / (m.colWidth + m.gap)),
-          y: Math.floor((clientY - box.top) / (m.rowHeight + m.gap)),
+          x: Math.floor((clientX - box.left) / k / (m.colWidth + m.gap)),
+          y: Math.floor((clientY - box.top) / k / (m.rowHeight + m.gap)),
           w: placing.w,
           h: placing.h,
         },
@@ -230,6 +231,23 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     return <StackedEditGrid dashboard={draft} />
   }
 
+  /**
+   * How many drawn pixels one layout pixel is.
+   *
+   * While a settings panel is docked the grid is laid out at its full run-mode width and zoomed
+   * to fit what is left (see editZoom), so that the editor shows what a save will produce.
+   * Pointer coordinates arrive in drawn pixels while everything below - cell metrics, rects,
+   * the marquee, the drag preview's own transform - works in layout pixels, so they are
+   * converted here. `offsetWidth` is the layout width, `getBoundingClientRect` the drawn one,
+   * and their ratio is the zoom in effect, whatever put it there. 1 when nothing is zoomed.
+   */
+  const pointerScale = (): number => {
+    const el = containerRef.current
+    if (!el || !el.offsetWidth) return 1
+    const drawn = el.getBoundingClientRect().width
+    return drawn > 0 ? drawn / el.offsetWidth : 1
+  }
+
   /** Pixel size of one grid cell (content, excluding gap), measured live. */
   const cellSize = (): { w: number; h: number } => {
     const el = containerRef.current
@@ -244,9 +262,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    // Selection waits for the drop: selecting opens the settings panel, which takes 340px off
-    // the surface and re-lays out every cell. Doing that under a live pointer would shrink the
-    // grid the drag is being measured against, landing the widget on the wrong column.
+    // Selection waits for the drop: selecting opens the settings panel, and the panel changes
+    // the zoom the grid is drawn at. Doing that under a live pointer would change the scale the
+    // drag is being measured against half way through, landing the widget on the wrong column.
     const startRect = rectOf(widget)
     setDrag({
       id,
@@ -348,9 +366,10 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
 
   const toLocal = (clientX: number, clientY: number): { x: number; y: number } => {
     const rect = containerRef.current!.getBoundingClientRect()
+    const k = pointerScale()
     return {
-      x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
-      y: Math.max(0, Math.min(clientY - rect.top, rect.height)),
+      x: Math.max(0, Math.min((clientX - rect.left) / k, rect.width / k)),
+      y: Math.max(0, Math.min((clientY - rect.top) / k, rect.height / k)),
     }
   }
 
@@ -407,8 +426,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     }
     if (!drag) return
     const { w: cw, h: ch } = cellSize()
-    const dx = e.clientX - drag.startX
-    const dy = e.clientY - drag.startY
+    const k = pointerScale()
+    const dx = (e.clientX - drag.startX) / k
+    const dy = (e.clientY - drag.startY) / k
     const cellsX = Math.round(dx / (cw + gap))
     const cellsY = Math.round(dy / (ch + gap))
 

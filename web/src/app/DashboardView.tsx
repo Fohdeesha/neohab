@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import {
@@ -29,7 +29,9 @@ import { editingAllowed, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
-import { useGridEditSurface } from '../components/useEditSurface'
+import { useGridEditSurface, useSidePanelDocked } from '../components/useEditSurface'
+import { useContainerWidth } from '../components/useContainerWidth'
+import { editZoom } from '../model/layout'
 import { useBackgroundStyle } from '../components/useBackground'
 import { SettingsPanel } from '../editor/SettingsPanel'
 import { DashboardSettingsPanel } from '../editor/DashboardSettingsPanel'
@@ -60,6 +62,11 @@ export function DashboardView({ id }: { id: string }) {
   // breakpoints of its own), and the toolbar is tight enough without a button that does nothing.
   const gridSurface = useGridEditSurface()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
+  // Measured so the editing grid can be zoomed rather than squeezed while a panel is docked
+  // (see editZoom): the surface's own width, already short by the panel when one is open.
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const surfaceWidth = useContainerWidth(surfaceRef)
+  const panelDocked = useSidePanelDocked()
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [signInOpen, setSignInOpen] = useState(false)
@@ -75,6 +82,9 @@ export function DashboardView({ id }: { id: string }) {
     editing && editor.panelOpen && selectedIds.length === 1
       ? editor.draft!.widgets.find((w) => w.id === selectedIds[0])
       : undefined
+
+  const panelOpen = editing && !!(selected || editor.dashSettingsOpen)
+  const zoom = editZoom(surfaceWidth, panelOpen && panelDocked)
 
   // Leave edit mode if the route changes away mid-edit.
   useEffect(() => {
@@ -323,13 +333,18 @@ export function DashboardView({ id }: { id: string }) {
         </div>
       ) : null}
 
-      <div
-        className={
-          'nh-dash__surface' +
-          (editing && (selected || editor.dashSettingsOpen) ? ' nh-dash__surface--panel' : '')
-        }
-      >
-        {editing ? <EditableGrid dashboard={dashboard} /> : <Grid dashboard={dashboard} />}
+      <div ref={surfaceRef} className={'nh-dash__surface' + (panelOpen ? ' nh-dash__surface--panel' : '')}>
+        {editing ? (
+          // The zoom wrapper stays mounted for the whole edit session (a wrapper that came and
+          // went would remount the grid, and with it any drag in progress). Zoom is a layout
+          // zoom: the grid inside lays out at the run-mode width and is only drawn smaller, so
+          // every cell keeps the size, the scaling and the container queries it has in run mode.
+          <div className="nh-editzoom" style={{ '--nh-editzoom': zoom } as React.CSSProperties}>
+            <EditableGrid dashboard={dashboard} />
+          </div>
+        ) : (
+          <Grid dashboard={dashboard} />
+        )}
         {editing ? (
           <p className="nh-dash__edithint">
             {t(

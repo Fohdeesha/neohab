@@ -51,6 +51,34 @@ export const STACK_REFERENCE_WIDTH = 1280
  */
 export const MD_BELOW = 1200 // px
 
+/**
+ * The docked settings/dashboard panel: its width, and the viewport at which it docks to the side
+ * instead of rising as a bottom sheet. Both mirror app.css (`.nh-sheet--side`, and the media
+ * query around it) - the panel's size is a CSS fact, and this is the arithmetic that has to agree
+ * with it.
+ */
+export const SIDE_PANEL_WIDTH = 340
+export const SIDE_PANEL_MIN = 900 // px of viewport
+
+/**
+ * How much to zoom the editing grid while a panel is docked beside it.
+ *
+ * A docked panel takes its width off the surface, and a narrower surface is a different
+ * dashboard: cells shrink, so text and icons scale down and widgets shed the content they have
+ * no room for - meaning the editor showed something other than what a save would produce. Zoom
+ * fixes that where a transform could not: it is a LAYOUT zoom, so the grid inside is laid out at
+ * the full run-mode width (container queries and all) and only drawn smaller.
+ *
+ * `available` is the surface's own content width, already short by the panel; the run-mode width
+ * is that plus the panel, and the zoom is the ratio between them. 1 whenever no panel is docked,
+ * or before the surface has been measured.
+ */
+export function editZoom(available: number, panelDocked: boolean): number {
+  if (!panelDocked) return 1
+  if (!Number.isFinite(available) || available <= 0) return 1
+  return available / (available + SIDE_PANEL_WIDTH)
+}
+
 /** The three surfaces a dashboard can render on, in the order they appear as the screen grows. */
 export type Surface = 'phone' | 'tablet' | 'desktop'
 

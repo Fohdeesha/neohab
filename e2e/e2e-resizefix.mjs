@@ -29,6 +29,15 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
+/**
+ * How many drawn pixels one layout pixel is. While a settings panel is docked the editing grid
+ * is laid out at its full run-mode width and zoomed to fit what is left, so that the editor
+ * shows what a save will produce - which means the app works in layout pixels while the mouse
+ * moves in drawn ones. Every expectation below that mixes the two goes through this.
+ */
+const zoomOf = () =>
+  page.$eval('.nh-grid--edit', (el) => (el.offsetWidth > 0 ? el.getBoundingClientRect().width / el.offsetWidth : 1))
+
 const cellStyle = (i) =>
   page.$$eval('.nh-cell', (els, idx) => {
     const el = els[idx]
@@ -93,7 +102,13 @@ try {
   await page.mouse.move(grip2.x - 600, grip2.y - 600, { steps: 6 })
   await sleep(150)
   const shrunk = await cellStyle(0)
-  ok('shrink clamps at a visible minimum', shrunk.width >= 38 && shrunk.height >= 38, `${shrunk.width}x${shrunk.height}`)
+  // the 40px floor is a layout size; the box is measured as drawn, so the zoom in effect applies
+  const kShrink = await zoomOf()
+  ok(
+    'shrink clamps at a visible minimum',
+    shrunk.width >= 38 * kShrink && shrunk.height >= 38 * kShrink,
+    `${Math.round(shrunk.width)}x${Math.round(shrunk.height)} at zoom ${kShrink.toFixed(3)}`
+  )
   await page.mouse.up()
   await sleep(300)
 
@@ -105,7 +120,15 @@ try {
   await page.mouse.move(hx + 120, hy + 60, { steps: 6 })
   await sleep(150)
   const midMove = await cellStyle(1)
-  ok('mid-move: cell translates with the pointer', /translate\(120px, 60px\)/.test(midMove.transform), midMove.transform || '(none)')
+  // The transform is written in layout pixels, and what has to hold is that the widget follows
+  // the pointer ON SCREEN: layout delta x zoom = the delta the mouse actually moved.
+  const kMove = await zoomOf()
+  const moved = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(midMove.transform)
+  ok(
+    'mid-move: cell translates with the pointer',
+    !!moved && Math.abs(+moved[1] * kMove - 120) < 2 && Math.abs(+moved[2] * kMove - 60) < 2,
+    `${midMove.transform || '(none)'} at zoom ${kMove.toFixed(3)}`
+  )
   ok('mid-move: no stretch during a move', midMove.inlineWidth === '', midMove.inlineWidth || '(none)')
   await page.mouse.up()
   await sleep(300)

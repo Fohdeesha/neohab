@@ -14,6 +14,7 @@ import {
   collides,
   columnsOf,
   DEFAULT_GAP,
+  editZoom,
   findFreeSpot,
   gapOf,
   groupFrames,
@@ -23,6 +24,7 @@ import {
   planBump,
   projectDashboard,
   rectOf,
+  SIDE_PANEL_WIDTH,
   stackedOrder,
   stackedTextScale,
   surfaceFor,
@@ -96,6 +98,38 @@ describe('cellMetrics', () => {
     const m = cellMetrics(dash([], { columns: 60, gap: 64 }), 360)
     expect(m.colWidth).toBeGreaterThan(0)
     expect(m.rowHeight).toBeGreaterThanOrEqual(8)
+  })
+})
+
+describe('editZoom', () => {
+  it('is 1 with no panel docked', () => {
+    expect(editZoom(1400, false)).toBe(1)
+    expect(editZoom(0, false)).toBe(1)
+  })
+
+  it('is 1 before the surface has been measured', () => {
+    expect(editZoom(0, true)).toBe(1)
+    expect(editZoom(-5, true)).toBe(1)
+    expect(editZoom(Number.NaN, true)).toBe(1)
+  })
+
+  /**
+   * The whole point: the grid laid out at the run-mode width and drawn into what the panel
+   * leaves. So `available / zoom` has to come back to the width the surface had before the panel
+   * took its share - the width run mode uses - whatever that width is.
+   */
+  it('lays the grid out at exactly the run-mode width', () => {
+    for (const runWidth of [1896, 1200, 1024, 2560]) {
+      const available = runWidth - SIDE_PANEL_WIDTH
+      const zoom = editZoom(available, true)
+      expect(available / zoom).toBeCloseTo(runWidth, 6)
+      expect(zoom).toBeLessThan(1)
+      expect(zoom).toBeGreaterThan(0)
+    }
+  })
+
+  it('zooms less the more room there is', () => {
+    expect(editZoom(2000, true)).toBeGreaterThan(editZoom(700, true))
   })
 })
 

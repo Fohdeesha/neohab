@@ -126,6 +126,11 @@ try {
 
   // Cancel discards and exits (with a confirm when dirty).
   await enterEdit()
+  // Hover first: the editor's chrome is only DRAWN on the cell being pointed at (so that an
+  // editing dashboard looks like the saved one), and the delete button, alone among it, also
+  // waits to be seen before it accepts a press - a tap on an invisible corner must not remove
+  // a widget. A mouse is always over the cell before it clicks; a suite has to say so.
+  await page.locator('.nh-cell').nth(0).hover()
   await page.locator('.nh-cell').nth(0).locator('.nh-cell__delete').click()
   await sleep(200)
   ok('delete drops a cell in the draft', (await cellCount()) === 3, String(await cellCount()))
