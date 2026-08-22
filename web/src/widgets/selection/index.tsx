@@ -26,8 +26,10 @@ interface Choice {
   label: string
 }
 
-function parseChoices(text: string | undefined): Choice[] {
-  if (!text) return []
+function parseChoices(text: unknown): Choice[] {
+  // Not `if (!text)`: a hand-edited or imported `choices: 42` reaches `.split` and throws during
+  // render, which is a whole tile replaced by an error where an empty list would do.
+  if (typeof text !== 'string' || text === '') return []
   return text
     .split('\n')
     .map((line) => line.trim())
@@ -143,5 +145,14 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
     },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  // The author's own list, or - when there is none - the same command options the widget itself
+  // falls back to, which is what the automatic rule reads. Without this a selection bound to a
+  // Number item was handed a 0-100 slider, for an item that accepts three particular values.
+  controlFor: (c, item) => {
+    if (item !== c.item) return undefined
+    const manual = parseChoices(c.choices)
+    return manual.length ? { kind: 'choices', choices: manual } : { kind: 'auto' }
+  },
   Component: SelectionWidget,
 }

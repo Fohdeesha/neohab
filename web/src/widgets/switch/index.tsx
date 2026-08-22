@@ -1,6 +1,7 @@
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { isOn } from '../common/format'
+import { commandOr } from '../common/itemControl'
 import { Icon } from '../../components/Icon'
 import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 
@@ -62,5 +63,11 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
     { key: 'offCommand', type: 'text', label: 'Off command' },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  // Whatever this switch calls on and off, which is not always ON and OFF.
+  controlFor: (c, item) =>
+    item === c.item
+      ? { kind: 'onoff', on: commandOr(c.onCommand, 'ON'), off: commandOr(c.offCommand, 'OFF') }
+      : undefined,
   Component: SwitchWidget,
 }

@@ -8,6 +8,9 @@
  * returns SVG degrees (top-based minus 90).
  */
 
+// `finite` is the shared coercion, aliased so the guarded reads below read as they always did.
+import { finiteOr as finite, numericScale, type NumericScale } from '../common/itemControl'
+
 export interface SeverityStop {
   /** The stop applies to values up to and including this. */
   value?: number
@@ -125,36 +128,24 @@ export function pickRing(radius: number, outerR: number, innerR: number): 'outer
 }
 
 /**
- * Stored configuration that did not come from the editor is untrusted input (backups, hand
- * edits, partial imports are written verbatim), so every value used for arithmetic gets its
- * guard at the read.
+ * One ring's numeric scale.
+ *
+ * Stored configuration that did not come from the editor is untrusted input (backups, hand edits
+ * and partial imports are written verbatim), so every value used for arithmetic gets its guard at
+ * the read - which is what `finite` above and `numericScale` below are for.
  */
-function finite(v: unknown, fallback: number): number {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
-  return Number.isFinite(n) ? n : fallback
-}
-
-/** One ring's numeric scale, the only values here that were still read raw. */
-export interface GaugeScale {
-  min: number
-  max: number
-  step: number
-}
+export type GaugeScale = NumericScale
 
 /**
  * The scale a ring works in.
  *
  * Everything else in this file has been guarded for a while; `min`, `max` and `step` were read
  * straight off the config by both renderers, so an imported `min: "abc"` drew NaN arcs and a
- * reading of "NaN". A step of zero divides by zero in the pointer snap, and a max at or below
- * the min leaves no range to map a value onto, so both are given the defaults instead.
+ * reading of "NaN". The guarding itself lives in `numericScale` now, because the detail sheet
+ * builds a control from exactly the same numbers and the two must not decide differently.
  */
 export function scaleOf(c: DialConfig, ring: 'outer' | 'inner' = 'outer'): GaugeScale {
-  const min = finite(ring === 'inner' ? c.min2 : c.min, 0)
-  const rawMax = finite(ring === 'inner' ? c.max2 : c.max, 100)
-  const max = rawMax > min ? rawMax : min + 100
-  const rawStep = finite(ring === 'inner' ? c.step2 : c.step, 1)
-  return { min, max, step: rawStep > 0 ? rawStep : 1 }
+  return ring === 'inner' ? numericScale(c.min2, c.max2, c.step2) : numericScale(c.min, c.max, c.step)
 }
 
 export const LED_COUNT_DEFAULT = 60

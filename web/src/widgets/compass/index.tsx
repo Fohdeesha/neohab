@@ -173,5 +173,6 @@ export const compassWidget: WidgetDefinition<CompassConfig> = {
     { key: 'color', type: 'color', label: 'Color' },
   ],
   itemKeys: (c) => (c.centerItem ? [c.item, c.centerItem] : [c.item]),
+  canCommand: () => false,
   Component: CompassWidget,
 }

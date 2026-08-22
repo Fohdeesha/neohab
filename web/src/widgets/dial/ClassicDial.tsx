@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import type { WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
-import { arcPath, polar, stepDecimals, START, SWEEP } from './geometry'
+import { stepDecimals } from '../common/itemControl'
+import { arcPath, polar, START, SWEEP } from './geometry'
 import { scaleOf, type DialConfig } from './gauge'
 
 /** Dial - a circular touch slider for numeric/dimmer items. Commits on release. */
@@ -44,6 +46,9 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
     if (drag === null) return
     const v = drag
     setDrag(null)
+    // A press stages the value under the finger and this release sends it - unless a hold was
+    // recognised first, in which case the press was the gesture and the dial keeps its value.
+    if (holdTookGesture()) return
     void ctx.sendCommand(config.item, String(v))
   }
 

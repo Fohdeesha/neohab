@@ -104,14 +104,21 @@ export function DashboardView({ id }: { id: string }) {
         e.preventDefault()
         removeWidgets(ids)
       } else if (key === 'escape') {
-        if (useEditorStore.getState().selectedIds.length === 0) return
+        // Escape backs out of whatever is open, one layer at a time, and out of edit mode itself
+        // once nothing is: a panel, then the selection, then editing. Read from the store rather
+        // than the render scope - this listener is registered once per edit session, so a
+        // captured `dirty` would be the value it had when editing started.
+        const s = useEditorStore.getState()
         e.preventDefault()
-        clearSelection()
+        if (s.paletteOpen) setPaletteOpen(false)
+        else if (s.dashSettingsOpen) setDashSettingsOpen(false)
+        else if (s.selectedIds.length > 0) clearSelection()
+        else if (!s.dirty || window.confirm(t('Discard all unsaved changes?'))) stopEditing()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing])
+  }, [editing, t])
 
   // Native clipboard: Ctrl+C / Ctrl+X / Ctrl+V (and the menu equivalents) copy, cut, and paste
   // widgets. Writing/reading via the event's clipboardData is synchronous and prompt-free, and
@@ -251,7 +258,7 @@ export function DashboardView({ id }: { id: string }) {
             >
               ↪
             </button>
-            <button className="nh-btn nh-btn--ghost" onClick={cancel} title={t('Exit edit mode (unsaved changes are discarded)')}>
+            <button className="nh-btn nh-btn--ghost" onClick={cancel} title={t('Exit edit mode, Esc (unsaved changes are discarded)')}>
               {t('Exit')}
             </button>
             <button

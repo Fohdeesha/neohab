@@ -4,7 +4,15 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
 import { categoryLabels, heatmapMatrix } from './aggregate'
-import { DEFAULT_MAX_POINTS, PERIODS, PERIOD_CHIPS, effectiveSeries, type ChartConfig } from './model'
+import {
+  DEFAULT_MAX_POINTS,
+  PERIOD_CHIPS,
+  PERIOD_IDS,
+  chipPeriods,
+  effectiveSeries,
+  periodMs,
+  type ChartConfig,
+} from './model'
 import { loadChartData, parseState, type SeriesTable } from './data'
 import { numOpt, plotSeries, resolveChart } from './resolve'
 import { navigate, useRoute } from '../../app/router'
@@ -91,7 +99,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     lastLiveRef.current.clear()
     pendingRef.current.clear()
 
-    const periodMs = PERIODS[period] ?? PERIODS['24h']
+    const windowMs = periodMs(period)
 
     const fmtValue = (i: number, v: number): string => {
       const unit = ctxRef.current.getItem(resolved[i]?.item ?? '')?.unit
@@ -105,7 +113,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     /** Hour-by-weekday matrix of the first series - a different picture, not a different plot. */
     async function loadHeatmap() {
       const to = Date.now() / 1000
-      const from = to - periodMs / 1000
+      const from = to - windowMs / 1000
       const [table] = await loadChartData({
         items: [resolved[0].item],
         aggregates: [resolved[0].aggregate],
@@ -142,7 +150,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       const tables = await loadChartData({
         items: resolved.map((s) => s.item),
         aggregates: resolved.map((s) => s.aggregate),
-        from: to - periodMs / 1000,
+        from: to - windowMs / 1000,
         to,
         groupBy,
         service: config.service || undefined,
@@ -237,7 +245,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         return
       }
       const nowS = Date.now() / 1000
-      const cutoff = nowS - (PERIODS[period] ?? PERIODS['24h']) / 1000
+      const cutoff = nowS - periodMs(period) / 1000
       for (const [i, v] of pendingRef.current) {
         lastLiveRef.current.set(i, v)
         tables[i][0].push(nowS)
@@ -266,14 +274,12 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     setHidden(next)
   }
 
-  const chips = useMemo(() => {
-    const set = new Set(PERIOD_CHIPS)
-    set.add(config.period ?? '24h')
-    set.add(period)
-    return [...set].filter((c) => PERIODS[c] !== undefined).sort((a, b) => PERIODS[a] - PERIODS[b])
-  }, [config.period, period])
+  const chips = useMemo(
+    () => chipPeriods(config.periods, config.period, period),
+    [config.periods, config.period, period]
+  )
 
-  const showChips = config.picker !== false
+  const showChips = config.picker !== false && chips.length > 0
   const showLegend = config.legend !== false && resolved.length >= 2 && !heatmap
   const label = config.label ?? (resolved.length === 1 ? resolved[0].label : undefined)
   // The route is where the dashboard id comes from: a widget knows nothing about its dashboard,
@@ -438,13 +444,22 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       key: 'period',
       type: 'select',
       label: 'Default period',
-      options: Object.keys(PERIODS).map((p) => ({ value: p, label: p })),
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
     },
     {
       key: 'picker',
       type: 'boolean',
       label: 'Period selector',
       hint: 'Quick range chips on the widget. Dragging on the chart zooms in; double-click resets.',
+    },
+    {
+      key: 'periods',
+      type: 'multiselect',
+      label: 'Ranges offered',
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
+      defaultValue: PERIOD_CHIPS,
+      showIf: (c) => c.picker !== false,
+      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.',
     },
     {
       key: 'expand',
@@ -485,5 +500,6 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
     config.live === false || (config.groupBy !== undefined && config.groupBy !== 'none') || config.mode === 'heatmap'
       ? []
       : [...new Set(effectiveSeries(config).map((s) => s.item))],
+  canCommand: () => false,
   Component: ChartWidget,
 }

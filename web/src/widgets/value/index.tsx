@@ -65,5 +65,8 @@ export const valueWidget: WidgetDefinition<ValueConfig> = {
     { key: 'stateIcons', type: 'stateicons', label: 'Per-state icons' },
   ],
   itemKeys: (c) => [c.item],
+  // A readout, whatever it is bound to: someone who wanted to change the value would have
+  // placed a control.
+  canCommand: () => false,
   Component: ValueWidget,
 }

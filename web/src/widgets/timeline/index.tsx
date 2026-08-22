@@ -6,7 +6,7 @@ import { useContainerWidth } from '../../components/useContainerWidth'
 import { getItemHistory } from '../../api/persistence'
 import { classifyHistoryError } from '../../model/persistence'
 import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus'
-import { PERIODS, PERIOD_CHIPS } from '../chart/model'
+import { PERIOD_CHIPS, PERIOD_IDS, chipPeriods, periodMs } from '../chart/model'
 import { chartScheme, seriesColor } from '../chart/palette'
 import { stateMatches } from '../common/stateIcon'
 import {
@@ -83,8 +83,8 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   // advancing "now": the last band's right edge and the axis follow the clock between fetches
   const [nowTick, setNowTick] = useState(() => Date.now())
 
-  const periodMs = PERIODS[period] ?? PERIODS['24h']
-  const windowStart = nowTick - periodMs
+  const windowMs = periodMs(period)
+  const windowStart = nowTick - windowMs
 
   useEffect(() => {
     let disposed = false
@@ -92,13 +92,13 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
 
     async function load() {
       const now = Date.now()
-      const since = new Date(now - periodMs)
+      const since = new Date(now - windowMs)
       const results = await Promise.all(
         series.map((s) => getItemHistory(s.item, since, { serviceId: config.service || undefined, boundary: true }))
       )
       if (disposed) return
       const partitioned = results.map((points) =>
-        thinBands(partitionHistory(points, now - periodMs, now), periodMs / THIN_DIVISOR)
+        thinBands(partitionHistory(points, now - windowMs, now), windowMs / THIN_DIVISOR)
       )
       setRows(partitioned)
       setNowTick(now)
@@ -115,7 +115,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       if (!disposed) setStatus(classifyHistoryError(err))
     })
 
-    const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : autoRefreshSeconds(periodMs)
+    const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : autoRefreshSeconds(windowMs)
     const refetch = setInterval(() => void load().catch(() => {}), refreshSec * 1000)
     const tick = setInterval(() => setNowTick(Date.now()), 60_000)
     return () => {
@@ -175,14 +175,12 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     }
   }, [colorMaps, rows, scheme])
 
-  const chips = useMemo(() => {
-    const set = new Set(PERIOD_CHIPS)
-    set.add(config.period ?? '24h')
-    set.add(period)
-    return [...set].filter((c) => PERIODS[c] !== undefined).sort((a, b) => PERIODS[a] - PERIODS[b])
-  }, [config.period, period])
+  const chips = useMemo(
+    () => chipPeriods(config.periods, config.period, period),
+    [config.periods, config.period, period]
+  )
 
-  const showChips = config.picker !== false
+  const showChips = config.picker !== false && chips.length > 0
   const label = config.label ?? (series.length === 1 ? series[0].label || series[0].item : undefined)
 
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -203,7 +201,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   ) : null
   const chipsInline = chipsNode !== null && !!label && wrapWidth >= 480
 
-  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => windowStart + f * periodMs)
+  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => windowStart + f * windowMs)
 
   return (
     <WidgetFrame label={label} aside={chipsInline ? chipsNode : undefined}>
@@ -218,10 +216,10 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
                 </span>
                 <div className="nh-tl__track">
                   {(rows[i] ?? []).map((b, j, arr) => {
-                    let left = Math.max(0, ((b.start - windowStart) / periodMs) * 100)
+                    let left = Math.max(0, ((b.start - windowStart) / windowMs) * 100)
                     // slight overpaint so fractional-pixel gaps between adjacent bands can't
                     // show the track through as seams (the next band paints over the overlap)
-                    let right = Math.min(100, ((b.end - windowStart) / periodMs) * 100 + 0.06)
+                    let right = Math.min(100, ((b.end - windowStart) / windowMs) * 100 + 0.06)
                     // The current (still-running) state paints at least a sliver at "now" -
                     // a fresh live band is start==end and would otherwise be invisible until
                     // the next window tick.
@@ -237,8 +235,8 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
                         tabIndex={-1} // a dense row would otherwise be hundreds of tab stops
                         className="nh-tl__band"
                         style={{ left: left + '%', width: right - left + '%', background: colorFor(b.state) }}
-                        title={`${s.label || s.item}: ${b.state} (${fmtRange(b, periodMs)})`}
-                        onClick={() => setInfo(`${s.label || s.item} · ${b.state} · ${fmtRange(b, periodMs)}`)}
+                        title={`${s.label || s.item}: ${b.state} (${fmtRange(b, windowMs)})`}
+                        onClick={() => setInfo(`${s.label || s.item} · ${b.state} · ${fmtRange(b, windowMs)}`)}
                       />
                     )
                   })}
@@ -247,7 +245,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
             ))}
             <div className="nh-tl__axis">
               {ticks.map((tms, i) => (
-                <span key={i}>{fmtTick(tms, periodMs)}</span>
+                <span key={i}>{fmtTick(tms, windowMs)}</span>
               ))}
             </div>
             {info ? <div className="nh-tl__info">{info}</div> : null}
@@ -292,9 +290,18 @@ export const timelineWidget: WidgetDefinition<TimelineConfig> = {
       key: 'period',
       type: 'select',
       label: 'Default period',
-      options: Object.keys(PERIODS).map((p) => ({ value: p, label: p })),
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
     },
     { key: 'picker', type: 'boolean', label: 'Period selector' },
+    {
+      key: 'periods',
+      type: 'multiselect',
+      label: 'Ranges offered',
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
+      defaultValue: PERIOD_CHIPS,
+      showIf: (c) => c.picker !== false,
+      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.',
+    },
     { key: 'service', type: 'text', label: 'Persistence service (optional)' },
     {
       key: 'refresh',
@@ -305,5 +312,6 @@ export const timelineWidget: WidgetDefinition<TimelineConfig> = {
     },
   ],
   itemKeys: (config) => [...new Set(effectiveTimelineSeries(config).map((s) => s.item))],
+  canCommand: () => false,
   Component: TimelineWidget,
 }

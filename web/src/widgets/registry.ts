@@ -1,3 +1,4 @@
+import type { ItemControl } from './common/itemControl'
 import type { WidgetDefinition } from './types'
 
 /**
@@ -32,4 +33,29 @@ export function itemsForInstance(type: string, config: Record<string, unknown>):
   const def = registry.get(type)
   if (!def?.itemKeys) return []
   return def.itemKeys(config).filter((v): v is string => typeof v === 'string' && v.length > 0)
+}
+
+/**
+ * Does this instance command its items, or only show them? See `WidgetDefinition.canCommand`.
+ * An unregistered type answers no, which is the same safe direction as omitting the declaration.
+ */
+export function instanceCommands(type: string, config: Record<string, unknown>): boolean {
+  const def = registry.get(type)
+  return def?.canCommand?.(config) === true
+}
+
+/**
+ * Which control this instance offers for one of its items. See `WidgetDefinition.controlFor`:
+ * `undefined` means this widget does not command that item, and `{ kind: 'auto' }` asks for the
+ * state-shape rule. A registered widget that declares nothing gets `auto`, which is what every
+ * widget got before any of them could answer; an unregistered type commands nothing at all.
+ */
+export function instanceControl(
+  type: string,
+  config: Record<string, unknown>,
+  item: string
+): ItemControl | undefined {
+  const def = registry.get(type)
+  if (!def) return undefined
+  return def.controlFor ? def.controlFor(config, item) : { kind: 'auto' }
 }

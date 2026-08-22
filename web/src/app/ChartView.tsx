@@ -22,7 +22,7 @@ import {
   type CalendarUnit,
 } from '../widgets/chart/aggregate'
 import { loadChartData } from '../widgets/chart/data'
-import { DEFAULT_MAX_POINTS, PERIODS, PERIOD_CHIPS, type ChartConfig } from '../widgets/chart/model'
+import { DEFAULT_MAX_POINTS, PERIOD_CHIPS, periodMs, type ChartConfig } from '../widgets/chart/model'
 import { plotSeries, resolveChart } from '../widgets/chart/resolve'
 import type { ChartHandle } from '../widgets/chart/plot'
 import type { HeatmapHandle } from '../widgets/chart/heatmap'
@@ -59,7 +59,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
   const nowMs = Date.now()
   const window =
     unit === 'rolling'
-      ? { from: nowMs / 1000 - (PERIODS[period] ?? PERIODS['24h']) / 1000, to: nowMs / 1000 }
+      ? { from: nowMs / 1000 - periodMs(period) / 1000, to: nowMs / 1000 }
       : calendarWindow(unit, offset, nowMs)
   // Only the *choice* goes in the dependency list: a rolling window recomputed on every render
   // would refetch forever.

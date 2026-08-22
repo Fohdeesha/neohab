@@ -39,6 +39,13 @@ export interface Item {
   groupType?: string
   stateDescription?: StateDescription
   commandDescription?: CommandDescription
+  /**
+   * State history openHAB keeps in the registry itself. **openHAB 5.x only** - 4.3.7 serves none
+   * of these three, so anything reading them must treat their absence as normal. Epoch millis.
+   */
+  lastState?: string
+  lastStateUpdate?: number
+  lastStateChange?: number
 }
 
 /**

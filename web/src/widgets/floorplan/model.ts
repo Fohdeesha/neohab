@@ -9,6 +9,10 @@
  */
 import { parseHsb, hsbToRgb } from '../../model/color'
 
+// The state-shape rule moved to widgets/common when the detail sheet started asking the same
+// question. Re-exported so the plan's own modules and tests keep reading it from here.
+export { stateKind, type StateKind } from '../common/stateKind'
+
 export interface FloorplanLight {
   /** Stable id for keys and editor selection. */
   id: string
@@ -115,25 +119,6 @@ export function containRect(boxW: number, boxH: number, imgW: number, imgH: numb
   const width = imgW * scale
   const height = imgH * scale
   return { left: (boxW - width) / 2, top: (boxH - height) / 2, width, height }
-}
-
-/* ---------- what kind of control fits a light's state ---------- */
-
-export type StateKind = 'color' | 'level' | 'onoff' | 'other' | 'none'
-
-/**
- * Decided from the STATE'S SHAPE, deliberately not from a type name: the SSE tracker's `type`
- * field is the state class ("HSB", "Percent", "OnOff"), not the item type, and an item can
- * legitimately hold different state classes over its life. The shape is the truth the popup
- * has to operate on either way.
- */
-export function stateKind(state: string | undefined): StateKind {
-  if (state === undefined || state === '' || state === 'NULL' || state === 'UNDEF') return 'none'
-  const parts = state.split(',')
-  if (parts.length === 3 && parts.every((p) => p.trim() !== '' && Number.isFinite(Number(p)))) return 'color'
-  if (state === 'ON' || state === 'OFF') return 'onoff'
-  if (Number.isFinite(Number(state)) && state.trim() !== '') return 'level'
-  return 'other'
 }
 
 /* ---------- glow ---------- */

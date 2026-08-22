@@ -117,7 +117,15 @@ try {
     const inp = document.querySelector('#nh-set-bg')
     return inp && inp.placeholder.includes('KB')
   }, { timeout: 15000 })
-  const afterUpload = await getSettings()
+  // The field shows the uploaded size as soon as the image has been processed in the browser, but
+  // storing the component and writing the settings are two round trips behind that. Sampled once,
+  // this reads the value the upload is in the middle of replacing - which it did, mid-battery,
+  // while every check after it passed. Polled, so a value that never arrives still fails.
+  let afterUpload = await getSettings()
+  for (let i = 0; i < 40 && !/^bg:/.test(afterUpload.config?.background ?? ''); i++) {
+    await sleep(250)
+    afterUpload = await getSettings()
+  }
   ok('upload stored as a bg: reference', /^bg:/.test(afterUpload.config.background ?? ''), String(afterUpload.config.background))
   const uploaded = await bgUids()
   ok('one background component created', uploaded.length === bgUidsBefore.length + 1, uploaded.join(','))

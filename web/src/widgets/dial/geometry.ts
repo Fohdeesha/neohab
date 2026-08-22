@@ -23,17 +23,6 @@ export function arcPath(cx: number, cy: number, r: number, fromDeg: number, toDe
   return `M ${from.x} ${from.y} A ${r} ${r} 0 ${large} 1 ${to.x} ${to.y}`
 }
 
-/**
- * Decimal places implied by the step: 0.1 -> 1, 5 -> 0. Step is the precision the dial works
- * in, so it decides how many decimals the reading shows - a 0.1-step temperature gauge that
- * rounded to whole degrees would be throwing away the digit it was configured to resolve.
- * Display is never snapped to the step itself: a 5W-step power gauge still reads 1234, not 1235.
- */
-export function stepDecimals(step: number): number {
-  const dot = String(step).indexOf('.')
-  return dot < 0 ? 0 : Math.min(6, String(step).length - dot - 1)
-}
-
 export const TWEEN_MS = 450
 
 /**

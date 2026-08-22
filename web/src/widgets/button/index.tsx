@@ -102,5 +102,19 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate },
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),
+  // In navigate mode the item only lights the tile up; nothing is ever sent to it.
+  canCommand: (c) => c.action !== 'navigate',
+  // The commands this button was configured to send, and nothing else: a button bound to a
+  // dimmer means "this value", not "any value", so inventing a slider would offer something its
+  // author deliberately did not.
+  controlFor: (c, item) => {
+    if (c.action === 'navigate' || item !== c.item) return undefined
+    // The alternate is dead unless this button toggles - `press()` only ever reaches it through
+    // `toggle` - so offering it here would hand out a command the tile itself never sends.
+    const both = [c.command, ...(c.toggle ? [c.commandAlt] : [])]
+    const commands = [...new Set(both.filter((s): s is string => typeof s === 'string' && s !== ''))]
+    // The command IS the label here - it is the author's own text, so it is never translated.
+    return commands.length ? { kind: 'choices', choices: commands.map((command) => ({ command, label: command })) } : undefined
+  },
   Component: ButtonWidget,
 }

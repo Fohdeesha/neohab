@@ -2,6 +2,7 @@
  * Chart widget config model. Kept free of uPlot imports so the settings editors and importer
  * can use it without pulling the chart chunk into the main bundle.
  */
+import { lookup } from '../../model/lookup'
 import type { AggregateFunction, GroupBy } from './aggregate'
 
 export interface ChartSeries {
@@ -65,6 +66,8 @@ export interface ChartConfig {
   legend?: boolean
   /** Quick period chips on the widget. Default on. */
   picker?: boolean
+  /** Which ranges the chips offer; absent = {@link PERIOD_CHIPS}, empty = none. */
+  periods?: string[]
   /** Append live item changes between history refreshes. Default on. */
   live?: boolean
   yMin?: number
@@ -131,10 +134,12 @@ export function decimate(
   return [outX, outY]
 }
 
-/** Period id -> milliseconds. Covers every HABPanel chart period exactly. */
+/** Period id -> milliseconds. Covers every HABPanel chart period exactly, and then some. */
 export const PERIODS: Record<string, number> = {
   '1h': 3600e3,
+  '3h': 3 * 3600e3,
   '4h': 4 * 3600e3,
+  '6h': 6 * 3600e3,
   '8h': 8 * 3600e3,
   '12h': 12 * 3600e3,
   '24h': 24 * 3600e3,
@@ -148,8 +153,45 @@ export const PERIODS: Record<string, number> = {
   '1y': 365 * 86400e3,
 }
 
-/** Subset offered as quick chips; the configured default joins the row if it's not in here. */
-export const PERIOD_CHIPS = ['1h', '12h', '24h', '7d', '30d', '1y']
+/** The chips a chart offers until its author picks a set of their own. */
+export const PERIOD_CHIPS = ['1h', '3h', '6h', '12h', '24h', '7d', '30d', '1y']
+
+/** Every period id, longest last - the order the pickers and the chip row present them in. */
+export const PERIOD_IDS = Object.keys(PERIODS).sort((a, b) => PERIODS[a] - PERIODS[b])
+
+/**
+ * How long a stored period id means, defaulting to a day.
+ *
+ * Through `lookup` because the id comes from stored configuration: a bare `PERIODS[period]` finds
+ * `Object.prototype` for a period spelled `constructor` or `toString`, and since a function is not
+ * nullish the `??` below never fires - the arithmetic downstream then quietly yields NaN.
+ */
+export function periodMs(period: string | undefined): number {
+  return lookup(PERIODS, period) ?? PERIODS['24h']
+}
+
+/** Whether an id names a period we actually have. */
+export function isPeriod(id: unknown): id is string {
+  return typeof id === 'string' && lookup(PERIODS, id) !== undefined
+}
+
+/**
+ * The period chips a chart or timeline offers, longest last.
+ *
+ * An author's own list is honoured as given, plus the two that always have to be reachable: the
+ * range on screen now, and the widget's configured default. Without those a chip row can strand
+ * you - pick another range and the one you came from has no chip to go back to. An empty list is
+ * a deliberate "no chips", so it answers before either of them; a list naming only ranges that do
+ * not exist answers the same way, since nothing in it can be offered.
+ */
+export function chipPeriods(periods: unknown, defaultPeriod: string | undefined, current: string): string[] {
+  const chosen = Array.isArray(periods) ? periods.filter(isPeriod) : null
+  if (chosen !== null && chosen.length === 0) return []
+  const set = new Set(chosen ?? PERIOD_CHIPS)
+  if (isPeriod(defaultPeriod)) set.add(defaultPeriod)
+  if (isPeriod(current)) set.add(current)
+  return [...set].sort((a, b) => PERIODS[a] - PERIODS[b])
+}
 
 /**
  * The series a config describes: the `series` list when present, else the legacy single

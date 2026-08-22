@@ -40,6 +40,15 @@ export function getItems(signal?: AbortSignal): Promise<Item[]> {
   return api.get<Item[]>('/rest/items?fields=' + CATALOG_FIELDS, { signal })
 }
 
+/**
+ * One item, every field the server offers. Deliberately not part of the catalog above: the detail
+ * sheet wants the registry's own state history, which is worth a request for the single item
+ * somebody is looking at and dead weight across three thousand of them.
+ */
+export function getItem(name: string, signal?: AbortSignal): Promise<Item> {
+  return api.get<Item>('/rest/items/' + encodeURIComponent(name), { signal })
+}
+
 /** Send a command to an item (text/plain body, no auth required with the default user role). */
 export function sendCommand(name: string, command: string): Promise<void> {
   return api.post<void>('/rest/items/' + encodeURIComponent(name), command, { text: true })

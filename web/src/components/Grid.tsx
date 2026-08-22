@@ -15,9 +15,9 @@
  * layout, exactly as it always did. Widgets can also be hidden per surface (`config.hideOn`), so a
  * chart can be desktop-only and a big control can stay off the phone stack.
  */
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Dashboard } from '../model/dashboard'
+import type { Dashboard, WidgetInstance } from '../model/dashboard'
 import {
   cellMetrics,
   columnsOf,
@@ -43,12 +43,48 @@ import {
 import { getWidgetDefinition } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
+import { useLongPress } from './useLongPress'
+import { WidgetDetail } from './WidgetDetail'
+import { itemsForInstance } from '../widgets'
+
+/**
+ * One tile, and the hold/right-click that opens its detail sheet.
+ *
+ * A component per cell rather than the hook inline in the map below: the number of hooks a render
+ * makes has to be stable, and the widget count is not.
+ */
+function Cell({
+  className,
+  style,
+  instance,
+  editing,
+  onDetail,
+}: {
+  className: string
+  style: React.CSSProperties
+  instance: WidgetInstance
+  editing: boolean
+  onDetail: (w: WidgetInstance) => void
+}) {
+  // A widget bound to nothing has no detail to show, so it keeps the browser's own menu rather
+  // than offering a gesture that opens an empty sheet.
+  const bound = itemsForInstance(instance.type, instance.config).length > 0
+  const press = useLongPress(() => onDetail(instance), !editing && bound)
+  return (
+    <div className={className} style={style} {...press}>
+      <WidgetHost instance={instance} editing={editing} />
+    </div>
+  )
+}
 
 export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const { editing = false } = props
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
+  // Declared with the other hooks: the early returns below skip later code, and a hook after one
+  // of them would change the render's hook order.
+  const [detail, setDetail] = useState<WidgetInstance | null>(null)
 
   if (width === 0) {
     // First paint: width unknown, render the container alone and lay out next frame.
@@ -98,8 +134,11 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           const min = getWidgetDefinition(w.type)?.minPixelHeight ?? 0
           const height = Math.round(Math.max(rectOf(w).h * unit, min))
           return (
-            <div
+            <Cell
               key={w.id}
+              instance={w}
+              editing={editing}
+              onDetail={setDetail}
               className={
                 'nh-gcell' +
                 (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
@@ -115,11 +154,10 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                   '--nh-accent-ink': widgetAccentInk(w),
                 } as React.CSSProperties
               }
-            >
-              <WidgetHost instance={w} editing={editing} />
-            </div>
+            />
           )
         })}
+        {detail ? <WidgetDetail instance={detail} onClose={() => setDetail(null)} /> : null}
       </div>
     )
   }
@@ -142,8 +180,11 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
       {shown.map((w) => {
         const r = rectOf(w)
         return (
-          <div
+          <Cell
             key={w.id}
+            instance={w}
+            editing={editing}
+            onDetail={setDetail}
             className={
               'nh-gcell' +
               (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
@@ -161,9 +202,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                 '--nh-accent-ink': widgetAccentInk(w),
               } as React.CSSProperties
             }
-          >
-            <WidgetHost instance={w} editing={editing} />
-          </div>
+          />
         )
       })}
       {/* Panel frames last: a tile with an opaque background would otherwise paint over the
@@ -183,6 +222,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           }
         />
       ))}
+      {detail ? <WidgetDetail instance={detail} onClose={() => setDetail(null)} /> : null}
     </div>
   )
 }

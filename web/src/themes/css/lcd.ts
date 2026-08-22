@@ -58,7 +58,8 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   gap: 7px;
 }
 .nh-value__text,
-.nh-stat__value {
+.nh-stat__value,
+.nh-weather__temp {
   position: relative;
   font-family: 'DSEG7', 'DSEG14', monospace;
   text-transform: uppercase;
@@ -68,6 +69,16 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   text-shadow:
     0 0 0.05em currentColor,
     0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);
+}
+/* The weather hero keeps its own layout-driven size; only the face and glow change here. */
+.nh-weather__temp {
+  font-size: 2.6em;
+}
+.nh-weather--compact .nh-weather__temp {
+  font-size: 2em;
+}
+.nh-weather__mini .nh-weather__temp {
+  font-size: 1.6em;
 }
 .nh-value__text[data-ghost],
 .nh-stat__value[data-ghost] {
@@ -97,6 +108,7 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
 .nh-value__frac::before,
 .nh-stat__value::before,
 .nh-stat__frac::before,
+.nh-weather__temp::before,
 .nh-clock__time::before {
   content: attr(data-ghost);
   position: absolute;

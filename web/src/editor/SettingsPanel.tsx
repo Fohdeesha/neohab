@@ -12,6 +12,7 @@ import { GaugeMarkersField, GaugeSeverityField, GaugeZonesField } from './GaugeF
 import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
 import { CameraStreamField } from './CameraStreamField'
 import { PlanImageField, PlanLightsField } from './FloorplanFields'
+import { ItemPatternField, WeatherLocationField } from './WeatherFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -188,6 +189,58 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
             onClick={() => toggle(surface)}
           >
             {t(label)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Any number of the options, as toggle chips - the same control as the hide-on row above, which
+ * asks the same kind of question.
+ *
+ * With nothing stored the field shows the widget's own default set, because an empty row beside a
+ * chart already drawing eight chips reads as a bug. The first toggle writes a real list (empty
+ * included, which is a deliberate "none"), so a later change to the built-in default cannot move
+ * a chart somebody has already tuned.
+ */
+function MultiSelectField({
+  field,
+  widget,
+  value,
+}: {
+  field: Extract<SettingField, { type: 'multiselect' }>
+  widget: WidgetInstance
+  value: unknown
+}) {
+  const { t } = useTranslation()
+  const current = Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string')
+    : (field.defaultValue ?? [])
+  const toggle = (option: string) => {
+    const picked = new Set(current)
+    if (!picked.delete(option)) picked.add(option)
+    // Stored in the schema's own order, so the value reads the way the row does.
+    updateWidgetConfig(
+      widget.id,
+      field.key,
+      field.options.map((o) => o.value).filter((v) => picked.has(v))
+    )
+  }
+  return (
+    <div className="nh-field">
+      <span className="nh-field__label">{t(field.label)}</span>
+      <div className="nh-multisel">
+        {field.options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={'nh-chip' + (current.includes(o.value) ? ' nh-chip--on' : '')}
+            aria-pressed={current.includes(o.value)}
+            onClick={() => toggle(o.value)}
+          >
+            {t(o.label)}
           </button>
         ))}
       </div>
@@ -432,10 +485,16 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <PlanImageField field={field} widget={widget} value={value} />
     case 'planlights':
       return <PlanLightsField field={field} widget={widget} />
+    case 'weatherlocation':
+      return <WeatherLocationField field={field} widget={widget} value={value} />
+    case 'itempattern':
+      return <ItemPatternField field={field} widget={widget} value={value} />
     case 'dashboard':
       return <DashboardField field={field} widget={widget} value={value} />
     case 'hideon':
       return <HideOnField field={field} widget={widget} value={value} />
+    case 'multiselect':
+      return <MultiSelectField field={field} widget={widget} value={value} />
     default:
       return (
         <label className="nh-field" htmlFor={id}>

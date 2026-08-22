@@ -56,7 +56,17 @@ translate it.
 - **Inline editing.** Arrange dashboards on the live grid. Drag to move or resize, drag from the
   palette onto the cell you want, multi-select (Ctrl/Cmd-click, Shift-click, marquee, long-press),
   copy and paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it
-  is rejected; hold it there and the widgets in the way step aside.
+  is rejected; hold it there and the widgets in the way step aside. Escape backs out: first
+  whatever panel is open, then the selection, then edit mode itself.
+- **A closer look at any widget.** Hold a tile, or right-click it, and a sheet opens with the
+  current value, when it last changed, recent history and a link to the item in Main UI. A tile is
+  a deliberate summary; this answers what it has actually been doing, without leaving the
+  dashboard. Hold a control and you get that widget's own control too - a slider on the range it
+  was set to, a rollershutter's up, stop and down, a media player's transport, a selection's own
+  choices - while a readout or a read-only gauge gives you none, because those are displays. The
+  hold replaces the tap rather than adding to it, so a slow press never commands anything by
+  accident: hold a slider or a dial and the value goes back where it was, while a tap on a
+  slider's track still sets it there and a drag still drags.
 - **Navigate from anywhere.** A pull-out sidebar lists every dashboard. It pushes the dashboard
   aside on desktop, overlays on phones, and can be pinned or switched off.
 - **Dashboards it builds for you.** Point neohab at your items and it lays out dashboards from
@@ -66,8 +76,9 @@ translate it.
 **Widgets**
 
 - **Charts.** Multiple series with per-series colors and styles, dual y-axes, thresholds and
-  bands, a toggling legend, crosshair tooltip, drag-to-zoom, ranges from an hour to a year, and
-  live updates. History can be grouped before drawing (per hour, day, week or month, or by hour of
+  bands, a toggling legend, crosshair tooltip, drag-to-zoom, live updates, and ranges from an hour
+  to a year with a say in which of them the chart offers as quick chips.
+  History can be grouped before drawing (per hour, day, week or month, or by hour of
   day, day of week, month of year) with each series reducing its bucket its own way. A heatmap
   mode shows one series as an hour-by-weekday matrix. Any chart opens full screen and steps
   backwards through time.
@@ -86,6 +97,10 @@ translate it.
   is yours to say.
 - **Compass.** Wind direction or any bearing, with a live pointer, cardinal names, and an optional
   second item (wind speed) in the middle.
+- **Weather.** Current conditions, the next hours and a daily outlook, drawn three ways: a big
+  hero, a compact row, or a forecast strip, all with animated weather drawings. Data comes from
+  [Open-Meteo](https://open-meteo.com/) (free, no key: search for your town and you are done) or
+  from your own weather items, and your server's measurement system decides °F or °C.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.

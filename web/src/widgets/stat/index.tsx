@@ -225,5 +225,6 @@ export const statWidget: WidgetDefinition<StatConfig> = {
     ...(typeof c.subItem === 'string' && c.subItem !== '' ? [c.subItem] : []),
     ...(c.trend === 'item' && typeof c.trendItem === 'string' && c.trendItem !== '' ? [c.trendItem] : []),
   ],
+  canCommand: () => false,
   Component: StatWidget,
 }

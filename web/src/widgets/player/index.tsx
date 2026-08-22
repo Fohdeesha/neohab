@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import type { ItemChoice } from '../common/itemControl'
 
 interface PlayerConfig {
   item: string
@@ -38,6 +39,14 @@ function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
   )
 }
 
+/** The transport, as a list a popup can draw. Keys, not labels: this is our own vocabulary. */
+const PLAYER_COMMANDS: ItemChoice[] = [
+  { command: 'PREVIOUS', labelKey: 'Previous' },
+  { command: 'PLAY', labelKey: 'Play' },
+  { command: 'PAUSE', labelKey: 'Pause' },
+  { command: 'NEXT', labelKey: 'Next' },
+]
+
 export const playerWidget: WidgetDefinition<PlayerConfig> = {
   type: 'player',
   name: 'Player',
@@ -50,5 +59,11 @@ export const playerWidget: WidgetDefinition<PlayerConfig> = {
     { key: 'label', type: 'text', label: 'Name' },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  // PLAY is not a shape a state sniffer recognises, so a popup that guessed from the state offered
+  // this widget's item nothing at all. Play and pause are separate buttons here rather than the
+  // tile's one toggle: a list of commands is what a detail sheet can draw, and both are always
+  // reachable whatever the player is doing.
+  controlFor: (c, item) => (item === c.item ? { kind: 'choices', choices: PLAYER_COMMANDS } : undefined),
   Component: PlayerWidget,
 }

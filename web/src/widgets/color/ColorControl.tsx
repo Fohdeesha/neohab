@@ -5,6 +5,7 @@
  * ColorSliders, which the preset editor uses too.
  */
 import { useState } from 'react'
+import { holdTookGesture } from '../../components/useLongPress'
 import type { WidgetContext } from '../types'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
 import { useOptimisticValue } from '../common/useOptimisticValue'
@@ -22,6 +23,9 @@ export function ColorControl({ item, ctx }: { item: string; ctx: WidgetContext }
 
   const commit = (next: Hsb) => {
     setDraft(null)
+    // See the slider widget: a hold recognised during the press takes the gesture, so the release
+    // sends nothing and the draft is already back where it was.
+    if (holdTookGesture()) return
     optimistic.commit(next)
     if (!ctx.editing) {
       // The wheel wraps: openHAB's HSBType accepts 0 <= h < 360 and rejects the whole command

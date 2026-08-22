@@ -40,7 +40,10 @@ const page = await context.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
-page.on('dialog', (d) => d.accept())
+/** Named, so a check that needs to answer a dialog differently can lift it first - two listeners
+ *  both acting on one dialog is an error, not a race. */
+const acceptDialogs = (d) => d.accept()
+page.on('dialog', acceptDialogs)
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 const seed = async (uid, id, name, widgets) =>
@@ -194,8 +197,9 @@ try {
   await sleep(150)
 
   // ---- reported bug #3: lasso starting ON A WIDGET BODY (dense boards have no background) ----
-  await page.keyboard.press('Escape')
-  await sleep(120)
+  // Not an Escape press to clear the selection: Escape LEAVES edit mode once there is nothing
+  // left to back out of, and closing the panel has already cleared it. Asserted, not assumed.
+  ok('closing the settings panel cleared the selection', (await selectedCells()) === 0)
   {
     const a = await page.locator('.nh-cell').nth(0).boundingBox()
     const b = await page.locator('.nh-cell').nth(1).boundingBox()
@@ -282,10 +286,40 @@ try {
   await page.keyboard.press('Escape')
   await sleep(120)
   ok('Escape clears the selection', (await selectedCells()) === 0)
+  // ...and still editing, because backing out of a selection is the first layer, not the last.
+  ok('and that Escape did not also leave edit mode', (await page.locator('.nh-grid--edit').count()) === 1)
 
-  // leave without saving so A stays as seeded (4 widgets) for a clean cleanup baseline
-  await page.click('button:has-text("Exit")')
-  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
+  // ================= Escape leaves edit mode =================
+  // The way out, without hunting for the button - the complaint that named the Exit button in the
+  // first place. This draft is dirty (a paste above), so it has to ask before discarding.
+  let asked = 0
+  const dismiss = (d) => {
+    asked++
+    d.dismiss()
+  }
+  page.off('dialog', acceptDialogs)
+  page.on('dialog', dismiss)
+  await page.keyboard.press('Escape')
+  await sleep(250)
+  page.off('dialog', dismiss)
+  page.on('dialog', acceptDialogs)
+  ok('Escape on a dirty draft asks before discarding', asked === 1, `dialogs=${asked}`)
+  ok('and dismissing it keeps you editing', (await page.locator('.nh-grid--edit').count()) === 1)
+
+  await page.keyboard.press('Escape') // the suite's own handler accepts this one
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 }).catch(() => {})
+  ok('Escape leaves edit mode', (await page.locator('.nh-grid--edit').count()) === 0)
+  ok('and discarded the draft, exactly as the Exit button does', (await widgetCount(UID_A)) === 4, String(await widgetCount(UID_A)))
+
+  // A clean draft needs no question at all.
+  await enterEdit()
+  let cleanAsked = 0
+  const countClean = () => cleanAsked++
+  page.on('dialog', countClean)
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 }).catch(() => {})
+  page.off('dialog', countClean)
+  ok('a clean draft leaves on Escape with no question', cleanAsked === 0 && (await page.locator('.nh-grid--edit').count()) === 0, `dialogs=${cleanAsked}`)
 
   // ================= CROSS-DASHBOARD PASTE =================
   // Copy on A, navigate to B, paste there.

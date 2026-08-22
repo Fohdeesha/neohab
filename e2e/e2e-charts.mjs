@@ -68,7 +68,7 @@ page.on('request', (r) => {
 })
 
 // DOM cell order == widgets array order
-const CELL = { multi: 0, legacy: 1, nothresh: 2, thresh: 3, y2only: 4, decim: 5 }
+const CELL = { multi: 0, legacy: 1, nothresh: 2, thresh: 3, y2only: 4, decim: 5, tt: 6, picked: 7 }
 const chartSel = (i) => `.nh-gcell:nth-child(${i + 1}) .nh-chart`
 const cellSel = (i) => `.nh-gcell:nth-child(${i + 1})`
 
@@ -175,6 +175,41 @@ try {
             },
             layout: { lg: { x: 6, y: 10, w: 6, h: 4 } },
           },
+          {
+            id: 'w-tt',
+            type: 'chart',
+            config: {
+              label: 'TT',
+              period: '24h',
+              picker: false,
+              live: false,
+              // The same item twice ON PURPOSE. The tooltip lists only the series with a sample
+              // at the snapped index, and two ITEMS almost never share exact timestamps on real
+              // persistence: rrd4j quantizes each archive to its own grid, and inmemory stamps
+              // each item's everyMinute write ~1ms apart, so the union x-axis interleaves and a
+              // cross-item two-row tooltip is a fixture-alignment lottery. One item's history
+              // drawn twice shares every timestamp by construction, on any server, which is what
+              // makes "two rows" a deterministic assertion about the tooltip code itself.
+              series: [
+                { item: ITEMS.dimmer, label: 'A', fill: 0 },
+                { item: ITEMS.dimmer, label: 'B', fill: 0, width: 1 },
+              ],
+            },
+            layout: { lg: { x: 0, y: 14, w: 6, h: 4 } },
+          },
+          {
+            id: 'w-picked',
+            type: 'chart',
+            // An author who chose their own ranges gets those, and no others.
+            config: {
+              label: 'Picked',
+              period: '24h',
+              live: false,
+              periods: ['1h', '24h'],
+              series: [{ item: ITEMS.dimmer, label: 'P', fill: 0, width: 1 }],
+            },
+            layout: { lg: { x: 6, y: 14, w: 6, h: 4 } },
+          },
         ],
       },
     }),
@@ -184,6 +219,7 @@ try {
   await page.goto(APP + '#/d/nh-e2e-charts', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector(chartSel(CELL.multi) + ' canvas', { timeout: 20000 })
   await page.waitForSelector(chartSel(CELL.thresh) + ' canvas', { timeout: 20000 })
+  await page.waitForSelector(chartSel(CELL.tt) + ' canvas', { timeout: 20000 })
   await sleep(700)
 
   // ---------- multi-series: legend, palette, chips ----------
@@ -209,34 +245,77 @@ try {
     (await page.locator(cellSel(CELL.nothresh) + ' .nh-chart__chips').count()) === 0
   )
 
+  // ---------- which ranges the chips offer ----------
+  const chipsOf = (i) => page.$$eval(cellSel(i) + ' .nh-chart__chip', (els) => els.map((e) => e.textContent.trim()))
+  const defaultChips = await chipsOf(CELL.multi)
+  ok(
+    'the chip row offers the short ranges a live reading is read at',
+    defaultChips.includes('3h') && defaultChips.includes('6h'),
+    defaultChips.join(' ')
+  )
+  ok(
+    'chips run shortest to longest',
+    JSON.stringify(defaultChips) === JSON.stringify(['1h', '3h', '6h', '12h', '24h', '7d', '30d', '1y']),
+    defaultChips.join(' ')
+  )
+  const pickedChips = await chipsOf(CELL.picked)
+  ok(
+    'a chart offers the ranges its author picked, and no others',
+    JSON.stringify(pickedChips) === JSON.stringify(['1h', '24h']),
+    pickedChips.join(' ')
+  )
+  // Picking another range must not strand you: the default has to keep a chip of its own.
+  await page.click(cellSel(CELL.picked) + ' .nh-chart__chip:has-text("1h")')
+  await sleep(1200)
+  const afterPick = await chipsOf(CELL.picked)
+  ok(
+    'the range you came from is still one chip away',
+    JSON.stringify(afterPick) === JSON.stringify(['1h', '24h']),
+    afterPick.join(' ')
+  )
+  await page.click(cellSel(CELL.picked) + ' .nh-chart__chip:has-text("24h")')
+  await sleep(1200)
+
   // ---------- tooltip ----------
-  // Polled, with the cursor re-nudged each round: a hover that fires before both series have
-  // been applied lists only one row, and under battery load a single 300ms sample caught
-  // exactly that frame. The cap keeps the assertion able to fail.
-  const canvasBox = await (await page.$(chartSel(CELL.multi) + ' canvas')).boundingBox()
+  // Polled, with the cursor re-nudged each round: a hover that fires before the series have
+  // been applied lists nothing, and under battery load a single 300ms sample caught exactly
+  // that frame. The cap keeps the assertion able to fail. The checks run on the tooltip cell,
+  // which draws one item as two series (see the seed) so a two-row tooltip is reachable on
+  // every persistence shape - across ITEMS the timestamps rarely coincide, by design.
+  // the cell sits below the fold; a mouse.move to coordinates outside the viewport is
+  // silently inert, so scroll it into view and measure the box AFTER the scroll
+  const ttCanvas = await page.$(chartSel(CELL.tt) + ' canvas')
+  await ttCanvas.scrollIntoViewIfNeeded()
+  const ttBox = await ttCanvas.boundingBox()
   let ttRows = 0
   for (let i = 0; i < 20 && ttRows < 2; i++) {
-    await page.mouse.move(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height * 0.5 + (i % 2))
+    await page.mouse.move(ttBox.x + ttBox.width * 0.55, ttBox.y + ttBox.height * 0.5 + (i % 2))
     await sleep(250)
-    ttRows = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
+    ttRows = await page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
   }
-  const tt = page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show')
+  const tt = page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show')
   ok('crosshair tooltip appears on hover', (await tt.count()) === 1)
   ok('tooltip lists the series under the cursor', ttRows >= 2, `rows=${ttRows}`)
-  const ttTime = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-time').textContent()
+  const ttTime = await page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show .nh-chart__tt-time').textContent()
   ok('tooltip has a time header', !!ttTime && ttTime.trim().length > 4, ttTime ?? '')
   await page.mouse.move(10, 10)
   await sleep(250)
-  ok('tooltip hides when the pointer leaves', (await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show').count()) === 0)
+  ok('tooltip hides when the pointer leaves', (await page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show').count()) === 0)
 
   // ---------- legend toggling ----------
   await keys.nth(1).click()
   ok('legend click marks series off', (await keys.nth(1).getAttribute('class')).includes('nh-chart__key--off'))
-  await page.mouse.move(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height * 0.5)
+  // hiding a series removes its tooltip row - driven on the tooltip cell's own legend
+  const ttKeys = page.locator(cellSel(CELL.tt) + ' .nh-chart__key')
+  await ttKeys.nth(1).click()
+  await ttCanvas.scrollIntoViewIfNeeded()
+  const ttBox2 = await ttCanvas.boundingBox()
+  await page.mouse.move(ttBox2.x + ttBox2.width * 0.55, ttBox2.y + ttBox2.height * 0.5)
   await sleep(300)
-  const rowsHidden = await page.locator(cellSel(CELL.multi) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
+  const rowsHidden = await page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show .nh-chart__tt-row').count()
   ok('hidden series leaves the tooltip', rowsHidden === ttRows - 1, `rows=${rowsHidden} was ${ttRows}`)
   await page.mouse.move(10, 10)
+  await ttKeys.nth(1).click()
   await keys.nth(1).click()
   ok('legend click re-shows series', !(await keys.nth(1).getAttribute('class')).includes('nh-chart__key--off'))
 
@@ -398,6 +477,45 @@ try {
   ok(
     'adding a second series shows the legend in preview',
     (await page.locator(`.nh-cell:nth-child(${CELL.nothresh + 1}) .nh-chart__legend`).count()) === 1
+  )
+
+  // ---------- choosing which ranges the chips offer ----------
+  const rangeSel = '.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Ranges offered")) .nh-multisel'
+  const rangeChips = () =>
+    page.$$eval(rangeSel + ' button', (els) =>
+      els.map((e) => ({ id: e.textContent.trim(), on: e.getAttribute('aria-pressed') === 'true' }))
+    )
+
+  // Guarded: on a build without the field these would each time out and abort every check after
+  // them, so the assertions below would never get to say what is actually missing.
+  await page.locator('.nh-cell').nth(CELL.multi).locator('.nh-cell__overlay').click({ timeout: 8000 }).catch(() => {})
+  await sleep(400)
+  const asDrawn = await rangeChips()
+  ok('the settings offer every range as a toggle', asDrawn.length === 15, `${asDrawn.length} options`)
+  ok(
+    'with nothing stored the form shows the set the chart is actually drawing',
+    JSON.stringify(asDrawn.filter((c) => c.on).map((c) => c.id)) ===
+      JSON.stringify(['1h', '3h', '6h', '12h', '24h', '7d', '30d', '1y']),
+    asDrawn.filter((c) => c.on).map((c) => c.id).join(' ')
+  )
+
+  await page.locator('.nh-cell').nth(CELL.picked).locator('.nh-cell__overlay').click({ timeout: 8000 }).catch(() => {})
+  await sleep(400)
+  const asStored = await rangeChips()
+  ok(
+    'a stored list is shown as stored',
+    JSON.stringify(asStored.filter((c) => c.on).map((c) => c.id)) === JSON.stringify(['1h', '24h']),
+    asStored.filter((c) => c.on).map((c) => c.id).join(' ')
+  )
+  await page.click(rangeSel + ' button:text-is("6h")', { timeout: 8000 }).catch(() => {})
+  await sleep(600)
+  const previewed = await page.$$eval(`.nh-cell:nth-child(${CELL.picked + 1}) .nh-chart__chip`, (els) =>
+    els.map((e) => e.textContent.trim())
+  )
+  ok(
+    'adding a range live-previews on the widget',
+    JSON.stringify(previewed) === JSON.stringify(['1h', '6h', '24h']),
+    previewed.join(' ')
   )
 
   // discard everything; server config must be untouched

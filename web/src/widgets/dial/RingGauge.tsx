@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
 import { getItemHistory } from '../../api/persistence'
-import { arcPath, polar, stepDecimals, useTweened } from './geometry'
+import { stepDecimals } from '../common/itemControl'
+import { arcPath, polar, useTweened } from './geometry'
 import {
   arcOf,
   blockLit,
@@ -137,6 +139,9 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     if (drag === null) return
     const { ring, v } = drag
     setDrag(null)
+    // See ClassicDial: a hold recognised during the press takes the gesture, so this release
+    // sends nothing and the staged value is already gone.
+    if (holdTookGesture()) return
     void ctx.sendCommand(ring === 'inner' ? config.item2! : config.item, String(v))
   }
 

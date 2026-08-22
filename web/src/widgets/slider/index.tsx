@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
+import { numericScale, rangeControl, stepDecimals } from '../common/itemControl'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
 import { useOptimisticValue } from '../common/useOptimisticValue'
 
@@ -16,9 +18,9 @@ interface SliderConfig {
 
 function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   const state = ctx.getItem(config.item)
-  const min = config.min ?? 0
-  const max = config.max ?? 100
-  const step = config.step ?? 1
+  // Guarded at the read: an imported `max: "abc"` or a `step: 0` reaches a range input as NaN and
+  // makes it inert, and this is the same scale the detail sheet's control is built from.
+  const { min, max, step } = numericScale(config.min, config.max, config.step)
 
   // While dragging, show the local value; after a commit, hold it until the device confirms
   // (or diverges after the settle window) so slow/quantizing devices don't snap the slider back.
@@ -29,6 +31,10 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
 
   const commit = (v: number) => {
     setDrag(null)
+    // Pressing the track jumps the thumb there before anyone knows whether this is a tap or a
+    // hold. Nothing has been sent yet, so a hold that was recognised in the meantime simply ends
+    // here: the draft is already back, and the item is left alone.
+    if (holdTookGesture()) return
     optimistic.commit(v)
     if (!ctx.editing) {
       void ctx.sendCommand(config.item, String(v)).then((accepted) => !accepted && optimistic.cancel(v))
@@ -53,7 +59,10 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
           onKeyUp={(e) => commitOn.key(e.key, Number((e.target as HTMLInputElement).value))}
         />
         <div className="nh-slider__value">
-          {Math.round(value)}
+          {/* The digits the step resolves, like the dial and like this widget's own control in
+              the detail sheet: a slider set to a 0.5 step and reading whole numbers is throwing
+              away the digit it was configured to resolve. */}
+          {value.toFixed(stepDecimals(step))}
           {config.unit ?? ''}
         </div>
       </div>
@@ -77,5 +86,9 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
     { key: 'unit', type: 'text', label: 'Unit suffix' },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  // The reported bug: a popup that offered 0-100 for a slider set to 2000-6500 K, and commanded
+  // whatever that track landed on. It is this widget's scale, wherever the control is drawn.
+  controlFor: (c, item) => (item === c.item ? rangeControl(numericScale(c.min, c.max, c.step), c.unit) : undefined),
   Component: SliderWidget,
 }

@@ -183,5 +183,10 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
     },
   ],
   itemKeys: (c) => lightsOf(c).map((l) => l.item),
+  canCommand: () => true,
+  // A plan's lights are whatever the house has - a colour bulb, a dimmer, a plain switch - and
+  // nothing on the plan says which. Working it out from the state is the honest answer here, and
+  // it is what the tap-a-light popup on the plan itself does.
+  controlFor: (c, item) => (lightsOf(c).some((l) => l.item === item) ? { kind: 'auto' } : undefined),
   Component: FloorplanWidget,
 }

@@ -32,5 +32,8 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
     { key: 'label', type: 'text', label: 'Name' },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  // The same picker, even when the item is NULL and has no colour to read a shape from yet.
+  controlFor: (c, item) => (item === c.item ? { kind: 'color' } : undefined),
   Component: ColorWidget,
 }

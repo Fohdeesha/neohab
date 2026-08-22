@@ -9,6 +9,7 @@ import { sliderWidget } from './slider'
 import { valueWidget } from './value'
 import { statWidget } from './stat'
 import { compassWidget } from './compass'
+import { weatherWidget } from './weather'
 import { labelWidget } from './label'
 import { clockWidget } from './clock'
 import { imageWidget } from './image'
@@ -40,6 +41,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(valueWidget)
   registerWidget(statWidget)
   registerWidget(compassWidget)
+  registerWidget(weatherWidget)
   registerWidget(labelWidget)
   registerWidget(clockWidget)
   registerWidget(imageWidget)
@@ -51,4 +53,10 @@ export function registerBuiltinWidgets(): void {
   registerWidget(templateWidget)
 }
 
-export { getWidgetDefinition, listWidgetDefinitions, itemsForInstance } from './registry'
+export {
+  getWidgetDefinition,
+  listWidgetDefinitions,
+  itemsForInstance,
+  instanceCommands,
+  instanceControl,
+} from './registry'

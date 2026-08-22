@@ -144,6 +144,10 @@ row, no sideways scrolling. The widget list comes from the palette, so a widget 
 covered without editing the suite. It saves nothing (the draft is discarded on Exit) and binds no
 items.
 
+`e2e-weather.mjs` answers every Open-Meteo request from `fixtures/` via route interception, so the
+battery never waits on a third-party service and the readings it asserts come from the same file
+the routes serve. The one item it binds (`items.temperature`) is only ever read.
+
 **Console errors and somebody else's data.** A real openHAB carries the user's own configuration,
 which routinely points at iconsets renamed years ago and hosts that no longer answer. A suite that
 fails on those 404s cannot be run against a live server, so `isAppResource()` in `lib/target.mjs`

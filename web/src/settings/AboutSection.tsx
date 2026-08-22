@@ -143,6 +143,15 @@ export function AboutSection() {
 
         <dt>{t('License')}</dt>
         <dd>{t('Eclipse Public License 2.0. A community project, not an official openHAB UI.')}</dd>
+
+        {/* the weather widget's forecast source asks for attribution (CC BY 4.0) */}
+        <dt>{t('Weather data')}</dt>
+        <dd>
+          <a href="https://open-meteo.com/" target="_blank" rel="noreferrer noopener">
+            Open-Meteo
+          </a>{' '}
+          (CC BY 4.0)
+        </dd>
       </dl>
 
       <p className="nh-settings__text">

@@ -8,6 +8,7 @@
  */
 import type { ComponentType } from 'react'
 import type { ItemState } from '../api/types'
+import type { ItemControl } from './common/itemControl'
 
 /** Runtime context passed to every widget. Uniform on purpose - the stable contract. */
 export interface WidgetContext {
@@ -59,12 +60,29 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'boolean'; label: string }
     | { key: string; type: 'color'; label: string }
     | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
+    /**
+     * Any number of the options, stored as a string list. `defaultValue` is what the widget does
+     * when the key is absent, so the form can show that set as selected instead of an empty row
+     * that contradicts what the widget is drawing. The first toggle stores a real list, and the
+     * author owns it from then on.
+     */
+    | {
+        key: string
+        type: 'multiselect'
+        label: string
+        options: { value: string; label: string }[]
+        defaultValue?: string[]
+      }
     /** Pick one of the existing dashboards (stores its id). */
     | { key: string; type: 'dashboard'; label: string }
     /** Which screen sizes this widget is hidden on (phone / tablet / desktop). */
     | { key: string; type: 'hideon'; label: string }
     /** Background-image style value: a URL or an uploaded `bg:<id>` reference. */
     | { key: string; type: 'planimage'; label: string }
+    /** A place for the weather widget: geocoding search plus manual coordinates. */
+    | { key: string; type: 'weatherlocation'; label: string }
+    /** An item-name pattern with `{n}` for the slot number, previewed against the catalog. */
+    | { key: string; type: 'itempattern'; label: string; placeholder?: string }
     /** The floor plan's lights - a button opening the place-on-the-plan editor sheet. */
     | { key: string; type: 'planlights'; label: string }
     /* list editors rendered by dedicated components in editor/ */
@@ -107,4 +125,33 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   Component: ComponentType<WidgetProps<C>>
   /** Item-name config keys whose live state this widget needs tracked via SSE. */
   itemKeys?: (config: C) => string[]
+  /**
+   * Whether THIS instance commands the items it binds, rather than only displaying them.
+   *
+   * It is what the detail sheet asks before offering a control: a read-only gauge is a display
+   * its author deliberately made uncommandable, and holding one to be handed a slider is exactly
+   * the surprise this answers. The item's own `stateDescription.readOnly` is the other half, and
+   * both have to agree before a control is drawn.
+   *
+   * Omitted means NO - the safe direction, since the cost of forgetting it is a control that is
+   * missing (visible, one line to add) rather than a command nobody asked for. Every widget that
+   * declares `itemKeys` must say either way; a unit check over the registry enforces it.
+   */
+  canCommand?: (config: C) => boolean
+  /**
+   * WHICH control the detail sheet should offer for one of this widget's items, given this
+   * instance's configuration.
+   *
+   * The sheet used to guess it from the item's state, which threw away everything the author had
+   * set: a slider configured 2000-6500 K was handed a 0-100 track, a rollershutter got a position
+   * slider instead of up/stop/down, and a media player got nothing at all. A widget knows what it
+   * is; this is where it says so.
+   *
+   * Answering `undefined` means THIS item is not one this widget commands - a gauge's marker
+   * follows an item it never writes to - so no control is drawn for it. `{ kind: 'auto' }` asks
+   * for the old state-shape rule, which is the honest answer where a widget really cannot know
+   * (a floor plan's lights are whatever the house has). Every widget that declares `canCommand`
+   * must declare this too; a unit check over the registry enforces it.
+   */
+  controlFor?: (config: C, item: string) => ItemControl | undefined
 }

@@ -27,6 +27,8 @@ export interface TimelineConfig {
   refresh?: number
   /** Quick period chips on the widget. Default on. */
   picker?: boolean
+  /** Which ranges the chips offer; absent = the usual set, empty = none. */
+  periods?: string[]
 }
 
 /** One contiguous run of a state. Times are epoch milliseconds, clipped to the window. */

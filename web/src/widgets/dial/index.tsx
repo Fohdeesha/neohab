@@ -6,10 +6,11 @@
  * definition: which renderer to use, and the settings schema that drives both. The pure model
  * they share is in `gauge.ts`, and the geometry in `geometry.ts`.
  */
+import { rangeControl } from '../common/itemControl'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { ClassicDial } from './ClassicDial'
 import { RingGauge } from './RingGauge'
-import type { DialConfig } from './gauge'
+import { scaleOf, type DialConfig } from './gauge'
 
 function DialWidget(props: WidgetProps<DialConfig>) {
   const s: string | undefined = props.config.style
@@ -191,5 +192,16 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     ...(typeof c.item2 === 'string' && c.item2 !== '' ? [c.item2] : []),
     ...(Array.isArray(c.markers) ? c.markers : []).map((m) => m?.item).filter((s): s is string => typeof s === 'string' && s !== ''),
   ],
+  // "Read-only gauge" is the author saying this tile is an instrument, not a control - so the
+  // detail sheet must not hand out the slider the tile itself refuses to be.
+  canCommand: (c) => c.readOnly !== true,
+  // Each ring on its own scale, and nothing at all for a marker: a marker follows an item to draw
+  // a line on the face, and this dial never writes to it.
+  controlFor: (c, item) => {
+    if (c.readOnly === true) return undefined
+    if (item === c.item) return rangeControl(scaleOf(c), c.unit)
+    if (item === c.item2) return rangeControl(scaleOf(c, 'inner'), c.unit2)
+    return undefined
+  },
   Component: DialWidget,
 }

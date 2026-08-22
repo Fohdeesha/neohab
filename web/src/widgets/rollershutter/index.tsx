@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { displayValue } from '../common/format'
+import type { ItemChoice } from '../common/itemControl'
 
 interface RollershutterConfig {
   item: string
@@ -34,6 +35,17 @@ function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) 
   )
 }
 
+/**
+ * The three commands this widget exists to send. A rollershutter's state is a percentage, so a
+ * popup that guessed from the state offered a position slider instead - which on a garage door is
+ * a real door moving to wherever the track was pressed.
+ */
+const ROLLER_COMMANDS: ItemChoice[] = [
+  { command: 'UP', labelKey: 'Up' },
+  { command: 'STOP', labelKey: 'Stop' },
+  { command: 'DOWN', labelKey: 'Down' },
+]
+
 export const rollershutterWidget: WidgetDefinition<RollershutterConfig> = {
   type: 'rollershutter',
   name: 'Rollershutter',
@@ -46,5 +58,7 @@ export const rollershutterWidget: WidgetDefinition<RollershutterConfig> = {
     { key: 'label', type: 'text', label: 'Name' },
   ],
   itemKeys: (c) => [c.item],
+  canCommand: () => true,
+  controlFor: (c, item) => (item === c.item ? { kind: 'choices', choices: ROLLER_COMMANDS } : undefined),
   Component: RollershutterWidget,
 }
