@@ -4651,7 +4651,7 @@ button {
 .nh-weather__bigicon {
   flex-shrink: 0;
   max-width: 34cqw;
-  max-height: 52cqh;
+  max-height: 44cqh;
   object-fit: contain;
 }
 
@@ -4696,10 +4696,36 @@ button {
   color: var(--nh-text-dim);
 }
 
-.nh-weather__details {
+/* The hero's top half: the reading, and the details beside it when the cell has the width for
+   them - one wrapping row, so the arrangement follows the space each part actually needs rather
+   than a width the widget has to guess at. Reading first when they wrap. */
+.nh-weather__heromain {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  align-items: center;
+  gap: 6px 14px;
+  min-height: 0;
+}
+
+.nh-weather--hero .nh-weather__now {
+  /* a base narrower than the reading's max-content, so a long condition wraps instead of
+     pushing the details onto their own line */
+  flex: 1 1 9em;
+  min-width: 0;
+}
+
+.nh-weather--hero .nh-weather__details {
+  flex: 1 1 5.5em;
+  min-width: 0;
+}
+
+/* Auto-fitting columns: one narrow column beside the reading in a small cell, two or four
+   across when the details sit under it or the cell is wide. */
+.nh-weather__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5em, 1fr));
+  gap: 3px 14px;
+  min-width: 0;
 }
 
 .nh-weather__detail {
@@ -5249,7 +5275,32 @@ button {
   }
 }
 
-@container (max-height: 160px) {
+/* The details go when there is no room for them either way: below ~130px there is barely room
+   for the reading itself, and a narrow cell has to put them underneath, where a short cell has
+   nowhere to put them. */
+@container (max-width: 300px) and (max-height: 175px) {
+  .nh-weather__details {
+    display: none;
+  }
+}
+
+/* In a short cell each reading puts its label beside its value instead of above it: four of them
+   then cost four lines rather than eight, which is what lets them sit beside the reading at all
+   in a one-row tile. Values right-aligned, so a column of them lines up. */
+@container (max-height: 200px) {
+  .nh-weather__detail {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .nh-weather__detvalue {
+    white-space: nowrap;
+  }
+}
+
+@container (max-height: 130px) {
   .nh-weather__details {
     display: none;
   }

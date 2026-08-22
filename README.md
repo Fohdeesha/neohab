@@ -53,6 +53,9 @@ translate it.
   per widget and per device.
 - **Tablet layouts.** An optional second arrangement with its own column count. Any widget can be
   left out on phones, tablets or desktops entirely.
+- **Every widget, the same settings.** Whatever the widget, its title is called its Name, sits
+  where Name alignment and Name position put it, and can be dropped entirely - a weather panel or
+  a camera does not need a word above it saying so.
 - **Inline editing.** Arrange dashboards on the live grid. Drag to move or resize, drag from the
   palette onto the cell you want, multi-select (Ctrl/Cmd-click, Shift-click, marquee, long-press),
   copy and paste between dashboards, and undo anything. Drop a widget onto an occupied spot and it
@@ -98,7 +101,9 @@ translate it.
 - **Compass.** Wind direction or any bearing, with a live pointer, cardinal names, and an optional
   second item (wind speed) in the middle.
 - **Weather.** Current conditions, the next hours and a daily outlook, drawn three ways: a big
-  hero, a compact row, or a forecast strip, all with animated weather drawings. Data comes from
+  hero, a compact row, or a forecast strip, all with animated weather drawings. The hero fills the
+  tile it is given: feels-like, humidity, wind and rain chance sit beside the temperature wherever
+  there is width for them and underneath where there is not. Data comes from
   [Open-Meteo](https://open-meteo.com/) (free, no key: search for your town and you are done) or
   from your own weather items, and your server's measurement system decides °F or °C.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.

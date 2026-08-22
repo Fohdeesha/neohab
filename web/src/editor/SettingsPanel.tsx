@@ -74,6 +74,26 @@ const TEXT_SIZE_FIELD: SettingField = {
 }
 
 /**
+ * Whether the name is drawn at all, offered by every widget that has a header row - a widget
+ * whose name is obvious from what it draws (a weather panel, a camera) should not be forced to
+ * carry a title. A widget may add choices of its own between these two (`labelModes`); the
+ * camera's "Over the picture" is the only one. Only shown once there is a name to show.
+ */
+function labelModeField(def: { labelModes?: { options: { value: string; label: string }[]; hint?: string } }): SettingField {
+  return {
+    key: 'labelMode',
+    type: 'select',
+    label: 'Show the name',
+    options: [
+      { value: 'header', label: 'In the title bar' },
+      ...(def.labelModes?.options ?? []),
+      { value: 'none', label: 'Not at all' },
+    ],
+    hint: def.labelModes?.hint,
+  }
+}
+
+/**
  * Name alignment and position both offer an explicit "theme default".
  *
  * Several themes set the alignment they want for every widget, and a widget only follows that
@@ -128,6 +148,13 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
         {def.hasHeader ? (
           <>
+            {String(effective.label ?? '').trim() ? (
+              <Field
+                field={labelModeField(def)}
+                widget={widget}
+                value={(effective.labelMode as string) || 'header'}
+              />
+            ) : null}
             <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? ''} />
             <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
           </>

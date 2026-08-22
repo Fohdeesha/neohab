@@ -76,12 +76,12 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   defaultSize: { w: 3, h: 2 },
   defaultConfig: () => ({ label: 'Button', command: 'ON', commandAlt: 'OFF', toggle: false, action: 'command', iconSize: 32 }),
   settings: [
-    { key: 'label', type: 'text', label: 'Label' },
+    { key: 'label', type: 'text', label: 'Name' },
     { key: 'caption', type: 'text', label: 'Caption' },
     { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…' },
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
-    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide label)' },
+    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)' },
     {
       key: 'action',
       type: 'select',

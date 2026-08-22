@@ -85,23 +85,31 @@ function DetailsRow({ view, t, details }: Pick<LookProps, 'view' | 't' | 'detail
   )
 }
 
-/** Hero: big reading and drawing, the details row, then the forecast strips there is room for. */
+/**
+ * Hero: the big reading and drawing, the details, then the forecast strips there is room for.
+ *
+ * The reading and the details share one wrapping row, so a cell with width to spare puts the
+ * details BESIDE the reading and fills its box, and a narrow one drops them underneath - decided
+ * by the space each actually needs rather than by a width query, so it holds at any cell size.
+ */
 export function HeroLook({ view, iconStyle, t, showHourly, showDaily, details }: LookProps) {
   return (
     <div className="nh-weather nh-weather--hero">
-      <div className="nh-weather__now">
-        <Icon icon={meteoIcon(view.icon, iconStyle)} size={76} className="nh-weather__bigicon" />
-        <div className="nh-weather__reading">
-          <TempText view={view} />
-          <span className="nh-weather__cond">{view.label}</span>
-          {view.high !== undefined && view.low !== undefined ? (
-            <span className="nh-weather__range">
-              {view.high} / {view.low}
-            </span>
-          ) : null}
+      <div className="nh-weather__heromain">
+        <div className="nh-weather__now">
+          <Icon icon={meteoIcon(view.icon, iconStyle)} size={76} className="nh-weather__bigicon" />
+          <div className="nh-weather__reading">
+            <TempText view={view} />
+            <span className="nh-weather__cond">{view.label}</span>
+            {view.high !== undefined && view.low !== undefined ? (
+              <span className="nh-weather__range">
+                {view.high} / {view.low}
+              </span>
+            ) : null}
+          </div>
         </div>
+        <DetailsRow view={view} t={t} details={details} />
       </div>
-      <DetailsRow view={view} t={t} details={details} />
       {showHourly && view.hours.length > 0 ? <Strip cols={view.hours.map(hourCol)} iconStyle={iconStyle} /> : null}
       {showDaily && view.days.length > 0 ? <Strip cols={view.days.map(dayCol)} iconStyle={iconStyle} days /> : null}
     </div>

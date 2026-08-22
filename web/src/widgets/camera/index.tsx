@@ -245,6 +245,12 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
   defaultSize: { w: 6, h: 5 },
   minPixelHeight: 140,
   hasHeader: true,
+  // "Show the name" gains a third choice here: the name written on the video itself, so the
+  // whole cell stays picture. The universal In the title bar / Not at all come with the field.
+  labelModes: {
+    options: [{ value: 'overlay', label: 'Over the picture' }],
+    hint: 'Over the picture puts the name on the video itself, so the whole cell stays picture. It sits wherever Name alignment and Name position put it.',
+  },
   defaultConfig: () => ({
     source: 'go2rtc',
     server: '',
@@ -260,18 +266,6 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
   }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
-    {
-      key: 'labelMode',
-      type: 'select',
-      label: 'Show the name',
-      options: [
-        { value: 'header', label: 'In the title bar' },
-        { value: 'overlay', label: 'Over the picture' },
-        { value: 'none', label: 'Not at all' },
-      ],
-      hint: 'Over the picture puts the name on the video itself, so the whole cell stays picture. It sits wherever Name alignment and Name position put it.',
-      showIf: (c) => !!String(c.label ?? '').trim(),
-    },
     {
       key: 'overlayColor',
       type: 'select',

@@ -445,7 +445,7 @@
   "Icon color when active": "Icoonkleur wanneer actief",
   "Icon is {{kb}} KB - the limit is {{max}} KB.": "Het icoon is {{kb}} KB - de limiet is {{max}} KB.",
   "Icon is too detailed to fit the {{max}} KB limit even after downscaling. Use a simpler image or raise the limit in Settings.": "Het icoon is te gedetailleerd voor de limiet van {{max}} KB, zelfs na verkleinen. Gebruik een eenvoudiger afbeelding of verhoog de limiet in de instellingen.",
-  "Icon only (hide label)": "Alleen icoon (label verbergen)",
+  "Icon only (hide the name)": "Alleen icoon (naam verbergen)",
   "Icon size": "Icoongrootte",
   "Icon style": "Pictogramstijl",
   "Icon when active": "Icoon wanneer actief",

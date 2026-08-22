@@ -35,10 +35,14 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   // widget behavior and the settings form always agree on effective values. Memoised on the
   // stored config's identity: rebuilding it every render handed every widget a new object, which
   // makes memoising a widget impossible for anyone who later wants to.
-  const config = useMemo(
-    () => ({ ...def?.defaultConfig(), ...instance.config }),
-    [def, instance.config]
-  )
+  const config = useMemo(() => {
+    const merged: Record<string, unknown> = { ...def?.defaultConfig(), ...instance.config }
+    // "Show the name: Not at all" is honoured here rather than inside each widget. Every widget
+    // draws its own header from config.label, so one that forgot to check would silently ignore
+    // the setting - dropping the name centrally makes that impossible.
+    if (merged.labelMode === 'none') delete merged.label
+    return merged
+  }, [def, instance.config])
 
   const ctx: WidgetContext = useMemo(
     () => ({

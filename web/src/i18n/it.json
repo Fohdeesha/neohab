@@ -445,7 +445,7 @@
   "Icon color when active": "Colore dell'icona quando attivo",
   "Icon is {{kb}} KB - the limit is {{max}} KB.": "L'icona pesa {{kb}} KB - il limite è {{max}} KB.",
   "Icon is too detailed to fit the {{max}} KB limit even after downscaling. Use a simpler image or raise the limit in Settings.": "L'icona è troppo dettagliata per il limite di {{max}} KB anche dopo il ridimensionamento. Usa un'immagine più semplice o alza il limite nelle impostazioni.",
-  "Icon only (hide label)": "Solo icona (nascondi l'etichetta)",
+  "Icon only (hide the name)": "Solo icona (nascondi il nome)",
   "Icon size": "Dimensione dell'icona",
   "Icon style": "Stile delle icone",
   "Icon when active": "Icona quando attivo",

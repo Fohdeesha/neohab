@@ -34,7 +34,7 @@ registerBuiltinWidgets()
 const widgets = listWidgetDefinitions()
 
 /** Keys SettingsPanel adds itself, for every widget, after the widget's own fields. */
-const UNIVERSAL_KEYS = ['labelAlign', 'labelPosition', 'accent', 'accentColor', 'textSize', 'hideOn']
+const UNIVERSAL_KEYS = ['labelMode', 'labelAlign', 'labelPosition', 'accent', 'accentColor', 'textSize', 'hideOn']
 
 /**
  * Every field kind, with a case in SettingsPanel's switch to draw it. Typed as a Record over the
@@ -125,6 +125,40 @@ describe('every widget settings schema', () => {
     for (const def of widgets) {
       for (const field of def.settings ?? []) {
         if (UNIVERSAL_KEYS.includes(field.key)) clashes.push(`${def.type}.${field.key}`)
+      }
+    }
+    expect(clashes).toEqual([])
+  })
+
+  /**
+   * The name a widget carries is called the same thing everywhere, and every widget that has one
+   * can be told not to draw it - that consistency was reported missing (one widget said "Label"
+   * where the rest said "Name", and only two of twenty offered a way to hide it). Both halves are
+   * mechanical, so they are checked rather than remembered.
+   */
+  it('calls the name field "Name", on every widget that has one', () => {
+    const named = widgets.filter((def) => (def.settings ?? []).some((f) => f.key === 'label'))
+    expect(named.length).toBeGreaterThan(15)
+    const odd = named
+      .flatMap((def) => (def.settings ?? []).filter((f) => f.key === 'label').map((f) => ({ def, f })))
+      .filter(({ f }) => f.type !== 'text' || f.label !== 'Name')
+      .map(({ def, f }) => `${def.type}: ${f.type} "${'label' in f ? f.label : ''}"`)
+    expect(odd).toEqual([])
+  })
+
+  it('lets every widget with a header row be told not to draw its name', () => {
+    // The panel appends the choice to every hasHeader widget, so what has to hold here is that
+    // a widget claiming a header really does declare a name to hide.
+    const headerless = widgets.filter((def) => def.hasHeader && !(def.settings ?? []).some((f) => f.key === 'label'))
+    expect(headerless.map((d) => d.type)).toEqual([])
+    // ...and that an extra choice never shadows one of the two the panel always offers.
+    const clashes: string[] = []
+    for (const def of widgets) {
+      if (!def.labelModes) continue
+      if (!def.hasHeader) clashes.push(`${def.type} offers extra name modes without a header row`)
+      for (const o of def.labelModes.options) {
+        if (o.value === 'header' || o.value === 'none') clashes.push(`${def.type} redeclares "${o.value}"`)
+        if (!o.value || !o.label) clashes.push(`${def.type} has an incomplete name mode`)
       }
     }
     expect(clashes).toEqual([])

@@ -445,7 +445,7 @@
   "Icon color when active": "Icon-Farbe wenn aktiv",
   "Icon is {{kb}} KB - the limit is {{max}} KB.": "Das Icon ist {{kb}} KB groß - das Limit sind {{max}} KB.",
   "Icon is too detailed to fit the {{max}} KB limit even after downscaling. Use a simpler image or raise the limit in Settings.": "Das Icon ist zu detailreich für das {{max}}-KB-Limit, selbst nach Verkleinerung. Ein einfacheres Bild verwenden oder das Limit in den Einstellungen erhöhen.",
-  "Icon only (hide label)": "Nur Icon (Beschriftung ausblenden)",
+  "Icon only (hide the name)": "Nur Icon (Namen ausblenden)",
   "Icon size": "Icon-Größe",
   "Icon style": "Symbolstil",
   "Icon when active": "Icon wenn aktiv",

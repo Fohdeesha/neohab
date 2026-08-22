@@ -184,6 +184,48 @@ try {
   ok('Name position defaults to "Theme default"',
     (await posSel.inputValue()) === '' && (await posSel.locator('option').count()) === 3)
 
+  // ---------- "Show the name": every widget with a header row can be told not to draw one ----
+  // Reported as an inconsistency: a weather panel is obviously weather, and there was no way to
+  // drop the "WEATHER" title above it - while a button had "Icon only" and a camera had three
+  // choices of its own. One field, offered wherever there is a name, and the camera's "Over the
+  // picture" is an extra choice on the same field rather than a second setting.
+  const modeSel = page.locator('#f-w-left-labelMode')
+  const hasMode = (await modeSel.count()) === 1
+  ok('"Show the name" is offered on a widget with a header row', hasMode)
+  // read through the count: a build without the field must fail the checks below rather than
+  // time out on the first read and take the rest of the suite with it
+  const modeValue = hasMode ? await modeSel.inputValue() : null
+  const modeOpts = hasMode ? await modeSel.locator('option').allTextContents() : []
+  ok('it defaults to the title bar, never blank',
+    modeValue === 'header' && modeOpts.length === 2,
+    `${modeValue} / ${modeOpts.length}`)
+  ok('the two choices read In the title bar / Not at all',
+    JSON.stringify(modeOpts.map((o) => o.trim())) === JSON.stringify(['In the title bar', 'Not at all']),
+    JSON.stringify(modeOpts))
+
+  const named = () => page.locator('.nh-cell .nh-widget__labeltext:text-is("Studio Trim")').count()
+  ok('the name is drawn to begin with', (await named()) === 1)
+  if (hasMode) await modeSel.selectOption('none')
+  await sleep(300)
+  ok('"Not at all" removes the title bar, live', hasMode && (await named()) === 0)
+  await page.keyboard.press('Control+z')
+  await sleep(300)
+  ok('undo brings the name back in one step', hasMode && (await modeSel.inputValue()) === 'header' && (await named()) === 1)
+
+  // no name, nothing to show: the field goes rather than offering a choice about nothing
+  const nameField = page.locator('#f-w-left-label')
+  const typed = await nameField.inputValue()
+  await nameField.fill('')
+  await sleep(350)
+  ok('with no name there is no "Show the name" choice', (await page.locator('#f-w-left-labelMode').count()) === 0)
+  await nameField.fill(typed)
+  await sleep(350)
+  ok('typing a name brings the choice back', hasMode && (await page.locator('#f-w-left-labelMode').count()) === 1)
+  // leave the text field: the editor ignores Ctrl+Z while the focus is in one, and the checks
+  // below drive undo
+  await nameField.blur()
+  await sleep(150)
+
   await alignSel.selectOption('center')
   await sleep(300)
   g = await labelGeo(page, '.nh-cell', 'Studio Trim')
@@ -219,6 +261,7 @@ try {
   ok('label widget: no Name alignment/position fields',
     (await page.locator('.nh-sheet--side label:has-text("Name alignment")').count()) === 0 &&
     (await page.locator('.nh-sheet--side label:has-text("Name position")').count()) === 0)
+  ok('label widget: no "Show the name" either', (await page.locator('.nh-sheet--side label:has-text("Show the name")').count()) === 0)
   ok('label widget: still offers Text size', (await page.locator('.nh-sheet--side label:has-text("Text size (%)")').count()) === 1)
 
   await page.click('button:has-text("Save")')

@@ -148,6 +148,20 @@ async function seed() {
             config: { source: 'openmeteo', look: 'hero', label: 'Small', units: 'imperial', location: detroit },
             layout: { lg: { x: 4, y: 8, w: 4, h: 2 } },
           },
+          // a narrow hero: no width to put the readings beside the temperature, so they go under
+          {
+            id: 'w-narrow',
+            type: 'weather',
+            config: { source: 'openmeteo', look: 'hero', label: 'Narrow', units: 'imperial', location: detroit },
+            layout: { lg: { x: 8, y: 8, w: 1, h: 3 } },
+          },
+          // named, and told not to draw it
+          {
+            id: 'w-noname',
+            type: 'weather',
+            config: { source: 'openmeteo', look: 'hero', label: 'Hidden', labelMode: 'none', units: 'imperial', location: detroit },
+            layout: { lg: { x: 0, y: 10, w: 4, h: 2 } },
+          },
         ],
       },
     }),
@@ -248,6 +262,54 @@ try {
 
   /* ---- section 3: icons actually decode (the vis pass caught them hidden) ---- */
   ok('weather icons render and decode', d.iconTotal > 20 && d.iconsLoaded === d.iconTotal, `${d.iconsLoaded}/${d.iconTotal}`)
+
+  /* ---- section 3a: the hero fills its tile, and its name can be dropped ---- */
+  // Reported: a hero in a wide one-row tile used half the box and drew a "WEATHER" title over an
+  // obviously-weather panel. The readings sit BESIDE the temperature wherever there is width for
+  // them and underneath where there is not, and nothing may overflow the widget either way -
+  // measured, because a row that does not fit is clipped mid-value rather than dropped.
+  const heroes = await probe(page, () =>
+    [...document.querySelectorAll('.nh-gcell')]
+      .map((cell) => {
+        const hero = cell.querySelector('.nh-weather--hero')
+        if (!hero) return null
+        const now = hero.querySelector('.nh-weather__now')?.getBoundingClientRect()
+        const det = hero.querySelector('.nh-weather__details')
+        const main = hero.querySelector('.nh-weather__heromain')?.getBoundingClientRect()
+        const body = cell.querySelector('.nh-widget__body')?.getBoundingClientRect()
+        const shown = det && getComputedStyle(det).display !== 'none' ? det.getBoundingClientRect() : null
+        return {
+          label: cell.querySelector('.nh-widget__labeltext')?.textContent?.trim() ?? null,
+          w: Math.round(cell.offsetWidth),
+          h: Math.round(cell.offsetHeight),
+          details: !!shown,
+          beside: !!(shown && now && shown.left >= now.right - 2),
+          overflow: main && body ? Math.round(main.bottom - body.bottom) : null,
+        }
+      })
+      .filter(Boolean)
+  )
+  const hero = (label) => (heroes ?? []).find((x) => x.label === label)
+  ok('every hero was measured', Array.isArray(heroes) && heroes.length >= 6, `heroes=${heroes?.length}`)
+  ok(
+    'a wide hero puts the readings beside the temperature',
+    !!hero('Hero')?.beside && !!hero('Small')?.beside,
+    JSON.stringify([hero('Hero'), hero('Small')])
+  )
+  ok(
+    'a narrow hero puts them underneath instead',
+    hero('Narrow')?.details === true && hero('Narrow')?.beside === false,
+    JSON.stringify(hero('Narrow'))
+  )
+  ok(
+    'nothing in a hero overflows its widget',
+    (heroes ?? []).every((x) => x.overflow === null || x.overflow <= 1),
+    JSON.stringify((heroes ?? []).map((x) => `${x.label}:${x.overflow}`))
+  )
+  const hiddenName = await probe(page, () =>
+    [...document.querySelectorAll('.nh-gcell')].some((c) => c.querySelector('.nh-widget__labeltext')?.textContent?.trim() === 'Hidden')
+  )
+  ok('a name told not to show leaves no title bar', hiddenName === false, String(hiddenName))
 
   /* ---- section 3b: a short hero sheds its hourly strip (tight-cell rule) ---- */
   const small = await probe(page, () => {
