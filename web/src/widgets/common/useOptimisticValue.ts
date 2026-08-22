@@ -16,13 +16,22 @@
  * A command the server refuses is not a slow device, so callers `cancel()` it: without that the
  * "close" rule hides the failure completely at low brightness, where every hue is the same
  * near-black in RGB and a rejected value would sit on screen forever.
+ *
+ * The rule above only covers a value THIS control commanded. The same device does the same
+ * thing when a rule, a scene or another panel changes it, and then there is no committed value
+ * to hold - so the live state is read through `useSteadyValue` first, which holds the start of
+ * a burst of changes until it settles. Doing it here rather than at each call site is the point:
+ * this is the one place that decides what a control displays, and a control added later cannot
+ * forget it. `liveKey` identifies the live value for that (see the hook).
  */
 import { useEffect, useReducer, useState } from 'react'
+import { useSteadyValue } from './useSteadyValue'
 
 export const SETTLE_MS = 8000
 
 export function useOptimisticValue<T>(
   live: T,
+  liveKey: string | number,
   close: (live: T, committed: T) => boolean,
   settleMs = SETTLE_MS
 ): { display: T; commit: (v: T) => void; cancel: (v: T) => void } {
@@ -38,8 +47,9 @@ export function useOptimisticValue<T>(
     return () => clearTimeout(t)
   }, [pending, settleMs])
 
+  const steady = useSteadyValue(live, liveKey)
   const display =
-    pending && (close(live, pending.v) || Date.now() - pending.at < settleMs) ? pending.v : live
+    pending && (close(steady, pending.v) || Date.now() - pending.at < settleMs) ? pending.v : steady
   return {
     display,
     commit: (v: T) => setPending({ v, at: Date.now() }),

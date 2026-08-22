@@ -137,7 +137,8 @@ export interface BareAndNewTile {
 /**
  * Put back the two tiles a blanket `.nh-widget, .nh-tile` rule always breaks.
  *
- * `.nh-widget--bare` is how the label and clock widgets ask for no card at all, and
+ * `.nh-widget--bare` is how a widget asks for no card at all (the label, and a clock set to
+ * show no tile background), and
  * `.nh-tile--new` is the dashed "+ New dashboard" invitation on the Home screen. A theme that
  * paints every tile silently overrides both - the bare widgets grow a card they never wanted,
  * and the new-dashboard tile stops looking like an invitation and starts looking like a

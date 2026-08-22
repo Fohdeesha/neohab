@@ -103,7 +103,7 @@ adopting it.
 
 | Class | What it is |
 |---|---|
-| `.nh-widget` | One widget's card. `.nh-widget--bare` asked for no card (label, clock) |
+| `.nh-widget` | One widget's card. `.nh-widget--bare` asked for no card (a label, a clock set to show none) |
 | `.nh-widget__label` | The name row. `.nh-widget__labelmain` is the icon+name group inside it |
 | `.nh-widget__body` | Everything below the name row |
 | `.nh-tile` | A Home-screen dashboard tile. `.nh-tile--new` is the "+ New dashboard" one |
@@ -165,7 +165,7 @@ cannot be combined. Set the `radius` token to `0px` if you want a gradient bezel
 group, restore these:
 
 ```css
-.nh-widget--bare { /* label and clock widgets asked for no card */ }
+.nh-widget--bare { /* a widget that asked for no card */ }
 .nh-tile--new    { /* keep this a dashed invitation, not a real dashboard */ }
 ```
 

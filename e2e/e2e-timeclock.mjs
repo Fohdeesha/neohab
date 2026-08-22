@@ -8,6 +8,9 @@
  * dashboard:nh-e2e-hpx (both deleted), commands only the configured dimmer item (initial
  * state recorded and restored), and restores the `settings` component VERBATIM after the
  * import writes its speech-item mapping.
+ *
+ * Pins the default theme: the clock's card is asserted against another widget's, and a theme
+ * is free to paint either of them differently (LCD deliberately gives every widget a panel).
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
@@ -85,6 +88,12 @@ await fetch(NS, {
           layout: { lg: { x: 8, y: 0, w: 4, h: 4 } },
         },
         { id: 'w-dig', type: 'clock', config: {}, layout: { lg: { x: 0, y: 4, w: 4, h: 2 } } },
+        // the same widget with its card turned off, so "has a card" cannot pass by accident
+        {
+          id: 'w-nobg', type: 'clock',
+          config: { label: 'No card', tileBackground: false },
+          layout: { lg: { x: 4, y: 4, w: 4, h: 2 } },
+        },
       ],
     },
   }),
@@ -96,7 +105,12 @@ const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
-await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
+await page.addInitScript((t) => {
+  try {
+    localStorage.setItem('neohab:apiToken', t)
+    localStorage.setItem('neohab:themeOverride', 'dark')
+  } catch {}
+}, TOKEN)
 
 try {
   // ---------- timeline rendering ----------
@@ -178,8 +192,50 @@ try {
   await sleep(1600)
   const tipAfter = await tip()
   ok('second hand moves', tipBefore !== tipAfter, `${tipBefore} -> ${tipAfter}`)
-  ok('digital clock unchanged beside it', (await page.locator('.nh-clock__time').count()) === 1)
+  ok('digital clock unchanged beside it', (await page.locator('.nh-clock__time').count()) === 2)
   void face
+
+  // ---------- the clock is a tile like the others ----------
+  // It used to be the one widget with nothing around it, which on a dashboard of cards reads
+  // as a rendering fault. Compared against a real card rather than against fixed colours, so
+  // the check says what was actually asked for and holds under any theme.
+  const cards = await page.evaluate(() => {
+    const cell = (id) => document.querySelector(`[data-widget-id="${id}"] .nh-widget, #${id} .nh-widget`)
+    const paint = (el) => {
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      return {
+        bare: el.classList.contains('nh-widget--bare'),
+        bg: cs.backgroundColor,
+        border: cs.borderTopColor + ' ' + cs.borderTopWidth,
+        radius: cs.borderTopLeftRadius,
+      }
+    }
+    const widgets = [...document.querySelectorAll('.nh-widget')]
+    const clocks = widgets.filter((w) => w.querySelector('.nh-clock'))
+    const timeline = widgets.find((w) => w.querySelector('.nh-tl__row'))
+    void cell
+    return {
+      // the two clocks that asked for nothing, and the one that asked for no card
+      plain: clocks.filter((c) => !c.classList.contains('nh-widget--bare')).map(paint),
+      off: clocks.filter((c) => c.classList.contains('nh-widget--bare')).map(paint),
+      timeline: paint(timeline),
+    }
+  })
+  const tlPaint = cards.timeline
+  ok('both clocks are cards by default', cards.plain.length === 2, JSON.stringify(cards.plain))
+  ok(
+    'a clock is painted exactly like the widget beside it',
+    tlPaint !== null &&
+      cards.plain.length > 0 &&
+      cards.plain.every((c) => c.bg === tlPaint.bg && c.border === tlPaint.border && c.radius === tlPaint.radius),
+    `clock=${JSON.stringify(cards.plain[0])} other=${JSON.stringify(tlPaint)}`
+  )
+  ok(
+    'a clock set to show no tile background paints none',
+    cards.off.length === 1 && cards.off[0].bg !== tlPaint?.bg,
+    JSON.stringify(cards.off)
+  )
 
   // ---------- settings editors ----------
   await page.click('[aria-label="Edit dashboard"]')
@@ -193,6 +249,30 @@ try {
   await page.click('.nh-sheet button:has-text("Add state color")')
   await sleep(200)
   ok('Add state color adds a row', (await page.locator('.nh-sheet .nh-chartcard').count()) === rowCards + 1)
+
+  // the clock's own card, offered and honoured live
+  await page.locator('.nh-cell', { has: page.locator('.nh-clock__time') }).first().click()
+  await page.waitForSelector('.nh-sheet', { timeout: 5000 })
+  const bgField = page.locator('.nh-field', { hasText: 'Show the tile background' }).locator('input[type=checkbox]')
+  ok('clock settings offer the tile background', (await bgField.count()) === 1)
+  ok('and it is on for a clock that never said otherwise', (await bgField.isChecked().catch(() => null)) === true)
+  // Both ends asserted: "it is bare now" is true on any build where the clock is ALWAYS bare,
+  // which is exactly the build this is about.
+  const clockBare = () =>
+    page
+      .evaluate(() => {
+        const w = [...document.querySelectorAll('.nh-cell')]
+          .find((c) => c.querySelector('.nh-clock__time'))
+          ?.querySelector('.nh-widget')
+        return w ? w.classList.contains('nh-widget--bare') : null
+      })
+      .catch(() => null)
+  const bareBefore = await clockBare()
+  await bgField.uncheck({ timeout: 5000 }).catch(() => {})
+  await sleep(200)
+  const bareAfter = await clockBare()
+  ok('turning it off takes the card away as you watch', bareBefore === false && bareAfter === true,
+    `before=${bareBefore} after=${bareAfter}`)
   await page.click('button:has-text("Exit")') // dirty -> confirm dialog auto-accepted
 
   // ---------- importer: timeline + analog clock + speech item ----------

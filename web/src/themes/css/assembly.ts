@@ -58,7 +58,7 @@ body {
   backdrop-filter: blur(12px) saturate(1.15);
   -webkit-backdrop-filter: blur(12px) saturate(1.15);
 }
-/* bare widgets (label, clock) stay bare, and the + tile keeps its dashed invitation */
+/* a widget asking for no card keeps none, and the + tile keeps its dashed invitation */
 .nh-widget--bare {
   background-color: transparent;
   background-image: none;

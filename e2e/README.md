@@ -138,6 +138,12 @@ so the suite cannot invent one.
   items, which cannot be written through the REST API at all. Its last section saves through the
   app, so unlike most safe-additive suites it does mint version-history restore points.
 
+`e2e-fade.mjs` replays what a DMX strip reports while it fades - the sequences were taken from a
+real server's `events.log` - onto two managed items it creates itself (`nh_e2e_fadecol`,
+`nh_e2e_fadedim`, both bound to nothing), so no device is driven and the timing belongs to the
+suite. It clicks nothing, commands are intercepted, and the count of them is one of its checks.
+Both items are deleted by name in cleanup, and it never touches file-provided items.
+
 `e2e-panels.mjs` adds one of **every** widget the palette offers and measures its settings panel:
 nothing pushed outside the panel, no editable box too narrow to use, no select showing a blank
 row, no sideways scrolling. The widget list comes from the palette, so a widget added later is

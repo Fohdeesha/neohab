@@ -18,7 +18,9 @@ export function ColorControl({ item, ctx }: { item: string; ctx: WidgetContext }
   // Between commits, show the last value the user set for as long as the device agrees it is
   // the same color (or is still fading toward it) - raw HSB echoes would otherwise yank the
   // other sliders to unrelated positions right after a drag.
-  const optimistic = useOptimisticValue(parseHsb(state?.state), sameColor)
+  // The raw state is the identity of the parsed colour: parseHsb builds a fresh object each
+  // render, so it cannot be compared with the one before it.
+  const optimistic = useOptimisticValue(parseHsb(state?.state), state?.state ?? '', sameColor)
   const hsb = draft ?? optimistic.display
 
   const commit = (next: Hsb) => {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import forecast from './openmeteo.fixture.json'
 import geocode from './geocode.fixture.json'
-import { forecastUrl, geocodeUrl, getForecast, parseGeoResults } from './openmeteo'
+import { FORECAST_MODELS, forecastUrl, geocodeUrl, getForecast, parseGeoResults } from './openmeteo'
 
 describe('forecastUrl', () => {
   it('asks for imperial units explicitly and metric as the service default', () => {
@@ -12,6 +12,18 @@ describe('forecastUrl', () => {
     const met = forecastUrl(42.33, -83.05, 'metric')
     expect(met).not.toContain('temperature_unit')
     expect(met).not.toContain('wind_speed_unit')
+  })
+
+  it('names a weather model only when it is one the service has', () => {
+    // Models genuinely disagree - the whole point of offering the choice - but an id the service
+    // does not know is an HTTP 400, which is no weather at all.
+    expect(forecastUrl(42.33, -83.05, 'metric')).not.toContain('models=')
+    expect(forecastUrl(42.33, -83.05, 'metric', '')).not.toContain('models=')
+    expect(forecastUrl(42.33, -83.05, 'metric', 'ecmwf_ifs025')).toContain('models=ecmwf_ifs025')
+    expect(forecastUrl(42.33, -83.05, 'metric', 'wishful_thinking')).not.toContain('models=')
+    for (const model of FORECAST_MODELS) {
+      if (model) expect(forecastUrl(1, 2, 'metric', model)).toContain('models=' + model)
+    }
   })
 
   it('fixes the request shape: 7 days, local times, 4-decimal coordinates', () => {
@@ -103,6 +115,19 @@ describe('getForecast cache', () => {
     await getForecast(12, 22, 'metric', 60_000)
     await getForecast(12, 22, 'imperial', 60_000)
     await getForecast(12.5, 22, 'metric', 60_000)
+    expect(f).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps different weather models apart', async () => {
+    // Same place, same units, different model: sharing the cache entry would hand one widget
+    // the other's forecast, which is the disagreement the setting exists to resolve.
+    const f = okFetch()
+    vi.stubGlobal('fetch', f)
+    // coordinates of its own: the cache is module-level, so a place another test uses would
+    // answer from it and prove nothing
+    await getForecast(16, 26, 'metric', 60_000)
+    await getForecast(16, 26, 'metric', 60_000, 'ecmwf_ifs025')
+    await getForecast(16, 26, 'metric', 60_000, 'gfs_seamless')
     expect(f).toHaveBeenCalledTimes(3)
   })
 

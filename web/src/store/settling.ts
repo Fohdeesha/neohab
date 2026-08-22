@@ -9,6 +9,7 @@ import { create } from 'zustand'
 import { commandMatchesState } from '../model/presets'
 import { SETTLE_MS, settledDisplay, type Settling } from '../model/settling'
 import { useItemsStore } from './items'
+import { useSteadyStates } from '../widgets/common/useSteadyValue'
 
 interface SettlingState {
   /** item name -> the value commanded for it, and when. */
@@ -69,9 +70,18 @@ function dropUnconfirmed(items: string[], at: number): void {
   })
 }
 
-/** Subscribe to the settling map and read one item's display state through it. */
+/**
+ * Subscribe to the settling map and read one item's display state through it.
+ *
+ * Two layers, and the reader needs both. This one holds a value neohab itself commanded, where
+ * the target is known. Underneath it, `useSteadyStates` calms a device that is being changed by
+ * something else - a rule, a scene, another panel - where there is no target to hold and the
+ * only thing to do is wait for the churn to settle. Composed here rather than at each call site,
+ * so a floor plan's glows and its preset chips cannot end up following different rules.
+ */
 export function useSettledState(): (item: string, live: string | undefined) => string | undefined {
   const pending = useSettlingStore((s) => s.pending)
+  const steady = useSteadyStates()
   const now = Date.now()
-  return (item, live) => settledDisplay(pending[item], live, now)
+  return (item, live) => settledDisplay(pending[item], steady(item, live), now)
 }

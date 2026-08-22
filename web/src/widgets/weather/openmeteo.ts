@@ -15,11 +15,24 @@ const GEOCODE_BASE = 'https://geocoding-api.open-meteo.com/v1/search'
 const FETCH_TIMEOUT_MS = 15_000
 
 /**
+ * The weather models Open-Meteo will run the forecast from, offered because they genuinely
+ * disagree and a reading is always compared against some other outlet. Measured at one place
+ * on one morning: the automatic blend and GFS said a 27% chance of rain and no accumulation,
+ * ECMWF said 69% and 2.4mm, and the big consumer sites were showing 60-93%. None of them is
+ * wrong; they are different models. Automatic is Open-Meteo's own per-location pick, which is
+ * the right default and the only one that sends no parameter at all.
+ *
+ * Every id here has been checked against the live service - one that does not exist is an
+ * HTTP 400 and no weather at all.
+ */
+export const FORECAST_MODELS = ['', 'ecmwf_ifs025', 'gfs_seamless', 'icon_seamless', 'gem_seamless'] as const
+
+/**
  * One fixed request shape: every reading any look can show, 7 days, location-local times.
  * Widgets differing only in what they DISPLAY then share one cache entry per place, and the
  * response stays small (~7 KB). Metric asks for Open-Meteo's defaults (°C, km/h, mm).
  */
-export function forecastUrl(lat: number, lon: number, sys: UnitSystem): string {
+export function forecastUrl(lat: number, lon: number, sys: UnitSystem, model = ''): string {
   const p = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
@@ -30,6 +43,7 @@ export function forecastUrl(lat: number, lon: number, sys: UnitSystem): string {
     forecast_days: '7',
     timezone: 'auto',
   })
+  if (model && (FORECAST_MODELS as readonly string[]).includes(model)) p.set('models', model)
   if (sys === 'imperial') {
     p.set('temperature_unit', 'fahrenheit')
     p.set('wind_speed_unit', 'mph')
@@ -75,15 +89,21 @@ const inflight = new Map<string, Promise<WeatherData>>()
  * instead of hammering. The in-flight entry clears on both settle paths, by key (the
  * memoized-promise trap: a cleared-by-identity entry wrapped in `.finally()` never matches).
  */
-export function getForecast(lat: number, lon: number, sys: UnitSystem, maxAgeMs: number): Promise<WeatherData> {
-  const key = lat.toFixed(4) + ',' + lon.toFixed(4) + ',' + sys
+export function getForecast(
+  lat: number,
+  lon: number,
+  sys: UnitSystem,
+  maxAgeMs: number,
+  model = ''
+): Promise<WeatherData> {
+  const key = lat.toFixed(4) + ',' + lon.toFixed(4) + ',' + sys + ',' + model
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < maxAgeMs) return Promise.resolve(hit.data)
   let p = inflight.get(key)
   if (!p) {
     p = (async () => {
       try {
-        const data = normalizeForecast(await fetchJson(forecastUrl(lat, lon, sys)))
+        const data = normalizeForecast(await fetchJson(forecastUrl(lat, lon, sys, model)))
         if (!data) throw new Error('unexpected forecast shape')
         cache.set(key, { at: Date.now(), data })
         return data

@@ -858,6 +858,66 @@ try {
   ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
     `A=${settled.a} B=${settled.b}`)
 
+  /* ------- I2. a fade nobody here started is just as steady ------- */
+  // Section I covers a preset THIS panel activated, where the commanded value is known and can
+  // be held outright. The same lights fade the same way when a wall switch or an openHAB rule
+  // changes them, and then there is nothing to hold - the plan used to flash the room back
+  // through the colour being left, and blink the chip of a preset that momentarily matched.
+  // Start from rest. The rule holds the first value of a burst and shows what it settles at,
+  // so a sequence begun while an earlier window is still open would have its boundary land
+  // mid-fade - which is this suite's own doing, not something a house does.
+  await putState(GLOW_ITEM, '288,55,40')
+  await sleep(2200)
+  await page.evaluate(() => {
+    window.__g = []
+    window.__gi = setInterval(() => {
+      // The whole colour, alpha included: a light mid-fade keeps its hue and loses its
+      // BRIGHTNESS, which the glow carries as alpha - read the rgb alone and a room going dark
+      // looks like no change at all.
+      const g = [...document.querySelectorAll('.nh-fplan__glow')]
+        .map((x) => (/rgba?\([^)]*\)/.exec(x.style.backgroundImage) || ['none'])[0])
+        .join('|')
+      if (window.__g[window.__g.length - 1] !== g) window.__g.push(g)
+    }, 8)
+  })
+  await sleep(150)
+  // the measured shape of one fade: the value asked for, the pre-fade echo, then the real one
+  // Order matters, and it is the measured one: the echoes land within ~60ms of each other and
+  // the NEAR-BLACK one is what stands for the second before the fade finishes. Put a bright
+  // value there instead and the near-black never gets a frame, which makes the check below
+  // pass on a build that flashes.
+  await putState(GLOW_ITEM, '120,90,60')
+  await sleep(60)
+  await putState(GLOW_ITEM, '320,20,90')
+  await sleep(60)
+  await putState(GLOW_ITEM, '0,0,4.7059')
+  await sleep(1000)
+  await putState(GLOW_ITEM, '119.2,89.4,59.6')
+  await sleep(2500)
+  const glowTl = (await probe(page, () => {
+    clearInterval(window.__gi)
+    return window.__g
+  })) ?? []
+  const glowMoves = Array.isArray(glowTl) ? glowTl.slice(1) : []
+  // Not "changes exactly once": the value a device settles at is a shade off the one it was
+  // sent, so the glow legitimately repaints by a degree of hue when the window closes. What
+  // must never happen is a VISIT somewhere else on the way - the colour being left, or the
+  // near-black readback. So: everything it shows is already the colour it ends on.
+  const rgbaOf = (g) => (/rgba?\(([^)]*)\)/.exec(g) || [, ''])[1].split(',').map(Number)
+  const sameGlow = (a, b) =>
+    a.length === 4 && b.length === 4 && a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= 30) && Math.abs(a[3] - b[3]) <= 0.15
+  const destination = rgbaOf(glowTl[glowTl.length - 1] ?? '')
+  ok('a glow goes straight to the new colour, with nothing on the way',
+    glowMoves.length > 0 && glowMoves.every((g) => sameGlow(rgbaOf(g), destination)),
+    `${glowMoves.length} changes: ${glowTl.join(' > ')}`)
+  // The echo mid-fade is near-black, and the plan draws brightness as the glow's alpha - so a
+  // room that flashes through it shows up as the light going out and coming back.
+  const alphaOf = (g) => Number((/,\s*([\d.]+)\)/.exec(g) || [, '1'])[1])
+  const restingAlpha = alphaOf(glowTl[glowTl.length - 1] ?? '')
+  ok('and never lets the light go out on the way',
+    glowMoves.every((g) => alphaOf(g) > restingAlpha * 0.5),
+    `resting ${restingAlpha}: ` + glowMoves.map((g) => alphaOf(g)).join(' > '))
+
   /* ---------------- J. unselecting a preset turns its lights off ---------------- */
   // The chips are the primary control on a wall panel, reached from across a room.
   const chipSize = await probe(page, () => {

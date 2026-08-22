@@ -505,7 +505,12 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
     feels: cur.feels === null ? undefined : deg(cur.feels),
     humidity: cur.humidity === null ? undefined : Math.round(cur.humidity) + '%',
     wind,
-    precipProb: percent(cur.precipProb),
+    // TODAY's chance, not this hour's. Every outlet a reading is compared against labels the
+    // day's figure "Precipitation" / "Chance of rain", and the hour's can be a long way from
+    // it - clear at six in the morning, thunderstorms by five. The hourly and daily columns
+    // below still carry their own. Falls back to the current hour when the daily forecast is
+    // missing, which is all an items-mode binding ever has.
+    precipProb: percent(data.daily[0] ? data.daily[0].precipProb : cur.precipProb),
     high: data.daily[0] ? deg(data.daily[0].high) : undefined,
     low: data.daily[0] ? deg(data.daily[0].low) : undefined,
     hours,

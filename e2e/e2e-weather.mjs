@@ -8,7 +8,8 @@
  * the SAME fixture the routes serve, and the fixture is internally consistent (hour columns
  * derive from its own current time), so it never goes stale.
  *
- * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-weather, saves
+ * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-weather and
+ * dashboard:nh-e2e-weather-tight, saves
  * nothing through the app (REST seed, no restore point), commands nothing - the items-mode
  * widget only READS the harness temperature item. The theme is pinned per device
  * (themeOverride), so the shared settings component is never written.
@@ -18,6 +19,8 @@ import { chromium } from 'playwright-core'
 import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-weather'
+/** A board shaped like the reported one: ten columns, so a two-column hero is about 280x140. */
+const UID_TIGHT = 'dashboard:nh-e2e-weather-tight'
 const forecast = JSON.parse(readFileSync(new URL('./fixtures/weather-forecast.json', import.meta.url), 'utf8'))
 const geocode = JSON.parse(readFileSync(new URL('./fixtures/weather-geocode.json', import.meta.url), 'utf8'))
 
@@ -43,6 +46,10 @@ const FX = {
   high: Math.round(forecast.daily.temperature_2m_max[0]) + '°',
   low: Math.round(forecast.daily.temperature_2m_min[0]) + '°',
   curHour: parseInt(forecast.current.time.slice(11, 13), 10),
+  // The current block's chance is TODAY's, which the fixture deliberately differs from the
+  // current hour's - the reported bug was a hero reading 22% beside outlets showing 60% and up.
+  precipToday: forecast.daily.precipitation_probability_max[0] + '%',
+  precipThisHour: forecast.current.precipitation_probability + '%',
 }
 
 const browser = await launch()
@@ -129,6 +136,19 @@ async function seed() {
             type: 'weather',
             config: { source: 'openmeteo', look: 'hero', showPrecip: false, units: 'imperial', location: berlin },
             layout: { lg: { x: 6, y: 4, w: 6, h: 4 } },
+          },
+          {
+            // a model of its own, at a place of its own so its request is identifiable
+            id: 'w-model',
+            type: 'weather',
+            config: {
+              source: 'openmeteo',
+              look: 'compact',
+              units: 'imperial',
+              location: { name: 'Model Town', lat: 33.3333, lon: 44.4444 },
+              model: 'ecmwf_ifs025',
+            },
+            layout: { lg: { x: 0, y: 12, w: 6, h: 2 } },
           },
           {
             id: 'w-items',
@@ -219,6 +239,35 @@ const readDash = () => {
 
 try {
   ok('seed dashboard created', await seed())
+  // A second board shaped like the one in the report: on it a two-column hero lands at about
+  // 280x140, which is where the details used to disappear.
+  await fetch(NS + '/' + encodeURIComponent(UID_TIGHT), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID_TIGHT,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-weather-tight',
+        name: 'E2E Weather Tight',
+        columns: 10,
+        rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-tight',
+            type: 'weather',
+            // 110% text, as the reported widget had: a per-widget scale is what pushed the
+            // readings past the tile edge, because a grid column with a minimum wider than its
+            // own container cannot shrink to fit.
+            config: { source: 'openmeteo', look: 'hero', label: 'Tight', units: 'imperial', location: detroit, textSize: 110 },
+            layout: { lg: { x: 0, y: 0, w: 2, h: 1 } },
+          },
+        ],
+      },
+    }),
+  })
   await page.goto(APP + '#/d/nh-e2e-weather')
   await page.waitForSelector('.nh-weather, .nh-weather__empty', { timeout: 25000 }).catch(() => {})
   // wait for the forecast fetch to land and the icons to decode
@@ -232,7 +281,7 @@ try {
   /* ---- section 1: the three looks render from the fixture ---- */
   ok('all eight widgets render a weather surface or a message', d.weatherCount + d.emptyTexts.length >= 8, `surfaces=${d.weatherCount} messages=${d.emptyTexts.length}`)
   ok('hero look renders', d.heroCount >= 4, 'heroes=' + d.heroCount)
-  ok('compact look renders', d.compactCount === 1)
+  ok('compact look renders', d.compactCount === 2, 'compacts=' + d.compactCount)
   ok('strip look renders twice', d.stripLookCount === 2)
   ok('hero temp is the fixture reading', d.heroTemp === FX.temp, `${d.heroTemp} vs ${FX.temp}`)
   ok('hero unit is imperial', d.heroUnit === '°F', String(d.heroUnit))
@@ -245,6 +294,11 @@ try {
   )
   ok('humidity detail matches the fixture', d.heroDetailValues.Humidity === FX.humidity, String(d.heroDetailValues.Humidity))
   ok('wind detail carries a cardinal', /\d+ mph [A-Z]{1,3}$/.test(d.heroDetailValues.Wind ?? ''), String(d.heroDetailValues.Wind))
+  ok(
+    "the precipitation detail is today's chance, not this hour's",
+    d.heroDetailValues.Precipitation === FX.precipToday && FX.precipToday !== FX.precipThisHour,
+    `${d.heroDetailValues.Precipitation} (today ${FX.precipToday}, this hour ${FX.precipThisHour})`
+  )
 
   /* ---- section 2: forecast columns ---- */
   ok('hero shows hourly and daily strips', d.heroStripCount === 2, 'strips=' + d.heroStripCount)
@@ -330,6 +384,61 @@ try {
     JSON.stringify(small)
   )
 
+  /* ---- section 3c: the readings survive a smaller monitor ---- */
+  await page.goto(APP + '#/d/nh-e2e-weather-tight')
+  await page.waitForSelector('.nh-weather--hero', { timeout: 20000 }).catch(() => {})
+  await sleep(1500)
+  // Reported: half the panel disappeared on a smaller screen. The details shed at a guessed
+  // 300px cell width while there was room for them twice over - the widget takes back most of
+  // the body's side padding now, and the shed is at the width the row actually wraps at.
+  const tight = await probe(page, () => {
+    const hero = document.querySelector('.nh-weather--hero')
+    if (!hero) return null
+    const cell = hero.closest('.nh-gcell, .nh-cell')
+    const body = hero.closest('.nh-widget__body')
+    const cs = getComputedStyle(body)
+    const cellR = cell.getBoundingClientRect()
+    const det = hero.querySelector('.nh-weather__details')
+    return {
+      cellW: Math.round(cellR.width),
+      // the panel is wider than the body's content box: it bleeds into the side padding
+      bleed: Math.round(hero.getBoundingClientRect().width - (body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))),
+      details: det ? getComputedStyle(det).display : 'absent',
+      readings: det ? [...det.querySelectorAll('.nh-weather__detail')].length : 0,
+      overflow: Math.round(hero.getBoundingClientRect().right - cellR.right),
+      // the furthest any reading reaches past the tile's own right edge
+      valueOverhang: det
+        ? Math.round(
+            Math.max(
+              ...[...det.querySelectorAll('.nh-weather__detvalue, .nh-weather__detlabel')].map(
+                (v) => v.getBoundingClientRect().right - cellR.right
+              )
+            )
+          )
+        : 0,
+    }
+  })
+  ok(
+    'the panel takes back most of the side padding',
+    tight !== null && tight.bleed >= 8 && tight.bleed <= 12,
+    JSON.stringify(tight)
+  )
+  ok(
+    'a hero narrower than 300px still shows its readings',
+    tight !== null && tight.cellW < 300 && tight.details !== 'none' && tight.readings === 4,
+    JSON.stringify(tight)
+  )
+  ok('and nothing is pushed outside the cell by the wider panel', tight !== null && tight.overflow <= 0, String(tight?.overflow))
+  ok(
+    'no reading hangs over the tile edge, whatever text size the widget is set to',
+    tight !== null && tight.valueOverhang < 0,
+    'furthest reading vs the cell edge: ' + tight?.valueOverhang
+  )
+
+  await page.goto(APP + '#/d/nh-e2e-weather')
+  await page.waitForSelector('.nh-weather--striplook', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+
   /* ---- section 4: strip look details ---- */
   const stripInfo = await probe(page, () => {
     const strips = [...document.querySelectorAll('.nh-weather--striplook')]
@@ -359,6 +468,17 @@ try {
     }
   })
   ok('precipitation off removes chance columns and the detail', noPrecip !== null && noPrecip.probs === 0, JSON.stringify(noPrecip))
+
+  /* ---- section 5b: the forecast model ---- */
+  // Models disagree - sometimes by 40 percentage points on the same morning - so a widget may
+  // name one. An unknown id must never be sent: the service answers 400 and there is no weather.
+  const modelHit = forecastHits.find((u) => u.includes('latitude=33.3333'))
+  ok('a widget with a model asks for it by name', String(modelHit).includes('models=ecmwf_ifs025'), String(modelHit))
+  ok(
+    'and a widget without one asks for no model at all',
+    forecastHits.filter((u) => !u.includes('latitude=33.3333')).every((u) => !u.includes('models=')),
+    forecastHits.filter((u) => u.includes('models=')).length + ' of ' + forecastHits.length + ' name a model'
+  )
 
   /* ---- section 6: shared fetch - many widgets, two places, two requests ---- */
   const detroitHits = forecastHits.filter((u) => u.includes('latitude=42.3314')).length
@@ -529,9 +649,11 @@ try {
   ok('no page errors or app-resource failures', errs.length === 0, errs.slice(0, 3).join(' | '))
 } finally {
   await browser.close().catch(() => {})
-  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID)
-  ok('cleanup: dashboard removed', left.length === 0)
+  for (const uid of [UID, UID_TIGHT]) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID || c.uid === UID_TIGHT)
+  ok('cleanup: dashboards removed', left.length === 0, left.map((c) => c.uid).join(','))
 
   const passed = results.filter((r) => r.pass).length
   console.log(`\n${passed}/${results.length} checks passed`)

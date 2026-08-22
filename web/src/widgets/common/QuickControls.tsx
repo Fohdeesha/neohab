@@ -41,7 +41,7 @@ export function RangeControl({
   const state = ctx.getItem(item)
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
-  const optimistic = useOptimisticValue(itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
+  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
   const value = drag ?? optimistic.display
 
   const commit = (v: number) => {

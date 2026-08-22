@@ -262,6 +262,21 @@ describe('buildForecastView', () => {
     }
   })
 
+  it("reads the current block's precipitation as today's chance, not this hour's", () => {
+    // What every outlet a reading gets compared against labels "Precipitation" is the day's
+    // figure. The hour's can be a long way from it: clear at six, thunderstorms by five.
+    const v = buildForecastView(data, 'imperial', opts)
+    expect(fixture.daily.precipitation_probability_max[0]).not.toBe(fixture.current.precipitation_probability)
+    expect(v.precipProb).toBe(fixture.daily.precipitation_probability_max[0] + '%')
+  })
+
+  it('falls back to the current hour when there is no daily forecast at all', () => {
+    const hourOnly = normalizeForecast({
+      current: { time: '2026-08-18T12:00', precipitation_probability: 55 },
+    })!
+    expect(buildForecastView(hourOnly, 'imperial', opts).precipProb).toBe('55%')
+  })
+
   it('shows metric units when asked', () => {
     const v = buildForecastView(data, 'metric', opts)
     expect(v.temp.unit).toBe('°C')

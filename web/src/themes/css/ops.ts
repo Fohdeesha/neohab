@@ -65,8 +65,8 @@ body {
     inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
     0 14px 28px -20px rgba(0, 0, 0, 0.9);
 }
-/* Bare widgets (label, clock) stay bare, exactly as they are in every other theme - an
-   accent still panels them, because those rules sit two classes deep. */
+/* A widget asking for no card keeps none, exactly as in every other theme - an accent still
+   panels it, because those rules sit two classes deep. */
 .nh-widget--bare {
   background-color: transparent;
   background-image: none;

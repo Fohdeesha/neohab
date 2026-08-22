@@ -15,6 +15,12 @@ interface ClockConfig {
   dateFormat?: 'short' | 'weekday' | 'monthYear' | 'full' | 'numeric'
   /** Date only: the panel says what day it is, not what time it is. */
   hideTime?: boolean
+  /**
+   * The tile's own card, on by default like every other widget's. Turning it off leaves the
+   * time on the dashboard background with nothing around it - which is what HABPanel's own
+   * clock calls "No background", and what this widget used to be unconditionally.
+   */
+  tileBackground?: boolean
 }
 
 /**
@@ -132,10 +138,13 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
 
   const analog = String(config.mode ?? '').toLowerCase() === 'analog'
   const date = formatDate(now, config.dateFormat)
+  // Absent means shown: an existing clock, and one imported from a HABPanel config that did not
+  // ask for "No background", both get the card the rest of the dashboard has.
+  const bare = config.tileBackground === false
 
   if (analog) {
     return (
-      <WidgetFrame bare center>
+      <WidgetFrame bare={bare} center>
         <div className="nh-clock nh-clock--analog">
           <AnalogFace now={now} seconds={config.showSeconds === true} numbers={config.showNumbers === true} />
           {config.showDate ? <div className="nh-clock__date">{date}</div> : null}
@@ -154,7 +163,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   // Hiding the time leaves the date as the panel's own reading, so it is set as one.
   const dateOnly = config.hideTime === true
   return (
-    <WidgetFrame bare center>
+    <WidgetFrame bare={bare} center>
       <div className="nh-clock">
         {dateOnly ? null : (
           /* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
@@ -179,7 +188,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
   name: 'Clock',
   description: 'Current time and date',
   defaultSize: { w: 3, h: 3 },
-  defaultConfig: () => ({ mode: 'digital', showDate: true, showSeconds: false, dateFormat: 'short' }),
+  defaultConfig: () => ({ mode: 'digital', showDate: true, showSeconds: false, dateFormat: 'short', tileBackground: true }),
   settings: [
     {
       key: 'mode',
@@ -209,6 +218,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
     { key: 'showSeconds', type: 'boolean', label: 'Show seconds', showIf: (c) => c.hideTime !== true },
     { key: 'showNumbers', type: 'boolean', label: 'Show numerals', showIf: isAnalog },
     { key: 'hour12', type: 'boolean', label: '12-hour clock', showIf: (c) => isDigital(c) && c.hideTime !== true },
+    { key: 'tileBackground', type: 'boolean', label: 'Show the tile background' },
   ],
   Component: ClockWidget,
 }

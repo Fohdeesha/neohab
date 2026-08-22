@@ -387,6 +387,8 @@ const CONVERTERS: Record<string, Converter> = {
         mode: analog ? 'analog' : undefined,
         showDate: true,
         showSeconds: analog ? undefined : /s/.test(format),
+        // HABPanel's clock is a card too, with a "No background" checkbox to take it away.
+        tileBackground: w.nobackground ? false : undefined,
       },
     }
   },

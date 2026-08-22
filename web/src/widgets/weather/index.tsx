@@ -25,7 +25,7 @@ import {
   type WeatherData,
   type WeatherView,
 } from './model'
-import { getForecast } from './openmeteo'
+import { FORECAST_MODELS, getForecast } from './openmeteo'
 import { CompactLook, HeroLook, StripLook } from './looks'
 
 interface WeatherConfig extends Record<string, unknown> {
@@ -36,6 +36,8 @@ interface WeatherConfig extends Record<string, unknown> {
   units?: string
   refreshMinutes?: number
   iconStyle?: string
+  /** Which weather model Open-Meteo runs the forecast from; empty = its own pick. */
+  model?: string
 }
 
 const REFRESH_DEFAULT_MIN = 15
@@ -94,6 +96,9 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
   const sys = useUnitSystem(config.units)
   const loc = source === 'openmeteo' ? locationOf(config.location) : null
   const refreshMs = clampInt(config.refreshMinutes, 5, 120, REFRESH_DEFAULT_MIN) * 60_000
+  // Anything else stored here is ignored rather than sent: an unknown model is an HTTP 400
+  // from Open-Meteo, which is no weather at all.
+  const model = (FORECAST_MODELS as readonly string[]).includes(String(config.model ?? '')) ? String(config.model ?? '') : ''
 
   const [data, setData] = useState<WeatherData | null>(null)
   const [failed, setFailed] = useState(false)
@@ -107,7 +112,7 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
       try {
         // accept anything younger than the refresh window, so widgets sharing a place share
         // one request; the small slack keeps an interval tick from just missing its own cache
-        const d = await getForecast(lat, lon, sys, refreshMs - 2000)
+        const d = await getForecast(lat, lon, sys, refreshMs - 2000, model)
         if (!dead) {
           setData(d)
           setFailed(false)
@@ -124,7 +129,7 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
       clearTimeout(first)
       clearInterval(timer)
     }
-  }, [source, lat, lon, sys, refreshMs])
+  }, [source, lat, lon, sys, refreshMs, model])
 
   const opts: ViewOptions = { days, hours, showPrecip: details.precip, lang, t }
   let view: WeatherView | null = null
@@ -181,6 +186,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
     units: 'auto',
     iconStyle: 'fill',
     refreshMinutes: REFRESH_DEFAULT_MIN,
+    model: '',
     days: 5,
     hourlyCount: 12,
     showDaily: true,
@@ -229,6 +235,20 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       showIf: isOm,
     },
     { key: 'refreshMinutes', type: 'number', label: 'Refresh (minutes)', min: 5, max: 120, showIf: isOm },
+    {
+      key: 'model',
+      type: 'select',
+      label: 'Forecast model',
+      options: [
+        { value: '', label: 'Automatic' },
+        { value: 'ecmwf_ifs025', label: 'ECMWF' },
+        { value: 'gfs_seamless', label: 'NOAA GFS' },
+        { value: 'icon_seamless', label: 'DWD ICON' },
+        { value: 'gem_seamless', label: 'Environment Canada GEM' },
+      ],
+      hint: 'Models disagree, sometimes a lot. Automatic is Open-Meteo’s own pick for the location; if a reading looks nothing like the forecast you usually read, try another.',
+      showIf: isOm,
+    },
     {
       key: 'iconStyle',
       type: 'select',

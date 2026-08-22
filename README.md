@@ -73,6 +73,13 @@ translate it.
   hold replaces the tap rather than adding to it, so a slow press never commands anything by
   accident: hold a slider or a dial and the value goes back where it was, while a tap on a
   slider's track still sets it there and a drag still drags.
+- **Steady controls.** Lights do not step to a new value: openHAB predicts it, the binding reports
+  what the channel is doing mid-fade, and the real value lands a second later. Whether you set it
+  or a rule, a scene or another panel did, a slider or a colour fader moves once and settles where
+  the device settles, instead of jumping to the new value, collapsing to near-black and climbing
+  back. A floor plan's glows and preset chips follow the same rule, so a room does not flash
+  through the scene it is leaving. Nothing is hidden for long: an ordinary change appears the
+  moment it arrives.
 - **Navigate from anywhere.** A pull-out sidebar lists every dashboard. It pushes the dashboard
   aside on desktop, overlays on phones, and can be pinned or switched off.
 - **Dashboards it builds for you.** Point neohab at your items and it lays out dashboards from
@@ -108,7 +115,9 @@ translate it.
   tile it is given: feels-like, humidity, wind and rain chance sit beside the temperature wherever
   there is width for them and underneath where there is not. Data comes from
   [Open-Meteo](https://open-meteo.com/) (free, no key: search for your town and you are done) or
-  from your own weather items, and your server's measurement system decides °F or °C.
+  from your own weather items, and your server's measurement system decides °F or °C. Rain chance
+  is the day's, the way every forecast site quotes it; if the numbers look nothing like the
+  forecast you usually read, pick another weather model (ECMWF, GFS, ICON, GEM) and see.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.

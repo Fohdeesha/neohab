@@ -26,7 +26,7 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   // (or diverges after the settle window) so slow/quantizing devices don't snap the slider back.
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
-  const optimistic = useOptimisticValue(itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
+  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
   const value = drag ?? optimistic.display
 
   const commit = (v: number) => {
