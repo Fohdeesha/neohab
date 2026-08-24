@@ -256,6 +256,15 @@ try {
         rowHeight: 'match',
         widgets: [
           {
+            // The same tile with no name to draw: a header row costs the body about 1.05em plus
+            // 8px, so the two have different budgets and each has its own shed threshold. Jon's
+            // reported panel is this one - named, but told not to show it.
+            id: 'w-tight-bare',
+            type: 'weather',
+            config: { source: 'openmeteo', look: 'hero', label: 'Bare', labelMode: 'none', units: 'imperial', location: detroit, textSize: 110 },
+            layout: { lg: { x: 2, y: 0, w: 2, h: 1 } },
+          },
+          {
             id: 'w-tight',
             type: 'weather',
             // 110% text, as the reported widget had: a per-widget scale is what pushed the
@@ -435,6 +444,279 @@ try {
     'furthest reading vs the cell edge: ' + tight?.valueOverhang
   )
 
+
+  /* ---- section 3d: a tile too small for everything shrinks and sheds, it never crops ---- */
+  // Reported from a phone: in landscape both the weather panel and the clock beside it were
+  // "terribly cropped instead of shrank" - the reading kept its full size, pushed the lines under
+  // it past the tile edge, and `overflow: hidden` cut them off mid-glyph. In portrait the same
+  // panel showed no readings at all with 384px of its own width empty to the right.
+  //
+  // Both shapes are driven here, and BOTH heroes on the board at each: one drawing a name and one
+  // not. A header row costs the body about 1.05em plus 8px while a container query measures the
+  // CELL, so the two have different budgets and different shed thresholds - checking one checks
+  // half the rule, and the half that was wrong first time round put 17px outside the tile.
+  //
+  // The invariant is the same in every case, and it is the one that failed: whatever is drawn is
+  // drawn INSIDE the tile.
+  const shapes = [
+    // stacked, as a phone renders it: wide and short - the portrait report
+    { name: 'a full-width row on a phone', w: 540, h: 900, wide: true },
+    // a short grid cell, as landscape renders it
+    { name: 'a short grid cell', w: 885, h: 420, wide: false },
+  ]
+  for (const shape of shapes) {
+    const p2 = await browser.newPage({ viewport: { width: shape.w, height: shape.h } })
+    await p2.addInitScript((cfg) => {
+      try {
+        localStorage.setItem('neohab:apiToken', cfg.token)
+        localStorage.setItem('neohab:themeOverride', 'dark')
+      } catch {}
+    }, { token: TOKEN })
+    await p2.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(forecast) })
+    )
+    await p2.goto(APP + '#/d/nh-e2e-weather-tight')
+    await p2.waitForSelector('.nh-weather--hero', { timeout: 20000 }).catch(() => {})
+    await sleep(1500)
+    const fits = await probe(p2, () =>
+      [...document.querySelectorAll('.nh-weather--hero')].map((hero) => {
+        const cell = hero.closest('.nh-gcell, .nh-cell')
+        const body = hero.closest('.nh-widget__body')
+        const cr = cell.getBoundingClientRect()
+        const br = body.getBoundingClientRect()
+        const det = hero.querySelector('.nh-weather__details')
+        const parts = [
+          ...hero.querySelectorAll('.nh-weather__temp, .nh-weather__cond, .nh-weather__range, .nh-weather__detvalue'),
+        ].filter((e) => e.getBoundingClientRect().width > 0)
+        return {
+          headed: hero.closest('.nh-widget').classList.contains('nh-widget--headed'),
+          cell: { w: Math.round(cr.width), h: Math.round(cr.height) },
+          overV: body.scrollHeight - body.clientHeight,
+          overH: body.scrollWidth - body.clientWidth,
+          // measured per element too: a body can report no overflow while a centred child spills
+          past: Math.round(Math.max(0, ...parts.map((e) => e.getBoundingClientRect().bottom - br.bottom))),
+          details: det ? getComputedStyle(det).display : 'absent',
+          readings: det
+            ? [...det.querySelectorAll('.nh-weather__detail')].filter((e) => e.getBoundingClientRect().width > 0).length
+            : 0,
+          tempPx: Math.round(parseFloat(getComputedStyle(hero.querySelector('.nh-weather__temp')).fontSize)),
+          emPx: Math.round(parseFloat(getComputedStyle(cell).fontSize)),
+          drawn: parts.map((e) => e.className.replace('nh-weather__', '')),
+        }
+      })
+    )
+    const list = Array.isArray(fits) ? fits : []
+    ok(`${shape.name}: both heroes rendered`, list.length === 2, `${list.length} of 2`)
+    const spilled = list.filter((f) => f.overV > 0 || f.overH > 0 || f.past > 0)
+    ok(
+      `${shape.name}: nothing is drawn outside the tile`,
+      list.length === 2 && spilled.length === 0,
+      spilled.length ? JSON.stringify(spilled) : JSON.stringify(list.map((f) => ({ headed: f.headed, cell: f.cell })))
+    )
+    // The precondition that makes the check above mean anything: these really are tiles too small
+    // for the natural layout, so something had to give.
+    ok(
+      `${shape.name}: and they really are short tiles`,
+      list.length === 2 && list.every((f) => f.cell.h < 130),
+      list.map((f) => `${f.cell.w}x${f.cell.h}`).join(' ')
+    )
+    // The reported panel is the one with no name drawn, so that is the one the two claims below
+    // are about; its twin is here to prove the header row is accounted for, not ignored.
+    const bare = list.find((f) => !f.headed)
+    if (shape.wide) {
+      // Beside the reading the readings cost no height at all, so a short tile with width to
+      // spare must still show them. Height alone used to be enough to shed them.
+      ok(
+        'a wide short row keeps its readings beside the temperature',
+        bare !== undefined && bare.cell.w > 400 && bare.details === 'grid' && bare.readings === 4,
+        JSON.stringify(bare)
+      )
+    } else {
+      // Nothing left to put beside the reading, so what is drawn is drawn smaller - and the
+      // temperature is the part with room to give.
+      ok(
+        'a short cell draws the reading smaller rather than clipping it',
+        bare !== undefined && bare.tempPx < 2.6 * bare.emPx,
+        `temp ${bare?.tempPx}px vs 2.6em = ${Math.round(2.6 * (bare?.emPx ?? 0))}px`
+      )
+      // Shed back to front: the current reading is the point, the high/low is the first to go.
+      ok(
+        'and what it cannot fit it sheds, keeping the reading',
+        bare !== undefined && bare.drawn.includes('temp') && !bare.drawn.includes('range'),
+        (bare?.drawn ?? []).join(',')
+      )
+    }
+    await p2.close()
+  }
+
+  /* ---- section 3e: the whole forecast, a hold away ---- */
+  // A compact row shows a temperature and a word, and a hero on a phone sheds its strips - all
+  // of it out of one seven-day request. Holding the tile opens what was fetched.
+  await page.goto(APP + '#/d/nh-e2e-weather')
+  await page.waitForSelector('.nh-weather--compact', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+  const compactCell = page.locator('.nh-gcell').filter({ has: page.locator('.nh-weather--compact') }).first()
+  const box = await compactCell.boundingBox().catch(() => null)
+  if (box) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await sleep(800)
+    await page.mouse.up()
+    await sleep(600)
+  }
+  const sheet = await probe(page, () => {
+    const panel = document.querySelector('.nh-detail__panel')
+    if (!panel) return { open: false }
+    const px = (el, prop) => (el ? parseFloat(getComputedStyle(el)[prop]) : 0)
+    /** A block's columns, how many rows they fall into, and where the block sits. */
+    const block = (sel) => {
+      const el = panel.querySelector(sel)
+      if (!el) return null
+      const cols = [...el.querySelectorAll('.nh-weather__col')]
+      const tops = [...new Set(cols.map((c) => Math.round(c.getBoundingClientRect().top)))]
+      const r = el.getBoundingClientRect()
+      const first = cols[0] ? cols[0].getBoundingClientRect() : null
+      const last = cols[cols.length - 1] ? cols[cols.length - 1].getBoundingClientRect() : null
+      return {
+        cols: cols.length,
+        rows: tops.length,
+        perRow: tops.map((t) => cols.filter((c) => Math.round(c.getBoundingClientRect().top) === t).length),
+        // How far the drawn columns sit from each edge of the block: equal means centred.
+        padLeft: first ? Math.round(first.left - r.left) : -1,
+        padRight: last ? Math.round(r.right - last.right) : -1,
+        width: first && last ? Math.round(last.right - first.left) : 0,
+        chip: cols[0] ? getComputedStyle(cols[0]).backgroundColor : '',
+        firstChip: cols[0] ? getComputedStyle(cols[0]).backgroundColor : '',
+        secondChip: cols[1] ? getComputedStyle(cols[1]).backgroundColor : '',
+        labelPx: px(cols[0]?.querySelector('.nh-weather__collabel'), 'fontSize'),
+        mainPx: px(cols[0]?.querySelector('.nh-weather__colmain'), 'fontSize'),
+        // Nothing may hang outside the panel, at any viewport.
+        past: Math.max(0, Math.round(r.right - panel.getBoundingClientRect().right)),
+      }
+    }
+    return {
+      open: true,
+      title: panel.querySelector('.nh-detail__title')?.textContent?.trim() ?? '',
+      place: panel.querySelector('.nh-wdetail__place')?.textContent?.trim() ?? '',
+      details: [...panel.querySelectorAll('.nh-weather__detlabel')].map((e) => e.textContent.trim()),
+      heads: [...panel.querySelectorAll('.nh-wdetail__head')].map((e) => e.textContent.trim()),
+      hourly: block('.nh-wdetail__hours'),
+      daily: block('.nh-wdetail__days'),
+      temp: panel.querySelector('.nh-weather__temp')?.textContent?.trim() ?? '',
+      tempPx: px(panel.querySelector('.nh-weather__temp'), 'fontSize'),
+      valuePx: px(panel.querySelector('.nh-weather__detvalue'), 'fontSize'),
+      panelWidth: Math.round(panel.getBoundingClientRect().width),
+      // Wider than a tile's strip: the hero is drawn on a panel of its own here.
+      heroWash: getComputedStyle(panel.querySelector('.nh-weather--hero') ?? panel).backgroundImage,
+    }
+  })
+  ok('a hold on a weather tile opens its own view', sheet.open === true && box !== null, JSON.stringify(sheet).slice(0, 120))
+  ok('naming the place it is for', sheet.place === detroit.name, sheet.place || '(none)')
+  ok('showing the reading the tile shows', sheet.temp === FX.temp, `${sheet.temp} vs ${FX.temp}`)
+  // The tile is a compact row: it draws no readings and no strips at all, so every one of these
+  // is something the sheet added rather than something it copied.
+  ok(
+    'with every reading, whatever the tile was set to show',
+    ['Feels like', 'Humidity', 'Wind', 'Precipitation'].every((l) => (sheet.details ?? []).includes(l)),
+    (sheet.details ?? []).join(',') || '(none)'
+  )
+  // Twelve hours, laid out as two rows of six: the arrangement IS the feature, so it is measured
+  // rather than counted - a build that drew twelve in one scrolling row would pass a count.
+  ok(
+    'the next twelve hours, in two rows of six',
+    sheet.hourly?.cols === 12 && sheet.hourly?.rows === 2 && (sheet.hourly?.perRow ?? []).every((n) => n === 6),
+    JSON.stringify({ cols: sheet.hourly?.cols, rows: sheet.hourly?.rows, perRow: sheet.hourly?.perRow })
+  )
+  ok('and all seven days, in one', sheet.daily?.cols === 7 && sheet.daily?.rows === 1, JSON.stringify({ cols: sheet.daily?.cols, rows: sheet.daily?.rows }))
+  ok(
+    'both blocks centred, with the week the wider of the two',
+    Math.abs((sheet.hourly?.padLeft ?? 0) - (sheet.hourly?.padRight ?? 99)) <= 2 &&
+      Math.abs((sheet.daily?.padLeft ?? 0) - (sheet.daily?.padRight ?? 99)) <= 2 &&
+      (sheet.daily?.width ?? 0) > (sheet.hourly?.width ?? 0),
+    `hours ${sheet.hourly?.padLeft}/${sheet.hourly?.padRight} w=${sheet.hourly?.width}, days ${sheet.daily?.padLeft}/${sheet.daily?.padRight} w=${sheet.daily?.width}`
+  )
+  ok(
+    'each under a heading of its own',
+    (sheet.heads ?? []).length === 2 && (sheet.heads ?? []).some((h) => /week/i.test(h)),
+    (sheet.heads ?? []).join(' | ') || '(none)'
+  )
+  // "you really like tiny text all the time?" - the tile's columns are 0.62em labels over 0.8em
+  // readings, which is right for a cell and far too small for a panel this size.
+  ok(
+    'set at a size worth reading, not the tile’s',
+    (sheet.hourly?.labelPx ?? 0) >= 12 && (sheet.hourly?.mainPx ?? 0) >= 15 && sheet.valuePx >= 18 && sheet.tempPx >= 45,
+    `label ${sheet.hourly?.labelPx} main ${sheet.hourly?.mainPx} reading ${sheet.valuePx} temp ${sheet.tempPx}`
+  )
+  ok(
+    'the columns are chips and the reading has a wash behind it',
+    sheet.hourly?.chip !== 'rgba(0, 0, 0, 0)' && /gradient/.test(sheet.heroWash ?? ''),
+    `${sheet.hourly?.chip} | ${String(sheet.heroWash).slice(0, 40)}`
+  )
+  ok(
+    'the day it opens on is picked out from the rest',
+    sheet.daily?.firstChip !== sheet.daily?.secondChip,
+    `${sheet.daily?.firstChip} vs ${sheet.daily?.secondChip}`
+  )
+  ok('nothing hangs outside the panel', (sheet.hourly?.past ?? 1) === 0 && (sheet.daily?.past ?? 1) === 0, `${sheet.hourly?.past} / ${sheet.daily?.past}`)
+  ok('and the panel takes the room a full-screen sheet has', sheet.panelWidth > 760, `${sheet.panelWidth}px`)
+
+  // Same sheet on a phone, both ways up. The seven-day row is what decides the column width, so
+  // a phone is where a block hangs out of the panel if the arithmetic is wrong; the sheet itself
+  // is fixed-position, so resizing re-lays it out with no second gesture.
+  for (const shape of [
+    { name: 'portrait phone', w: 393, h: 800 },
+    { name: 'landscape phone', w: 885, h: 457 },
+    { name: 'small window', w: 620, h: 720 },
+  ]) {
+    await page.setViewportSize({ width: shape.w, height: shape.h })
+    // The resize remounts the widget behind the sheet, so its view is empty for a beat and then
+    // fills in again. Waiting for the block is not enough on its own - the OLD one is still on
+    // screen when the wait is made, so it returns at once and the sample lands in the gap. Wait
+    // for two consecutive samples that agree instead.
+    for (let i = 0, seen = 0; i < 30 && seen < 2; i++) {
+      await sleep(200)
+      seen = (await probe(page, () => !!document.querySelector('.nh-wdetail__days'))) ? seen + 1 : 0
+    }
+    const small = await probe(page, () => {
+      const panel = document.querySelector('.nh-detail__panel')
+      if (!panel) return { open: false }
+      const box = (sel) => {
+        const el = panel.querySelector(sel)
+        if (!el) return null
+        const cols = [...el.querySelectorAll('.nh-weather__col')]
+        const tops = [...new Set(cols.map((c) => Math.round(c.getBoundingClientRect().top)))]
+        const r = el.getBoundingClientRect()
+        return {
+          rows: tops.length,
+          past: Math.max(0, Math.round(r.right - panel.getBoundingClientRect().right)),
+          // The narrowest column: too narrow to hold "83° 66°" is a squeeze, not a layout.
+          narrowest: Math.min(...cols.map((c) => Math.round(c.getBoundingClientRect().width))),
+        }
+      }
+      return {
+        open: true,
+        text: (panel.innerText ?? '').replace(/\s+/g, ' ').slice(0, 60),
+        hourly: box('.nh-wdetail__hours'),
+        daily: box('.nh-wdetail__days'),
+        panelPast: Math.round(panel.getBoundingClientRect().right - window.innerWidth),
+        pageScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    ok(
+      `${shape.name}: still two rows of hours and one of days, inside the panel`,
+      small.hourly?.rows === 2 && small.daily?.rows === 1 && small.hourly?.past === 0 && small.daily?.past === 0,
+      JSON.stringify({ h: small.hourly, d: small.daily, open: small.open, text: small.text })
+    )
+    ok(
+      `${shape.name}: the panel is on screen and the page does not scroll sideways`,
+      (small.panelPast ?? 1) <= 0 && (small.pageScroll ?? 1) <= 0,
+      `past=${small.panelPast} scroll=${small.pageScroll}`
+    )
+  }
+  await page.setViewportSize({ width: 1500, height: 1100 })
+  await sleep(300)
+  await page.keyboard.press('Escape').catch(() => {})
+  await sleep(300)
   await page.goto(APP + '#/d/nh-e2e-weather')
   await page.waitForSelector('.nh-weather--striplook', { timeout: 20000 }).catch(() => {})
   await sleep(1200)
@@ -641,6 +923,49 @@ try {
     return { before: getComputedStyle(temp, '::before').content, font: getComputedStyle(temp).fontFamily }
   })
   ok('LCD: the temp draws in DSEG with the ghost underlay', lcdGhost !== null && lcdGhost.before === '"88"' && lcdGhost.font.includes('DSEG'), JSON.stringify(lcdGhost))
+
+  // The detail sheet draws that reading three times the size a tile does, and a face whose ink
+  // runs past its em box then puts the digits through the condition line underneath - which is
+  // what LCD Console and Operations both did. The INK is what has to be measured: the element's
+  // own box stops at the line box, so a box-to-box comparison sees nothing.
+  const holdWeather = async () => {
+    const cell = page.locator('.nh-gcell').filter({ has: page.locator('.nh-weather--hero') }).first()
+    const b = await cell.boundingBox().catch(() => null)
+    if (!b) return false
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2, { button: 'right' })
+    await page.waitForSelector('.nh-detail__panel', { timeout: 8000 }).catch(() => {})
+    await sleep(600)
+    return true
+  }
+  const opened = await holdWeather()
+  const ink = await probe(page, () => {
+    const panel = document.querySelector('.nh-detail__panel')
+    const temp = panel?.querySelector('.nh-weather__temp')
+    const cond = panel?.querySelector('.nh-weather__cond')
+    if (!temp || !cond) return null
+    const cs = getComputedStyle(temp)
+    const ctx = document.createElement('canvas').getContext('2d')
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+    const m = ctx.measureText(temp.textContent ?? '')
+    const box = temp.getBoundingClientRect()
+    const size = parseFloat(cs.fontSize)
+    const lineHeight = cs.lineHeight === 'normal' ? size * 1.2 : parseFloat(cs.lineHeight)
+    // Where the baseline sits inside the line box, then how far the ink falls below it.
+    const half = (lineHeight - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
+    const baseline = box.top + half + m.fontBoundingBoxAscent
+    return {
+      inkBottom: Math.round(baseline + m.actualBoundingBoxDescent),
+      condTop: Math.round(cond.getBoundingClientRect().top),
+      font: cs.fontFamily,
+    }
+  })
+  ok(
+    'LCD: the segment digits clear the line under them',
+    opened && ink !== null && ink.inkBottom <= ink.condTop,
+    ink ? `ink ${ink.inkBottom} vs condition ${ink.condTop} (${ink.font})` : '(no sheet)'
+  )
+  await page.keyboard.press('Escape').catch(() => {})
+  await sleep(300)
   await page.evaluate(() => {
     localStorage.removeItem('nh-e2e-keep-theme')
     localStorage.setItem('neohab:themeOverride', 'dark')

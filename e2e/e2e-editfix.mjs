@@ -267,12 +267,12 @@ try {
   //
   // Reported: a weather widget lost its readings while being edited and got them back on Exit.
   // Two causes, both geometry. The handle strip reserved a 26px band above every widget, and a
-  // docked settings panel took 340px off the surface - and a cell that is narrower or shorter is
-  // a different widget: text and icons scale with it, and every container query it sheds content
-  // on moves with it. So the same dashboard is measured three ways here, and the LAYOUT geometry
-  // has to be identical in all of them. `offsetWidth`/`offsetHeight` are layout pixels, which is
-  // what the widgets are laid out in; the panel now zooms the grid rather than squeezing it, so
-  // only the DRAWN width changes.
+  // docked settings panel took its own width off the surface - and a cell that is narrower or
+  // shorter is a different widget: text and icons scale with it, and every container query it
+  // sheds content on moves with it. So the same dashboard is measured three ways here, and the
+  // LAYOUT geometry has to be identical in all of them. `offsetWidth`/`offsetHeight` are layout
+  // pixels, which is what the widgets are laid out in; the panel now zooms the grid rather than
+  // squeezing it, so only the DRAWN width changes.
   const layoutOf = () =>
     page.evaluate(() => {
       const grid = document.querySelector('.nh-grid')
@@ -283,6 +283,7 @@ try {
         gridDrawn: grid ? Math.round(grid.getBoundingClientRect().width) : 0,
         gridRight: grid ? Math.round(grid.getBoundingClientRect().right) : 0,
         panelLeft: panel ? Math.round(panel.getBoundingClientRect().left) : null,
+        panelWidth: panel ? Math.round(panel.getBoundingClientRect().width) : null,
         cells: cells.map((c) => `${c.offsetWidth}x${c.offsetHeight}`).join(' '),
         font: cells[0] ? getComputedStyle(cells[0]).fontSize : '',
         iconScale: grid ? getComputedStyle(grid).getPropertyValue('--nh-iconscale').trim() : '',
@@ -312,6 +313,10 @@ try {
   ok('a docked panel changes nothing about the scaling', panel.font === run.font && panel.iconScale === run.iconScale, `${panel.font}/${panel.iconScale}`)
   ok('the grid is drawn smaller to make room for the panel', panel.gridDrawn < run.gridDrawn - 100, `${panel.gridDrawn} vs ${run.gridDrawn}`)
   ok('the panel does not cover the grid', panel.panelLeft !== null && panel.gridRight <= panel.panelLeft, `grid right ${panel.gridRight} vs panel left ${panel.panelLeft}`)
+  // Mirrors SIDE_PANEL_WIDTH in model/layout.ts, which is the number editZoom() works the zoom
+  // out from. The two have to agree - and the layout checks above are what would catch it if
+  // they did not, because the grid would then be laid out at the wrong width.
+  ok('the panel is the width the layout arithmetic assumes', panel.panelWidth === 391, `${panel.panelWidth}px`)
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
 

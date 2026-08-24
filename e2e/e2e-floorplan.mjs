@@ -672,7 +672,7 @@ try {
     return {
       imgs: document.querySelectorAll('.nh-fplan__img').length,
       // measured WITH an image set: that is when the row also carries a thumbnail and a clear
-      // button, which is the state that crushed the box to a few characters in the 340px panel
+      // button, which is the state that crushed the box to a few characters in the narrow panel
       urlW: url ? Math.round(url.getBoundingClientRect().width) : 0,
       thumb: !!document.querySelector('.nh-sheet .nh-bgfield__thumb'),
     }
@@ -681,7 +681,7 @@ try {
   // ids are random: find the new component by diffing the namespace, never by guessing
   bgUid = afterUpload.find((u) => u.startsWith('background:') && !bgBefore.includes(u)) ?? null
   ok('uploading a plan image shows it and stores the upload', uploaded.imgs === 3 && !!bgUid, `imgs=${uploaded.imgs} uid=${bgUid}`)
-  // The background field is also used in the 720px Settings form; in the 340px widget panel
+  // The background field is also used in the 720px Settings form; in the narrow widget panel
   // everything on one line left the URL box a few characters wide.
   ok('the plan image field stays usable in the narrow settings panel',
     uploaded.thumb === true && uploaded.urlW >= 120, `thumb=${uploaded.thumb} url box ${uploaded.urlW}px`)

@@ -25,6 +25,12 @@
  * item on openHAB 5 and from persistence on openHAB 4, which serves no such field - checked
  * exactly, over a history this suite supplies.
  *
+ * Section 10 is what the sheet does to the rest of the press that opened it, since it renders
+ * under the finger half a second before that press ends. Two things went wrong there, both only on
+ * touch: the browser's OWN long press selected a word of the sheet's text and raised Android's
+ * text toolbar over it, and the release - hit-tested where the finger lifts, unlike a mouse click -
+ * landed on the scrim and closed the sheet again.
+ *
  * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-detail, saves NOTHING
  * through the app (so no restore point is minted), and COMMANDS NOTHING - every command the app
  * attempts is intercepted and answered by the suite, so no request reaches a real device and no
@@ -96,8 +102,8 @@ const browser = await launch()
 const errs = []
 const commands = []
 
-async function newPage(width = 1500, height = 1000) {
-  const page = await browser.newPage({ viewport: { width, height } })
+async function newPage(width = 1500, height = 1000, opts = {}) {
+  const page = await browser.newPage({ viewport: { width, height }, ...opts })
   page.on('pageerror', (e) => errs.push(String(e.message)))
   page.on('console', (m) => {
     if (m.type() !== 'error') return
@@ -164,8 +170,8 @@ try {
           { id: 'w-btn', type: 'button', layout: { lg: { x: 0, y: 0, w: 3, h: 2 } }, config: { label: 'E2E Button', item: ITEMS.dimmer, command: '55', action: 'command' } },
           // a dial: stages on pointerdown, commits on pointerup - no click to swallow
           { id: 'w-dial', type: 'dial', layout: { lg: { x: 3, y: 0, w: 3, h: 2 } }, config: { label: 'E2E Dial', item: ITEMS.dimmer, min: 0, max: 100, step: 1 } },
-          // bound to nothing: there is no detail to show, so no gesture is offered
-          { id: 'w-clock', type: 'clock', layout: { lg: { x: 6, y: 0, w: 3, h: 2 } }, config: { label: 'E2E Clock' } },
+          // no item, but a view of its own: the gesture answers with the date and the zone
+          { id: 'w-clock', type: 'clock', layout: { lg: { x: 6, y: 0, w: 3, h: 2 } }, config: { label: 'E2E Clock', showDate: true } },
           // two items: the sheet has to ask which one
           // period 7d, not the sheet's own default of a day: the sheet has to open on the window
           // this widget was set to.
@@ -188,6 +194,9 @@ try {
           // ...and the real shape of the reported case: a Player item, whose PLAY/PAUSE state no
           // state sniffer can turn into a control. Read only - this one is never clicked.
           { id: 'w-tv', type: 'player', layout: { lg: { x: 0, y: 11, w: 4, h: 2 } }, config: { label: 'E2E TV', item: ITEMS.player } },
+          // Neither an item nor a view of its own: its tile already shows everything it has, so
+          // it keeps the browser's own menu. This is the case the clock used to stand for.
+          { id: 'w-text', type: 'label', layout: { lg: { x: 4, y: 11, w: 4, h: 2 } }, config: { text: 'E2E Label' } },
         ],
       },
     }),
@@ -219,6 +228,7 @@ try {
   const chart = page.locator('.nh-gcell').nth(3)
   const gauge = page.locator('.nh-gcell').nth(4)
   const value = page.locator('.nh-gcell').nth(5)
+  const plain = page.locator('.nh-gcell').last()
 
   // ---- 1. the gesture ---------------------------------------------------------------------
   commands.length = 0
@@ -443,10 +453,44 @@ try {
   ok('nothing was commanded on the way', commands.length === 0, commands.map((c) => c.body).join(',') || 'no commands')
   await closeSheet(page)
 
-  // ---- 3. a widget bound to nothing --------------------------------------------------------
+  // ---- 3. widgets that are not about an item -----------------------------------------------
+  // A tile showing everything it has keeps the browser's own menu: a sheet that repeats the
+  // tile is noise, and offering a gesture that opens an empty panel is worse.
+  await holdOn(page, plain)
+  const afterPlain = await probe(page, readSheet)
+  ok('a widget with nothing more to show offers no sheet', afterPlain.open !== true)
+  await closeSheet(page)
+
+  // A clock has no item either, but it does have more than its tile shows: the gesture used to
+  // do nothing at all on one, which reads as the feature being broken.
   await holdOn(page, clock)
-  const afterClock = await probe(page, readSheet)
-  ok('a widget with no item offers no sheet', afterClock.open !== true)
+  const clockSheet = await probe(page, readSheet)
+  ok('a clock opens a view of its own', clockSheet.open === true, `open=${clockSheet.open}`)
+  ok('titled as the widget, not as an item', clockSheet.title === 'E2E Clock', clockSheet.title ?? '(none)')
+  ok(
+    'and says which zone the time is in',
+    (clockSheet.labels ?? []).includes('Time zone') && (clockSheet.labels ?? []).includes('Offset from UTC'),
+    (clockSheet.labels ?? []).join(', ') || '(no rows)'
+  )
+  const clockText = await probe(page, () => {
+    const el = document.querySelector('.nh-clockdetail')
+    if (!el) return {}
+    return {
+      time: el.querySelector('.nh-clockdetail__time')?.textContent?.trim() ?? '',
+      date: el.querySelector('.nh-clockdetail__date')?.textContent?.trim() ?? '',
+      zone: el.querySelector('.nh-clockdetail__zoneid')?.textContent?.trim() ?? '',
+    }
+  })
+  // Seconds whatever the tile was set to, and the date written out rather than abbreviated -
+  // the two things the tile does not show.
+  ok('with the time to the second', /\d{1,2}:\d{2}:\d{2}/.test(clockText.time ?? ''), clockText.time ?? '(none)')
+  ok(
+    'and the date written out in full',
+    typeof clockText.date === 'string' && clockText.date.length > 10 && /\d{4}/.test(clockText.date),
+    clockText.date ?? '(none)'
+  )
+  ok('naming the zone it resolved', /\//.test(clockText.zone ?? '') || (clockText.zone ?? '') !== '', clockText.zone ?? '(none)')
+  ok('and no item picker, since there is no item', (clockSheet.picks ?? []).length === 0)
   await closeSheet(page)
 
   // ---- 4. what the sheet shows -------------------------------------------------------------
@@ -789,6 +833,92 @@ try {
     onPhone.open ? `panel ${onPhone.box.w}x${onPhone.box.h} at y=${onPhone.box.y} in ${onPhone.viewport.w}x${onPhone.viewport.h}` : 'not open'
   )
   await phone.close().catch(() => {})
+
+  // ---- 10. the browser's own long press -----------------------------------------------------
+  // Reported from a phone: the hold opens the sheet, and Android's text toolbar comes up over it
+  // with a word of the sheet's own text selected. The browser has a long press of its own and it
+  // lands at about the same 500ms as ours, by which time the sheet has rendered under the finger -
+  // so the word it takes is the sheet's, which is the one place selection is deliberately switched
+  // back on. Preventing the contextmenu cannot help: the word is selected before that event is
+  // dispatched, and the cell whose handler would prevent it is no longer in the event's path.
+  //
+  // The toolbar itself is not observable headless. What the browser consults before drawing it is,
+  // so that is what is checked here, over a real touch press driven through CDP.
+  const readSelectable = () => {
+    const body = document.querySelector('.nh-detail__body')
+    const cell = document.querySelector('.nh-gcell')
+    return {
+      open: !!document.querySelector('.nh-detail__panel'),
+      holding: document.documentElement.classList.contains('nh-holding'),
+      sheet: body ? getComputedStyle(body).userSelect : null,
+      cell: cell ? getComputedStyle(cell).userSelect : null,
+    }
+  }
+
+  const touchPage = await newPage(1500, 1000, { hasTouch: true })
+  await touchPage.goto(APP + '#/d/' + DASH)
+  await touchPage.waitForSelector('.nh-gcell', { timeout: 20000 }).catch(() => {})
+  await sleep(600)
+
+  let during = {}
+  let after = {}
+  try {
+    const cdp = await touchPage.context().newCDPSession(touchPage)
+    const b = await touchPage.locator('.nh-gcell').nth(0).boundingBox()
+    const x = b.x + b.width / 2
+    const y = b.y + b.height / 2
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+    await sleep(HOLD_MS) // past the threshold: the sheet is open and the finger is still down
+    during = await probe(touchPage, readSelectable)
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await sleep(300)
+    after = await probe(touchPage, readSelectable)
+  } catch (e) {
+    during = { error: String(e.message).slice(0, 90) }
+  }
+
+  // The precondition the two checks after it need: with no sheet open under the finger there is
+  // nothing for the browser to have selected, and both would pass for the wrong reason.
+  ok(
+    'a touch hold opens the sheet with the finger still down',
+    during.open === true,
+    during.error ?? `open=${during.open}`
+  )
+  ok('nothing on the dashboard is selectable while that press lasts', during.cell === 'none', `cell=${during.cell}`)
+  ok("and neither is the sheet's own text, under the finger", during.sheet === 'none', `sheet=${during.sheet}`)
+
+  // The same cause, found while checking the two above: a touch-generated click is hit-tested
+  // where the finger LIFTS, and after half a second of holding that is the sheet. So the release
+  // landed on the scrim and closed the sheet the hold had just opened, whenever the widget held
+  // was far enough from the middle for the panel not to be covering it. A mouse click goes to the
+  // common ancestor of press and release, which is why no desktop ever showed it.
+  ok('lifting the finger does not close the sheet it just opened', after.open === true, `open=${after.open}`)
+  ok(
+    'and selection comes back the moment the press ends',
+    after.sheet === 'text' && after.holding === false,
+    `sheet=${after.sheet} holding=${after.holding}`
+  )
+
+  // Guards, not discriminators: the two below also pass on a build without any of this, and are
+  // here so that none of it can be bought by making the app permanently unselectable - a reading
+  // in the sheet is worth copying, and a template widget's content is worth selecting with a
+  // mouse.
+  await closeSheet(touchPage)
+  const mb = await touchPage.locator('.nh-gcell').nth(0).boundingBox()
+  let mouseHold = {}
+  if (mb) {
+    await touchPage.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2)
+    await touchPage.mouse.down()
+    await sleep(HOLD_MS)
+    mouseHold = await probe(touchPage, readSelectable)
+    await touchPage.mouse.up()
+  }
+  ok(
+    'a mouse hold leaves selection alone, so a drag can still select text',
+    mouseHold.cell !== 'none' && mouseHold.holding === false && mouseHold.open === true,
+    `cell=${mouseHold.cell} holding=${mouseHold.holding} open=${mouseHold.open}`
+  )
+  await touchPage.close().catch(() => {})
 
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } finally {

@@ -154,6 +154,15 @@ items.
 battery never waits on a third-party service and the readings it asserts come from the same file
 the routes serve. The one item it binds (`items.temperature`) is only ever read.
 
+`e2e-clocktime.mjs` **injects** the server's clock rather than measuring it. A clock set to the
+server reads the `Date` header off a `HEAD /rest/`, and on a well-run pair of machines the two
+clocks agree, so there would be nothing to see: the suite fulfils that one request with a `Date`
+of its own choosing and then asserts the tile and the sheet against the offset it chose. Only HEAD
+is intercepted, because the app reads the same path with GET for the server's version and locale.
+Each section opens its own page, since the measured offset is cached per device and one section
+would otherwise decide the next one's answer. Every widget it seeds is a clock, so it commands
+nothing and binds no items.
+
 **Console errors and somebody else's data.** A real openHAB carries the user's own configuration,
 which routinely points at iconsets renamed years ago and hosts that no longer answer. A suite that
 fails on those 404s cannot be run against a live server, so `isAppResource()` in `lib/target.mjs`

@@ -1,7 +1,7 @@
 /**
  * Every widget's settings panel, checked as a class rather than one widget at a time.
  *
- * The panel is a fixed 340px column on a desktop, and a control that does not fit is not a
+ * The panel is a fixed 391px column on a desktop, and a control that does not fit is not a
  * cosmetic problem: it is a control the user cannot reach. Both of these shipped in the floor
  * plan and both were reported rather than caught -
  *
@@ -18,12 +18,19 @@
  * The widget list comes from the palette, so a widget added later is covered without touching
  * this file.
  *
- * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-panels, saves NOTHING
- * through the app (so no restore point is minted), and commands nothing - every widget is added
- * unconfigured, with no item bound.
+ * The last section asks the same question about what a widget DRAWS: one of every type in a
+ * short tile, and nothing may be painted outside it. That is the registry form of a report about
+ * two widgets ("terribly cropped instead of shrank" in a landscape phone's row), and asking it
+ * across the palette found a third - the media player's transport, three fixed circles wanting
+ * 192px in a row that gives them 135.
+ *
+ * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-panels and
+ * dashboard:nh-e2e-panelfit, saves NOTHING through the app (so no restore point is minted), and
+ * commands nothing - the palette widgets are added unconfigured, and the short-tile ones are
+ * bound so they render a control but are never clicked, with commands intercepted besides.
  */
 import { chromium } from 'playwright-core'
-import { APP, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-panels'
 const PANEL_MIN_CONTROL = 110 // px: narrower than this is a box you cannot read or type into
@@ -181,12 +188,131 @@ try {
   const stored = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
   ok('nothing was saved to the server', (stored?.config?.widgets ?? []).length === 0, 'widgets=' + (stored?.config?.widgets ?? []).length)
 
+  // ---- and the rendered half of the same question: does any widget draw outside its tile? ----
+  // A weather panel and a clock were reported "terribly cropped instead of shrank" in a landscape
+  // phone's short row. Which raises the registry question rather than the widget one, and asking
+  // it found a fifth: the media player's transport is three fixed circles wanting 192px, and that
+  // row gives them 135. Seeded at the reported geometry - 11 columns, gap 4, square cells, so a
+  // 2x1 tile is about 153x75 - with one of every type that has something to draw.
+  const FIT_UID = 'dashboard:nh-e2e-panelfit'
+  const FIT_TYPES = [
+    ['switch', { item: ITEMS.switch, label: 'Switch' }],
+    ['button', { item: ITEMS.dimmer, command: '50', label: 'Button' }],
+    ['slider', { item: ITEMS.dimmer, label: 'Slider' }],
+    ['dial', { item: ITEMS.dimmer, label: 'Dial' }],
+    ['dial', { item: ITEMS.dimmer, style: 'led', label: 'LED' }],
+    ['color', { item: ITEMS.color, label: 'Color' }],
+    ['selection', { item: ITEMS.dimmer, choices: '10=Low\n50=Half\n100=Full', label: 'Pick' }],
+    ['rollershutter', { item: ITEMS.dimmer, label: 'Roller' }],
+    ['player', { item: ITEMS.player, label: 'Player' }],
+    ['value', { item: ITEMS.temperature, label: 'Value' }],
+    ['stat', { item: ITEMS.temperature, label: 'Stat', caption: 'Caption', badge: 'NEW' }],
+    ['compass', { item: ITEMS.dimmer, label: 'Compass' }],
+    ['label', { text: 'A label widget' }],
+    ['clock', { showSeconds: true, showDate: true, dateFormat: 'full' }],
+  ]
+  await fetch(NS + '/' + encodeURIComponent(FIT_UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const fitSeed = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: FIT_UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-panelfit',
+        name: 'E2E Panel Fit',
+        columns: 11,
+        rowHeight: 'match',
+        gap: 4,
+        widgets: FIT_TYPES.map(([type, config], i) => ({
+          id: 'f-' + i,
+          type,
+          config,
+          layout: { lg: { x: (i % 5) * 2, y: Math.floor(i / 5), w: 2, h: 1 } },
+        })),
+      },
+    }),
+  })
+  ok('short-tile dashboard created', fitSeed.ok, String(fitSeed.status))
+
+  const fitPage = await browser.newPage({ viewport: { width: 885, height: 600 } })
+  // Nothing here may reach a device: every widget is bound to an item so it renders its control,
+  // and none of them is clicked, but the interception is what makes that a guarantee.
+  await fitPage.route('**/rest/items/*', (r) => (r.request().method() === 'POST' ? r.abort() : r.continue()))
+  await fitPage.addInitScript((t) => {
+    try {
+      localStorage.setItem('neohab:apiToken', t)
+      localStorage.setItem('neohab:themeOverride', 'dark')
+    } catch {}
+  }, TOKEN)
+  await fitPage.goto(APP + '#/d/nh-e2e-panelfit', { waitUntil: 'domcontentloaded' })
+  await fitPage.waitForSelector('.nh-gcell', { timeout: 25000 }).catch(() => {})
+  await sleep(3000)
+
+  const tiles = await probe(fitPage, () =>
+    [...document.querySelectorAll('.nh-gcell')].map((cell) => {
+      const body = cell.querySelector('.nh-widget__body')
+      const cr = cell.getBoundingClientRect()
+      // Per element, not the body's scrollHeight: a shed element is still in the DOM at zero size
+      // and a scrolling list legitimately extends past its own box, so only something with a real
+      // size, painted past the body's edge, is a widget drawing outside its tile.
+      // Inside a scrolling box, content past the edge is what scrolling is FOR: the selection's
+      // grid and the weather's strips both hold more than they show on purpose. Asked of the
+      // computed style rather than a list of class names, so a scroller added later is covered.
+      const scrolls = (el) => {
+        for (let p = el.parentElement; p && p !== body.parentElement; p = p.parentElement) {
+          const o = getComputedStyle(p)
+          if (/auto|scroll/.test(o.overflowX + ' ' + o.overflowY)) return true
+        }
+        return false
+      }
+      const past = !body
+        ? 0
+        : Math.round(
+            Math.max(
+              0,
+              ...[...body.querySelectorAll('*')]
+                .map((e) => {
+                  const q = e.getBoundingClientRect()
+                  // A shed element is still in the DOM at zero size; it is not being drawn.
+                  if (q.width < 2 || q.height < 2) return 0
+                  if (scrolls(e)) return 0
+                  const br = body.getBoundingClientRect()
+                  return Math.max(q.bottom - br.bottom, br.top - q.top, q.right - br.right, br.left - q.left)
+                })
+                .filter((v) => Number.isFinite(v))
+            )
+          )
+      return { type: cell.querySelector('.nh-widget')?.getAttribute('data-type') ?? '', w: Math.round(cr.width), h: Math.round(cr.height), past }
+    })
+  )
+  const list = Array.isArray(tiles) ? tiles : []
+  ok('every short tile rendered', list.length === FIT_TYPES.length, `${list.length} of ${FIT_TYPES.length}`)
+  // The precondition: these really are the short tiles the report was about.
+  ok(
+    'and they really are the reported geometry',
+    list.length > 0 && list.every((t) => t.h < 90 && t.w < 200),
+    list.length ? `${list[0].w}x${list[0].h}` : '(none)'
+  )
+  const spilling = list.map((t, i) => ({ ...t, kind: FIT_TYPES[i]?.[0] })).filter((t) => t.past > 1)
+  ok(
+    'no widget draws outside its tile in a short cell',
+    list.length === FIT_TYPES.length && spilling.length === 0,
+    spilling.length ? spilling.map((t) => `${t.kind} past by ${t.past}`).join(', ') : `${list.length} widgets, none past its edge`
+  )
+  await fitPage.close()
+  await fetch(NS + '/' + encodeURIComponent(FIT_UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
+
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } finally {
   await browser.close().catch(() => {})
-  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID)
-  ok('cleanup: dashboard removed', left.length === 0)
+  for (const uid of [UID, 'dashboard:nh-e2e-panelfit']) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
+  const mine = [UID, 'dashboard:nh-e2e-panelfit']
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => mine.includes(c.uid))
+  ok('cleanup: dashboards removed', left.length === 0, left.map((c) => c.uid).join(', '))
 
   const passed = results.filter((r) => r.pass).length
   console.log(`\n${passed}/${results.length} checks passed`)

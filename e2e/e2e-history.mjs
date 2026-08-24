@@ -320,12 +320,19 @@ try {
   const CONFIG_URLS = /\/rest\/ui\/components\/neohab:config/
   let configWrites = 0
   let lastWriteAt = 0
+  // Every write's dispatch time, not just the last: the restore's writes are the ones that
+  // happen BEFORE it reports done, and a write that follows it is not one this check is about.
+  // Keeping only "the last write" swept in whichever came last, so a save-time write landing
+  // after the notice put `lastWriteAt` past the moment the button legitimately went live - and
+  // the check then failed for a request that could never have satisfied it.
+  const writeTimes = []
   const slowWrites = async (route) => {
     if (['PUT', 'POST', 'DELETE'].includes(route.request().method())) {
       configWrites++
       await sleep(400)
       await route.continue()
       lastWriteAt = Date.now()
+      writeTimes.push(lastWriteAt)
       return
     }
     await route.continue()
@@ -349,6 +356,7 @@ try {
   const restoreBtn = page.locator('button:has-text("Restore everything to this point")')
   await restoreBtn.click()
   await page.waitForFunction(() => /Restored|Restore failed/.test(document.querySelector('.nh-settings__notice')?.textContent ?? ''), { timeout: 30000 })
+  const doneAt = Date.now()
   const disabledSamples = await page.evaluate(() => {
     const w = window
     clearInterval(w.__nhTimer)
@@ -359,11 +367,14 @@ try {
   // has finished, and the sampler catches that tail. What must never happen is the button going
   // live while the restore is STILL WRITING, which is exactly what the nested capture used to do.
   const firstLive = disabledSamples.find((s) => !s.d)
+  // The restore's OWN last write: the newest one dispatched before it said it was finished.
+  const restoreWrites = writeTimes.filter((t) => t <= doneAt)
+  const lastRestoreWrite = restoreWrites.length ? Math.max(...restoreWrites) : lastWriteAt
   ok(
     'the Restore button stays disabled until the restore has finished writing',
-    disabledSamples.length > 5 && (!firstLive || firstLive.t >= lastWriteAt),
-    `${disabledSamples.length} samples; ` +
-      (firstLive ? `went live ${firstLive.t - lastWriteAt}ms after the last write` : 'never went live')
+    disabledSamples.length > 5 && (!firstLive || firstLive.t >= lastRestoreWrite),
+    `${disabledSamples.length} samples, ${restoreWrites.length} of ${writeTimes.length} writes during the restore; ` +
+      (firstLive ? `went live ${firstLive.t - lastRestoreWrite}ms after its last write` : 'never went live')
   )
   // ...and that the samples covered real work, not an instant no-op.
   ok('the restore was still writing while that was sampled', configWrites >= 2, `${configWrites} config writes`)

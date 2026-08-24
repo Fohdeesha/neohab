@@ -4,9 +4,13 @@
  * (universal settings field, cell-scoped), HABPanel font_scale import mapping, and the
  * edit-mode handle-strip padding (widget content + chart period chips never covered).
  *
- * SAFE with a live config: creates only dashboard:nh-e2e-textsize and (via the import flow)
- * dashboard:nh-tsimport; deletes exactly those in cleanup. Commands NOTHING (label/clock
- * widgets; the chart reads the temperature item history via GET only). Browser profile is throwaway,
+ * It also checks that a widget's reading is sized to the tile it is in rather than clipped by
+ * it: a clock told to show seconds and the full date used to wrap after the seconds in a
+ * landscape phone's 153x75 tile, and then have both lines cut off.
+ *
+ * SAFE with a live config: creates only dashboard:nh-e2e-textsize, dashboard:nh-e2e-clockfit and
+ * (via the import flow) dashboard:nh-tsimport; deletes exactly those in cleanup. Commands NOTHING
+ * (label/clock widgets; the chart reads the temperature item history via GET only). Browser profile is throwaway,
  * so the device-scale localStorage key cannot leak into a real browser profile.
  */
 import { chromium } from 'playwright-core'
@@ -35,7 +39,13 @@ page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
-  try { localStorage.setItem('neohab:apiToken', t) } catch {}
+  try {
+    localStorage.setItem('neohab:apiToken', t)
+    // Pinned, because this suite measures geometry and the themes bundle fonts of their own:
+    // a narrower face fits a string the default one wraps, so the server owner's theme would
+    // decide whether a check has any power at all.
+    localStorage.setItem('neohab:themeOverride', 'dark')
+  } catch {}
 }, TOKEN)
 
 const cellFont = (sel) => page.$eval(sel, (el) => parseFloat(getComputedStyle(el).fontSize))
@@ -267,13 +277,149 @@ try {
   const imported = await (await fetch(NS + '/' + encodeURIComponent(IMPORT_UID), { headers: AUTH })).json()
   ok('font_scale 1.5 imports as textSize 150', Number(imported?.config?.textSize) === 150, String(imported?.config?.textSize))
 
+  // ---------- a clock sizes itself to the tile it is in ----------
+  // Reported from a phone in landscape: the clock was "terribly cropped instead of shrank". Its
+  // reading kept its full em size in a 153x75 tile, wrapped "08:25:54 AM" after the seconds, and
+  // `overflow: hidden` then cut both lines off - the time started 24px above the tile.
+  //
+  // The worst case is a clock told to show seconds AND the full date, which is what the reported
+  // one was set to; the caps are worked out from the strings themselves, so that is the shape to
+  // drive. Several cell sizes, because a threshold that happens to suit one is not a rule.
+  {
+    const CLOCK_UID = 'dashboard:nh-e2e-clockfit'
+    await fetch(NS + '/' + encodeURIComponent(CLOCK_UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const made = await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: CLOCK_UID,
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: 'nh-e2e-clockfit',
+          name: 'E2E Clock Fit',
+          columns: 11,
+          rowHeight: 'match',
+          gap: 4,
+          widgets: [
+            // the reported widget: seconds, the full date, and 135% text in a two-column row
+            { id: 'c-report', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full', hour12: true, textSize: 135 }, layout: { lg: { x: 0, y: 0, w: 2, h: 1 } } },
+            // one column wide: nothing like enough room for any of it
+            { id: 'c-tiny', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
+            // wide and one row tall: room across, none down
+            { id: 'c-wide', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 3, y: 0, w: 6, h: 1 } } },
+            // the date on its own, and the time on its own: each gets the whole tile
+            { id: 'c-dateonly', type: 'clock', config: { hideTime: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 0, y: 1, w: 2, h: 1 } } },
+            { id: 'c-timeonly', type: 'clock', config: { showSeconds: true, showDate: false }, layout: { lg: { x: 2, y: 1, w: 2, h: 1 } } },
+            // roomy: the caps must be inert here, or every normal clock just got smaller
+            { id: 'c-roomy', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 4, y: 1, w: 4, h: 4 } } },
+          ],
+        },
+      }),
+    })
+    ok('clock-fit dashboard created', made.ok, String(made.status))
+
+    /** Every clock on screen: what it drew, and whether any of it fell outside its tile. */
+    const readClocks = () =>
+      [...document.querySelectorAll('.nh-clock')].map((c) => {
+        const cell = c.closest('.nh-gcell, .nh-cell')
+        const body = c.closest('.nh-widget__body')
+        const br = body.getBoundingClientRect()
+        const time = c.querySelector('.nh-clock__time')
+        const date = c.querySelector('.nh-clock__date')
+        // A Range over the CONTENTS, not the element: getClientRects() on a block element is one
+        // rect for its border box however many lines it holds, so counting those counts nothing.
+        const lines = (el) => {
+          if (!el) return 0
+          const r = document.createRange()
+          r.selectNodeContents(el)
+          return r.getClientRects().length
+        }
+        const past = [time, date]
+          .filter(Boolean)
+          .map((e) => Math.max(e.getBoundingClientRect().bottom - br.bottom, br.top - e.getBoundingClientRect().top))
+        return {
+          id: cell?.getAttribute('data-id') ?? '',
+          cell: { w: Math.round(cell.getBoundingClientRect().width), h: Math.round(cell.getBoundingClientRect().height) },
+          em: Math.round(parseFloat(getComputedStyle(cell).fontSize) * 10) / 10,
+          timePx: time ? Math.round(parseFloat(getComputedStyle(time).fontSize) * 10) / 10 : 0,
+          datePx: date ? Math.round(parseFloat(getComputedStyle(date).fontSize) * 10) / 10 : 0,
+          timeLines: lines(time),
+          dateLines: lines(date),
+          // a date capped to fit needs no ellipsis; one appearing means the cap was too generous
+          dateClipped: date ? date.scrollWidth > date.clientWidth + 1 : false,
+          overV: body.scrollHeight - body.clientHeight,
+          overH: body.scrollWidth - body.clientWidth,
+          past: Math.round(Math.max(0, ...past)),
+        }
+      })
+
+    for (const [name, w, h] of [
+      ['landscape phone', 885, 457],
+      ['a laptop', 1500, 1000],
+    ]) {
+      await page.setViewportSize({ width: w, height: h })
+      // Reloaded, not just navigated: a goto that changes only the HASH is a same-document
+      // navigation, so the app would keep the configuration it loaded before this dashboard
+      // was created and there would be nothing here to measure.
+      await page.goto(APP + '#/d/nh-e2e-clockfit', { waitUntil: 'domcontentloaded' })
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.nh-clock', { timeout: 20000 })
+      await new Promise((r) => setTimeout(r, 600))
+      const clocks = await page.evaluate(readClocks).catch(() => [])
+      ok(`${name}: every clock rendered`, clocks.length === 6, `${clocks.length} of 6`)
+      const spilled = clocks.filter((c) => c.overV > 0 || c.overH > 0 || c.past > 0)
+      ok(
+        `${name}: no clock draws outside its tile`,
+        clocks.length > 0 && spilled.length === 0,
+        spilled.length ? JSON.stringify(spilled) : `${clocks.length} clocks, worst overflow 0`
+      )
+      const wrapped = clocks.filter((c) => c.timeLines > 1)
+      ok(
+        `${name}: the time is never broken across lines`,
+        clocks.length > 0 && wrapped.length === 0,
+        wrapped.length ? JSON.stringify(wrapped.map((c) => ({ cell: c.cell, lines: c.timeLines }))) : 'all on one line'
+      )
+      const ellipsised = clocks.filter((c) => c.dateClipped)
+      ok(
+        `${name}: and the date is sized to fit rather than cut`,
+        ellipsised.length === 0,
+        ellipsised.length ? JSON.stringify(ellipsised) : 'no ellipsis'
+      )
+    }
+
+    // The caps must do nothing where there is room, or every clock on every desktop just shrank.
+    await page.setViewportSize({ width: 1500, height: 1000 })
+    await page.goto(APP + '#/d/nh-e2e-clockfit', { waitUntil: 'domcontentloaded' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-clock', { timeout: 20000 })
+    await new Promise((r) => setTimeout(r, 600))
+    const all = await page.evaluate(readClocks).catch(() => [])
+    const roomy = all.find((c) => c.cell.h > 300)
+    ok(
+      'a clock with room renders at its full size',
+      roomy !== undefined && Math.abs(roomy.timePx - 2 * roomy.em) < 0.6,
+      roomy ? `${roomy.timePx}px vs 2em = ${(2 * roomy.em).toFixed(1)}px in a ${roomy.cell.w}x${roomy.cell.h} tile` : '(no roomy clock)'
+    )
+    // ...and something DID have to give in the small one, or the check above proves nothing.
+    const reported = all.slice().sort((a, b) => a.cell.w - b.cell.w)[0]
+    ok(
+      'and a clock with none renders smaller',
+      reported !== undefined && reported.timePx < 2 * reported.em,
+      reported ? `${reported.timePx}px vs 2em = ${(2 * reported.em).toFixed(1)}px in a ${reported.cell.w}x${reported.cell.h} tile` : '(none)'
+    )
+
+    const delClock = await fetch(NS + '/' + encodeURIComponent(CLOCK_UID), { method: 'DELETE', headers: AUTH })
+    ok('cleanup: ' + CLOCK_UID + ' deleted', delClock.ok || delClock.status === 404, 'del=' + delClock.status)
+  }
+
   // ---------- console health ----------
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (err) {
   ok('run completed', false, String(err))
 } finally {
   await browser.close()
-  for (const uid of [UID, IMPORT_UID]) {
+  for (const uid of [UID, IMPORT_UID, 'dashboard:nh-e2e-clockfit']) {
     const del = await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
     const gone = (await fetch(NS + '/' + encodeURIComponent(uid), { headers: AUTH })).status === 404
     ok('cleanup: ' + uid + ' deleted', gone, 'del=' + del.status)
