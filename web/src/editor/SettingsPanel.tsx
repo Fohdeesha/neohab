@@ -13,6 +13,7 @@ import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateF
 import { CameraStreamField } from './CameraStreamField'
 import { PlanImageField, PlanLightsField } from './FloorplanFields'
 import { ItemPatternField, WeatherLocationField } from './WeatherFields'
+import { ClockZonesField, TimeZoneField } from './ClockFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
@@ -416,16 +417,33 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       )
     case 'select': {
       const current = typeof value === 'string' ? value : ''
+      // Ungrouped options first, in their declared order, then one <optgroup> per group in the
+      // order the groups first appear. A 419-entry list is unusable without them.
+      const loose = field.options.filter((o) => !o.group)
+      const groups: string[] = []
+      for (const o of field.options) if (o.group && !groups.includes(o.group)) groups.push(o.group)
       return (
         <label className="nh-field" htmlFor={id}>
           <span className="nh-field__label">{t(field.label)}</span>
           <select id={id} value={current} onChange={(e) => set(e.target.value === '' ? undefined : e.target.value)}>
             {/* placeholder row only when nothing (not even a default) resolves */}
             {field.options.some((o) => o.value === current) ? null : <option value={current} />}
-            {field.options.map((o) => (
+            {loose.map((o) => (
               <option key={o.value} value={o.value}>
                 {t(o.label)}
               </option>
+            ))}
+            {groups.map((g) => (
+              <optgroup key={g} label={g}>
+                {field.options
+                  .filter((o) => o.group === g)
+                  .map((o) => (
+                    /* Not translated: see SettingField. These are environment names, not UI copy. */
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -512,6 +530,10 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <PlanImageField field={field} widget={widget} value={value} />
     case 'planlights':
       return <PlanLightsField field={field} widget={widget} />
+    case 'clockzones':
+      return <ClockZonesField field={field} widget={widget} />
+    case 'timezone':
+      return <TimeZoneField field={field} widget={widget} value={value} />
     case 'weatherlocation':
       return <WeatherLocationField field={field} widget={widget} value={value} />
     case 'itempattern':

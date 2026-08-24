@@ -21,9 +21,13 @@ interface WidgetFrameProps {
 }
 
 export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside, center, bare, children }: WidgetFrameProps) {
+  // Whether a header row is drawn, said out loud for the stylesheet. A container query measures
+  // the CELL, not the body the header leaves behind, so a widget that sheds content when it runs
+  // out of room has no other way to know that ~1.05em plus 8px of the cell is already spoken for.
+  const headed = Boolean(label || icon || aside)
   return (
-    <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '')}>
-      {label || icon || aside ? (
+    <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '') + (headed ? ' nh-widget--headed' : '')}>
+      {headed ? (
         <div className="nh-widget__label">
           {/* icon + name travel together so the per-widget Name alignment (--nh-labelalign,
               set on the cell) can center or right-align them in the space before the aside */}

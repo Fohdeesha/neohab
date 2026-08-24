@@ -59,4 +59,6 @@ export {
   itemsForInstance,
   instanceCommands,
   instanceControl,
+  instanceHasDetail,
+  widgetDetailView,
 } from './registry'

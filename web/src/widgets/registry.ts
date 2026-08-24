@@ -36,6 +36,23 @@ export function itemsForInstance(type: string, config: Record<string, unknown>):
 }
 
 /**
+ * The widget's own detail view, when it has one. See `WidgetDefinition.DetailView`: a widget
+ * that declares one answers the hold gesture with it instead of the item flow.
+ */
+export function widgetDetailView(type: string): AnyWidgetDefinition['DetailView'] {
+  return registry.get(type)?.DetailView
+}
+
+/**
+ * Is there anything to show when this instance is held? Either an item to open, or a view the
+ * widget draws itself. A widget with neither keeps the browser's own context menu rather than
+ * offering a gesture that opens an empty sheet.
+ */
+export function instanceHasDetail(type: string, config: Record<string, unknown>): boolean {
+  return widgetDetailView(type) !== undefined || itemsForInstance(type, config).length > 0
+}
+
+/**
  * Does this instance command its items, or only show them? See `WidgetDefinition.canCommand`.
  * An unregistered type answers no, which is the same safe direction as omitting the declaration.
  */

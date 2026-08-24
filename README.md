@@ -49,8 +49,10 @@ translate it.
 
 - **Mobile-first.** Phones and portrait tablets get a single-column stack you can reorder
   independently of the grid. On the grid, icons and text both scale with the cell, and widget
-  chrome slims down in tight cells so labels stay readable. Text size is adjustable per dashboard,
-  per widget and per device.
+  chrome slims down in tight cells so labels stay readable, and a big reading is sized to the tile
+  it is in rather than clipped by it - a clock in a landscape phone's short row shrinks to fit
+  instead of losing half of itself. Text size is adjustable per dashboard, per widget and per
+  device.
 - **Tablet layouts.** An optional second arrangement with its own column count. Any widget can be
   left out on phones, tablets or desktops entirely.
 - **Every widget, the same settings.** Whatever the widget, its title is called its Name, sits
@@ -67,12 +69,16 @@ translate it.
 - **A closer look at any widget.** Hold a tile, or right-click it, and a sheet opens with the
   current value, when it last changed, recent history and a link to the item in Main UI. A tile is
   a deliberate summary; this answers what it has actually been doing, without leaving the
-  dashboard. Hold a control and you get that widget's own control too - a slider on the range it
-  was set to, a rollershutter's up, stop and down, a media player's transport, a selection's own
-  choices - while a readout or a read-only gauge gives you none, because those are displays. The
-  hold replaces the tap rather than adding to it, so a slow press never commands anything by
-  accident: hold a slider or a dial and the value goes back where it was, while a tap on a
-  slider's track still sets it there and a drag still drags.
+  dashboard. Widgets that are not about an item answer too: a weather tile opens the whole
+  forecast it fetched - every reading, the next twelve hours in two rows of six, and the week
+  under it - and a clock opens the date in full, the time to the second, which zone that is, any
+  other zones it carries, and whether this device's clock and the server's read the same, or how
+  far apart they are. Hold a control and you get that widget's own control too - a slider on the
+  range it was set to, a rollershutter's up, stop and down, a media player's transport, a
+  selection's own choices - while a readout or a read-only gauge gives you none, because those are
+  displays. The hold replaces the tap rather than adding to it, so a slow press never commands
+  anything by accident: hold a slider or a dial and the value goes back where it was, while a tap
+  on a slider's track still sets it there and a drag still drags.
 - **Steady controls.** Lights do not step to a new value: openHAB predicts it, the binding reports
   what the channel is doing mid-fade, and the real value lands a second later. Whether you set it
   or a rule, a scene or another panel did, a slider or a colour fader moves once and settles where
@@ -110,10 +116,19 @@ translate it.
   is yours to say.
 - **Compass.** Wind direction or any bearing, with a live pointer, cardinal names, and an optional
   second item (wind speed) in the middle.
+- **Clocks, including other countries.** Digital or an analog face, with the date written the way
+  you want it. Set a clock to any time zone and it works the whole tile out there: the digits, the
+  hands and the date, with daylight saving handled for you. It can caption itself with the zone's
+  short name, its UTC offset, or a name of your own, so a row of tiles reads Home, Head office,
+  Tokyo. A clock follows your **openHAB server's** clock by default, because on a home network
+  that is the one kept properly, and switches to this device's if you would rather. Hold the tile
+  and the sheet names both clocks, says whether they read the same or how far apart they are, and
+  lists the same moment in any other zones you added.
 - **Weather.** Current conditions, the next hours and a daily outlook, drawn three ways: a big
   hero, a compact row, or a forecast strip, all with animated weather drawings. The hero fills the
   tile it is given: feels-like, humidity, wind and rain chance sit beside the temperature wherever
-  there is width for them and underneath where there is not. Data comes from
+  there is width for them and underneath where there is not, and a tile too small for all of it
+  draws the temperature smaller rather than cutting anything off. Data comes from
   [Open-Meteo](https://open-meteo.com/) (free, no key: search for your town and you are done) or
   from your own weather items, and your server's measurement system decides °F or °C. Rain chance
   is the day's, the way every forecast site quotes it; if the numbers look nothing like the

@@ -59,7 +59,18 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }
     | { key: string; type: 'boolean'; label: string }
     | { key: string; type: 'color'; label: string }
-    | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
+    /**
+     * One of a fixed list. An option carrying a `group` sits under an `<optgroup>` of that name,
+     * which is what keeps a long machine-generated list navigable. Grouped options are NOT put
+     * through `t()`: a list long enough to need grouping is names out of the environment rather
+     * than English UI copy, and running those through the catalogs would translate any that
+     * happened to collide with a key.
+     *
+     * No built-in widget declares a group today. The time-zone field wanted one and ended up
+     * drawing its own select instead (editor/ClockFields.tsx), because a widget's `settings[]` is
+     * module data and 419 options built at app boot cost every dashboard 45ms.
+     */
+    | { key: string; type: 'select'; label: string; options: { value: string; label: string; group?: string }[] }
     /**
      * Any number of the options, stored as a string list. `defaultValue` is what the widget does
      * when the key is absent, so the form can show that set as selected instead of an empty row
@@ -85,6 +96,14 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'itempattern'; label: string; placeholder?: string }
     /** The floor plan's lights - a button opening the place-on-the-plan editor sheet. */
     | { key: string; type: 'planlights'; label: string }
+    /** The clock's extra time zones, each with an optional label of its own. */
+    | { key: string; type: 'clockzones'; label: string }
+    /**
+     * One IANA time zone, or this device's own. Its own kind rather than a `select` carrying 419
+     * options, because a widget definition is module data: a static list would be built at app
+     * boot, on every dashboard, for a control almost nobody opens.
+     */
+    | { key: string; type: 'timezone'; label: string }
     /* list editors rendered by dedicated components in editor/ */
     | { key: string; type: 'camerastream'; label: string }
     | { key: string; type: 'stateicons'; label: string }
@@ -131,6 +150,22 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   settings: SettingField[]
   /** The React component rendering the widget. */
   Component: ComponentType<WidgetProps<C>>
+  /**
+   * What a hold (or a right-click) on this widget opens, for a tile that is not about an
+   * openHAB item.
+   *
+   * The detail sheet is otherwise built around an item: hold a light and you get its control,
+   * its state, when it last changed and its history. A weather panel and a clock have no item
+   * at all, so the gesture did nothing on them - which reads as the feature being broken rather
+   * than as it not applying. They do have more to show than their tile does, though: a compact
+   * weather row is drawn from a full seven-day forecast, and a clock showing "08:25" knows the
+   * date and the zone as well.
+   *
+   * A widget that declares this answers the gesture with it, items or not. Widgets whose tile
+   * already shows everything they have - a label, an image, a frame - declare nothing and keep
+   * the browser's own menu, which is the honest answer for them.
+   */
+  DetailView?: ComponentType<WidgetProps<C>>
   /** Item-name config keys whose live state this widget needs tracked via SSE. */
   itemKeys?: (config: C) => string[]
   /**

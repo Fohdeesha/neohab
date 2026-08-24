@@ -14,6 +14,12 @@ export interface LookProps {
   showHourly: boolean
   showDaily: boolean
   details: { feels: boolean; humidity: boolean; wind: boolean; precip: boolean }
+  /**
+   * The drawing's size in px, for a surface with more room than a tile. The Icon component sets
+   * width and height inline, so this has to be a prop: CSS cannot make it BIGGER without
+   * `!important`. Left out, every look draws at its tile size.
+   */
+  heroIconSize?: number
 }
 
 /**
@@ -43,17 +49,38 @@ interface StripCol {
   prob?: string
 }
 
-const hourCol = (h: HourColumn): StripCol => ({ key: h.key, label: h.label, icon: h.icon, main: h.temp, prob: h.precipProb })
-const dayCol = (d: DayColumn): StripCol => ({ key: d.key, label: d.label, icon: d.icon, main: d.high, sub: d.low, prob: d.precipProb })
+export const hourCol = (h: HourColumn): StripCol => ({ key: h.key, label: h.label, icon: h.icon, main: h.temp, prob: h.precipProb })
+export const dayCol = (d: DayColumn): StripCol => ({ key: d.key, label: d.label, icon: d.icon, main: d.high, sub: d.low, prob: d.precipProb })
 
-function Strip({ cols, iconStyle, days }: { cols: StripCol[]; iconStyle: unknown; days?: boolean }) {
+/**
+ * A row of forecast columns. Exported because the detail sheet lays the same columns out its own
+ * way - twelve hours as two rows of six, and the week centred beneath them - while the columns
+ * themselves stay the ones the tile draws, so a change to a column shows up in both.
+ */
+export function Strip({
+  cols,
+  iconStyle,
+  days,
+  className,
+  iconSize = 30,
+}: {
+  cols: StripCol[]
+  iconStyle: unknown
+  days?: boolean
+  className?: string
+  iconSize?: number
+}) {
   const anyProb = cols.some((c) => c.prob !== undefined)
   return (
-    <div className={'nh-weather__strip' + (days ? ' nh-weather__strip--days' : '')}>
+    <div
+      className={
+        'nh-weather__strip' + (days ? ' nh-weather__strip--days' : '') + (className ? ' ' + className : '')
+      }
+    >
       {cols.map((c) => (
         <div key={c.key} className="nh-weather__col">
           <span className="nh-weather__collabel">{c.label}</span>
-          <Icon icon={meteoIcon(c.icon, iconStyle)} size={30} className="nh-weather__colicon" />
+          <Icon icon={meteoIcon(c.icon, iconStyle)} size={iconSize} className="nh-weather__colicon" />
           <span className="nh-weather__colmain">
             {c.main}
             {c.sub !== undefined ? <span className="nh-weather__colsub">{c.sub}</span> : null}
@@ -92,12 +119,12 @@ function DetailsRow({ view, t, details }: Pick<LookProps, 'view' | 't' | 'detail
  * details BESIDE the reading and fills its box, and a narrow one drops them underneath - decided
  * by the space each actually needs rather than by a width query, so it holds at any cell size.
  */
-export function HeroLook({ view, iconStyle, t, showHourly, showDaily, details }: LookProps) {
+export function HeroLook({ view, iconStyle, t, showHourly, showDaily, details, heroIconSize = 76 }: LookProps) {
   return (
     <div className="nh-weather nh-weather--hero">
       <div className="nh-weather__heromain">
         <div className="nh-weather__now">
-          <Icon icon={meteoIcon(view.icon, iconStyle)} size={76} className="nh-weather__bigicon" />
+          <Icon icon={meteoIcon(view.icon, iconStyle)} size={heroIconSize} className="nh-weather__bigicon" />
           <div className="nh-weather__reading">
             <TempText view={view} />
             <span className="nh-weather__cond">{view.label}</span>

@@ -10,6 +10,11 @@
  * chart tile on the same item agree by construction and the sheet inherits the persistence
  * notice, the lazy plot chunk and the theme sampling for free.
  *
+ * A widget whose tile is not about an item at all - a weather panel, a clock - answers the
+ * gesture with a view of its own instead (`WidgetDefinition.DetailView`), because it still has
+ * more to show than its tile does: the whole forecast behind a compact row, the date and the
+ * zone behind "08:25".
+ *
  * WHICH control to offer is asked of the widget (`WidgetDefinition.controlFor`), never guessed from
  * the item's state. Guessing is what made a slider configured 2000-6500 K come out as a 0-100 track
  * that would have commanded 47 to a lamp, gave a rollershutter a position slider where its tile
@@ -19,6 +24,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { holdTookGesture } from './useLongPress'
 import { useTranslation } from 'react-i18next'
 import { getItem } from '../api/items'
 import { ohUrl } from '../api/base'
@@ -34,7 +40,9 @@ import {
 } from '../model/itemDetail'
 import type { WidgetInstance } from '../model/dashboard'
 import { subscribeItems, useItemsStore } from '../store/items'
-import { getWidgetDefinition, instanceCommands, instanceControl, itemsForInstance } from '../widgets'
+import { useShallow } from 'zustand/react/shallow'
+import { getWidgetDefinition, instanceCommands, instanceControl, itemsForInstance, widgetDetailView } from '../widgets'
+import { WidgetBoundary } from './WidgetBoundary'
 import { chartWidget } from '../widgets/chart'
 import { isPeriod } from '../widgets/chart/model'
 import { ColorControl } from '../widgets/color/ColorControl'
@@ -58,6 +66,11 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
     [instance.type, instance.config]
   )
   const items = useMemo(() => itemsForInstance(instance.type, config), [instance.type, config])
+  const def = getWidgetDefinition(instance.type)
+  const DetailView = widgetDetailView(instance.type)
+  // The widget's own name when it has one, else what the palette calls it - a sheet titled
+  // "Weather" beats one titled after an item the widget does not have.
+  const ownTitle = typeof config.label === 'string' && config.label.trim() !== '' ? config.label : t(def?.name ?? 'Details')
   // Whether the tile you held is a control at all. A read-only gauge, a value readout or a chart
   // is a display, and being handed a slider from one is a surprise rather than a shortcut.
   const commands = useMemo(() => instanceCommands(instance.type, config), [instance.type, config])
@@ -77,8 +90,24 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
   // Into the body, not where this sits in the tree: every grid cell is a size container, which
   // makes it the containing block for fixed descendants, so a panel rendered inside the grid
   // could be laid out and clipped to a tile rather than the screen.
+  // A touch-generated click is hit-tested where the finger LIFTS, not where it went down (a
+  // mouse click is dispatched on the common ancestor of the two, which is why this never showed
+  // on a desktop). By the time a hold is released the sheet has been under the finger for half a
+  // second, so that click landed on the scrim and closed the sheet the hold had just opened -
+  // whenever the widget held was far enough from the middle for the panel not to cover it. The
+  // cell's own click-swallow cannot reach it: the click's target is inside this portal, so the
+  // cell is nowhere in its path.
+  //
+  // `holdTookGesture()` is the flag the hold already keeps for exactly this shape of problem, and
+  // it is still up when the click dispatches - it is cleared a turn later. Worst case if it ever
+  // stuck, the close button and Escape both ignore it.
+  const onScrimClick = () => {
+    if (holdTookGesture()) return
+    onClose()
+  }
+
   return createPortal(
-    <div className="nh-detail" onClick={onClose}>
+    <div className="nh-detail" onClick={onScrimClick}>
       <div
         className="nh-detail__panel"
         role="dialog"
@@ -86,21 +115,23 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
         onClick={(e) => e.stopPropagation()}
       >
         <header className="nh-detail__head">
-          {chosen && items.length > 1 ? (
+          {!DetailView && chosen && items.length > 1 ? (
             <button type="button" className="nh-iconbtn" aria-label={t('Back')} onClick={() => setChosen(null)}>
               ‹
             </button>
           ) : null}
           <span className="nh-detail__title">
-            {chosen ? (label ?? chosen) : t('Details')}
-            {chosen && label ? <span className="nh-detail__sub">{chosen}</span> : null}
+            {DetailView ? ownTitle : chosen ? (label ?? chosen) : t('Details')}
+            {!DetailView && chosen && label ? <span className="nh-detail__sub">{chosen}</span> : null}
           </span>
           <button type="button" className="nh-iconbtn" aria-label={t('Close')} onClick={onClose}>
             ✕
           </button>
         </header>
         <div className="nh-detail__body">
-          {chosen ? (
+          {DetailView ? (
+            <WidgetPane instance={instance} config={config} items={items} View={DetailView} />
+          ) : chosen ? (
             // Keyed on the item, so choosing another in the picker starts from nothing rather
             // than showing the previous item's facts until each request lands.
             <ItemPane
@@ -129,6 +160,47 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
       </div>
     </div>,
     document.body
+  )
+}
+
+/**
+ * A widget's own detail view, given the same live context its tile has.
+ *
+ * Its items are subscribed here rather than relied on from the tile behind the sheet: they are
+ * ref-counted, so subscribing again costs nothing, and it keeps the view working whatever else
+ * is mounted. Widgets that fetch their own data (the weather's forecast) share the cache their
+ * tile filled, so opening the sheet costs no request.
+ */
+function WidgetPane({
+  instance,
+  config,
+  items,
+  View,
+}: {
+  instance: WidgetInstance
+  config: Record<string, unknown>
+  items: string[]
+  View: NonNullable<ReturnType<typeof widgetDetailView>>
+}) {
+  const itemsKey = items.join('\n')
+  useEffect(() => subscribeItems(itemsKey ? itemsKey.split('\n') : []), [itemsKey])
+  const states = useItemsStore(useShallow((st) => Object.fromEntries(items.map((n) => [n, st.states[n]]))))
+  const ctx = useMemo<WidgetContext>(
+    () => ({
+      widgetId: 'detail:' + instance.id,
+      getItem: (n) => states[n],
+      sendCommand: (i, c) => commandItem(i, c),
+      editing: false,
+    }),
+    [instance.id, states]
+  )
+  // Contained like the tile is. A widget's own view reads the same stored configuration its tile
+  // does, and the tile has a boundary around it; without one here a config that shows an error
+  // tile would take the whole app down the moment somebody held it.
+  return (
+    <WidgetBoundary type={instance.type} resetKey={config}>
+      <View config={config} ctx={ctx} />
+    </WidgetBoundary>
   )
 }
 

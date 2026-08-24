@@ -28,7 +28,8 @@ vi.stubGlobal('window', {
 })
 
 const { registerBuiltinWidgets } = await import('./index')
-const { instanceCommands, instanceControl, itemsForInstance, listWidgetDefinitions } = await import('./registry')
+const { instanceCommands, instanceControl, instanceHasDetail, itemsForInstance, listWidgetDefinitions } =
+  await import('./registry')
 
 registerBuiltinWidgets()
 const widgets = listWidgetDefinitions()
@@ -56,6 +57,8 @@ const RENDERABLE: Record<SettingField['type'], true> = {
   hideon: true,
   planimage: true,
   planlights: true,
+  clockzones: true,
+  timezone: true,
   weatherlocation: true,
   itempattern: true,
   camerastream: true,
@@ -344,6 +347,32 @@ describe('every widget settings schema', () => {
       }
     }
     expect(bad).toEqual([])
+  })
+
+  it('answers the hold gesture wherever there is anything to show', () => {
+    // The gesture is armed from this one question, so what it answers IS the feature: a widget
+    // with an item opens that item, a widget with a view of its own opens the view, and one with
+    // neither keeps the browser's context menu rather than an empty sheet. Weather and clock are
+    // named because they are the two that had nothing and were reported as broken.
+    expect(instanceHasDetail('weather', { source: 'openmeteo', location: { lat: 1, lon: 2 } })).toBe(true)
+    expect(instanceHasDetail('clock', { mode: 'digital' })).toBe(true)
+    expect(instanceHasDetail('switch', { item: 'x' })).toBe(true)
+    // Nothing configured yet, and nothing of its own to draw.
+    expect(instanceHasDetail('switch', {})).toBe(false)
+    expect(instanceHasDetail('label', { text: 'Kitchen' })).toBe(false)
+    expect(instanceHasDetail('image', { url: 'x.png' })).toBe(false)
+    // A type that is not registered at all cannot be held either.
+    expect(instanceHasDetail('nonesuch', {})).toBe(false)
+  })
+
+  it('offers the gesture on every widget that declares a view, whatever its config', () => {
+    // A view nothing can open is a view nobody sees. Driven with an EMPTY config on purpose: a
+    // widget with a view of its own has to answer before anything is configured, which is the
+    // difference between the two questions the gesture used to conflate.
+    const declaring = widgets.filter((d) => d.DetailView)
+    expect(declaring.length).toBeGreaterThan(0)
+    const unreachable = declaring.filter((d) => !instanceHasDetail(d.type, {})).map((d) => d.type)
+    expect(unreachable).toEqual([])
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

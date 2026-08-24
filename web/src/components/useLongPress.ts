@@ -50,6 +50,44 @@ export function holdTookGesture(): boolean {
   return taken
 }
 
+/**
+ * The browser has a long press of its own, and on Android it selects the word under the finger and
+ * raises the text toolbar over whatever the hold just opened. It lands at about the same 500ms as
+ * ours, by which time the detail sheet has rendered under the finger - so the word it selects is
+ * the SHEET's, which is the one place selection is deliberately switched back on. Preventing the
+ * `contextmenu` cannot help: the selection is made before that event is dispatched, and the cell
+ * whose handler would prevent it is no longer anywhere in the event's path.
+ *
+ * So nothing is selectable for as long as a press we are handling lasts (`.nh-holding` in
+ * app.css). Scoped to the press, because a dashboard's text is worth selecting either side of it -
+ * a template widget's content, a reading copied out of the sheet - and armed only for a touch or a
+ * pen, since a mouse press that suppressed selection would take click-drag selection with it.
+ */
+let guarding = false
+
+function setHoldGuard(on: boolean): void {
+  if (on === guarding) return
+  guarding = on
+  document.documentElement.classList.toggle('nh-holding', on)
+}
+
+/**
+ * The release always reaches the window, whichever element the press began on and whatever becomes
+ * of it in between - a cell that unmounts mid-press, a pointer captured by a control above it.
+ * Without that backstop one missed release would leave the whole app unselectable until the page
+ * was reloaded, which is a worse bug than the one this fixes. Armed on first use rather than at
+ * import, so the module still loads where there is no window.
+ */
+let listening = false
+
+function armGuardRelease(): void {
+  if (listening) return
+  listening = true
+  const release = () => setHoldGuard(false)
+  window.addEventListener('pointerup', release, true)
+  window.addEventListener('pointercancel', release, true)
+}
+
 export interface LongPressHandlers {
   onPointerDown: (e: React.PointerEvent) => void
   onPointerMove: (e: React.PointerEvent) => void
@@ -81,6 +119,7 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
     () => () => {
       cancel()
       taken = false
+      setHoldGuard(false)
     },
     [cancel]
   )
@@ -96,6 +135,11 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
     fired.current = false
     cancel()
     origin.current = { x: e.clientX, y: e.clientY }
+    // Only where the browser has a long press of its own to get in the way.
+    if (e.pointerType !== 'mouse') {
+      armGuardRelease()
+      setHoldGuard(true)
+    }
     const touch = e.pointerType === 'touch'
     timer.current = window.setTimeout(() => {
       timer.current = null
@@ -116,6 +160,7 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
 
   const endPress = () => {
     cancel()
+    setHoldGuard(false)
     // Cleared after the click has dispatched, so the hold's own click is swallowed while a stale
     // flag can never swallow an unrelated one later - a widget that silently stops responding is
     // a far worse bug than the one this guards. The same timing serves the abandon flag: the

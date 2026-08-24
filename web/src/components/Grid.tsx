@@ -45,7 +45,7 @@ import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
 import { useLongPress } from './useLongPress'
 import { WidgetDetail } from './WidgetDetail'
-import { itemsForInstance } from '../widgets'
+import { instanceHasDetail } from '../widgets'
 
 /**
  * One tile, and the hold/right-click that opens its detail sheet.
@@ -66,10 +66,9 @@ function Cell({
   editing: boolean
   onDetail: (w: WidgetInstance) => void
 }) {
-  // A widget bound to nothing has no detail to show, so it keeps the browser's own menu rather
-  // than offering a gesture that opens an empty sheet.
-  const bound = itemsForInstance(instance.type, instance.config).length > 0
-  const press = useLongPress(() => onDetail(instance), !editing && bound)
+  // A widget with neither an item nor a view of its own has no detail to show, so it keeps the
+  // browser's own menu rather than offering a gesture that opens an empty sheet.
+  const press = useLongPress(() => onDetail(instance), !editing && instanceHasDetail(instance.type, instance.config))
   return (
     <div className={className} style={style} {...press}>
       <WidgetHost instance={instance} editing={editing} />

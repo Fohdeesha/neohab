@@ -35,7 +35,7 @@ interface EditorState {
    * Whether the single-widget settings panel is open. Only an explicit single-select (a plain
    * click, a drag-drop, adding from the palette) opens it - Ctrl/Shift-click, marquee and
    * long-press signal multi-select intent, and popping the panel open there both surprises and
-   * reflows the grid 340px mid-flow, moving the very widgets the user is about to click.
+   * changes the zoom the grid is drawn at, moving the very widgets the user is about to click.
    */
   panelOpen: boolean
   paletteOpen: boolean

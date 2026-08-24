@@ -7,9 +7,7 @@
  * Open-Meteo fetch and its shared cache in openmeteo.ts, and the looks in looks.tsx. This
  * module is the definition: the settings schema, the fetch wiring and the source dispatch.
  */
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getRootInfo } from '../../api/items'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import {
@@ -17,16 +15,13 @@ import {
   buildItemsView,
   clampInt,
   itemsBinding,
-  locationOf,
   patternItems,
-  systemFor,
-  type UnitSystem,
   type ViewOptions,
-  type WeatherData,
   type WeatherView,
 } from './model'
-import { FORECAST_MODELS, getForecast } from './openmeteo'
+import { REFRESH_DEFAULT_MIN, useWeather } from './useWeather'
 import { CompactLook, HeroLook, StripLook } from './looks'
+import { WeatherDetail } from './detail'
 
 interface WeatherConfig extends Record<string, unknown> {
   source?: string
@@ -40,47 +35,11 @@ interface WeatherConfig extends Record<string, unknown> {
   model?: string
 }
 
-const REFRESH_DEFAULT_MIN = 15
-
-/**
- * The unit system behind "Auto": the server's own measurement system (`GET /rest/`
- * measurementSystem), resolved once per session and shared by every weather widget. Falls
- * back to the browser locale when the server does not say or cannot be asked.
- */
-let autoSystem: UnitSystem | null = null
-let autoPromise: Promise<UnitSystem> | null = null
-function resolveAutoSystem(): Promise<UnitSystem> {
-  autoPromise ??= getRootInfo()
-    .then((info) => systemFor(info.measurementSystem, info.locale))
-    .catch(() => systemFor(undefined, navigator.language))
-    .then((sys) => {
-      autoSystem = sys
-      return sys
-    })
-  return autoPromise
-}
-
-function useUnitSystem(setting: unknown): UnitSystem | null {
-  const explicit = setting === 'metric' || setting === 'imperial' ? setting : null
-  const [auto, setAuto] = useState<UnitSystem | null>(autoSystem)
-  useEffect(() => {
-    if (explicit !== null || auto !== null) return
-    let dead = false
-    void resolveAutoSystem().then((sys) => {
-      if (!dead) setAuto(sys)
-    })
-    return () => {
-      dead = true
-    }
-  }, [explicit, auto])
-  return explicit ?? auto
-}
-
 function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language || 'en'
 
-  const source = config.source === 'items' ? 'items' : 'openmeteo'
+  const { source, data, sys, located, failed } = useWeather(config)
   const look = config.look === 'compact' || config.look === 'strip' ? config.look : 'hero'
   const days = clampInt(config.days, 1, 7, 5)
   const hours = clampInt(config.hourlyCount, 3, 24, 12)
@@ -93,44 +52,6 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
     precip: config.showPrecip !== false,
   }
 
-  const sys = useUnitSystem(config.units)
-  const loc = source === 'openmeteo' ? locationOf(config.location) : null
-  const refreshMs = clampInt(config.refreshMinutes, 5, 120, REFRESH_DEFAULT_MIN) * 60_000
-  // Anything else stored here is ignored rather than sent: an unknown model is an HTTP 400
-  // from Open-Meteo, which is no weather at all.
-  const model = (FORECAST_MODELS as readonly string[]).includes(String(config.model ?? '')) ? String(config.model ?? '') : ''
-
-  const [data, setData] = useState<WeatherData | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  const lat = loc?.lat
-  const lon = loc?.lon
-  useEffect(() => {
-    if (source !== 'openmeteo' || lat === undefined || lon === undefined || sys === null) return
-    let dead = false
-    const load = async () => {
-      try {
-        // accept anything younger than the refresh window, so widgets sharing a place share
-        // one request; the small slack keeps an interval tick from just missing its own cache
-        const d = await getForecast(lat, lon, sys, refreshMs - 2000, model)
-        if (!dead) {
-          setData(d)
-          setFailed(false)
-        }
-      } catch {
-        if (!dead) setFailed(true)
-      }
-    }
-    // a short beat before the first fetch, so hand-typed coordinates do not fetch per digit
-    const first = setTimeout(() => void load(), 350)
-    const timer = setInterval(() => void load(), refreshMs)
-    return () => {
-      dead = true
-      clearTimeout(first)
-      clearInterval(timer)
-    }
-  }, [source, lat, lon, sys, refreshMs, model])
-
   const opts: ViewOptions = { days, hours, showPrecip: details.precip, lang, t }
   let view: WeatherView | null = null
   let message: string | null = null
@@ -138,7 +59,7 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
     const binding = itemsBinding(config)
     if (!binding.temp && !binding.condition) message = t('Pick the items that hold your weather readings.')
     else view = buildItemsView(binding, ctx.getItem, { ...opts, now: new Date() })
-  } else if (!loc) {
+  } else if (!located) {
     message = t('Set a location to fetch the forecast.')
   } else if (data) {
     view = buildForecastView(data, sys ?? 'metric', opts)
@@ -357,4 +278,5 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
   },
   canCommand: () => false,
   Component: WeatherWidget,
+  DetailView: WeatherDetail,
 }

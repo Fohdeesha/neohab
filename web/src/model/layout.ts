@@ -57,7 +57,7 @@ export const MD_BELOW = 1200 // px
  * query around it) - the panel's size is a CSS fact, and this is the arithmetic that has to agree
  * with it.
  */
-export const SIDE_PANEL_WIDTH = 340
+export const SIDE_PANEL_WIDTH = 391
 export const SIDE_PANEL_MIN = 900 // px of viewport
 
 /**

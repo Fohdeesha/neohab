@@ -63,22 +63,18 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   position: relative;
   font-family: 'DSEG7', 'DSEG14', monospace;
   text-transform: uppercase;
-  font-size: 1.4em;
   line-height: 1;
   color: var(--nh-cellaccent, var(--nh-primary));
   text-shadow:
     0 0 0.05em currentColor,
     0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);
 }
-/* The weather hero keeps its own layout-driven size; only the face and glow change here. */
-.nh-weather__temp {
-  font-size: 2.6em;
-}
-.nh-weather--compact .nh-weather__temp {
-  font-size: 2em;
-}
-.nh-weather__mini .nh-weather__temp {
-  font-size: 1.6em;
+/* Sized apart from the weather temperature, which keeps its own layout-driven size in all
+   three looks. Restating those three here would have meant restating their container-unit
+   caps too, and a cap copied into a theme is a cap that drifts out of step with the widget. */
+.nh-value__text,
+.nh-stat__value {
+  font-size: 1.4em;
 }
 .nh-value__text[data-ghost],
 .nh-stat__value[data-ghost] {
@@ -126,6 +122,12 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   text-shadow:
     0 0 0.05em currentColor,
     0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);
+}
+/* The zone caption keeps a readable face on purpose - "Head office" in fourteen segments is not
+   readable - but takes the instrument's colour, or it reads as grey text somebody forgot. */
+.nh-clock__zone {
+  color: var(--nh-cellaccent, var(--nh-primary));
+  opacity: 0.85;
 }
 .nh-clock__date {
   font-family: 'DSEG14', sans-serif;
