@@ -204,10 +204,11 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 - **Hard to break.** Configuration that did not come from the editor is treated as untrusted
   wherever it is read, and a widget that cannot make sense of its own settings becomes one tile
   saying so rather than a blank page. Whatever a hand edit, an old backup or someone else's export
-  contains, the dashboard around it keeps working and the editor is still there to fix it.
-  Configuration saved by a newer neohab than the one running is left strictly alone rather than
-  guessed at. It is never overwritten or tidied away, so an older wall panel cannot damage what a
-  newer one wrote.
+  contains, the dashboard around it keeps working and the editor is still there to fix it. If a
+  whole screen fails, you get a panel saying what went wrong with links back to the dashboard list
+  and to settings, so there is always a way out without editing the address bar. Configuration
+  saved by a newer neohab than the one running is left strictly alone rather than guessed at. It is
+  never overwritten or tidied away, so an older wall panel cannot damage what a newer one wrote.
 
 ## Icons
 

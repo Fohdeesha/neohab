@@ -189,11 +189,16 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       return
     }
     let dead = false
+    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
+    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
+    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
+    // every earlier window running to completion.
+    const ctrl = new AbortController()
     const load = async () => {
       try {
         const t1 = Date.now()
         const t0 = t1 - periodMs
-        const pts = await getItemHistory(histItem, new Date(t0), { boundary: true })
+        const pts = await getItemHistory(histItem, new Date(t0), { boundary: true, signal: ctrl.signal })
         const nums = pts.map((p) => ({ time: p.time, value: parseFloat(p.state) }))
         if (!dead) setBars(historyBars(nums, t0, t1, 24))
       } catch {
@@ -204,6 +209,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     const timer = setInterval(load, 300_000)
     return () => {
       dead = true
+      ctrl.abort()
       clearInterval(timer)
     }
   }, [historyOn, histItem, periodMs])

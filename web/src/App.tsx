@@ -14,6 +14,7 @@ import { SettingsView } from './app/SettingsView'
 import { ChartView } from './app/ChartView'
 import { Sidebar } from './app/Sidebar'
 import { useSidebarLayout } from './store/sidebar'
+import { AppBoundary } from './components/AppBoundary'
 import { Toast } from './components/Toast'
 import { LiveStatus } from './components/LiveStatus'
 import { KioskRuntime } from './kiosk/KioskRuntime'
@@ -93,25 +94,37 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
 
   return (
     <>
-      <Sidebar />
+      <AppBoundary silent where="the sidebar">
+        <Sidebar />
+      </AppBoundary>
       {/* The inset moves the whole app, sticky top bars included, so the sidebar sits beside
           the content rather than over it. It is 0 whenever the sidebar overlays or is closed. */}
       <main className="nh-app" style={{ paddingLeft: sidebar.inset }}>
-        {route.name === 'home' ? (
-          <Home ohVersion={ohVersion} />
-        ) : route.name === 'settings' ? (
-          <SettingsView />
-        ) : route.name === 'chart' ? (
-          <ChartView dashboardId={route.dashboard} widgetId={route.widget} />
-        ) : (
-          <DashboardView id={route.id} />
-        )}
+        {/* One screen failing keeps the sidebar and the way to Settings. Keyed on the route so
+            moving to a working screen clears the panel. */}
+        <AppBoundary key={JSON.stringify(route)} where={`the ${route.name} screen`}>
+          {route.name === 'home' ? (
+            <Home ohVersion={ohVersion} />
+          ) : route.name === 'settings' ? (
+            <SettingsView />
+          ) : route.name === 'chart' ? (
+            <ChartView dashboardId={route.dashboard} widgetId={route.widget} />
+          ) : (
+            <DashboardView id={route.id} />
+          )}
+        </AppBoundary>
         <Toast />
         <LiveStatus />
       </main>
-      <KioskRuntime />
-      <AudioRuntime />
-      <Screensaver />
+      <AppBoundary silent where="the kiosk runtime">
+        <KioskRuntime />
+      </AppBoundary>
+      <AppBoundary silent where="the audio runtime">
+        <AudioRuntime />
+      </AppBoundary>
+      <AppBoundary silent where="the screensaver">
+        <Screensaver />
+      </AppBoundary>
     </>
   )
 }

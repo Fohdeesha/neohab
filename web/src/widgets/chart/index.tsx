@@ -122,6 +122,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         groupBy: 'none',
         service: config.service || undefined,
         maxPoints: 0, // the matrix does the reducing; decimating first would blur the cells
+        signal: ctrl.signal,
       })
       if (disposed) return
       const matrix = heatmapMatrix(table[0], table[1], to, resolved[0].aggregate)
@@ -155,6 +156,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         groupBy,
         service: config.service || undefined,
         maxPoints: numOpt(config.maxPoints) ?? DEFAULT_MAX_POINTS,
+        signal: ctrl.signal,
       })
       if (disposed) return
       tablesRef.current = tables
@@ -195,6 +197,11 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       setStatus('ready')
     }
 
+    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
+    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
+    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
+    // every earlier window running to completion.
+    const ctrl = new AbortController()
     const run = () => (heatmap ? loadHeatmap() : load())
     setStatus('loading')
     run().catch((err: unknown) => {
@@ -207,6 +214,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
 
     return () => {
       disposed = true
+      ctrl.abort()
       clearInterval(timer)
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current)

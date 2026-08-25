@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.http.whiteboard.propertytypes.HttpWhiteboardFilterPattern;
 
@@ -80,7 +81,7 @@ public class NeohabCacheFilter implements Filter {
      * Package-private rather than private so the rule can be exercised directly; it is the part
      * with the decisions in it, and the rest of this class is plumbing.
      */
-    static String cacheControlFor(String uri) {
+    static @Nullable String cacheControlFor(String uri) {
         // A path can carry a query string and can be requested with or without the trailing
         // file name, so compare on the last segment rather than on the whole thing.
         String path = uri;

@@ -5674,6 +5674,54 @@ button {
   }
 }
 
+/* The panel an AppBoundary draws when a screen throws. It renders in two very different places -
+   alone on the page when App itself failed, and inside <main> beside the sidebar when one route
+   failed - so it centres itself rather than relying on either. Placed before the @container
+   block, which must stay last. */
+.nh-appfail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(560px, 100%);
+  margin: 48px auto;
+  padding: 24px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  text-align: center;
+}
+
+.nh-appfail__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.nh-appfail__text {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: break-word;
+  color: var(--nh-text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+}
+
+.nh-appfail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* The two navigations are links rather than buttons, so they need the button box drawn round
+   them: .nh-btn is written for a <button>, which is already a flex-ish box with no underline. */
+.nh-appfail__actions .nh-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 /* Narrow cells: nested padding costs more than the text it frames. At 70px wide the
    body + button insets alone used to eat half the cell, so labels ellipsised to "Gu…"
    however small the font got. Width-keyed, because a tall 1-wide cell needs this too. */

@@ -12,6 +12,7 @@ import { freeSceneUid, savePreset, usePresetsStore } from '../../store/presets'
 import { notify } from '../../store/notify'
 import { hsbToCss, parseHsb } from '../../model/color'
 import type { FloorplanLight } from './model'
+import { mergeMap } from '../../model/lookup'
 
 export function PresetSaveDialog({
   ctx,
@@ -28,8 +29,10 @@ export function PresetSaveDialog({
   const [target, setTarget] = useState('') // '' = new preset
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  // Prototype-free: a light's id can come from stored configuration, so it can be any string at
+  // all, and a miss on an ordinary object answers with a function - see model/lookup.ts.
   const [included, setIncluded] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(lights.map((l) => [l.id, true]))
+    mergeMap(...lights.map((l) => ({ [l.id]: true })))
   )
 
   const captures = lights.map((l) => {

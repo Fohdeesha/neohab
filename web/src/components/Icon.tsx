@@ -14,6 +14,7 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { ohUrl } from '../api/base'
 import { useConfigStore } from '../store/config'
+import { cssUrl } from './download'
 
 export type IconSource = 'mdi' | 'fluent' | 'fc' | 'meteo' | 'custom' | 'oh'
 
@@ -159,15 +160,21 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const dim = `calc(${size}px * var(--nh-iconscale, 1))`
 
   if (ref.source === 'mdi') {
-    if (maskMissing) return null
+    // `maskUrl` is non-null in exactly this branch, by the same condition that built it.
+    if (maskMissing || maskUrl === null) return null
+    const mask = `url("${cssUrl(maskUrl)}")`
     return (
       <span
         className={'nh-icon nh-icon--mdi' + (className ? ' ' + className : '')}
         style={{
           width: dim,
           height: dim,
-          WebkitMaskImage: `url(${maskUrl})`,
-          maskImage: `url(${maskUrl})`,
+          // Quoted and escaped, like every other url() in the app. `encodeURIComponent` leaves
+          // `!'()*-._~` alone, so an icon name containing `)` closed the url() early - and a
+          // mask declaration the browser drops is NO mask, which draws the icon's colour as a
+          // solid block. That is the same unmasked block `probeMask` exists to prevent.
+          WebkitMaskImage: mask,
+          maskImage: mask,
           backgroundColor: color || undefined,
         }}
         aria-hidden

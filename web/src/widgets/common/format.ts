@@ -59,6 +59,10 @@ export function isOn(state: ItemState | undefined): boolean {
   const raw = state.state
   if (raw === 'ON') return true
   if (raw === 'OFF') return false
+  // The other readers here degrade to a fallback when `state` is missing; this one used to throw
+  // on `raw.split`, which turned a Switch tile into the widget-boundary error tile. "Not a string"
+  // is not "on".
+  if (typeof raw !== 'string') return false
   // Dimmer/Color: on when brightness component > 0
   const parts = raw.split(',')
   const level = parseFloat(parts[parts.length - 1])

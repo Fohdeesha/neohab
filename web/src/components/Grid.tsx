@@ -37,6 +37,7 @@ import {
   widgetAccentInk,
   widgetLabelAlign,
   widgetLabelBottom,
+  widgetsOf,
   widgetTextScale,
   STACK_REFERENCE_WIDTH,
 } from '../model/layout'
@@ -92,7 +93,9 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
 
   // Note the container stays mounted on every path below: swapping it for a bare message would
   // detach the element the width is measured from (see useContainerWidth).
-  if (props.dashboard.widgets.length === 0) {
+  // Through `widgetsOf`: a stored `widgets` that is not a list makes `.length` undefined, so
+  // this test passes and the `.filter` below throws - taking the whole dashboard view with it.
+  if (widgetsOf(props.dashboard).length === 0) {
     return (
       <div ref={ref} className="nh-grid">
         <p className="nh-dash__empty">{t('This dashboard has no widgets yet - tap ✎ to start adding some.')}</p>
@@ -106,7 +109,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
     surface === 'tablet' && hasTabletLayout(props.dashboard)
       ? projectDashboard(props.dashboard, 'md')
       : props.dashboard
-  const shown = dashboard.widgets.filter((w) => !isHiddenOn(w, surface))
+  const shown = widgetsOf(dashboard).filter((w) => !isHiddenOn(w, surface))
   if (shown.length === 0) {
     return (
       <div ref={ref} className="nh-grid">

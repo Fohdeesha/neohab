@@ -16,7 +16,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useConfigStore } from '../../store/config'
-import { subscribeItems, useItemsStore } from '../../store/items'
+import { selectStates, subscribeItems, useItemsStore } from '../../store/items'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 import { commandItem } from '../common/command'
 import i18n from '../../i18n'
@@ -134,9 +134,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
   const catalogLoaded = useCatalogStore((s) => s.loaded)
 
   useEffect(() => subscribeItems(depsKey ? depsKey.split('\n') : []), [depsKey])
-  const states = useItemsStore(
-    useShallow((s) => Object.fromEntries((depsKey ? depsKey.split('\n') : []).map((n) => [n, s.states[n]])))
-  )
+  const states = useItemsStore(useShallow((s) => selectStates(s.states, depsKey ? depsKey.split('\n') : [])))
 
   const isJs = def?.kind === 'js'
 

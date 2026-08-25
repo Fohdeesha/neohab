@@ -87,17 +87,20 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
           {/* a live state that is not one of the choices still shows, rather than the list
               silently displaying some other choice as if it were current */}
           {choices.some((c) => c.command === state?.state) ? null : <option value={state?.state ?? ''}>{state?.state ?? ''}</option>}
-          {choices.map((choice) => (
-            <option key={choice.command} value={choice.command}>
+          {/* Keyed by position as well as command: a hand-written or imported choices list can
+              name the same command twice, and two children under one key is a React error.
+              `ChoiceControl` in widgets/common/QuickControls.tsx already does this. */}
+          {choices.map((choice, i) => (
+            <option key={i + '|' + choice.command} value={choice.command}>
               {choice.label}
             </option>
           ))}
         </select>
       ) : (
         <div className="nh-selection">
-          {choices.map((choice) => (
+          {choices.map((choice, i) => (
             <button
-              key={choice.command}
+              key={i + '|' + choice.command}
               type="button"
               className={
                 'nh-selection__btn' + (state?.state === choice.command ? ' nh-selection__btn--active' : '')

@@ -16,6 +16,7 @@
 import { readableInk } from './contrast'
 import { isUsableTokenValue, THEME_TOKENS, type ThemeTokens } from './tokens'
 import { urlThemeId } from './urlTheme'
+import { lookup } from '../model/lookup'
 
 export { THEME_TOKENS, TOKEN_GROUPS, TOKEN_SPECS, tokensInGroup, type ThemeTokens, type TokenSpec } from './tokens'
 
@@ -51,7 +52,10 @@ export interface Theme {
 export async function themeCss(theme: Theme): Promise<string | undefined> {
   if (typeof theme.css === 'string') return theme.css
   if (!theme.cssModule) return undefined
-  const load = CSS_MODULES[theme.cssModule]
+  // Through `lookup` because `cssModule` comes off a stored theme component: a bare index
+  // answers with an Object.prototype member, the `!load` guard does not fire for a function,
+  // and `await load()` then hands back `Object(...)` to be used as a stylesheet.
+  const load = lookup(CSS_MODULES, theme.cssModule)
   if (!load) return undefined
   try {
     return await load()

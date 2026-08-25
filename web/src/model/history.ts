@@ -215,6 +215,31 @@ export function applyRetention(
 }
 
 /** Blob hashes no remaining snapshot references, so they can be deleted. */
+/**
+ * Two views of the history, reconciled.
+ *
+ * A capture reads the index, writes its `snap:` component, then writes the index back. Anything
+ * another writer added in between - a second tab, a second save whose capture overlapped - was
+ * computed from the same stale read, so the later write dropped the earlier one's row while its
+ * component stayed on the server named by nothing. Retention only prunes what the index lists, so
+ * the orphan was never reclaimed; three of them were found on the live server.
+ *
+ * Ours wins on a tie because our copy is the one we just built. Newest first, which is the order
+ * retention and the UI both assume.
+ */
+export function mergeIndexes(mine: HistoryIndex, theirs: HistoryIndex): HistoryIndex {
+  const snapshots = new Map<string, SnapshotMeta>()
+  for (const meta of theirs?.snapshots ?? []) if (meta?.id) snapshots.set(meta.id, meta)
+  for (const meta of mine?.snapshots ?? []) if (meta?.id) snapshots.set(meta.id, meta)
+  return {
+    version: HISTORY_VERSION,
+    // Ids are `String(Date.now())`, so a numeric sort is chronological. Falls back to comparing
+    // as text for anything that is not a number, which keeps the order stable either way.
+    snapshots: [...snapshots.values()].sort((a, b) => Number(b.id) - Number(a.id) || b.id.localeCompare(a.id)),
+    blobs: [...new Set([...(mine?.blobs ?? []), ...(theirs?.blobs ?? [])])],
+  }
+}
+
 export function unusedBlobs(index: HistoryIndex): string[] {
   const referenced = new Set<string>()
   for (const s of index.snapshots) for (const h of s.blobs ?? []) referenced.add(h)

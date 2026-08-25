@@ -10,16 +10,37 @@ export type Route =
   | { name: 'settings' }
   | { name: 'chart'; dashboard: string; widget: string }
 
-function parse(hash: string): Route {
+/**
+ * One path segment as the app meant it, or the raw segment when it cannot be decoded.
+ *
+ * `decodeURIComponent` throws `URIError` on a stray `%` - and `#/d/100%` is a hash a person can
+ * type, a bookmark can hold and a chat client can produce by mangling a link. `navigate()` always
+ * encodes, so the app itself never writes one, which is exactly why this went unseen. It matters
+ * because `useRoute()` runs during App's own render: the throw unmounts the whole tree, and a
+ * blank page has no way back to a working route.
+ *
+ * Keeping the raw text is the right answer rather than a diagnostic: an id that decodes to
+ * nothing sensible matches no dashboard, which is already a screen that says so and offers a way
+ * home.
+ */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
+export function parseHash(hash: string): Route {
   // Tolerate a query suffix (`#/d/x?kiosk=on`): parameters are not part of the route.
   const path = hash.replace(/^#/, '').split('?')[0] || '/'
   if (path === '/settings') return { name: 'settings' }
   const chart = /^\/c\/([^/]+)\/(.+)$/.exec(path)
   if (chart) {
-    return { name: 'chart', dashboard: decodeURIComponent(chart[1]), widget: decodeURIComponent(chart[2]) }
+    return { name: 'chart', dashboard: decodeSegment(chart[1]), widget: decodeSegment(chart[2]) }
   }
   const m = /^\/d\/(.+)$/.exec(path)
-  if (m) return { name: 'dashboard', id: decodeURIComponent(m[1]) }
+  if (m) return { name: 'dashboard', id: decodeSegment(m[1]) }
   return { name: 'home' }
 }
 
@@ -34,7 +55,7 @@ export function useRoute(): Route {
     () => window.location.hash,
     () => '#/'
   )
-  return parse(hash)
+  return parseHash(hash)
 }
 
 export function navigate(route: Route): void {

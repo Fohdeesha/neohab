@@ -9,7 +9,7 @@
  */
 import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
-import { MODEL_VERSION, slugifyDashboardId } from '../model/dashboard'
+import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
 import { lookup } from '../model/lookup'
 import type { AppSettings } from '../store/config'
@@ -499,7 +499,6 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     widgets: [],
   }
 
-  let counter = 0
   for (const hpWidget of hp.widgets) {
     // `lookup`, not a bare index: a widget typed "constructor"/"toString" would otherwise find an
     // Object.prototype member, get called as a converter, and crash the import instead of being
@@ -527,7 +526,11 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     const config = Object.fromEntries(Object.entries(converted.config).filter(([, v]) => v !== undefined))
 
     const instance: WidgetInstance = {
-      id: 'w-' + id.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + counter++,
+      // Minted the same way a widget added in the editor is. Built from the dashboard's own id
+      // with a per-dashboard counter, two dashboards whose ids slug alike ("Living Room" and
+      // "living room") produced identical widget ids - and a widget id is the key for per-instance
+      // state kept outside the dashboard, so the two would have shared a remembered chart period.
+      id: newWidgetId(),
       type: converted.type,
       config,
       layout: { lg: rect },

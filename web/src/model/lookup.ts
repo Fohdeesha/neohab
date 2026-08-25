@@ -23,6 +23,39 @@
  *
  * Where the key is genuinely internal (a fixed union type, a literal), a bare index is fine.
  */
+/**
+ * The other half of the same problem: a map this code BUILDS whose keys it does not choose.
+ *
+ * `lookup()` fixes one read. A map keyed by item names is read from a dozen places and gains more
+ * over time, so fixing it read by read only holds until somebody adds the thirteenth. Building it
+ * without a prototype fixes every read at once, including the ones written later, and makes `in`
+ * and `hasOwnProperty` agree with the index.
+ *
+ * openHAB item names are `[a-zA-Z_][a-zA-Z0-9_]*` (`ItemUtil.isValidItemName`), so `constructor`,
+ * `toString`, `valueOf`, `hasOwnProperty` and `__proto__` are all names a person can give an item.
+ * With a normal object behind it, a Switch bound to one of them threw while rendering, and a JS
+ * widget asking for its state hung for good, because `postMessage` cannot structured-clone the
+ * `Object` function it was handed instead of `undefined`.
+ */
+export function emptyMap<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>
+}
+
+/**
+ * Merge into a fresh prototype-free map.
+ *
+ * `Object.assign` rather than object spread, deliberately: spread copies own properties onto a
+ * NORMAL object, so the result would carry `Object.prototype` again. Assigning onto a
+ * prototype-free target has no inherited setter to trigger, so a delta carrying `__proto__` as an
+ * own property - which is exactly what `JSON.parse` produces for an item of that name - lands as
+ * ordinary data and reaches no other object.
+ */
+export function mergeMap<T>(...parts: (Record<string, T> | undefined)[]): Record<string, T> {
+  const out = emptyMap<T>()
+  for (const part of parts) if (part) Object.assign(out, part)
+  return out
+}
+
 export function lookup<T>(table: Record<string, T>, key: string | undefined | null): T | undefined {
   if (typeof key !== 'string') return undefined
   return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined

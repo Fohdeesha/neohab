@@ -24,6 +24,12 @@ const MIN_CURRENT_PCT = 0.4
 /** Bands per row are capped by absorbing runs shorter than period/this into their predecessor. */
 const THIN_DIVISOR = 1500
 
+/**
+ * How many live-appended bands a row may hold before it is thinned. Far above any item a person
+ * would put on a timeline; the point is that a fast-changing one cannot grow without limit.
+ */
+const LIVE_BAND_CAP = 600
+
 /** Chip selection per widget instance; survives the run/edit remount. Session-scoped. */
 const periodMemory = new Map<string, string>()
 
@@ -90,11 +96,23 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     let disposed = false
     setInfo(null)
 
+    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
+    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
+    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
+    // every earlier window running to completion.
+    const ctrl = new AbortController()
+
     async function load() {
       const now = Date.now()
       const since = new Date(now - windowMs)
       const results = await Promise.all(
-        series.map((s) => getItemHistory(s.item, since, { serviceId: config.service || undefined, boundary: true }))
+        series.map((s) =>
+          getItemHistory(s.item, since, {
+            serviceId: config.service || undefined,
+            boundary: true,
+            signal: ctrl.signal,
+          })
+        )
       )
       if (disposed) return
       const partitioned = results.map((points) =>
@@ -120,6 +138,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     const tick = setInterval(() => setNowTick(Date.now()), 60_000)
     return () => {
       disposed = true
+      ctrl.abort()
       clearInterval(refetch)
       clearInterval(tick)
     }
@@ -133,6 +152,15 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   useEffect(() => {
     if (status !== 'ready') return
     const now = Date.now()
+    // Decided here rather than inside the updater below: React makes no promise about WHEN an
+    // updater runs, so a flag set inside one can still be false when it is read. The updater
+    // stays the thing that writes, so the rows themselves are never computed from a stale read.
+    const appended = rows.some((bands, i) => {
+      const st = ctx.getItem(series[i]?.item ?? '')?.state
+      if (st === undefined || st === 'NULL' || st === 'UNDEF' || st === '') return false
+      const last = bands[bands.length - 1]
+      return !(last && (last.state === st || stateMatches(last.state, st)))
+    })
     setRows((prev) => {
       let changed = false
       const next = prev.map((bands, i) => {
@@ -143,11 +171,25 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
         if (last && (last.state === st || stateMatches(last.state, st))) return bands
         changed = true
         const closed = last ? [...bands.slice(0, -1), { ...last, end: now }] : bands
-        return [...closed, { state: st, start: now, end: now }]
+        // Bounded, but only once it needs bounding. Between refetches this appends one band per
+        // state change and nothing reconciled them, so a fast-changing item accumulated a refresh
+        // interval's worth of DOM nodes - and for a long window that interval is 900 seconds.
+        //
+        // Thinning on EVERY append does not work, and the reason is worth keeping: `thinBands`
+        // exempts the last band because it is the current state, so a short one survives the
+        // fetch - and appending makes it eligible, so it is absorbed just as the new one arrives.
+        // The row's count then never moves. Measured: 3 bands, append, thin, 3 bands.
+        //
+        // Above the cap the row is past anything a person could read anyway, so thinning it is
+        // free; below it, nothing is touched and a state change always starts a visible band.
+        const grown = [...closed, { state: st, start: now, end: now }]
+        return grown.length > LIVE_BAND_CAP ? thinBands(grown, windowMs / THIN_DIVISOR) : grown
       })
       return changed ? next : prev
     })
-    setNowTick(now)
+    // Only when something actually moved. Called unconditionally, every state event on every
+    // subscribed item re-rendered the widget for a tick value that had not changed.
+    if (appended) setNowTick(now)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveKey, status, seriesKey])
 

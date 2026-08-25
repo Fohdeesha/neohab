@@ -10,6 +10,7 @@
 
 // `finite` is the shared coercion, aliased so the guarded reads below read as they always did.
 import { finiteOr as finite, numericScale, type NumericScale } from '../common/itemControl'
+import { lookup } from '../../model/lookup'
 
 export interface SeverityStop {
   /** The stop applies to values up to and including this. */
@@ -331,7 +332,9 @@ export const HISTORY_PERIODS: Record<string, number> = {
 }
 
 export function historyPeriodMs(c: DialConfig): number {
-  return HISTORY_PERIODS[c.historyPeriod ?? ''] ?? HISTORY_PERIODS['24h']
+  // Through `lookup` because the id is stored widget configuration: a bare index finds an
+  // Object.prototype member, which is not nullish, so the fallback below never fires.
+  return lookup(HISTORY_PERIODS, c.historyPeriod) ?? HISTORY_PERIODS['24h']
 }
 
 /**

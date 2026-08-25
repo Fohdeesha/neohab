@@ -39,7 +39,7 @@ import {
   type HistoryChange,
 } from '../model/itemDetail'
 import type { WidgetInstance } from '../model/dashboard'
-import { subscribeItems, useItemsStore } from '../store/items'
+import { selectStates, subscribeItems, useItemsStore } from '../store/items'
 import { useShallow } from 'zustand/react/shallow'
 import { getWidgetDefinition, instanceCommands, instanceControl, itemsForInstance, widgetDetailView } from '../widgets'
 import { WidgetBoundary } from './WidgetBoundary'
@@ -184,7 +184,7 @@ function WidgetPane({
 }) {
   const itemsKey = items.join('\n')
   useEffect(() => subscribeItems(itemsKey ? itemsKey.split('\n') : []), [itemsKey])
-  const states = useItemsStore(useShallow((st) => Object.fromEntries(items.map((n) => [n, st.states[n]]))))
+  const states = useItemsStore(useShallow((st) => selectStates(st.states, items)))
   const ctx = useMemo<WidgetContext>(
     () => ({
       widgetId: 'detail:' + instance.id,

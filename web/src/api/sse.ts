@@ -175,17 +175,24 @@ export class StatesTracker {
 
   private async pushTracked(): Promise<void> {
     if (!this.connectionId) return // the ready handler pushes as soon as there is one
+    // Which connection this push is for. A stream that reconnects while a push is in flight
+    // gives us a new id, and the old push's answer says nothing about the new connection: on
+    // success it would report live for a connection that is gone, and on failure it would
+    // report dead over the state the new connection's own push had just set correctly.
+    const connection = this.connectionId
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), PUSH_TIMEOUT_MS)
     try {
       // Through the api client, not a bare fetch: this POST is what tells the server which items
       // to push, so it has to carry whatever the request needs to get through - an openHAB token
       // on a server with no anonymous role, and a reverse proxy's own credentials.
-      await api.post('/rest/events/states/' + this.connectionId, [...this.tracked], {
+      await api.post('/rest/events/states/' + connection, [...this.tracked], {
         signal: controller.signal,
       })
+      if (connection !== this.connectionId) return
       this.setLive(true)
     } catch {
+      if (connection !== this.connectionId) return
       // A widget would silently never get updates if this were dropped - retry shortly
       // (unless something else already queued a push).
       this.setLive(false)

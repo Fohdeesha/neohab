@@ -87,15 +87,23 @@ export function lastChangeFromHistory(points: readonly { time: number; state: st
   return { kind: 'before' }
 }
 
+/**
+ * The units this formatter works in. Named as a union rather than borrowing
+ * `Intl.RelativeTimeFormatUnit`, which also carries plurals, quarters and weeks: spelling the
+ * closed set out is what lets the compiler pin the DIVISOR lookup below, so it needs no runtime
+ * guard of its own (see model/lookup.ts for why a `Record<string, ...>` would).
+ */
+type RelativeUnit = 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year'
+
 /** Thresholds in seconds, each with the unit to render at or below it. */
-const STEPS: [number, Intl.RelativeTimeFormatUnit][] = [
+const STEPS: [number, RelativeUnit][] = [
   [45, 'second'],
   [45 * 60, 'minute'],
   [22 * 3600, 'hour'],
   [26 * 86400, 'day'],
   [11 * 2629800, 'month'],
 ]
-const DIVISOR: Record<string, number> = {
+const DIVISOR: Record<RelativeUnit, number> = {
   second: 1,
   minute: 60,
   hour: 3600,

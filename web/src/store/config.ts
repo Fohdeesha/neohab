@@ -199,7 +199,7 @@ function parseComponents(components: UIComponent[]) {
       incompatible.push(c)
       continue
     }
-    const config = result.config
+    const config = named(result.config)
     if (kind === 'dashboard') dashboards.push(config as unknown as Dashboard)
     else if (kind === 'theme') customThemes.push(config as unknown as Theme)
     else if (kind === 'widgetdef') widgetDefs.push(config as unknown as CustomWidgetDef)
@@ -220,6 +220,26 @@ function parseComponents(components: UIComponent[]) {
  */
 function byName<T extends { name?: string; id?: string }>(a: T, b: T): number {
   return String(a.name ?? a.id ?? '').localeCompare(String(b.name ?? b.id ?? ''))
+}
+
+/**
+ * A stored config whose `name` is definitely a string.
+ *
+ * The name of a dashboard, theme, widget definition or icon is DISPLAYED, on nearly every screen:
+ * the home tiles, the sidebar, the settings lists. React refuses to render an object as a child,
+ * so one name that is not a string takes out every one of those screens at once - and then there
+ * is no working screen left to fix it from, which is a different order of problem from any single
+ * widget failing. `byName` already coerces this same field for sorting, so this only makes what is
+ * drawn agree with what is sorted.
+ *
+ * Deliberately narrow. This is not an attempt to coerce every stored string the app displays -
+ * that is what `components/AppBoundary.tsx` is for, one screen at a time. It is the small closed
+ * set of identifiers that appear on ALL of them, where one bad value is unrecoverable.
+ */
+export function named(config: Record<string, unknown>): Record<string, unknown> {
+  const name = config?.name
+  if (name === undefined || typeof name === 'string') return config
+  return { ...config, name: String(name) }
 }
 
 export async function loadConfig(): Promise<void> {
@@ -382,7 +402,11 @@ export async function saveTheme(theme: Theme): Promise<void> {
 
 export async function deleteTheme(id: string): Promise<void> {
   await beforeConfigWrite()
-  await deleteComponent(THEME_PREFIX + id)
+  // Only when the server has it. Deleting something that was never saved answers 404, which
+  // the browser logs as an error whatever the code expected, and the `setState` below sits
+  // after the await - so the throw also left it on screen. `deleteDashboard` has always
+  // guarded; these three did not.
+  if (useConfigStore.getState().serverUids.has(THEME_PREFIX + id)) await deleteComponent(THEME_PREFIX + id)
   useConfigStore.setState((s) => ({
     customThemes: s.customThemes.filter((t) => t.id !== id),
     serverUids: new Set([...s.serverUids].filter((u) => u !== THEME_PREFIX + id)),
@@ -400,7 +424,11 @@ export async function saveWidgetDef(def: CustomWidgetDef): Promise<void> {
 
 export async function deleteWidgetDef(id: string): Promise<void> {
   await beforeConfigWrite()
-  await deleteComponent(WIDGETDEF_PREFIX + id)
+  // Only when the server has it. Deleting something that was never saved answers 404, which
+  // the browser logs as an error whatever the code expected, and the `setState` below sits
+  // after the await - so the throw also left it on screen. `deleteDashboard` has always
+  // guarded; these three did not.
+  if (useConfigStore.getState().serverUids.has(WIDGETDEF_PREFIX + id)) await deleteComponent(WIDGETDEF_PREFIX + id)
   useConfigStore.setState((s) => ({
     widgetDefs: s.widgetDefs.filter((d) => d.id !== id),
     serverUids: new Set([...s.serverUids].filter((u) => u !== WIDGETDEF_PREFIX + id)),
@@ -419,7 +447,11 @@ export async function saveCustomIcon(icon: CustomIcon): Promise<void> {
 
 export async function deleteCustomIcon(id: string): Promise<void> {
   await beforeConfigWrite()
-  await deleteComponent(ICON_PREFIX + id)
+  // Only when the server has it. Deleting something that was never saved answers 404, which
+  // the browser logs as an error whatever the code expected, and the `setState` below sits
+  // after the await - so the throw also left it on screen. `deleteDashboard` has always
+  // guarded; these three did not.
+  if (useConfigStore.getState().serverUids.has(ICON_PREFIX + id)) await deleteComponent(ICON_PREFIX + id)
   useConfigStore.setState((s) => ({
     customIcons: s.customIcons.filter((i) => i.id !== id),
     serverUids: new Set([...s.serverUids].filter((u) => u !== ICON_PREFIX + id)),

@@ -14,6 +14,7 @@ import { create } from 'zustand'
 import { StatesTracker, type StateMap } from '../api/sse'
 import { getTabLink, type TabMessage } from '../api/tabLink'
 import type { ItemState } from '../api/types'
+import { emptyMap, mergeMap } from '../model/lookup'
 
 interface ItemsState {
   states: StateMap
@@ -40,14 +41,14 @@ const FOLLOWER_TTL_MS = 6000
 let lastUnionKey = ''
 /** Everything seen so far, so a tab that joins later can be handed the current picture at once
  * (and so a follower promoted to leader can hand over what it already knows). */
-let snapshot: StateMap = {}
+let snapshot: StateMap = emptyMap()
 let wantsAudio = false
 let started = false
 let liveNow = false
 let pruneTimer: ReturnType<typeof setInterval> | null = null
 
 export const useItemsStore = create<ItemsState>(() => ({
-  states: {},
+  states: emptyMap(),
   connected: false,
 }))
 
@@ -55,8 +56,13 @@ function applyStates(delta: StateMap): void {
   // Each event carries the complete state of the items it mentions, so replace per item.
   // (The server intentionally omits displayState when it equals the raw state - merging old
   // fields over a new event would keep a stale formatted value around.)
-  useItemsStore.setState((s) => ({ states: { ...s.states, ...delta } }))
-  snapshot = { ...snapshot, ...delta }
+  //
+  // `mergeMap` and not object spread: these maps are keyed by ITEM NAMES, and openHAB happily
+  // allows an item called `constructor` or `toString`. On an ordinary object every reader of an
+  // untracked item would then be handed a function instead of `undefined`, which no `?? fallback`
+  // catches - see model/lookup.ts.
+  useItemsStore.setState((s) => ({ states: mergeMap(s.states, delta) }))
+  snapshot = mergeMap(snapshot, delta)
 }
 
 /** Union of this tab's items and every live follower's, pushed to the server only when it moves. */
@@ -221,6 +227,22 @@ export function audioWanted(): boolean {
 export function onAudioWanted(cb: (want: boolean) => void): () => void {
   audioWantListeners.add(cb)
   return () => audioWantListeners.delete(cb)
+}
+
+/**
+ * Just these items' states, as a map a widget can be handed.
+ *
+ * Prototype-free like the store's own map, and for the same reason: `getItem` takes whatever name
+ * a widget or a template asks for, which need not be one of the names this map was built from.
+ * `Object.fromEntries` - what each of these call sites used to do - hands back an ordinary object,
+ * so `getItem('constructor')` on an item nobody subscribed to would answer with the `Object`
+ * function. Reads inside zustand's `useShallow`, which compares these maps unchanged: it walks
+ * `Object.entries` and compares prototypes, and two prototype-free maps match.
+ */
+export function selectStates(states: StateMap, names: string[]): StateMap {
+  const out = emptyMap<ItemState>()
+  for (const name of names) out[name] = states[name]
+  return out
 }
 
 /** Selector hook for one item's live state. */

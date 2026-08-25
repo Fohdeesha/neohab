@@ -33,6 +33,15 @@ export function hasWebAudioSink(): Promise<boolean> {
   return sinkProbe
 }
 
+/**
+ * Ask again after the credentials change. A device that looked at `/rest/audio/sinks` while
+ * signed out, on a server that role-gates it, would otherwise keep the anonymous answer for the
+ * whole session. `api/persistence.ts` has the same shape for the same reason.
+ */
+export function forgetWebAudioSink(): void {
+  sinkProbe = null
+}
+
 interface SseEnvelope {
   topic?: string
   payload?: string

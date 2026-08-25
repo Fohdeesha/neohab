@@ -81,6 +81,12 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
       return unitLabel ? out + ' ' + unitLabel : out
     }
 
+    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
+    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
+    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
+    // every earlier window running to completion.
+    const ctrl = new AbortController()
+
     async function run() {
       const tables = await loadChartData({
         items: resolved.series.map((s) => s.item),
@@ -90,6 +96,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         groupBy: resolved.heatmap ? 'none' : resolved.groupBy,
         service: resolved.service,
         maxPoints: resolved.heatmap ? 0 : (resolved.maxPoints ?? DEFAULT_MAX_POINTS),
+        signal: ctrl.signal,
       })
       if (disposed || !hostRef.current) return
 
@@ -147,6 +154,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
     })
     return () => {
       disposed = true
+      ctrl.abort()
       plotRef.current?.destroy()
       plotRef.current = null
       heatRef.current?.destroy()

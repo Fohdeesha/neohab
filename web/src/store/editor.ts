@@ -493,9 +493,16 @@ export function clearTabletLayout(): void {
  * a clear, terminal exit; a failure keeps the draft open with the error shown so it can be
  * retried. Pass `keepEditing` to commit without leaving (not currently used by the UI).
  */
+let saveInFlight = false
+
 export async function saveDraft(keepEditing = false): Promise<boolean> {
   const s = useEditorStore.getState()
   if (!s.draft) return false
+  // A real guard, not just the Save button's `disabled`. The project's own rule is that where a
+  // flag guards something that writes, the invariant has to be structural rather than dependent
+  // on an attribute - and each save also takes a restore point, so two of them are two captures.
+  if (saveInFlight) return false
+  saveInFlight = true
   useEditorStore.setState({ saving: true, saveError: null })
   try {
     await saveDashboard(clone(s.draft))
@@ -510,5 +517,7 @@ export async function saveDraft(keepEditing = false): Promise<boolean> {
       saveError: err instanceof Error ? err.message : String(err),
     })
     return false
+  } finally {
+    saveInFlight = false
   }
 }

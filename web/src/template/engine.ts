@@ -17,6 +17,7 @@
 import DOMPurify from 'dompurify'
 import { ohUrl } from '../api/base'
 import { safeUrl } from '../model/url'
+import { lookup } from '../model/lookup'
 import { evaluate, type Scope } from './evaluator'
 import { FILTERS, splitTopLevel } from './filters'
 
@@ -59,7 +60,9 @@ export function evalWithFilters(src: string, scope: Scope): unknown {
   let value = evaluate(segments[0], scope)
   for (let i = 1; i < segments.length; i++) {
     const [name, ...argSrcs] = splitTopLevel(segments[i], ':')
-    const filter = FILTERS[name.trim()]
+    // Through `lookup` because the name is written by whoever authored the template, which for
+    // an imported or gallery widget is not the person running the dashboard.
+    const filter = lookup(FILTERS, name.trim())
     if (!filter) continue
     value = filter(value, ...argSrcs.map((a) => evaluate(a, scope)))
   }

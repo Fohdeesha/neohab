@@ -17,6 +17,8 @@
 import { create } from 'zustand'
 import { api, ApiError } from '../api/client'
 import { getAccessToken, getApiToken, isLoggedIn } from '../api/auth'
+import { forgetPersistenceServices } from '../api/persistence'
+import { forgetWebAudioSink } from '../api/audioEvents'
 
 export type AuthStatus =
   | 'unknown' // probe not run yet, or it failed for a non-auth reason (server unreachable)
@@ -54,6 +56,13 @@ let generation = 0
 /** (Re)establish the auth status. Call at boot and after any sign-in or sign-out. */
 export async function refreshAuthStatus(): Promise<void> {
   const gen = ++generation
+  // Both of these memoise a probe for the whole session, and both can be role-gated on some
+  // deployments - so a device that asked while signed out would keep the anonymous answer for
+  // ever. This is the one function that runs on every credential change, which makes it the
+  // place to forget them. (`forgetPersistenceServices` had existed for exactly this and was
+  // called from nowhere.)
+  forgetPersistenceServices()
+  forgetWebAudioSink()
   if (!isLoggedIn()) {
     useAuthStore.setState({ status: 'anonymous' })
     return

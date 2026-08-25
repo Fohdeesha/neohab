@@ -14,6 +14,7 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import en from './en.json'
+import { lookup } from '../model/lookup'
 
 export const LANGUAGES: { code: string; name: string }[] = [
   { code: 'en', name: 'English' },
@@ -72,7 +73,13 @@ i18n.on('languageChanged', (lng) => {
 async function activate(code: string): Promise<void> {
   if (code !== 'en' && !i18n.hasResourceBundle(code, 'translation')) {
     try {
-      const mod = await loaders[code]()
+      // Through `lookup` because `setLanguage` is exported and takes a bare string: a code that
+      // names an Object.prototype member would otherwise be CALLED as a loader, and `Object()`
+      // answers with `{}` rather than throwing, so the catch below never sees it and an empty
+      // catalog is registered for the language instead.
+      const load = lookup(loaders, code)
+      if (!load) return
+      const mod = await load()
       i18n.addResourceBundle(code, 'translation', mod.default)
     } catch {
       return // catalog unreachable (offline first visit) - stay on the current language

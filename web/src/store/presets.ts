@@ -28,6 +28,7 @@ import {
 import { commandItem } from '../widgets/common/command'
 import { useAuthStore } from './auth'
 import { clearSettling, markSettling } from './settling'
+import { emptyMap, mergeMap } from '../model/lookup'
 
 interface PresetsState {
   /** A load has completed at least once (successfully or not). */
@@ -99,11 +100,13 @@ async function doLoad(admin: boolean): Promise<void> {
       .filter((u) => u.startsWith(BRIDGE_UID_PREFIX))
       .map((u) => u.slice(BRIDGE_UID_PREFIX.length))
 
-    let full: Record<string, Preset> = {}
+    let full: Record<string, Preset> = emptyMap()
     if (admin) {
       try {
         const rules = await listRulesFull(SCENE_TAG)
-        full = Object.fromEntries(rules.filter(isScene).map((r) => [r.uid, presetFromRule(r)]))
+        // Keyed by rule uids the server chose, so prototype-free: a rule really named `toString`
+        // would otherwise answer every miss with a function - see model/lookup.ts.
+        full = mergeMap(...rules.filter(isScene).map((r) => ({ [r.uid]: presetFromRule(r) })))
       } catch (err) {
         // A user-role token reaches here when the admin probe was wrong; the summaries are
         // still good, so degrade to the every-role view rather than failing the load.

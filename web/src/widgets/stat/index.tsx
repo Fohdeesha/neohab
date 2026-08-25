@@ -66,10 +66,15 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
       return
     }
     let dead = false
+    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
+    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
+    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
+    // every earlier window running to completion.
+    const ctrl = new AbortController()
     const load = async () => {
       try {
         const t0 = Date.now() - periodMs
-        const pts = await getItemHistory(config.item, new Date(t0), { boundary: true })
+        const pts = await getItemHistory(config.item, new Date(t0), { boundary: true, signal: ctrl.signal })
         const nums = pts.map((p) => ({ time: p.time, value: parseFloat(p.state) }))
         if (!dead) setPast(referenceValue(nums, t0))
       } catch {
@@ -80,6 +85,7 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
     const timer = setInterval(load, 300_000)
     return () => {
       dead = true
+      ctrl.abort()
       clearInterval(timer)
     }
   }, [wantsHistory, config.item, periodMs])

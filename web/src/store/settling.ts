@@ -10,24 +10,26 @@ import { commandMatchesState } from '../model/presets'
 import { SETTLE_MS, settledDisplay, type Settling } from '../model/settling'
 import { useItemsStore } from './items'
 import { useSteadyStates } from '../widgets/common/useSteadyValue'
+import { emptyMap, mergeMap } from '../model/lookup'
 
 interface SettlingState {
   /** item name -> the value commanded for it, and when. */
   pending: Record<string, Settling>
 }
 
-export const useSettlingStore = create<SettlingState>(() => ({ pending: {} }))
+export const useSettlingStore = create<SettlingState>(() => ({ pending: emptyMap() }))
 
 /** Record values just commanded. Entries for the same item replace each other. */
 export function markSettling(commands: { item: string; command: string }[]): void {
-  const add: Record<string, Settling> = {}
+  // Keyed by item name, so prototype-free - see model/lookup.ts.
+  const add: Record<string, Settling> = emptyMap()
   const at = Date.now()
   for (const c of commands) {
     if (typeof c.item === 'string' && c.item !== '') add[c.item] = { command: String(c.command), at }
   }
   const items = Object.keys(add)
   if (items.length === 0) return
-  useSettlingStore.setState((s) => ({ pending: { ...s.pending, ...add } }))
+  useSettlingStore.setState((s) => ({ pending: mergeMap(s.pending, add) }))
   // Re-render once the window closes, so a value the device never took stops being displayed
   // even when no further state event arrives to trigger one.
   setTimeout(() => dropUnconfirmed(items, at), SETTLE_MS + 50)
@@ -36,10 +38,13 @@ export function markSettling(commands: { item: string; command: string }[]): voi
 /** Forget commanded values (the server refused them, so they never happened). */
 export function clearSettling(items: string[]): void {
   useSettlingStore.setState((s) => {
-    const pending = { ...s.pending }
+    const pending = mergeMap(s.pending)
     let changed = false
     for (const item of items) {
-      if (item in pending) {
+      // `hasOwnProperty` and not `in`: the map is prototype-free so the two agree today, but a
+      // guard that only holds because of another module's invariant is one somebody can break
+      // from a distance.
+      if (Object.prototype.hasOwnProperty.call(pending, item)) {
         delete pending[item]
         changed = true
       }
@@ -56,7 +61,7 @@ export function clearSettling(items: string[]): void {
 function dropUnconfirmed(items: string[], at: number): void {
   const states = useItemsStore.getState().states
   useSettlingStore.setState((s) => {
-    const pending = { ...s.pending }
+    const pending = mergeMap(s.pending)
     let changed = false
     for (const item of items) {
       const p = pending[item]

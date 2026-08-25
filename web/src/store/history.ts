@@ -43,6 +43,7 @@ import {
   SNAPSHOT_COMPONENT,
   SNAPSHOT_PREFIX,
   SUMMARY_NAMES,
+  mergeIndexes,
   shouldCapture,
   toEntry,
   unusedBlobs,
@@ -284,7 +285,31 @@ async function clearHistory(index: HistoryIndex): Promise<void> {
   useHistoryStore.setState({ index: emptyIndex(), indexStored: false })
 }
 
-export async function captureSnapshot(force = false): Promise<boolean> {
+/**
+ * Captures run one at a time.
+ *
+ * `restoreSnapshot` has carried a re-entrancy guard since the day a second restore was found
+ * interleaving with the first; this path had none, and it runs before EVERY configuration write.
+ * Two overlapping saves both read the index, both wrote a snapshot, and both wrote back an index
+ * built from their own stale read - so the second won and the first's snapshot was orphaned.
+ *
+ * Chained rather than refused: a capture is a background step of somebody's save, so failing the
+ * second one would fail their save. Running it after the first is also what makes it a no-op,
+ * because by then `markWrite()` has happened and the coalescing window says so.
+ */
+let captureChain: Promise<unknown> = Promise.resolve()
+
+export function captureSnapshot(force = false): Promise<boolean> {
+  const run = captureChain.then(
+    () => runCapture(force),
+    () => runCapture(force)
+  )
+  // The chain must not reject, or one failure would poison every capture after it.
+  captureChain = run.catch(() => undefined)
+  return run
+}
+
+async function runCapture(force = false): Promise<boolean> {
   const { limit, windowMin } = historyLimits()
   if (!historyEnabled(limit)) {
     // Turned off: stop capturing, and clear what is already stored. The index is read straight
@@ -360,8 +385,13 @@ export async function captureSnapshot(force = false): Promise<boolean> {
     )
     cacheSnapshot(snapshot)
 
-    const { keep, drop } = applyRetention([meta, ...index.snapshots], limit)
-    let next: HistoryIndex = { version: HISTORY_VERSION, snapshots: keep, blobs: [...known] }
+    // Re-read before overwriting. The chain above serialises this tab, but a second admin tab
+    // has its own store and its own copy of the index, and `lastWriteAt` only coalesces writes
+    // that have already finished. Merging is what stops the loser's snapshot being orphaned.
+    const stored = (await readStoredIndex().catch(() => null)) ?? index
+    const combined = mergeIndexes({ version: HISTORY_VERSION, snapshots: [meta, ...index.snapshots], blobs: [...known] }, stored)
+    const { keep, drop } = applyRetention(combined.snapshots, limit)
+    let next: HistoryIndex = { version: HISTORY_VERSION, snapshots: keep, blobs: combined.blobs }
     await writeIndex(next)
 
     for (const gone of drop) {

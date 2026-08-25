@@ -20,8 +20,16 @@ function finite(value: unknown, fallback: number): number {
  * negative `y` became a `grid-row` counted from the END of the grid, putting the widget somewhere
  * nobody had placed it.
  */
-export function rectOf(widget: WidgetInstance): Rect {
-  const stored = widget.layout.lg
+/**
+ * A stored rect made safe to do arithmetic with, field by field.
+ *
+ * Shared by every reader, because a rect arrives from a backup, a partial export, a HABPanel
+ * import or a hand edit, and one non-numeric field is enough to produce NaN. NaN then survives
+ * every comparison it meets - `Math.min('wide', 12)` is NaN, `0 <= columns - NaN` is false - so it
+ * travels silently into `gridColumn` and, through `setEditBreakpoint`, back into the saved
+ * dashboard.
+ */
+export function sanitizeRect(stored: Partial<Rect> | undefined): Rect {
   if (!stored) return { x: 0, y: 0, w: 3, h: 3 }
   return {
     x: Math.max(0, Math.round(finite(stored.x, 0))),
@@ -29,6 +37,13 @@ export function rectOf(widget: WidgetInstance): Rect {
     w: Math.max(1, Math.round(finite(stored.w, 1))),
     h: Math.max(1, Math.round(finite(stored.h, 1))),
   }
+}
+
+export function rectOf(widget: WidgetInstance): Rect {
+  // `layout` itself is optional at runtime, whatever the type says: a hand-written dashboard, a
+  // half-finished migration or a partial export can arrive without it, and reading `.lg` off
+  // nothing throws in the dashboard view - which is ABOVE every widget boundary there is.
+  return sanitizeRect(widget.layout?.lg)
 }
 
 export const DEFAULT_GAP = 8
@@ -89,7 +104,7 @@ export function surfaceFor(containerWidth: number): Surface {
 
 /** True once anything about a tablet layout has been authored. */
 export function hasTabletLayout(dashboard: Dashboard): boolean {
-  return dashboard.mdColumns !== undefined || dashboard.widgets.some((w) => w.layout.md !== undefined)
+  return dashboard.mdColumns !== undefined || widgetsOf(dashboard).some((w) => w.layout.md !== undefined)
 }
 
 /**
@@ -97,9 +112,24 @@ export function hasTabletLayout(dashboard: Dashboard): boolean {
  * imported or hand-edited dashboard is written verbatim, and a zero divides the cell width to
  * Infinity - which takes the row height, the icon scale and the whole grid with it.
  */
+/**
+ * A dashboard's widgets, as a list.
+ *
+ * Stored configuration again: `widgets` is written verbatim, so a backup or a hand edit can make
+ * it an object, a string or nothing at all - and `for (const w of {})`, `.some`, `.filter` and
+ * `.reduce` all throw on it. That throw is not one tile, it is the whole dashboard view.
+ */
+export function widgetsOf(dashboard: Dashboard): WidgetInstance[] {
+  return Array.isArray(dashboard.widgets) ? dashboard.widgets : []
+}
+
+/** A column count made safe to divide by, wherever it came from. */
+export function columnsFrom(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.round(value) : 1
+}
+
 export function columnsOf(dashboard: Dashboard): number {
-  const v = dashboard.columns
-  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : 1
+  return columnsFrom(dashboard.columns)
 }
 
 export function mdColumnsOf(dashboard: Dashboard): number {
@@ -132,7 +162,7 @@ export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   // the column count changes, but an imported or hand-edited one can be wider than the grid it
   // lands in, and would then render straight over the edge.
   if (columns === columnsOf(dashboard)) {
-    for (const w of dashboard.widgets) out.set(w.id, clampRect(w.layout.md ?? rectOf(w), columns))
+    for (const w of widgetsOf(dashboard)) out.set(w.id, clampRect(w.layout.md ?? rectOf(w), columns))
     return out
   }
   // Reflow: place each widget, in the order a phone would stack them, at the first free spot of
@@ -161,7 +191,7 @@ export function projectDashboard(dashboard: Dashboard, bp: 'lg' | 'md'): Dashboa
   return {
     ...dashboard,
     columns: mdColumnsOf(dashboard),
-    widgets: dashboard.widgets.map((w) => ({ ...w, layout: { ...w.layout, lg: rects.get(w.id) ?? rectOf(w) } })),
+    widgets: widgetsOf(dashboard).map((w) => ({ ...w, layout: { ...w.layout, lg: rects.get(w.id) ?? rectOf(w) } })),
   }
 }
 
@@ -186,7 +216,7 @@ export function isHiddenOn(widget: WidgetInstance, surface: Surface): boolean {
  * explicit list keep their derived order after the listed ones.
  */
 export function stackedOrder(dashboard: Dashboard): WidgetInstance[] {
-  const derived = [...dashboard.widgets].sort((a, b) => {
+  const derived = [...widgetsOf(dashboard)].sort((a, b) => {
     const ra = rectOf(a)
     const rb = rectOf(b)
     return ra.y - rb.y || ra.x - rb.x
@@ -350,7 +380,8 @@ export interface GroupFrame {
  */
 export function groupFrames(widgets: WidgetInstance[]): GroupFrame[] {
   const out = new Map<string, GroupFrame>()
-  for (const w of widgets) {
+  // Takes a list rather than a dashboard, so it gets the same guard the dashboard readers get.
+  for (const w of Array.isArray(widgets) ? widgets : []) {
     const group = widgetGroup(w)
     if (!group) continue
     const r = rectOf(w)
@@ -410,16 +441,21 @@ export function collides(a: Rect, b: Rect): boolean {
 
 /** Clamp a rect into the grid: at least 1x1, within columns horizontally, y >= 0. */
 export function clampRect(rect: Rect, columns: number): Rect {
-  const w = Math.max(1, Math.min(rect.w, columns))
-  const h = Math.max(1, rect.h)
-  const x = Math.max(0, Math.min(rect.x, columns - w))
-  const y = Math.max(0, rect.y)
+  // Repair before clamping. Clamping alone cannot fix a field that is not a number, and this is
+  // the one door every stored rect passes through on its way to a grid - including `layout.md`,
+  // which has no reader of its own.
+  const safe = sanitizeRect(rect)
+  const cols = columnsFrom(columns)
+  const w = Math.max(1, Math.min(safe.w, cols))
+  const h = Math.max(1, safe.h)
+  const x = Math.max(0, Math.min(safe.x, cols - w))
+  const y = Math.max(0, safe.y)
   return { x, y, w, h }
 }
 
 /** True if `rect` overlaps any widget other than `ignoreId`. */
 export function overlapsAny(dashboard: Dashboard, rect: Rect, ignoreId?: string): boolean {
-  return dashboard.widgets.some((w) => w.id !== ignoreId && collides(rect, rectOf(w)))
+  return widgetsOf(dashboard).some((w) => w.id !== ignoreId && collides(rect, rectOf(w)))
 }
 
 /** Where each widget displaced by a bump ends up: widget id -> its new rect. */
@@ -441,10 +477,10 @@ const MAX_BUMP_DEPTH = 200
  * arrangement was found - the caller then rejects the drop rather than guessing.
  */
 export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPlan | null {
-  const moving = dashboard.widgets.find((w) => w.id === id)
+  const moving = widgetsOf(dashboard).find((w) => w.id === id)
   if (!moving) return null
   const from = rectOf(moving)
-  const others = dashboard.widgets.filter((w) => w.id !== id)
+  const others = widgetsOf(dashboard).filter((w) => w.id !== id)
   const occupants = others.filter((w) => collides(target, rectOf(w)))
   if (occupants.length === 0) return new Map()
 
@@ -507,13 +543,16 @@ export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPl
 /** Find the topmost-leftmost free w x h spot, scanning row by row. */
 export function findFreeSpot(dashboard: Dashboard, w: number, h: number): Rect {
   const columns = columnsOf(dashboard)
-  const width = Math.max(1, Math.min(w, columns))
-  const maxY = dashboard.widgets.reduce((m, wi) => Math.max(m, rectOf(wi).y + rectOf(wi).h), 0)
+  // A pasted payload reaches here: `JSON.parse('{"w":1e999}')` is Infinity, and NaN then makes the
+  // x loop's condition false so the search falls through to its final return carrying the NaN on.
+  const width = Math.max(1, Math.min(Math.round(finite(w, 1)), columns))
+  const height = Math.max(1, Math.round(finite(h, 1)))
+  const maxY = widgetsOf(dashboard).reduce((m, wi) => Math.max(m, rectOf(wi).y + rectOf(wi).h), 0)
   for (let y = 0; y <= maxY; y++) {
     for (let x = 0; x <= columns - width; x++) {
-      const rect = { x, y, w: width, h }
+      const rect = { x, y, w: width, h: height }
       if (!overlapsAny(dashboard, rect)) return rect
     }
   }
-  return { x: 0, y: maxY, w: width, h }
+  return { x: 0, y: maxY, w: width, h: height }
 }

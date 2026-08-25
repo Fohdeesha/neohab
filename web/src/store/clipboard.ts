@@ -63,9 +63,14 @@ export function parseClipboard(text: string): ClipboardWidget[] | null {
   const widgets: ClipboardWidget[] = []
   for (const w of p.widgets as unknown[]) {
     const cw = w as Partial<ClipboardWidget> | null
-    if (!cw || typeof cw.type !== 'string' || !cw.config || typeof cw.config !== 'object') return null
+    // `typeof [] === 'object'`, so an array would otherwise pass as a config and be spread into
+    // one, giving the pasted widget numeric keys and none of its settings.
+    if (!cw || typeof cw.type !== 'string' || !cw.config || typeof cw.config !== 'object' || Array.isArray(cw.config))
+      return null
     const r = cw.rect as Partial<Rect> | undefined
-    if (!r || ![r.x, r.y, r.w, r.h].every((n) => typeof n === 'number')) return null
+    // Finite, not merely "a number": JSON has no NaN literal but `1e999` parses to Infinity, and
+    // a non-finite size survives every comparison in findFreeSpot and is written to the server.
+    if (!r || ![r.x, r.y, r.w, r.h].every((n) => typeof n === 'number' && Number.isFinite(n))) return null
     widgets.push({ type: cw.type, config: cw.config as Record<string, unknown>, rect: r as Rect })
   }
   return widgets

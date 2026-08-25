@@ -3,6 +3,7 @@
  * news. No React, no DOM - unit-testable arithmetic, so the drawn arrow and the stored config
  * cannot drift apart.
  */
+import { lookup } from '../../model/lookup'
 
 /** Windows offered for a history-based comparison. */
 export const STAT_PERIODS: Record<string, number> = {
@@ -13,7 +14,8 @@ export const STAT_PERIODS: Record<string, number> = {
 }
 
 export function statPeriodMs(period: string | undefined): number {
-  return STAT_PERIODS[period ?? ''] ?? STAT_PERIODS['24h']
+  // Through `lookup` because the id is stored widget configuration - see model/lookup.ts.
+  return lookup(STAT_PERIODS, period) ?? STAT_PERIODS['24h']
 }
 
 export type TrendDirection = 'up' | 'down' | 'flat'

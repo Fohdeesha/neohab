@@ -21,6 +21,8 @@ import type { Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig } from '../store/editor'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
+import { NumberSetting } from '../components/NumberSetting'
+import { parseColor } from '../themes/contrast'
 
 /**
  * Universal fields, not declared per definition: instance-level presentation (like layout)
@@ -305,6 +307,14 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
  * Value for a number input. Imported and hand-edited configs store numbers as strings, and a
  * field that silently renders blank looks like an unset setting the user is about to lose.
  */
+/** A colour a `<input type="color">` can show, or null when it cannot be read at all. */
+function toHex(value: string): string | null {
+  const rgb = parseColor(value)
+  if (!rgb) return null
+  const two = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
+  return '#' + two(rgb.r) + two(rgb.g) + two(rgb.b)
+}
+
 function numberValue(value: unknown): number | '' {
   if (typeof value === 'number') return Number.isFinite(value) ? value : ''
   if (typeof value === 'string' && value.trim() !== '') {
@@ -401,19 +411,25 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
         </label>
       )
     case 'number':
+      // Through NumberSetting, like every other numeric field in the app. Written directly, this
+      // one committed on each keystroke: typing 150 into the min-50 text size stored 1, then 15,
+      // then 150, and clicking away halfway left 1 behind. Every reader clamps, so it rendered
+      // correctly - but an out-of-range value in storage is one every reader then has to guard,
+      // and the live preview jumped about while it was being typed. `live` because this edits the
+      // local draft, where previewing is the point and costs no write.
       return (
-        <label className="nh-field" htmlFor={id}>
-          <span className="nh-field__label">{t(field.label)}</span>
-          <input
-            id={id}
-            type="number"
-            value={numberValue(value)}
-            min={field.min}
-            max={field.max}
-            step={field.step}
-            onChange={(e) => set(e.target.value === '' ? undefined : Number(e.target.value))}
-          />
-        </label>
+        <NumberSetting
+          id={id}
+          className="nh-field"
+          label={<span className="nh-field__label">{t(field.label)}</span>}
+          value={numberValue(value)}
+          min={field.min ?? Number.MIN_SAFE_INTEGER}
+          max={field.max ?? Number.MAX_SAFE_INTEGER}
+          step={field.step}
+          mode="live"
+          onCommit={(n) => set(n)}
+          onClear={() => set(undefined)}
+        />
       )
     case 'select': {
       const current = typeof value === 'string' ? value : ''
@@ -462,10 +478,16 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
             ) : (
               <span className="nh-colorfield__hint">{t('theme')}</span>
             )}
+            {/* `<input type="color">` accepts only `#rrggbb` and shows black for anything else,
+                so an imported HABPanel colour like `rgb(1,2,3)` or `#f80` previewed as black
+                although the dashboard drew it correctly - and touching the swatch then silently
+                rewrote it to that black. `parseColor` reads the hex and rgb() forms; a named
+                colour it cannot read falls back to the neutral placeholder, which at least does
+                not claim to be the stored value. */}
             <input
               id={id}
               type="color"
-              value={hasValue ? (value as string) : '#888888'}
+              value={(hasValue ? toHex(value as string) : null) ?? '#888888'}
               onChange={(e) => set(e.target.value)}
             />
           </span>

@@ -36,6 +36,7 @@ import {
   widgetAccentInk,
   widgetLabelAlign,
   widgetLabelBottom,
+  widgetsOf,
   widgetTextScale,
   type BumpPlan,
 } from '../model/layout'
@@ -50,6 +51,7 @@ import {
   toggleWidgetSelection,
   useEditorStore,
 } from '../store/editor'
+import { lookup } from '../model/lookup'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
@@ -257,7 +259,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
 
   const beginDrag = (id: string, mode: 'move' | 'resize') => (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return
-    const widget = dashboard.widgets.find((w) => w.id === id)
+    const widget = widgetsOf(dashboard).find((w) => w.id === id)
     if (!widget) return
     e.preventDefault()
     e.stopPropagation()
@@ -350,7 +352,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       selectWidget(id)
       return
     }
-    const step = ARROW_STEPS[e.key]
+    // No standard key is named `constructor`, but the guard below is `if (!step) return` and a
+    // function is truthy, so a bare index would put a NaN rect into the dashboard. Free to close.
+    const step = lookup(ARROW_STEPS, e.key)
     if (!step) return
     const widget = dashRef.current.widgets.find((w) => w.id === id)
     if (!widget) return
@@ -394,7 +398,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       right: Math.max(m.startX, m.curX),
       bottom: Math.max(m.startY, m.curY),
     }
-    const hit = dashboard.widgets
+    const hit = widgetsOf(dashboard)
       .filter((w) => boxesOverlap(pixelBox(rectOf(w), colWidth, rowHeight, gap), box))
       .map((w) => w.id)
     const current = useEditorStore.getState().selectedIds
@@ -529,7 +533,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       onPointerCancel={cancelPointer}
     >
       {/* panel frames, so a group reads as one panel while it is being edited too */}
-      {groupFrames(dashboard.widgets).map((f) => (
+      {groupFrames(widgetsOf(dashboard)).map((f) => (
         <div
           key={'g-' + f.group}
           className="nh-group"
@@ -580,7 +584,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
         />
       ) : null}
 
-      {dashboard.widgets.map((widget) => {
+      {widgetsOf(dashboard).map((widget) => {
         // An armed bump previews itself: the widgets it moves render where the drop puts them.
         const bumpedTo = drag?.bump?.get(widget.id)
         const r = bumpedTo ?? rectOf(widget)

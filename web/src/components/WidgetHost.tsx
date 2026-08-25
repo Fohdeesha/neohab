@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { getWidgetDefinition, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
-import { subscribeItems, useItemsStore } from '../store/items'
+import { selectStates, subscribeItems, useItemsStore } from '../store/items'
 import { commandItem } from '../widgets/common/command'
 import { WidgetBoundary } from './WidgetBoundary'
 
@@ -27,9 +27,7 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   )
 
   // Select only this widget's item states (shallow-compared) to limit re-renders.
-  const states = useItemsStore(
-    useShallow((s) => Object.fromEntries(itemNames.map((n) => [n, s.states[n]])))
-  )
+  const states = useItemsStore(useShallow((s) => selectStates(s.states, itemNames)))
 
   // Definition defaults fill any keys the stored config doesn't set (e.g. imported configs), so
   // widget behavior and the settings form always agree on effective values. Memoised on the
