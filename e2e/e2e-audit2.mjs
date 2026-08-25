@@ -18,6 +18,15 @@
  *   - a component written by a NEWER neohab is refused, explained, kept whole and never
  *     collected: the danger is not that it fails to render, it is that an old build would treat
  *     everything it referenced as unused and delete it
+ *   - a widget bound to an item NAMED after an Object.prototype member renders as an unset
+ *     widget, not as the boundary's error tile: the state map is a miss for it, and a miss on an
+ *     ordinary object answers with a function that no `?? fallback` catches
+ *   - a malformed hash does not blank the app: `decodeURIComponent` used to throw during App's
+ *     own render, which is above every boundary the app had
+ *   - and when a screen DOES fail, it fails as a panel with a way out rather than as a blank page.
+ *     A last-resort wall has to be tested with an injected failure - leaving a real bug in place
+ *     as the fixture would be the wrong trade - so the config RESPONSE is poisoned for one page
+ *     rather than a component being stored: nothing persists, and the server is untouched
  *   - ItemPicker: does selecting an item leave the list open? (behaviour probe)
  *
  * SAFE: creates only nh-e2e-a2* components, exact-uid cleanup, commands nothing. It DOES save
@@ -50,6 +59,25 @@ await put({
     widgets: [
       { id: 'a2-label', type: 'label', config: { text: 'Scaled', fontSize: 40 }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
       { id: 'a2-btn', type: 'button', config: { label: 'Pick', command: 'ON' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
+    ],
+  },
+})
+// Widgets bound to items NAMED after Object.prototype members. openHAB item names are
+// `[a-zA-Z_][a-zA-Z0-9_]*` (ItemUtil.isValidItemName), so every one of these is a name a person
+// can really give an item - and none of them needs to EXIST for the bug to bite, because the
+// failing read is the MISS: on an ordinary map `states['constructor']` answers with the `Object`
+// function, which is truthy, so `isOn` then read `.state` off it and threw.
+await put({
+  uid: 'dashboard:nh-e2e-a2-proto',
+  component: 'neohab:dashboard',
+  tags: [],
+  config: {
+    version: 1, id: 'nh-e2e-a2-proto', name: 'E2E Audit2 Proto', columns: 12, rowHeight: 'match', gap: 5,
+    widgets: [
+      { id: 'a2p-sw', type: 'switch', config: { item: 'constructor', label: 'Ctor' }, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } },
+      { id: 'a2p-val', type: 'value', config: { item: 'toString', label: 'Str' }, layout: { lg: { x: 2, y: 0, w: 2, h: 2 } } },
+      { id: 'a2p-btn', type: 'button', config: { item: 'hasOwnProperty', label: 'Has', command: 'ON', toggle: true }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
+      { id: 'a2p-proto', type: 'switch', config: { item: '__proto__', label: 'Proto' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
     ],
   },
 })
@@ -285,6 +313,129 @@ try {
     )
     ok('adding a widget beside a corrupt rect places it', added.length === 3, JSON.stringify(added))
     ok('no widget lands on a NaN row', added.every((r) => /^\d+$/.test(r)), JSON.stringify(added))
+    await ctx.close()
+  }
+
+  /* --------- an item named after an Object.prototype member --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-proto')
+    await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
+    await page.waitForTimeout(1200)
+    const tiles = await page.evaluate(() =>
+      [...document.querySelectorAll('.nh-gcell')].map((c) => ({
+        errored: !!c.querySelector('.nh-widget--error'),
+        label: c.querySelector('.nh-widget__labeltext')?.textContent ?? '',
+      }))
+    )
+    ok('all four prototype-named bindings render', tiles.length === 4, JSON.stringify(tiles))
+    ok(
+      'none of them becomes the boundary error tile',
+      tiles.length === 4 && tiles.every((t) => !t.errored),
+      JSON.stringify(tiles)
+    )
+    // The switch is the one that used to throw: `isOn` read `.state` off the Object function.
+    const sw = await page.locator('.nh-switch').count()
+    ok('the switch bound to an item called constructor draws a switch', sw >= 1, 'switches=' + sw)
+    await ctx.close()
+  }
+
+  /* --------- a screen that fails, fails as a panel with a way out --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    // The boundary names itself in the console when it catches something. Asserting that is what
+    // stops this whole section passing for the wrong reason: without it, a poison that failed to
+    // throw would look exactly like a boundary that worked.
+    const caught = []
+    page.on('console', (m) => {
+      if (m.type() === 'error' && /failed to render/.test(m.text())) caught.push(m.text())
+    })
+    // One dashboard whose widget list holds a null entry. `widgetsOf` guards the LIST, and this is
+    // a valid list, so the null reaches the render and throws there - a plain render failure above
+    // every widget boundary, which is exactly what the app-level wall is for. It is also a chosen
+    // poison: it breaks ONE dashboard's route, so home and settings still work and the panel's own
+    // links are a real way out. (A name that is not a string breaks every screen that lists
+    // dashboards at once, which is why that one is coerced at load rather than left to the wall.)
+    //
+    // Injected into the RESPONSE, not stored: the component list carries a literal colon, so the
+    // route needs a RegExp (a glob does not match it), and poisoning one page leaves the server
+    // exactly as it was.
+    await page.route(/\/rest\/ui\/components\/neohab:config/, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue()
+      const res = await route.fetch()
+      const body = await res.json()
+      body.push({
+        uid: 'dashboard:nh-e2e-a2-poison',
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: 'nh-e2e-a2-poison',
+          name: 'E2E Poison',
+          columns: 12,
+          rowHeight: 'match',
+          widgets: [null],
+        },
+      })
+      return route.fulfill({ response: res, body: JSON.stringify(body) })
+    })
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-poison')
+    await page.waitForTimeout(2500)
+    const state = await page.evaluate(() => ({
+      panel: document.querySelectorAll('.nh-appfail').length,
+      title: document.querySelector('.nh-appfail__title')?.textContent ?? '',
+      message: (document.querySelector('.nh-appfail__text')?.textContent ?? '').length,
+      actions: [...document.querySelectorAll('.nh-appfail__actions a, .nh-appfail__actions button')].map(
+        (a) => a.getAttribute('href') ?? a.tagName.toLowerCase()
+      ),
+      blank: (document.getElementById('root')?.childElementCount ?? 0) === 0,
+    }))
+    ok('the poisoned screen really did throw', caught.length > 0, caught[0] ?? 'nothing was caught')
+    ok('a screen that throws shows a panel rather than a blank page', state.panel === 1 && !state.blank, JSON.stringify(state))
+    ok('the panel says what went wrong', state.title.length > 0 && state.message > 0, JSON.stringify(state))
+    ok('and offers a way out', state.actions.includes('#/') && state.actions.includes('#/settings'), JSON.stringify(state.actions))
+    // The way out has to actually work, or a wall you cannot leave is no better than a blank page.
+    // Measured on tiles that really rendered, not on `main.nh-app`, which is there whatever
+    // happened - the first version of this check asserted the latter and passed while the panel
+    // was still on screen.
+    await page.click('.nh-appfail__actions a[href="#/"]').catch(() => {})
+    await page.waitForTimeout(1800)
+    const recovered = await page.evaluate(() => ({
+      panel: document.querySelectorAll('.nh-appfail').length,
+      tiles: document.querySelectorAll('.nh-tile').length,
+    }))
+    ok('following it leaves the panel behind', recovered.panel === 0, JSON.stringify(recovered))
+    ok('and lands on a screen that really rendered', recovered.tiles > 0, JSON.stringify(recovered))
+    await page.unroute(/\/rest\/ui\/components\/neohab:config/)
+    await ctx.close()
+  }
+
+  /* --------- a malformed hash does not blank the app --------- */
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    // `#/d/100%` is a hash a person can type and a chat client can produce by mangling a link.
+    // The app never writes one (navigate() always encodes), which is why it went unseen: the
+    // throw happened inside App's own render, above every boundary the app had, so the result
+    // was a blank page with no header and no route to Settings.
+    await page.goto(BASE + '/neohab/index.html#/d/100%')
+    await page.waitForTimeout(2000)
+    const shown = await page.evaluate(() => ({
+      root: (document.getElementById('root')?.childElementCount ?? 0) > 0,
+      body: (document.body.innerText || '').trim().length,
+      app: document.querySelectorAll('.nh-app').length,
+    }))
+    ok('a malformed hash still renders the app', shown.root && shown.app > 0, JSON.stringify(shown))
+    ok('and it is not a blank page', shown.body > 0, JSON.stringify(shown))
+    // Reaching a working route from there is the other half: a wall you cannot leave is no better.
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
+    await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
+    const cells = await page.locator('.nh-gcell').count()
+    ok('and a real dashboard still loads afterwards', cells > 0, 'cells=' + cells)
     await ctx.close()
   }
 

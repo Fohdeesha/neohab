@@ -1,23 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  applyRetention,
-  clampLimit,
-  clampWindow,
-  DEFAULT_HISTORY_LIMIT,
-  DEFAULT_HISTORY_WINDOW_MIN,
-  entryCategory,
-  entryName,
-  extractBlob,
-  historyEnabled,
-  MAX_HISTORY_LIMIT,
-  shouldCapture,
-  toEntry,
-  unusedBlobs,
-  withBlob,
-  type HistoryIndex,
-  type SnapshotEntry,
-  type SnapshotMeta,
-} from './history'
+import { applyRetention, clampLimit, clampWindow, DEFAULT_HISTORY_LIMIT, DEFAULT_HISTORY_WINDOW_MIN, entryCategory, entryName, extractBlob, historyEnabled, MAX_HISTORY_LIMIT, mergeIndexes, shouldCapture, toEntry, type HistoryIndex, type SnapshotEntry, type SnapshotMeta, unusedBlobs, withBlob } from './history'
 
 const meta = (id: string, blobs: string[] = []): SnapshotMeta => ({
   id,
@@ -134,5 +116,50 @@ describe('entries', () => {
   it('groups by the uid prefix', () => {
     expect(entryCategory('dashboard:kitchen')).toBe('dashboard')
     expect(entryCategory('settings')).toBe('settings')
+  })
+})
+
+describe('mergeIndexes', () => {
+  const meta = (id: string) => ({
+    id,
+    createdAt: new Date(Number(id)).toISOString(),
+    summary: { count: 0, names: [] },
+    entries: 1,
+    blobs: [],
+  })
+
+  /*
+   * Two tabs, or two writes in flight at once. Each read the index, each wrote a `snap:` component,
+   * and each then wrote back an index computed from its own stale read - so the second write won
+   * and the first tab's snapshot was left on the server named by nothing. Retention only prunes
+   * what the index lists, so it was never reclaimed either. The status log records three such
+   * orphans found on the live server.
+   */
+  it('keeps snapshots another writer added while ours was in flight', () => {
+    const mine = { version: 1, snapshots: [meta('300'), meta('100')], blobs: ['a'] }
+    const theirs = { version: 1, snapshots: [meta('200'), meta('100')], blobs: ['b'] }
+    const merged = mergeIndexes(mine, theirs)
+    expect(merged.snapshots.map((s) => s.id)).toEqual(['300', '200', '100'])
+    expect([...merged.blobs].sort()).toEqual(['a', 'b'])
+  })
+
+  it('lists each snapshot once, preferring our own copy of it', () => {
+    const mine = { version: 1, snapshots: [{ ...meta('100'), entries: 9 }], blobs: [] }
+    const theirs = { version: 1, snapshots: [{ ...meta('100'), entries: 1 }], blobs: [] }
+    const merged = mergeIndexes(mine, theirs)
+    expect(merged.snapshots).toHaveLength(1)
+    expect(merged.snapshots[0].entries).toBe(9)
+  })
+
+  it('orders newest first, whatever order either side was in', () => {
+    const mine = { version: 1, snapshots: [meta('100'), meta('500')], blobs: [] }
+    const theirs = { version: 1, snapshots: [meta('300')], blobs: [] }
+    expect(mergeIndexes(mine, theirs).snapshots.map((s) => s.id)).toEqual(['500', '300', '100'])
+  })
+
+  it('survives an index that is missing its lists', () => {
+    const broken = {} as never
+    expect(mergeIndexes({ version: 1, snapshots: [meta('100')], blobs: [] }, broken).snapshots).toHaveLength(1)
+    expect(mergeIndexes(broken, { version: 1, snapshots: [meta('100')], blobs: [] }).snapshots).toHaveLength(1)
   })
 })

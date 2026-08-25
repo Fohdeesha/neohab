@@ -458,6 +458,34 @@ describe('dashboard ids', () => {
       expect(new Set(d.widgets.map((w) => w.id)).size).toBe(d.widgets.length)
     }
   })
+
+  /*
+   * Widget ids are keys for per-instance UI state that lives OUTSIDE the dashboard: the chart and
+   * the timeline both remember their chosen period in a module-level Map keyed by widget id. Two
+   * widgets sharing an id would share a remembered period across dashboards.
+   *
+   * The ids were built from the ORIGINAL HABPanel dashboard id with a counter that restarts per
+   * dashboard, so two dashboards whose ids slug the same way - "Living Room" and "living room",
+   * or "Kitchen" and "Kitchen!" - produced identical widget ids. `model/partial.ts` documents
+   * exactly this hazard for copied dashboards.
+   */
+  it('gives every widget a unique id across the whole import, not just within one dashboard', () => {
+    const res = convertHabpanel(
+      {
+        dashboards: [
+          { id: 'Living Room', widgets: [{ type: 'clock' }, { type: 'clock' }] },
+          { id: 'living room', widgets: [{ type: 'clock' }, { type: 'clock' }] },
+          { id: 'Living  Room!', widgets: [{ type: 'clock' }] },
+        ],
+        settings: {},
+        customwidgets: {},
+      },
+      []
+    )
+    const ids = res.dashboards.flatMap((d) => d.widgets.map((w) => w.id))
+    expect(ids).toHaveLength(5)
+    expect(new Set(ids).size).toBe(5)
+  })
 })
 
 /* ------------------------------- panel settings ------------------------------- */

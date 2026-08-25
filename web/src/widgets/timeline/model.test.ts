@@ -100,3 +100,29 @@ describe('autoRefreshSeconds', () => {
     }
   })
 })
+
+describe('thinBands and the band that is current', () => {
+  /*
+   * The last band is exempt from thinning because it is the state in force, so a SHORT one
+   * survives the fetch. That exemption is what makes thinning the wrong tool for the live append
+   * path: appending makes the exempt band eligible, so it is absorbed exactly as the new one
+   * arrives and the row's count never moves. The widget therefore only thins once a row is past
+   * a cap, and this pins the interaction so the reason is not lost.
+   */
+  it('keeps a short band while it is the last one', () => {
+    const bands = [
+      { state: 'a', start: 0, end: 100_000 },
+      { state: 'b', start: 100_000, end: 100_500 },
+    ]
+    expect(thinBands(bands, 2400)).toHaveLength(2)
+  })
+
+  it('absorbs that same band once something is appended after it', () => {
+    const bands = [
+      { state: 'a', start: 0, end: 100_000 },
+      { state: 'b', start: 100_000, end: 101_000 },
+      { state: 'c', start: 101_000, end: 101_000 },
+    ]
+    expect(thinBands(bands, 2400)).toHaveLength(2)
+  })
+})

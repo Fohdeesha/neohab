@@ -1,25 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  angleToValue,
-  arcOf,
-  blockLit,
-  fractionOf,
-  fractionToAngle,
-  gaugeColor,
-  gaugeTicks,
-  hasInnerRing,
-  historyBars,
-  inAlarm,
-  ledCountOf,
-  ledFraction,
-  ledLit,
-  pickRing,
-  scaleOf,
-  severityColor,
-  sparkSegments,
-  zeroFractionOf,
-  type DialConfig,
-} from './gauge'
+import { angleToValue, arcOf, blockLit, fractionOf, fractionToAngle, gaugeColor, gaugeTicks, hasInnerRing, HISTORY_PERIODS, historyBars, historyPeriodMs, inAlarm, ledCountOf, ledFraction, ledLit, pickRing, scaleOf, severityColor, sparkSegments, type DialConfig, zeroFractionOf } from './gauge'
 
 const cfg = (over: Partial<DialConfig> = {}): DialConfig => ({ item: 'X', ...over })
 
@@ -275,5 +255,26 @@ describe('sparkline', () => {
   it('answers nothing for nothing', () => {
     expect(sparkSegments([], 0, 40, 10, 10)).toEqual([])
     expect(sparkSegments([1, 2], 0, 0, 10, 10)).toEqual([])
+  })
+})
+
+describe('historyPeriodMs', () => {
+  it('reads the windows the gauge offers, and falls back to a day', () => {
+    expect(historyPeriodMs({ item: 'x', historyPeriod: '1h' })).toBe(3600_000)
+    expect(historyPeriodMs({ item: 'x' })).toBe(HISTORY_PERIODS['24h'])
+    expect(historyPeriodMs({ item: 'x', historyPeriod: 'nonsense' })).toBe(HISTORY_PERIODS['24h'])
+  })
+
+  /*
+   * Stored widget configuration, so the key is not one this code chose. A bare index finds an
+   * `Object.prototype` member, which is not nullish, so the `??` fallback never fires and
+   * `Date.now() - <function>` is NaN - `new Date(NaN).toISOString()` then throws inside the
+   * history fetch, the surrounding try swallows it, and the sparkline silently never appears.
+   */
+  it('falls back for a window named after an Object.prototype member', () => {
+    for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      expect(historyPeriodMs({ item: 'x', historyPeriod: key })).toBe(HISTORY_PERIODS['24h'])
+      expect(Number.isFinite(Date.now() - historyPeriodMs({ item: 'x', historyPeriod: key }))).toBe(true)
+    }
   })
 })

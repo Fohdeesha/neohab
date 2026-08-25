@@ -176,6 +176,59 @@ try {
     }
   }
 
+  /*
+   * A widget's number field, typed into a digit at a time.
+   *
+   * It committed on every keystroke, so typing 150 into the min-50 Text size field applied 1,
+   * then 15, then 150 - and since every reader clamps, the widget visibly jumped to HALF SIZE
+   * on the first digit and back. Clicking away halfway left that 1 in the draft, where every
+   * later reader has to keep guarding it. `page.fill()` cannot see any of this: it delivers the
+   * whole value in one event, which is the one case that always worked.
+   *
+   * The field is found by its range rather than its label, so the check does not depend on the
+   * language the browser asks for.
+   */
+  {
+    await page.click('[aria-label="Add widget"], button:has-text("+") >> nth=0').catch(() => {})
+    await page.waitForSelector('.nh-palette__card', { timeout: 8000 }).catch(() => {})
+    await page.click('.nh-palette__card:has(.nh-palette__name:text-is("Label"))', { timeout: 8000 }).catch(() => {})
+    await sleep(500)
+    const cells = await page.locator('.nh-grid--edit .nh-cell').count()
+    await page.click(`.nh-grid--edit .nh-cell >> nth=${cells - 1} >> .nh-cell__grip`).catch(() => {})
+    await sleep(450)
+
+    const size = page.locator('.nh-sheet input[type="number"][min="50"][max="300"]').first()
+    const scaleOf = () =>
+      page.evaluate((n) => {
+        const cell = document.querySelectorAll('.nh-grid--edit .nh-cell')[n - 1]
+        return cell ? (getComputedStyle(cell).getPropertyValue('--nh-widgetscale').trim() || 'unset') : 'no-cell'
+      }, cells)
+
+    if (await size.count()) {
+      await size.click()
+      await size.press('Control+a')
+      await size.press('Backspace')
+      await sleep(200)
+      const seen = []
+      const scales = []
+      for (const digit of ['1', '5', '0']) {
+        await size.type(digit, { delay: 80 })
+        await sleep(250)
+        seen.push(await size.inputValue())
+        scales.push(await scaleOf())
+      }
+      ok('a number field can be typed into a digit at a time', seen.join(',') === '1,15,150', seen.join(','))
+      // "1" and "15" are below the field's own minimum of 50. Committing them made the widget
+      // render at the clamped floor of 0.5 while the user was still typing.
+      ok(
+        'a half-typed value below the minimum is not applied',
+        scales[0] !== '0.5' && scales[1] !== '0.5',
+        'after 1/15/150: ' + scales.join(' -> ')
+      )
+      ok('the finished value is applied', scales[2] === '1.5', 'after 1/15/150: ' + scales.join(' -> '))
+    }
+  }
+
   ok('every widget was inspected', inspected >= names.length - 1, `${inspected} of ${names.length}`)
   ok('no control is pushed outside the settings panel', offenders.clipped.length === 0, offenders.clipped.slice(0, 4).join(' | '))
   ok(`no editable box is narrower than ${PANEL_MIN_CONTROL}px`, offenders.crushed.length === 0, offenders.crushed.slice(0, 4).join(' | '))

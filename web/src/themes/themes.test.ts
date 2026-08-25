@@ -9,7 +9,7 @@
  * The rules themselves are documented for theme authors in `docs/theming.md`.
  */
 import { describe, expect, it } from 'vitest'
-import { BUILTIN_THEMES, BUILTIN_THEME_IDS, listThemes, resolveTheme, themeCss, type Theme } from './themes'
+import { BUILTIN_THEME_IDS, BUILTIN_THEMES, listThemes, resolveTheme, themeCss, type Theme } from './themes'
 import { checkThemeCss, describeIssue, parseRules, type RuleId } from './cssRules'
 import { TOKEN_SPECS, isUsableTokenValue } from './tokens'
 import { THEME_MAP } from '../importer/habpanel'
@@ -292,5 +292,35 @@ describe('the token contract', () => {
     expect(isUsableTokenValue('')).toBe(false)
     expect(isUsableTokenValue(undefined)).toBe(false)
     expect(isUsableTokenValue('x'.repeat(500))).toBe(false)
+  })
+})
+
+describe('themeCss', () => {
+  it('has no stylesheet for a theme that names none', () => {
+    return expect(themeCss({ id: 't', name: 'T', scheme: 'dark', tokens: {} })).resolves.toBeUndefined()
+  })
+
+  it('returns an inline stylesheet as it stands', async () => {
+    expect(await themeCss({ id: 't', name: 'T', scheme: 'dark', tokens: {}, css: 'body{}' })).toBe('body{}')
+  })
+
+  /*
+   * `cssModule` comes off a stored theme component, so the key is not one this code chose. A bare
+   * index answers with an `Object.prototype` member, the `if (!load)` guard does not fire for a
+   * function, and `await load()` then calls `Object(...)` and hands back `{}` to be used as CSS.
+   */
+  it('has no stylesheet for a module named after an Object.prototype member', async () => {
+    for (const key of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      const css = await themeCss({
+        id: 't',
+        name: 'T',
+        scheme: 'dark',
+        tokens: {},
+        cssModule: key as never,
+      })
+      expect(css === undefined || typeof css === 'string').toBe(true)
+      expect(typeof css).not.toBe('object')
+      expect(css).toBeUndefined()
+    }
   })
 })

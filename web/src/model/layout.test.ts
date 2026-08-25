@@ -207,6 +207,39 @@ describe('accent ink', () => {
   })
 })
 
+/*
+ * The shapes a stored dashboard can have that the editor never writes. A widget with no `layout`
+ * key at all, and a `widgets` that is not a list, both come from the same place as every other
+ * case in this file: a backup, a partial export, a hand edit or a half-finished migration. Each
+ * of these threw before it was guarded, and a throw here is not one tile - it is the whole
+ * dashboard view, above every widget boundary there is.
+ */
+describe('a dashboard whose shape is wrong', () => {
+  const shapeless = { id: 'a', type: 'label', config: {} } as unknown as WidgetInstance
+
+  it('reads a widget with no layout key at all', () => {
+    expect(() => rectOf(shapeless)).not.toThrow()
+    expect(rectOf(shapeless)).toEqual({ x: 0, y: 0, w: 3, h: 3 })
+    expect(rectOf({ ...shapeless, layout: null } as unknown as WidgetInstance)).toEqual({ x: 0, y: 0, w: 3, h: 3 })
+  })
+
+  it('treats a widgets list that is not a list as empty, rather than throwing', () => {
+    for (const widgets of [{}, null, undefined, 'two', 42]) {
+      const d = dash([], { widgets } as unknown as Partial<Dashboard>)
+      expect(() => stackedOrder(d)).not.toThrow()
+      expect(stackedOrder(d)).toEqual([])
+      expect(() => findFreeSpot(d, 2, 2)).not.toThrow()
+      expect(findFreeSpot(d, 2, 2)).toEqual({ x: 0, y: 0, w: 2, h: 2 })
+      expect(() => tabletRects({ ...d, mdColumns: 6 })).not.toThrow()
+    }
+  })
+
+  it('draws no panel frames for a widgets list that is not a list', () => {
+    expect(() => groupFrames({} as never)).not.toThrow()
+    expect(groupFrames({} as never)).toEqual([])
+  })
+})
+
 describe('clampRect', () => {
   it('keeps a rect inside the grid', () => {
     expect(clampRect({ x: 10, y: 0, w: 6, h: 2 }, 12)).toEqual({ x: 6, y: 0, w: 6, h: 2 })
@@ -234,6 +267,27 @@ describe('findFreeSpot', () => {
     const d = dash([broken as unknown as WidgetInstance], { columns: 4 })
     const spot = findFreeSpot(d, 2, 2)
     for (const v of Object.values(spot)) expect(Number.isFinite(v)).toBe(true)
+  })
+
+  /*
+   * A pasted payload is untrusted: `JSON.parse('{"w":1e999}')` gives Infinity, which `parseClipboard`
+   * used to accept as "a number". `Math.max(1, Math.min(NaN, columns))` is NaN, so the x loop's
+   * condition is false, the search falls straight through to its final return, and the NaN size
+   * goes on to be written into the dashboard.
+   */
+  it('answers with a usable rect even when asked for a size that is not a number', () => {
+    for (const [width, height] of [
+      [NaN, NaN],
+      [Infinity, Infinity],
+      [-Infinity, 3],
+      [2, NaN],
+    ]) {
+      const r = findFreeSpot(dash([]), width, height)
+      for (const v of [r.x, r.y, r.w, r.h]) expect(Number.isFinite(v)).toBe(true)
+      expect(r.w).toBeGreaterThanOrEqual(1)
+      expect(r.h).toBeGreaterThanOrEqual(1)
+      expect(r.x + r.w).toBeLessThanOrEqual(12)
+    }
   })
 
   it('narrows a widget too wide for the grid rather than overflowing it', () => {
@@ -317,6 +371,42 @@ describe('the tablet layout', () => {
     const d = dash([widget], { columns: 12, mdColumns: 4 })
     expect(tabletRects(d).get('a')!.w).toBeLessThanOrEqual(4)
     expect(projectDashboard(d, 'md').columns).toBe(4)
+  })
+
+  /*
+   * `rectOf` repairs `layout.lg` field by field because stored configuration is untrusted, and
+   * `clampRect` CLAMPS but does not REPAIR: `Math.min('wide', 12)` is NaN, and NaN survives every
+   * comparison after it. The tablet slot was the one rect reader with no repair, and
+   * `setEditBreakpoint` writes the result straight back into the saved dashboard.
+   */
+  it('repairs a stored tablet rect whose fields are not numbers, in both branches', () => {
+    const hostile = { x: 'left', y: 0, w: 'wide', h: 2 } as unknown as Rect
+    for (const mdColumns of [6, 12]) {
+      const widget: WidgetInstance = {
+        id: 'a',
+        type: 'label',
+        config: {},
+        layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: hostile },
+      }
+      const rect = tabletRects(dash([widget], { columns: 12, mdColumns })).get('a')!
+      for (const v of [rect.x, rect.y, rect.w, rect.h]) expect(Number.isFinite(v)).toBe(true)
+      expect(rect.w).toBeGreaterThanOrEqual(1)
+      expect(rect.h).toBeGreaterThanOrEqual(1)
+      expect(rect.x).toBeGreaterThanOrEqual(0)
+      expect(rect.x + rect.w).toBeLessThanOrEqual(mdColumns)
+    }
+  })
+
+  it('carries no NaN into the rects a grid is rendered from', () => {
+    const widget: WidgetInstance = {
+      id: 'a',
+      type: 'label',
+      config: {},
+      layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { w: null } as unknown as Rect },
+    }
+    const projected = projectDashboard(dash([widget], { columns: 12, mdColumns: 6 }), 'md')
+    const r = projected.widgets[0].layout.lg!
+    for (const v of [r.x, r.y, r.w, r.h]) expect(Number.isFinite(v)).toBe(true)
   })
 
   it('reflows into a narrower grid without overlapping', () => {

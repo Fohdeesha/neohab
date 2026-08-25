@@ -70,6 +70,42 @@ describe('numericValue', () => {
   })
 })
 
+/*
+ * An ItemState whose `state` is missing. The prototype-free state map (model/lookup.ts) is what
+ * stops the app handing these helpers `Object.prototype.constructor` for an untracked item, but
+ * these are the app's most-called readers and a malformed server response, a stubbed state in a
+ * test, or a stored fixture can produce the same shape. Every other reader here degrades; `isOn`
+ * used to be the one that threw, and a Switch bound to such an item rendered the error tile.
+ */
+describe('the readers survive a state object with no state in it', () => {
+  const broken = [
+    undefined,
+    null,
+    {},
+    { state: undefined },
+    { state: null },
+    { state: 42 },
+    { displayState: 'ON' },
+  ] as unknown as (ItemState | undefined)[]
+
+  it('isOn answers false rather than throwing', () => {
+    for (const st of broken) {
+      expect(() => isOn(st)).not.toThrow()
+      expect(isOn(st)).toBe(false)
+    }
+  })
+
+  it('displayValue falls back', () => {
+    for (const st of broken) expect(() => displayValue(st)).not.toThrow()
+    expect(displayValue({} as ItemState)).toBe('-')
+  })
+
+  it('numericValue answers undefined', () => {
+    for (const st of broken) expect(() => numericValue(st)).not.toThrow()
+    expect(numericValue({} as ItemState)).toBeUndefined()
+  })
+})
+
 describe('isOn', () => {
   it('reads switches, dimmers and colours', () => {
     expect(isOn(state({ state: 'ON' }))).toBe(true)
