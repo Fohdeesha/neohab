@@ -5832,32 +5832,77 @@ button {
   }
 }
 
-/* The swatch stops being able to hold the on/off buttons long before it stops being drawn: the
-   swatch row is whatever is left after the three sliders, and two buttons are taller than that in
-   a short tile. So they drop down beside the sliders here, while the swatch is still on screen
-   above them.
+/* The swatch stops being able to hold the two buttons STACKED long before it stops being drawn:
+   the swatch row is whatever is left after the three sliders, and one above the other is taller
+   than that in a short tile. So they lie down instead of leaving - same place, same end of the
+   swatch, one row - because the swatch is where they belong and a tile of this height is the
+   common case, not the corner.
 
    The threshold is measured, and in em because the buttons are sized in em: a px one would be
    right at 100% text and wrong at every other size a person can set. Sweeping cell heights with
-   this rule forced off, they fit on the swatch from 188px at a 16px cell font and from 248px at
-   32px - a boundary of 3.75em + 122px - so this is that with a little headroom, which errs toward
-   moving them down a touch early rather than squeezing them onto a swatch too small. */
+   this rule forced off, a stack fits from 188px at a 16px cell font and from 248px at 32px - a
+   boundary of 3.75em + 122px - so this is that with a little headroom. */
 @container (max-height: calc(4em + 126px)) {
+  .nh-color__aside {
+    flex-direction: row;
+    align-items: center;
+    padding: 3px 6px;
+  }
+
+  /* A smaller face, because the thing that has to fit is the thing that gives way: a phone's
+     colour tile is 150px of stacked row whatever the dashboard says, which leaves a swatch of
+     27px, and at this size the pair sits on it with 3px of colour above and below. Slimming the
+     three sliders instead would have bought the same room by taking it from the control the
+     widget is for. And "Off" is three characters, so side by side the pair should be the width of
+     its words rather than two matched blocks eating the swatch. */
+  .nh-color--aside .nh-color__pbtn {
+    min-width: 0;
+    font-size: 0.72em;
+    padding: 0.3em 0.55em;
+  }
+}
+
+/* Narrow AND lying down: measured on a real tile, the pair is 66px of buttons in a 90px box, so a
+   cell narrower than about 108px cannot hold it at the end of its own swatch and it would hang off
+   into the tile's own overflow. There it spans the swatch instead, two equal buttons across it,
+   which cannot overflow whatever the width. This is that with headroom. */
+@container (max-width: 130px) and (max-height: calc(4em + 126px)) {
+  .nh-color--aside .nh-color__aside {
+    grid-column: 1 / -1;
+  }
+
+  .nh-color--aside .nh-color__pbtn {
+    flex: 1 1 0;
+  }
+}
+
+/* Shorter still: now the swatch itself is too short to hold even a single row of buttons without
+   drawing them over the top of the hue slider, so this is where they finally leave it and go
+   beside the sliders, while the swatch is still on screen above them.
+
+   Measured the same way, with the row forced on at every height and the clearance read off each
+   one: the row keeps at least 2px of swatch above and below it from a cell of 152px at a 16px
+   font and 184px at 32px, which is this. It overlaps the sliders 4px below that, so the margin is
+   small and deliberate - erring the other way would push a phone's colour tile, which is 150px of
+   stacked row whatever the dashboard says, back off the swatch. */
+@container (max-height: calc(2.2em + 112px)) {
   .nh-color--aside .nh-color__aside {
     grid-row: 2;
     grid-column: 2;
+    flex-direction: column;
+    align-items: stretch;
     padding: 0 0 0 8px;
   }
 
-  /* Now they ARE beside each other, so the sliders give up the column - and the buttons give up
-     their minimum width, because "Off" is three characters and a narrow tile needs the room for
-     the sliders far more than the buttons need to be the same width as each other. */
+  /* Now they ARE beside each other, so the sliders give up the column. */
   .nh-color--aside .nh-color__channels {
     grid-column: 1;
   }
 
+  /* Back to the full face: the row shrank to fit a swatch, and there is no swatch under them
+     here - the height they have is the slider stack's, which is 72px whatever the tile does. */
   .nh-color--aside .nh-color__pbtn {
-    min-width: 0;
+    font-size: 0.8em;
     padding: 0.45em 0.5em;
   }
 }
@@ -5899,13 +5944,13 @@ button {
    left the three sliders 43px of a 97px cell, which is not a control any more. So there they go
    under the sliders as a row instead.
 
-   Bounded at both ends, and both bounds are measured. Above: a tall narrow tile has them on the
+   Bounded at both ends, and both bounds are measured. Above: a taller narrow tile has them on the
    swatch, where the sliders span the full width and nothing is competing. Below: a tile that is
    ALSO short cannot hold three sliders and a row of buttons at all - a 97x108 cell has 69px of
    room for 84px of content, and the buttons hung 14px past its edge, where the tile clips them.
    There they stay beside the sliders: cramped at 43px, which is poor, but every control is on
    screen and reachable, which a clipped one is not. */
-@container (min-height: 131px) and (max-width: 130px) and (max-height: calc(4em + 126px)) {
+@container (min-height: 131px) and (max-width: 130px) and (max-height: calc(2.2em + 112px)) {
   .nh-color--aside {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5927,8 +5972,9 @@ button {
 }
 
 /* Off the swatch, the buttons are on the widget's own surface, so they take the theme's colours -
-   the swatch ink was chosen to be read against a colour that is no longer behind them. */
-@container (max-height: calc(4em + 126px)) {
+   the swatch ink was chosen to be read against a colour that is no longer behind them. Bound
+   matches the one that moves them, or a button would take the wrong colours for its surface. */
+@container (max-height: calc(2.2em + 112px)) {
   .nh-color--aside .nh-color__pbtn {
     border-color: var(--nh-border);
     background: var(--nh-surface-2);

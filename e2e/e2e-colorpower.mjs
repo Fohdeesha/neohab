@@ -237,19 +237,24 @@ try {
         name: 'E2E Colour Power',
         columns: 12,
         // Fixed rather than 'match', so the short-tile checks get the heights they are about
-        // whatever width the browser happens to have. 60px rows, 8px gaps.
-        rowHeight: 50,
+        // whatever width the browser happens to have - and a fixed row height pins the text scale
+        // at 1, so a cell font is 16px and the em thresholds land where these comments say.
+        // 40px rows and 8px gaps, so a tile of h rows is 48h - 8 px tall.
+        rowHeight: 40,
         gap: 8,
         widgets: [
-          widget('w-pwr', 'Lamp', { powerButtons: true }, 0, 0, 6), // 340px: buttons on the swatch
-          widget('w-plain', 'Plain', {}, 4, 0, 6), // the picker as it has always been
-          widget('w-mid', 'Mid', { powerButtons: true }, 8, 0, 3), // 166px: swatch drawn, too short to hold them
-          widget('w-short', 'Short', { powerButtons: true }, 8, 3, 2), // 108px: swatch shed entirely
-          // Narrow AND short: the one layout where the buttons share a row with the sliders, so
-          // the only one where their column can eat the width the sliders need.
-          { ...widget('w-narrow', 'Narrow', { powerButtons: true }, 0, 6, 3), layout: { lg: { x: 0, y: 6, w: 1, h: 3 } } },
+          widget('w-pwr', 'Lamp', { powerButtons: true }, 0, 0, 8), // 376px: stacked on the swatch
+          widget('w-plain', 'Plain', {}, 4, 0, 8), // the picker as it has always been
+          widget('w-row', 'Row', { powerButtons: true }, 8, 0, 4), // 184px: too short to stack, so a row on it
+          widget('w-mid', 'Mid', { powerButtons: true }, 8, 4, 3), // 136px: swatch too short for even a row
+          widget('w-short', 'Short', { powerButtons: true }, 8, 7, 2), // 88px: swatch shed entirely
+          // Narrow, at both of the heights that put the buttons somewhere different: the row has
+          // to fit across a swatch this wide, and beside the sliders it must not eat the width
+          // they need.
+          { ...widget('w-nrow', 'NarrowRow', { powerButtons: true }, 0, 8, 4), layout: { lg: { x: 0, y: 8, w: 1, h: 4 } } },
+          { ...widget('w-narrow', 'Narrow', { powerButtons: true }, 1, 8, 3), layout: { lg: { x: 1, y: 8, w: 1, h: 3 } } },
           // Anything at all can be in a stored config, and only `true` may switch a control on.
-          widget('w-hostile', 'Hostile', { powerButtons: 'yes' }, 1, 6, 5),
+          widget('w-hostile', 'Hostile', { powerButtons: 'yes' }, 2, 8, 5),
         ],
       },
     }),
@@ -453,12 +458,47 @@ try {
     )
   }
 
-  /* ---------------- E. short tiles keep the buttons ---------------- */
-  // The swatch is shed below 130px so the sliders stay usable, and it stops being able to HOLD the
-  // buttons well before that. Either way a short colour tile must still be able to switch the lamp
-  // off, so they move beside the sliders rather than going with the swatch.
+  /* ---------------- E. shorter tiles keep the buttons, and keep them on the swatch ------------ */
+  // The buttons belong on the swatch, so they stay there as the tile shrinks: first standing up,
+  // then lying down. They leave only when the swatch is too short to hold a single row without
+  // being drawn over the top of the hue slider, and there a colour tile must still be able to
+  // switch the lamp off, so they go beside the sliders rather than going with the swatch.
+  const onSwatch = (r) =>
+    r?.boxes?.length === 2 &&
+    !!r.swatchBox &&
+    r.boxes.every(
+      (b) =>
+        b.y >= r.swatchBox.y - 1 &&
+        b.y + b.h <= r.swatchBox.y + r.swatchBox.h + 1 &&
+        b.x >= r.swatchBox.x - 1 &&
+        b.x + b.w <= r.swatchBox.x + r.swatchBox.w + 1
+    )
+
+  const row = await probe(page, readButtons, 'Row')
+  ok('a tile too short to stack them keeps both buttons', row?.count === 2, 'count=' + (row?.count ?? 'none'))
+  ok(
+    'lying down on the swatch rather than moving off it',
+    onSwatch(row) && Math.abs(row.boxes[0].y - row.boxes[1].y) <= 1,
+    JSON.stringify({ swatch: row?.swatchBox, btns: row?.boxes })
+  )
+  ok(
+    'at the right-hand end of it, with the sliders still spanning the tile',
+    onSwatch(row) &&
+      // Side by side, so it is the pair that ends at the swatch's end, not each of them.
+      row.swatchBox.x + row.swatchBox.w - Math.max(...row.boxes.map((b) => b.x + b.w)) <= 14 &&
+      row.channelsBox.w >= row.swatchBox.w - 1,
+    JSON.stringify({ ends: row?.boxes?.map((b) => b.x + b.w), sliders: row?.channelsBox?.w, swatch: row?.swatchBox?.w })
+  )
+  // What a threshold set too low would produce: a row that is still in the swatch's grid row while
+  // being drawn across the top slider.
+  ok(
+    'and clear of the sliders underneath',
+    row?.channelsBox && row.boxes?.length === 2 && row.boxes.every((b) => b.y + b.h <= row.channelsBox.y + 1),
+    JSON.stringify({ btns: row?.boxes?.map((b) => b.y + b.h), sliders: row?.channelsBox?.y })
+  )
+
   const mid = await probe(page, readButtons, 'Mid')
-  ok('a tile too short for buttons on the swatch still has them', mid?.count === 2, 'count=' + (mid?.count ?? 'none'))
+  ok('a tile too short even for that still has them', mid?.count === 2, 'count=' + (mid?.count ?? 'none'))
   ok('and still draws the swatch above them', mid?.swatchShown === true, 'swatchShown=' + mid?.swatchShown)
   ok(
     'with the buttons beside the sliders instead',
@@ -475,8 +515,18 @@ try {
     JSON.stringify({ sliders: short?.sliders, channels: short?.channelsBox, btn: short?.boxes?.[0] })
   )
 
-  // A narrow tile is the case where the buttons and the sliders compete for width. The sliders are
-  // the control; the buttons must not squeeze them out of usefulness.
+  // A narrow tile is where the row and the swatch it lies on compete for width: the pair is about
+  // 90px of buttons and a one-column cell has less than that to give, so there they spread across
+  // the swatch instead of hanging off the end of it.
+  const nrow = await probe(page, readButtons, 'NarrowRow')
+  ok(
+    'a narrow tile spreads the row across its swatch',
+    onSwatch(nrow) && nrow.boxes[0].w + nrow.boxes[1].w >= nrow.swatchBox.w * 0.6,
+    JSON.stringify({ cell: nrow?.cellBox?.w, swatch: nrow?.swatchBox?.w, btns: nrow?.boxes?.map((b) => b.w) })
+  )
+
+  // Beside the sliders, the sliders are the control; the buttons must not squeeze them out of
+  // usefulness.
   const narrow = await probe(page, readButtons, 'Narrow')
   ok(
     'in a narrow short tile the sliders keep most of the width',
@@ -491,7 +541,7 @@ try {
   // a weather panel, a player's transport and a clock.
   const spills = []
   let measured = 0
-  for (const label of ['Lamp', 'Mid', 'Short', 'Narrow']) {
+  for (const label of ['Lamp', 'Row', 'Mid', 'Short', 'NarrowRow', 'Narrow']) {
     const r = await probe(page, readButtons, label)
     if (!r?.cellBox) continue
     for (const b of [...(r.boxes ?? []), r.channelsBox].filter(Boolean)) {
@@ -500,11 +550,11 @@ try {
       if (past > 1) spills.push(label + ' past by ' + Math.round(past))
     }
   }
-  // Twelve boxes: two buttons and a slider stack in each of the four tiles. Counted, so "nothing
+  // Eighteen boxes: two buttons and a slider stack in each of the six tiles. Counted, so "nothing
   // spilled" cannot quietly mean "there was nothing to spill".
   ok(
     'nothing hangs outside its tile at any of those shapes',
-    measured === 12 && spills.length === 0,
+    measured === 18 && spills.length === 0,
     'measured=' + measured + ' ' + spills.join(', ')
   )
 
