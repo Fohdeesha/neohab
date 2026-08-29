@@ -233,7 +233,7 @@ function renderControl(
 ) {
   switch (control.kind) {
     case 'color':
-      return <ColorControl item={name} ctx={ctx} />
+      return <ColorControl item={name} ctx={ctx} power={control.power === true} />
     case 'range':
       return (
         <RangeControl item={name} ctx={ctx} min={control.min} max={control.max} step={control.step} unit={control.unit} />

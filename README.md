@@ -136,6 +136,11 @@ translate it.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.
+- **Colour.** Hue, saturation and brightness on three tracks, each showing what dragging it would
+  do at the other two. Optionally a pair of buttons sits on the swatch: Off switches the light off
+  and openHAB keeps its colour, so every panel still shows what it will come back to, and On
+  restores the brightness it was last seen at instead of jumping to full. That takes no extra
+  openHAB item and writes nothing to the server.
 - **Floor plan.** Upload a plan of your home (any image; a styling pipeline re-inks it to match
   the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
   brightness, thrown in every direction or out of one side only for a sconce or a cove, and

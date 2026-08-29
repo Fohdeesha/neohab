@@ -8,6 +8,7 @@
  * wheel, saturation = gray to pure colour, brightness = black to full colour.
  */
 import { hsbToCss, type Hsb } from '../../model/color'
+import { DARK_INK, readableInk } from '../../themes/contrast'
 
 export function ColorSliders({
   hsb,
@@ -15,6 +16,7 @@ export function ColorSliders({
   onInput,
   onCommit,
   onKeyCommit,
+  aside,
 }: {
   hsb: Hsb
   disabled?: boolean
@@ -24,7 +26,15 @@ export function ColorSliders({
   onCommit?: (next: Hsb) => void
   /** Key release, with the key, so a caller can coalesce arrow stepping into one command. */
   onKeyCommit?: (key: string, next: Hsb) => void
+  /**
+   * Controls drawn at the right-hand end of the swatch - the colour widget's on and off buttons.
+   * Passed in rather than built here because they command an item, and this module deliberately
+   * knows nothing about one. Absent everywhere it is not asked for, so a picker without it renders
+   * exactly as it always has.
+   */
+  aside?: React.ReactNode
 }) {
+  const swatch = hsbToCss(hsb)
   const trackFor = (key: keyof Hsb): string => {
     if (key === 'h') {
       const stops = [0, 60, 120, 180, 240, 300, 360]
@@ -55,9 +65,19 @@ export function ColorSliders({
     />
   )
 
+  // Anything drawn on the swatch sits on a colour the user picked, which can be any colour at all,
+  // so it takes its ink from that colour rather than from the theme - white on a deep blue, near
+  // black on a pale amber. The theme decides everything else about those controls; this decides
+  // only what can be read on top of the one surface no theme knows in advance.
+  const ink = (aside ? readableInk(swatch) : null) ?? '#ffffff'
+  const inkStyle = aside
+    ? ({ '--nh-swatch-ink': ink, '--nh-swatch-ink-inv': ink === '#ffffff' ? DARK_INK : '#ffffff' } as React.CSSProperties)
+    : undefined
+
   return (
-    <div className="nh-color">
-      <div className="nh-color__swatch" style={{ background: hsbToCss(hsb) }} />
+    <div className={'nh-color' + (aside ? ' nh-color--aside' : '')} style={inkStyle}>
+      <div className="nh-color__swatch" style={{ background: swatch }} />
+      {aside ? <div className="nh-color__aside">{aside}</div> : null}
       <div className="nh-color__channels">
         {channel('h', 360)}
         {channel('s', 100)}

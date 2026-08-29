@@ -41,7 +41,11 @@ export type ItemControl =
   | ItemRange
   | { kind: 'onoff'; on: string; off: string }
   | { kind: 'choices'; choices: ItemChoice[] }
-  | { kind: 'color' }
+  /**
+   * The colour picker. `power` asks for the widget's own on and off buttons on the swatch, so a
+   * long press on a colour tile that has them offers the same control the tile does.
+   */
+  | { kind: 'color'; power?: boolean }
 
 /**
  * A stored value as a finite number, or the fallback. Configuration that did not come from the
