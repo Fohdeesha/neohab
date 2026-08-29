@@ -329,6 +329,12 @@ describe('every widget settings schema', () => {
     expect(instanceControl('dial', { item: 'x', readOnly: true }, 'x')).toBeUndefined()
     // A colour picker even when the item is NULL and has no colour to read a shape from.
     expect(instanceControl('color', { item: 'x' }, 'x')).toEqual({ kind: 'color' })
+    // Its on/off buttons follow the widget's own setting, so a long press offers what the tile
+    // does - and only when they were actually asked for, so a plain picker is unchanged.
+    expect(instanceControl('color', { item: 'x', powerButtons: true }, 'x')).toEqual({ kind: 'color', power: true })
+    for (const stored of [false, 'true', 1, null, undefined]) {
+      expect(instanceControl('color', { item: 'x', powerButtons: stored }, 'x')).toEqual({ kind: 'color' })
+    }
     // A plan's lights are whatever the house has, and only the state can say.
     const plan = { lights: [{ item: 'lamp' }] }
     expect(instanceControl('floorplan', plan, 'lamp')).toEqual({ kind: 'auto' })

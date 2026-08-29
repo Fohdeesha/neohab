@@ -144,6 +144,13 @@ real server's `events.log` - onto two managed items it creates itself (`nh_e2e_f
 suite. It clicks nothing, commands are intercepted, and the count of them is one of its checks.
 Both items are deleted by name in cleanup, and it never touches file-provided items.
 
+`e2e-colorpower.mjs` drives the colour widget's on and off buttons against one managed Color item
+it creates itself (`nh_e2e_pwr`, bound to nothing), so its commands are real and reach openHAB but
+no device is involved. That is the point of the suite rather than a convenience: the feature rests
+on what openHAB's `ColorItem` does with OFF and ON, so the round trip has to be the server's own -
+a lamp at 40% has to come back at 40%, where a plain ON would return it at 100%. Deleted by name in
+cleanup, and it never touches a file-provided item.
+
 `e2e-panels.mjs` adds one of **every** widget the palette offers and measures its settings panel:
 nothing pushed outside the panel, no editable box too narrow to use, no select showing a blank
 row, no sideways scrolling. The widget list comes from the palette, so a widget added later is

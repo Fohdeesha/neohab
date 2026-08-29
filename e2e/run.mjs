@@ -42,6 +42,7 @@ const SAFE_SUITES = [
   'e2e-icons',
   'e2e-iconpacks',
   'e2e-hue',
+  'e2e-colorpower',
   'e2e-fade',
   'e2e-clocktime',
   'e2e-cmdfail',
