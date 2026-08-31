@@ -1,7 +1,7 @@
 {
   "name": "neohab-web",
   "private": true,
-  "version": "1.20.1",
+  "version": "1.21.0",
   "type": "module",
   "scripts": {
     "predev": "node scripts/stage-assets.mjs && node scripts/build-docs.mjs",
