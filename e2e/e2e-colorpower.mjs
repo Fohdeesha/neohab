@@ -260,18 +260,23 @@ try {
         gap: 8,
         widgets: [
           widget('w-pwr', 'Lamp', { powerButtons: true }, 0, 0, 8), // 376px: stacked on the swatch
-          widget('w-plain', 'Plain', {}, 4, 0, 8), // the picker as it has always been
+          widget('w-plain', 'Plain', { powerButtons: false }, 4, 0, 8), // the box unticked
           widget('w-tight', 'Tight', { powerButtons: true }, 8, 0, 4), // 184px: stacked on a tightened swatch
           widget('w-mid', 'Mid', { powerButtons: true }, 8, 4, 3), // 136px: swatch too short even for that
           widget('w-short', 'Short', { powerButtons: true }, 8, 7, 2), // 88px: swatch shed entirely
           // A plain picker at the SAME height as the tight one: the tile insets are given back to
           // a picker that has the buttons and to nothing else, and this is what says so.
-          widget('w-tightplain', 'TightPlain', {}, 0, 8, 4),
+          widget('w-tightplain', 'TightPlain', { powerButtons: false }, 0, 8, 4),
           // Two SHORT tiles, one of each: a stacked row takes the widget's own floor when the
           // dashboard asks for less than that, and 2 rows of 40px asks for a lot less. Anything
           // taller than the floor would hide the difference, which is what the first draft of the
           // check did - both tiles were 320px and it compared the seed with itself.
-          widget('w-shortplain', 'ShortPlain', {}, 0, 13, 2),
+          widget('w-shortplain', 'ShortPlain', { powerButtons: false }, 0, 13, 2),
+          // Storing NOTHING is the interesting case: the buttons are the widget's default, so a
+          // picker made without touching the setting has them - and the row beneath it on a phone
+          // has to be the height that fits them, which is a different code path from the drawing.
+          widget('w-default', 'Default', {}, 4, 13, 8),
+          widget('w-shortdefault', 'ShortDefault', {}, 6, 15, 2),
           // Narrow, at both of the heights that put the buttons somewhere different: the pair has
           // to fit a swatch this wide, and beside the sliders it must not eat the width they need.
           { ...widget('w-nrow', 'NarrowTight', { powerButtons: true }, 4, 8, 4), layout: { lg: { x: 4, y: 8, w: 1, h: 4 } } },
@@ -311,9 +316,17 @@ try {
   // happily on a build that draws them nowhere - which is what the control run showed.
   const plain = await probe(page, readButtons, 'Plain')
   ok(
-    'a picker that did not ask for them draws none',
+    'a picker with the box unticked draws none',
     pwr?.count === 2 && plain?.count === 0,
     'powered=' + pwr?.count + ' plain=' + plain?.count
+  )
+
+  // The default, which is what a widget dragged out of the palette gets.
+  const dflt = await probe(page, readButtons, 'Default')
+  ok(
+    'a picker that stores nothing draws them anyway',
+    dflt?.count === 2 && dflt?.aside === true && plain?.count === 0,
+    'default=' + dflt?.count + ' aside=' + dflt?.aside + ' unticked=' + plain?.count
   )
   ok(
     'and is not switched into the buttons layout at all',
@@ -623,6 +636,16 @@ try {
     'with all three sliders at their usual size under it',
     phonePowered?.sliders === 3 && phonePlain?.channelsBox && phonePowered.channelsBox.h === phonePlain.channelsBox.h,
     JSON.stringify({ sliders: phonePowered?.sliders, powered: phonePowered?.channelsBox?.h, plain: phonePlain?.channelsBox?.h })
+  )
+  // The floor is asked of the widget by the grid, which passes the STORED config, while the tile
+  // renders from that config under the definition's defaults. A picker storing nothing has to get
+  // the same row height as one storing `true`, or the buttons are drawn into a row sized for a
+  // picker without them.
+  const phoneDefault = await probe(page, readButtons, 'ShortDefault')
+  ok(
+    'a row for a picker that stores nothing is the taller one too',
+    phoneDefault?.cellBox && phonePowered?.cellBox && phoneDefault.cellBox.h === phonePowered.cellBox.h && phoneDefault.count === 2,
+    JSON.stringify({ default: phoneDefault?.cellBox?.h, powered: phonePowered?.cellBox?.h, plain: phonePlain?.cellBox?.h })
   )
   await page.setViewportSize({ width: 1280, height: 900 })
   await sleep(900)

@@ -333,11 +333,11 @@ describe('every widget settings schema', () => {
     expect(instanceControl('button', { item: 'x', command: 'ON', action: 'navigate' }, 'x')).toBeUndefined()
     // A read-only gauge is an instrument: it offers nothing, whatever its scale says.
     expect(instanceControl('dial', { item: 'x', readOnly: true }, 'x')).toBeUndefined()
-    // A colour picker even when the item is NULL and has no colour to read a shape from.
-    expect(instanceControl('color', { item: 'x' }, 'x')).toEqual({ kind: 'color' })
-    // Its on/off buttons follow the widget's own setting, so a long press offers what the tile
-    // does - and only when they were actually asked for, so a plain picker is unchanged.
+    // A colour picker even when the item is NULL and has no colour to read a shape from, and its
+    // on/off buttons by default, so a long press offers what the tile draws.
+    expect(instanceControl('color', { item: 'x' }, 'x')).toEqual({ kind: 'color', power: true })
     expect(instanceControl('color', { item: 'x', powerButtons: true }, 'x')).toEqual({ kind: 'color', power: true })
+    // Anything but `true` leaves them off, which is what unticking the box stores.
     for (const stored of [false, 'true', 1, null, undefined]) {
       expect(instanceControl('color', { item: 'x', powerButtons: stored }, 'x')).toEqual({ kind: 'color' })
     }
@@ -392,12 +392,22 @@ describe('every widget settings schema', () => {
     // its on and off buttons needs more room than one without them. Both answers are read from
     // the registry rather than from the widget module, so a definition that stopped declaring it
     // would fail here.
-    const plain = instanceMinHeight('color', {})
-    const powered = instanceMinHeight('color', { powerButtons: true })
-    expect(plain).toBeGreaterThan(0)
-    expect(powered).toBeGreaterThan(plain)
+    const off = instanceMinHeight('color', { powerButtons: false })
+    const on = instanceMinHeight('color', { powerButtons: true })
+    expect(off).toBeGreaterThan(0)
+    expect(on).toBeGreaterThan(off)
     // Only `true` switches the buttons on, so only `true` may ask for the taller row.
-    expect(instanceMinHeight('color', { powerButtons: 'yes' })).toBe(plain)
+    expect(instanceMinHeight('color', { powerButtons: 'yes' })).toBe(off)
+  })
+
+  it('resolves a definition default before asking the widget', () => {
+    // The grids hand these readers a stored config and the detail sheet hands them a merged one,
+    // so the merge belongs here or the two disagree: a picker that stores nothing draws the
+    // buttons, and the row beneath it has to be the height that fits them.
+    expect(instanceMinHeight('color', {})).toBe(instanceMinHeight('color', { powerButtons: true }))
+    expect(instanceControl('color', { item: 'X' }, 'X')).toEqual({ kind: 'color', power: true })
+    // And a stored key still wins over the default it is filling in for.
+    expect(instanceControl('color', { item: 'X', powerButtons: false }, 'X')).toEqual({ kind: 'color' })
   })
 
   it('answers a plain number, and nothing at all for a type it does not know', () => {
