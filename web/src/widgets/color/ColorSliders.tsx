@@ -8,7 +8,6 @@
  * wheel, saturation = gray to pure colour, brightness = black to full colour.
  */
 import { hsbToCss, type Hsb } from '../../model/color'
-import { DARK_INK, readableInk } from '../../themes/contrast'
 
 export function ColorSliders({
   hsb,
@@ -65,17 +64,8 @@ export function ColorSliders({
     />
   )
 
-  // Anything drawn on the swatch sits on a colour the user picked, which can be any colour at all,
-  // so it takes its ink from that colour rather than from the theme - white on a deep blue, near
-  // black on a pale amber. The theme decides everything else about those controls; this decides
-  // only what can be read on top of the one surface no theme knows in advance.
-  const ink = (aside ? readableInk(swatch) : null) ?? '#ffffff'
-  const inkStyle = aside
-    ? ({ '--nh-swatch-ink': ink, '--nh-swatch-ink-inv': ink === '#ffffff' ? DARK_INK : '#ffffff' } as React.CSSProperties)
-    : undefined
-
   return (
-    <div className={'nh-color' + (aside ? ' nh-color--aside' : '')} style={inkStyle}>
+    <div className={'nh-color' + (aside ? ' nh-color--aside' : '')}>
       <div className="nh-color__swatch" style={{ background: swatch }} />
       {aside ? <div className="nh-color__aside">{aside}</div> : null}
       <div className="nh-color__channels">

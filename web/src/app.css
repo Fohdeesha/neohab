@@ -1030,11 +1030,14 @@ button {
   min-height: 0;
 }
 
-/* Ink comes from the swatch, not from the theme: the surface underneath is a colour the user
-   picked and can be anything at all, so white on a deep blue and near-black on a pale amber.
-   `--nh-swatch-ink` and its opposite are set by ColorSliders from that colour; the fallbacks are
-   only reached if a browser cannot read the swatch back, and white on a colour is the safer half
-   of the guess. Everything else here follows the theme. */
+/* An ordinary button in the theme's own colours, the same two everywhere the pair is drawn. It
+   used to take its ink from the swatch, so that white on a dim lamp became near-black when the
+   lamp brightened - readable at every step and impossible to learn. A fixed pair is worth more
+   here than a perfectly judged one.
+
+   Opaque, so the colour underneath never shows through: `--nh-bg` is the base under the raised
+   surface, which matters only in the two HABPanel ports whose surfaces are deliberately smoked
+   glass, and is invisible everywhere else. */
 .nh-color__pbtn {
   appearance: none;
   -webkit-appearance: none;
@@ -1044,17 +1047,19 @@ button {
   padding: 0.45em 0.7em;
   min-width: 3.4em;
   border-radius: calc(var(--nh-radius) * 0.6);
-  border: 1px solid color-mix(in srgb, var(--nh-swatch-ink, #ffffff) 45%, transparent);
-  background: color-mix(in srgb, var(--nh-swatch-ink, #ffffff) 18%, transparent);
-  color: var(--nh-swatch-ink, #ffffff);
+  border: 1px solid var(--nh-border);
+  background-color: var(--nh-bg);
+  background-image: linear-gradient(var(--nh-surface-2), var(--nh-surface-2));
+  color: var(--nh-text);
   cursor: pointer;
 }
 
-/* The one in effect: solid, in the ink's own opposite, so it reads on any swatch colour. */
+/* The one in effect: the theme accent, like every other active control in the app. */
 .nh-color__pbtn--active {
-  background: var(--nh-swatch-ink, #ffffff);
-  border-color: var(--nh-swatch-ink, #ffffff);
-  color: var(--nh-swatch-ink-inv, #10161c);
+  background-color: var(--nh-primary);
+  background-image: none;
+  border-color: var(--nh-primary);
+  color: var(--nh-accent-ink);
 }
 
 .nh-color__pbtn:disabled {
@@ -5962,23 +5967,6 @@ button {
 
   .nh-color--aside .nh-color__pbtn {
     flex: 1 1 0;
-  }
-}
-
-/* Off the swatch, the buttons are on the widget's own surface, so they take the theme's colours -
-   the swatch ink was chosen to be read against a colour that is no longer behind them. Bound
-   matches the one that moves them, or a button would take the wrong colours for its surface. */
-@container (max-height: calc(3.75em + 104px)) {
-  .nh-color--aside .nh-color__pbtn {
-    border-color: var(--nh-border);
-    background: var(--nh-surface-2);
-    color: var(--nh-text);
-  }
-
-  .nh-color--aside .nh-color__pbtn--active {
-    background: var(--nh-primary);
-    border-color: var(--nh-primary);
-    color: var(--nh-accent-ink);
   }
 }
 

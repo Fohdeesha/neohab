@@ -121,11 +121,21 @@ const readButtons = (label) => {
       if (onSwatch) stack.push(sw)
       for (let el = onSwatch ? sw.parentElement : b.parentElement; el; el = el.parentElement) stack.push(el)
 
+      // A solid colour painted as a one-stop gradient sits ABOVE that element's own background
+      // colour, so it goes on the stack first. Reading only backgroundColor would report the base
+      // under an opaque plate and measure the text against a colour nobody sees.
+      const layersOf = (el) => {
+        const cs = getComputedStyle(el)
+        const grad = /linear-gradient\((rgba?\([^)]*\)|color\(srgb[^)]*\))/.exec(cs.backgroundImage)
+        return [grad ? read(grad[1]) : null, read(cs.backgroundColor)]
+      }
+
       let out = [0, 0, 0, 0]
       for (const el of stack) {
-        const layer = read(getComputedStyle(el).backgroundColor)
-        if (!layer) continue
-        out = over(out, layer)
+        for (const layer of layersOf(el)) {
+          if (!layer) continue
+          out = over(out, layer)
+        }
         if (out[3] >= 0.999) break
       }
       return 'rgb(' + out.slice(0, 3).map(Math.round).join(', ') + ')'
@@ -441,12 +451,15 @@ try {
   await fresh.close()
   await stateSettles('200,60,100')
 
-  /* ---------------- D. readable on any colour the user can pick ---------------- */
-  // The buttons sit on a swatch that can be any colour at all, so their ink is derived from it
-  // rather than from the theme. Both extremes, since one ink cannot serve both.
+  /* ---------------- D. the same two colours whatever the lamp is doing ---------------- */
+  // The buttons take the theme's colours and keep them: an earlier build derived the ink from the
+  // swatch, so the pair flipped between white and near-black as the lamp brightened - readable at
+  // every step and impossible to learn. Four swatches from near-black to near-white, because an
+  // opaque button reads the same on all of them and anything let through would not.
   // Past SETTLE_MS from the last press, or the first sample reads the colour the picker is still
   // holding from section B rather than the one just put on the item.
   await sleep(9000)
+  const seen = []
   for (const [name, state, expect] of [
     ['near-black', '240,90,4', 'rgb(1, 1, 10)'],
     ['near-white', '50,4,98', 'rgb(250, 248, 240)'],
@@ -458,9 +471,8 @@ try {
     // colour BEFORE it - which is what the first run of this section did.
     await sleep(2200)
     const r = await probe(page, readButtons, 'Lamp')
-    // Each button against what is actually behind IT: the active one has a solid plate of its own,
-    // the idle one is a wash over the swatch. Comparing either with the bare swatch measures the
-    // wrong pair - which is what the first run of this section did.
+    // Each button against what is actually behind IT: the active one has a plate of its own. And
+    // "behind" is geometric, not a walk up the ancestors, which goes past the swatch entirely.
     const idle = contrast(r?.ink?.[0], r?.bg?.[0])
     const active = contrast(r?.ink?.[1], r?.bg?.[1])
     ok(
@@ -469,7 +481,19 @@ try {
       r?.count === 2 && sameRgb(r.swatchBg, expect) && idle >= 4.5 && active >= 4.5,
       'idle=' + idle.toFixed(1) + ' active=' + active.toFixed(1) + ' swatch=' + r?.swatchBg + ' wanted=' + expect
     )
+    if (r?.count === 2) seen.push({ name, ink: r.ink, bg: r.bg })
   }
+  const first = seen[0]
+  const differs = seen.filter((s) => JSON.stringify(s.ink) !== JSON.stringify(first.ink) || JSON.stringify(s.bg) !== JSON.stringify(first.bg))
+  ok(
+    'the buttons are the same two colours on every one of them',
+    seen.length === 4 && differs.length === 0,
+    seen.length === 4
+      ? differs.length
+        ? differs.map((d) => d.name + ' ' + d.bg[0] + '/' + d.ink[0]).join(' | ') + ' vs ' + first.name + ' ' + first.bg[0] + '/' + first.ink[0]
+        : first.bg[0] + ' ink ' + first.ink[0] + ', active ' + first.bg[1] + ' ink ' + first.ink[1]
+      : 'only ' + seen.length + ' swatches read'
+  )
 
   /* ---------------- E. shorter tiles keep the buttons, and keep them on the swatch ------------ */
   // The buttons belong on the swatch, so they stay there as the tile shrinks: first standing up,
