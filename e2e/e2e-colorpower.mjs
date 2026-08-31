@@ -136,6 +136,12 @@ const readButtons = (label) => {
     swatchBg: swatch ? getComputedStyle(swatch).backgroundColor : '',
     channelsBox: box(channels),
     cellBox: box(host),
+    // The tile's own vertical inset, which is where the room for a stack in a short tile comes
+    // from, and which is given back only to a picker that has the buttons.
+    bodyPad: (() => {
+      const body = host.querySelector('.nh-widget__body')
+      return body ? parseFloat(getComputedStyle(body).paddingTop) : undefined
+    })(),
     aside: picker ? picker.className.includes('nh-color--aside') : false,
     sliders: host.querySelectorAll('.nh-color__track').length,
   }
@@ -245,16 +251,23 @@ try {
         widgets: [
           widget('w-pwr', 'Lamp', { powerButtons: true }, 0, 0, 8), // 376px: stacked on the swatch
           widget('w-plain', 'Plain', {}, 4, 0, 8), // the picker as it has always been
-          widget('w-row', 'Row', { powerButtons: true }, 8, 0, 4), // 184px: too short to stack, so a row on it
-          widget('w-mid', 'Mid', { powerButtons: true }, 8, 4, 3), // 136px: swatch too short for even a row
+          widget('w-tight', 'Tight', { powerButtons: true }, 8, 0, 4), // 184px: stacked on a tightened swatch
+          widget('w-mid', 'Mid', { powerButtons: true }, 8, 4, 3), // 136px: swatch too short even for that
           widget('w-short', 'Short', { powerButtons: true }, 8, 7, 2), // 88px: swatch shed entirely
-          // Narrow, at both of the heights that put the buttons somewhere different: the row has
-          // to fit across a swatch this wide, and beside the sliders it must not eat the width
-          // they need.
-          { ...widget('w-nrow', 'NarrowRow', { powerButtons: true }, 0, 8, 4), layout: { lg: { x: 0, y: 8, w: 1, h: 4 } } },
-          { ...widget('w-narrow', 'Narrow', { powerButtons: true }, 1, 8, 3), layout: { lg: { x: 1, y: 8, w: 1, h: 3 } } },
+          // A plain picker at the SAME height as the tight one: the tile insets are given back to
+          // a picker that has the buttons and to nothing else, and this is what says so.
+          widget('w-tightplain', 'TightPlain', {}, 0, 8, 4),
+          // Two SHORT tiles, one of each: a stacked row takes the widget's own floor when the
+          // dashboard asks for less than that, and 2 rows of 40px asks for a lot less. Anything
+          // taller than the floor would hide the difference, which is what the first draft of the
+          // check did - both tiles were 320px and it compared the seed with itself.
+          widget('w-shortplain', 'ShortPlain', {}, 0, 13, 2),
+          // Narrow, at both of the heights that put the buttons somewhere different: the pair has
+          // to fit a swatch this wide, and beside the sliders it must not eat the width they need.
+          { ...widget('w-nrow', 'NarrowTight', { powerButtons: true }, 4, 8, 4), layout: { lg: { x: 4, y: 8, w: 1, h: 4 } } },
+          { ...widget('w-narrow', 'Narrow', { powerButtons: true }, 5, 8, 3), layout: { lg: { x: 5, y: 8, w: 1, h: 3 } } },
           // Anything at all can be in a stored config, and only `true` may switch a control on.
-          widget('w-hostile', 'Hostile', { powerButtons: 'yes' }, 2, 8, 5),
+          widget('w-hostile', 'Hostile', { powerButtons: 'yes' }, 6, 8, 5),
         ],
       },
     }),
@@ -474,27 +487,45 @@ try {
         b.x + b.w <= r.swatchBox.x + r.swatchBox.w + 1
     )
 
-  const row = await probe(page, readButtons, 'Row')
-  ok('a tile too short to stack them keeps both buttons', row?.count === 2, 'count=' + (row?.count ?? 'none'))
+  const tight = await probe(page, readButtons, 'Tight')
+  ok('a tile too short for a comfortable stack keeps both buttons', tight?.count === 2, 'count=' + (tight?.count ?? 'none'))
   ok(
-    'lying down on the swatch rather than moving off it',
-    onSwatch(row) && Math.abs(row.boxes[0].y - row.boxes[1].y) <= 1,
-    JSON.stringify({ swatch: row?.swatchBox, btns: row?.boxes })
+    'standing one above the other on the swatch, off on top',
+    onSwatch(tight) && tight.boxes[0].y + tight.boxes[0].h <= tight.boxes[1].y + 1,
+    JSON.stringify({ swatch: tight?.swatchBox, btns: tight?.boxes })
   )
   ok(
     'at the right-hand end of it, with the sliders still spanning the tile',
-    onSwatch(row) &&
-      // Side by side, so it is the pair that ends at the swatch's end, not each of them.
-      row.swatchBox.x + row.swatchBox.w - Math.max(...row.boxes.map((b) => b.x + b.w)) <= 14 &&
-      row.channelsBox.w >= row.swatchBox.w - 1,
-    JSON.stringify({ ends: row?.boxes?.map((b) => b.x + b.w), sliders: row?.channelsBox?.w, swatch: row?.swatchBox?.w })
+    onSwatch(tight) &&
+      tight.boxes.every((b) => tight.swatchBox.x + tight.swatchBox.w - (b.x + b.w) <= 14) &&
+      tight.channelsBox.w >= tight.swatchBox.w - 1,
+    JSON.stringify({
+      ends: tight?.boxes?.map((b) => b.x + b.w),
+      sliders: tight?.channelsBox?.w,
+      swatch: tight?.swatchBox?.w,
+    })
   )
-  // What a threshold set too low would produce: a row that is still in the swatch's grid row while
-  // being drawn across the top slider.
+  // What a threshold set too low would produce: a pair still in the swatch's grid row while being
+  // drawn across the top slider.
   ok(
     'and clear of the sliders underneath',
-    row?.channelsBox && row.boxes?.length === 2 && row.boxes.every((b) => b.y + b.h <= row.channelsBox.y + 1),
-    JSON.stringify({ btns: row?.boxes?.map((b) => b.y + b.h), sliders: row?.channelsBox?.y })
+    tight?.channelsBox && tight.boxes?.length === 2 && tight.boxes.every((b) => b.y + b.h <= tight.channelsBox.y + 1),
+    JSON.stringify({ btns: tight?.boxes?.map((b) => b.y + b.h), sliders: tight?.channelsBox?.y })
+  )
+  // The room for it comes out of the tile's own insets, and only for a picker that has the
+  // buttons. A plain one at the same height is what proves the scoping: without it this would
+  // pass just as well on a build that tightened every widget in the dashboard.
+  const tightPlain = await probe(page, readButtons, 'TightPlain')
+  ok(
+    'the tile gives its insets back to the pair, and to no other picker',
+    tight?.bodyPad !== undefined &&
+      tightPlain?.bodyPad !== undefined &&
+      tight.bodyPad < tightPlain.bodyPad &&
+      tight.swatchBox.h > tightPlain.swatchBox.h,
+    JSON.stringify({
+      powered: { pad: tight?.bodyPad, swatch: tight?.swatchBox?.h },
+      plain: { pad: tightPlain?.bodyPad, swatch: tightPlain?.swatchBox?.h },
+    })
   )
 
   const mid = await probe(page, readButtons, 'Mid')
@@ -515,14 +546,13 @@ try {
     JSON.stringify({ sliders: short?.sliders, channels: short?.channelsBox, btn: short?.boxes?.[0] })
   )
 
-  // A narrow tile is where the row and the swatch it lies on compete for width: the pair is about
-  // 90px of buttons and a one-column cell has less than that to give, so there they spread across
-  // the swatch instead of hanging off the end of it.
-  const nrow = await probe(page, readButtons, 'NarrowRow')
+  // A narrow tile is where the pair and the sliders compete for width. Standing up it needs only
+  // one button's width, so it stays on the swatch and the sliders keep the tile.
+  const nrow = await probe(page, readButtons, 'NarrowTight')
   ok(
-    'a narrow tile spreads the row across its swatch',
-    onSwatch(nrow) && nrow.boxes[0].w + nrow.boxes[1].w >= nrow.swatchBox.w * 0.6,
-    JSON.stringify({ cell: nrow?.cellBox?.w, swatch: nrow?.swatchBox?.w, btns: nrow?.boxes?.map((b) => b.w) })
+    'a narrow tile still stacks it on the swatch',
+    onSwatch(nrow) && nrow.boxes[0].y + nrow.boxes[0].h <= nrow.boxes[1].y + 1,
+    JSON.stringify({ cell: nrow?.cellBox?.w, swatch: nrow?.swatchBox, btns: nrow?.boxes })
   )
 
   // Beside the sliders, the sliders are the control; the buttons must not squeeze them out of
@@ -537,11 +567,47 @@ try {
     JSON.stringify({ cell: narrow?.cellBox?.w, sliders: narrow?.channelsBox?.w, btns: narrow?.boxes?.[0]?.w })
   )
 
+  // The face is bigger than the tile's own text, and bigger in the tight tile than the 20px it
+  // used to be there, without reaching the size a tall tile draws.
+  ok(
+    'the pair is drawn at a size worth pressing',
+    tight?.boxes?.[0] && tight.boxes[0].h >= 22 && tight.boxes[0].h <= 25 && pwr?.boxes?.[0]?.h >= 26,
+    JSON.stringify({ tight: tight?.boxes?.[0]?.h, tall: pwr?.boxes?.[0]?.h })
+  )
+
+  /* ---------------- E2. a phone's row is 150px, so the widget asks for more ---------------- */
+  // Nothing in a dashboard decides the height of a stacked row: it is the widget's own floor, and
+  // 150px of it leaves a 27px swatch, which is enough for the sliders and a colour to look at and
+  // not enough to stand two buttons on. A picker showing them asks for the height they need, since
+  // the alternative is taking it from the sliders. Driven at a real phone width, where the app
+  // stacks whatever the dashboard's columns say.
+  await page.setViewportSize({ width: 393, height: 852 })
+  await sleep(900)
+  const phonePowered = await probe(page, readButtons, 'Short')
+  const phonePlain = await probe(page, readButtons, 'ShortPlain')
+  ok(
+    'a stacked colour row with the buttons is taller than one without',
+    phonePowered?.cellBox && phonePlain?.cellBox && phonePowered.cellBox.h > phonePlain.cellBox.h,
+    JSON.stringify({ powered: phonePowered?.cellBox?.h, plain: phonePlain?.cellBox?.h })
+  )
+  ok(
+    'and the pair stands on its swatch there too',
+    onSwatch(phonePowered) && phonePowered.boxes[0].y + phonePowered.boxes[0].h <= phonePowered.boxes[1].y + 1,
+    JSON.stringify({ swatch: phonePowered?.swatchBox, btns: phonePowered?.boxes })
+  )
+  ok(
+    'with all three sliders at their usual size under it',
+    phonePowered?.sliders === 3 && phonePlain?.channelsBox && phonePowered.channelsBox.h === phonePlain.channelsBox.h,
+    JSON.stringify({ sliders: phonePowered?.sliders, powered: phonePowered?.channelsBox?.h, plain: phonePlain?.channelsBox?.h })
+  )
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await sleep(900)
+
   // Nothing may hang outside its own tile at any of these sizes - the class this project has hit in
   // a weather panel, a player's transport and a clock.
   const spills = []
   let measured = 0
-  for (const label of ['Lamp', 'Row', 'Mid', 'Short', 'NarrowRow', 'Narrow']) {
+  for (const label of ['Lamp', 'Tight', 'Mid', 'Short', 'NarrowTight', 'Narrow']) {
     const r = await probe(page, readButtons, label)
     if (!r?.cellBox) continue
     for (const b of [...(r.boxes ?? []), r.channelsBox].filter(Boolean)) {

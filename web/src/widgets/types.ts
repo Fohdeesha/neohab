@@ -128,8 +128,12 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   /**
    * Smallest pixel height at which the widget is fully usable. The mobile stacked view uses
    * it as a floor so short grid cells never clip controls on phones.
+   *
+   * A function when the instance's own settings change the answer: a colour picker showing its
+   * on and off buttons needs more room than one without them, and the floor is the only lever a
+   * widget has over a stacked row, whose height nothing else in the dashboard decides.
    */
-  minPixelHeight?: number
+  minPixelHeight?: number | ((config: C) => number)
   /**
    * True when the widget shows its Name as the shared frame's header row. Header widgets get
    * the universal "Show the name" / "Name alignment" / "Name position" settings; widgets whose

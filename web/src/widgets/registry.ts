@@ -36,6 +36,16 @@ export function itemsForInstance(type: string, config: Record<string, unknown>):
 }
 
 /**
+ * The floor this instance needs in the stacked view. See `WidgetDefinition.minPixelHeight`: a
+ * widget may answer from its own config, and an unregistered type asks for nothing.
+ */
+export function instanceMinHeight(type: string, config: Record<string, unknown>): number {
+  const min = registry.get(type)?.minPixelHeight
+  const v = typeof min === 'function' ? min(config) : min
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0
+}
+
+/**
  * The widget's own detail view, when it has one. See `WidgetDefinition.DetailView`: a widget
  * that declares one answers the hold gesture with it instead of the item flow.
  */

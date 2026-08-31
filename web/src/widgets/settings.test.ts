@@ -28,8 +28,14 @@ vi.stubGlobal('window', {
 })
 
 const { registerBuiltinWidgets } = await import('./index')
-const { instanceCommands, instanceControl, instanceHasDetail, itemsForInstance, listWidgetDefinitions } =
-  await import('./registry')
+const {
+  instanceCommands,
+  instanceControl,
+  instanceHasDetail,
+  instanceMinHeight,
+  itemsForInstance,
+  listWidgetDefinitions,
+} = await import('./registry')
 
 registerBuiltinWidgets()
 const widgets = listWidgetDefinitions()
@@ -379,6 +385,29 @@ describe('every widget settings schema', () => {
     expect(declaring.length).toBeGreaterThan(0)
     const unreachable = declaring.filter((d) => !instanceHasDetail(d.type, {})).map((d) => d.type)
     expect(unreachable).toEqual([])
+  })
+
+  it('lets an instance ask for the stacked height its own settings need', () => {
+    // The floor is the only lever a widget has over a stacked row, and a colour picker showing
+    // its on and off buttons needs more room than one without them. Both answers are read from
+    // the registry rather than from the widget module, so a definition that stopped declaring it
+    // would fail here.
+    const plain = instanceMinHeight('color', {})
+    const powered = instanceMinHeight('color', { powerButtons: true })
+    expect(plain).toBeGreaterThan(0)
+    expect(powered).toBeGreaterThan(plain)
+    // Only `true` switches the buttons on, so only `true` may ask for the taller row.
+    expect(instanceMinHeight('color', { powerButtons: 'yes' })).toBe(plain)
+  })
+
+  it('answers a plain number, and nothing at all for a type it does not know', () => {
+    const fixed = widgets.filter((d) => typeof d.minPixelHeight === 'number')
+    expect(fixed.length).toBeGreaterThan(0)
+    for (const def of fixed) expect(instanceMinHeight(def.type, {})).toBe(def.minPixelHeight)
+    // A widget that declares no floor, and a type that is not registered, both ask for none -
+    // which is what the grids' `Math.max` expects rather than NaN or undefined.
+    expect(instanceMinHeight('label', {})).toBe(0)
+    expect(instanceMinHeight('nonesuch', {})).toBe(0)
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

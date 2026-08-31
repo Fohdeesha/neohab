@@ -24,7 +24,7 @@ import {
   widgetTextScale,
   STACK_REFERENCE_WIDTH,
 } from '../model/layout'
-import { getWidgetDefinition } from '../widgets/registry'
+import { instanceMinHeight } from '../widgets/registry'
 import {
   addToSelection,
   selectWidget,
@@ -165,7 +165,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
       onPointerCancel={() => setDrag(null)}
     >
       {ordered.map((widget) => {
-        const min = getWidgetDefinition(widget.type)?.minPixelHeight ?? 0
+        const min = instanceMinHeight(widget.type, widget.config)
         const height = Math.round(Math.max(rectOf(widget).h * unit, min))
         const isDragging = drag?.id === widget.id
         const indicator = drag && !isDragging && nonDragged++ === drag.insertPos

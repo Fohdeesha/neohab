@@ -41,7 +41,7 @@ import {
   widgetTextScale,
   STACK_REFERENCE_WIDTH,
 } from '../model/layout'
-import { getWidgetDefinition } from '../widgets/registry'
+import { instanceMinHeight } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
 import { useContainerWidth } from './useContainerWidth'
 import { useLongPress } from './useLongPress'
@@ -133,7 +133,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
         }
       >
         {ordered.map((w) => {
-          const min = getWidgetDefinition(w.type)?.minPixelHeight ?? 0
+          const min = instanceMinHeight(w.type, w.config)
           const height = Math.round(Math.max(rectOf(w).h * unit, min))
           return (
             <Cell
