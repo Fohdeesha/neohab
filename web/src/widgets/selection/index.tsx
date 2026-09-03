@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { parseChoices } from '../common/choices'
+import type { Choice } from '../common/choices'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 
 interface SelectionConfig {
@@ -19,26 +21,6 @@ interface SelectionConfig {
   iconSize?: number
   /** Explicit tint for monochrome (mdi) header icons. */
   iconColor?: string
-}
-
-interface Choice {
-  command: string
-  label: string
-}
-
-function parseChoices(text: unknown): Choice[] {
-  // Not `if (!text)`: a hand-edited or imported `choices: 42` reaches `.split` and throws during
-  // render, which is a whole tile replaced by an error where an empty list would do.
-  if (typeof text !== 'string' || text === '') return []
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const eq = line.indexOf('=')
-      if (eq === -1) return { command: line, label: line }
-      return { command: line.slice(0, eq).trim(), label: line.slice(eq + 1).trim() }
-    })
 }
 
 /**

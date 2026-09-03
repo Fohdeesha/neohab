@@ -102,7 +102,10 @@ ${wholeTileActive({ plate: 'var(--nh-primary)', border: 'var(--nh-primary)' })}/
   color: var(--nh-accent-ink, #fff);
 }
 .nh-roller__btn,
-.nh-player__btn {
+.nh-player__btn,
+.nh-step--plain .nh-step__box,
+.nh-step--plain .nh-step__ctl,
+.nh-step--plain .nh-step__split {
   background: transparent;
 }
 /* Chart chrome recedes to ghost chips; the plot is the content. */

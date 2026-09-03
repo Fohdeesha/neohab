@@ -2845,6 +2845,638 @@ button {
   border-color: var(--nh-primary);
 }
 
+/* Stepper */
+/* One value with a step up and a step down, in six looks and five finishes. A finish is a set
+   of custom properties on the widget root that every part below consumes, so a look and a
+   finish combine without a rule per pair. `--st-accent` is the tile's own accent colour when
+   one is set (the universal Accent color setting puts it on the cell), else the theme's. The
+   plain finish is the theme's ordinary control, which is why the theme stylesheets restyle
+   `.nh-step--plain` alone: the other finishes keep their look in every theme on purpose. */
+.nh-step {
+  --st-accent: var(--nh-cellaccent, var(--nh-primary));
+  --st-ink: var(--nh-text);
+  --st-bg: var(--nh-surface-2);
+  --st-bg-press: var(--nh-border);
+  --st-border: var(--nh-border);
+  --st-shadow: none;
+  --st-blur: 0px;
+  --st-value: var(--nh-text);
+  --st-value-shadow: none;
+  --st-fill: var(--st-accent);
+  --st-fill-shadow: none;
+  --st-track: var(--nh-surface-2);
+  --st-seam: var(--nh-border);
+  --st-zone-press: color-mix(in srgb, var(--st-accent) 16%, transparent);
+  --st-zone-ink-press: var(--st-accent);
+  --st-badge: var(--nh-surface);
+  --st-radius: 9px;
+  --st-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  /* The root is a size container: `cqh` and `cqw` below are the body's content box, which is
+     the room a look actually has, whatever chrome a theme puts around it. The column looks
+     (stack, pair, range) size their bars, gaps and reading as shares of it, capped at their
+     full sizes, so a tile too short for the full sizes draws them smaller instead of drawing
+     the reading over the bars - which is what a 115px to 145px cell used to do. Queries about
+     the CELL from in here go by name: `@container nh-cell (...)`. */
+  container-type: size;
+}
+
+/* The reading: light numerals with the unit set small and dim, like the value widget's. */
+.nh-step__value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.16em;
+  min-width: 0;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--st-value);
+  text-shadow: var(--st-value-shadow);
+}
+
+.nh-step__num {
+  font-size: 2.4em;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+.nh-step__unit {
+  font-size: 1em;
+  color: var(--nh-text-dim);
+}
+
+/* A list's reading is words: smaller and heavier, and free to wrap onto a second line. Three
+   classes deep so it outranks every look's numeric size below, which are two - at two, the
+   looks that came later in the file were drawing "Chromecast" at 2.5em and breaking it
+   mid-word in a two-column tile. */
+.nh-step__value--text {
+  white-space: normal;
+}
+
+.nh-step .nh-step__value--text .nh-step__num {
+  font-size: min(1.3em, 45cqh);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.nh-step__empty {
+  margin: auto;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* The two controls. Three kinds share this: a boxed button, a half of the spinner's split
+   button, and the carousel's bare edge. A button with nowhere to go is dimmed and inert rather
+   than `disabled`, which would swallow the pointer events the hold gesture on the cell needs. */
+.nh-step__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0;
+  font-size: 1em;
+  color: var(--st-ink);
+  background: transparent;
+  border: none;
+  border-radius: var(--st-radius);
+  transition:
+    background 0.2s var(--st-ease),
+    box-shadow 0.25s var(--st-ease),
+    transform 0.25s var(--st-ease),
+    filter 0.2s var(--st-ease),
+    color 0.2s var(--st-ease);
+}
+
+.nh-step__btn--off {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.nh-step__box {
+  background: var(--st-bg);
+  border: 1px solid var(--st-border);
+  box-shadow: var(--st-shadow);
+  backdrop-filter: blur(var(--st-blur));
+}
+
+.nh-step__box:hover {
+  filter: brightness(1.08);
+}
+
+.nh-step__box:active {
+  background: var(--st-bg-press);
+  transform: scale(0.96);
+  transition-duration: 0.08s;
+}
+
+.nh-step__ic {
+  width: 1em;
+  height: 1em;
+  display: block;
+  flex: none;
+}
+
+.nh-step__ic path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nh-step__ic--fill path {
+  fill: currentColor;
+  stroke: none;
+}
+
+.nh-step__ic--h {
+  display: none;
+}
+
+/* Stack: up bar, reading, down bar. Capped in a wide tile so the bars stay buttons, not slabs.
+   Two bars at 28% of the room, a reading at 34% and two gaps at 3% add up to 96%, so the
+   column fits any room down to the height where it lies down (the container query at the end
+   of the file); in a tall tile the em caps win and the middle takes the rest. */
+.nh-step__stack {
+  display: flex;
+  flex-direction: column;
+  gap: min(0.375em, 3cqh);
+  height: 100%;
+  width: 100%;
+  max-width: 14em;
+  margin: 0 auto;
+}
+
+.nh-step__stack .nh-step__box {
+  width: 100%;
+  height: min(1.9em, 28cqh);
+}
+
+.nh-step__mid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nh-step--stack .nh-step__num {
+  font-size: min(2.3em, 34cqh);
+}
+
+/* Pair: the reading as the hero, both controls in one row beneath it. Shares: reading 44%,
+   gap 6%, buttons 36%. */
+.nh-step__pair {
+  display: flex;
+  flex-direction: column;
+  gap: min(0.5em, 6cqh);
+  height: 100%;
+  width: 100%;
+  max-width: 16em;
+  margin: 0 auto;
+}
+
+.nh-step__row {
+  display: flex;
+  align-items: center;
+  gap: 0.375em;
+  width: 100%;
+  flex: none;
+}
+
+.nh-step__pair .nh-step__box {
+  flex: 1;
+  height: min(2.1em, 36cqh);
+  font-size: 1.05em;
+}
+
+.nh-step--pair .nh-step__num {
+  font-size: min(2.5em, 44cqh);
+}
+
+/* Spinner: the reading left, a tall split button right with up over down. */
+.nh-step__spin {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  height: 100%;
+}
+
+.nh-step__spinval {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* The reading sits in from the tile's edge rather than on it; a narrow cell gets less. */
+  padding-left: clamp(0.25em, 9cqw, 1em);
+}
+
+/* The looks that put the reading beside their controls only need it to fit the room's height. */
+.nh-step--spinner .nh-step__num,
+.nh-step--carousel .nh-step__num {
+  font-size: min(2.4em, 80cqh);
+}
+
+.nh-step__spinval .nh-step__value {
+  justify-content: flex-start;
+}
+
+.nh-step__spinval .nh-step__value--text .nh-step__num {
+  text-align: left;
+}
+
+.nh-step__ctl {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 2.75em;
+  height: 5.75em;
+  max-height: 100%;
+  overflow: hidden;
+  background: var(--st-bg);
+  border: 1px solid var(--st-border);
+  border-radius: calc(var(--st-radius) + 1px);
+  box-shadow: var(--st-shadow);
+  backdrop-filter: blur(var(--st-blur));
+}
+
+.nh-step__half {
+  flex: 1;
+  min-height: 0;
+  border-radius: 0;
+  font-size: 1.1em;
+}
+
+.nh-step__half + .nh-step__half {
+  border-top: 1px solid var(--st-border);
+}
+
+.nh-step__half:active {
+  background: var(--st-bg-press);
+}
+
+/* Split: the tile as the control, the top half up and the bottom half down. Drawn inside the
+   body's padding as one bordered block, so it holds up under a theme's own tile insets; the
+   seam is the down zone's top edge, and the reading floats over it on a badge. A wide cell
+   turns it sideways - that rule lives with the container queries at the end of this file. */
+.nh-step__split {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--st-bg);
+  border: 1px solid var(--st-border);
+  border-radius: calc(var(--st-radius) + 2px);
+  box-shadow: var(--st-shadow);
+  backdrop-filter: blur(var(--st-blur));
+}
+
+.nh-step__zone {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: min(2.2em, 34cqh);
+  color: var(--st-ink);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: background 0.2s var(--st-ease);
+}
+
+.nh-step__zone .nh-step__ic {
+  opacity: 0.32;
+  transition:
+    opacity 0.2s var(--st-ease),
+    color 0.2s var(--st-ease);
+}
+
+.nh-step__zone:active {
+  background: var(--st-zone-press);
+}
+
+.nh-step__zone:active .nh-step__ic {
+  opacity: 1;
+  color: var(--st-zone-ink-press);
+}
+
+.nh-step__zone--off {
+  pointer-events: none;
+}
+
+.nh-step__zone--off .nh-step__ic {
+  opacity: 0.1;
+}
+
+.nh-step__zone--up {
+  align-items: flex-start;
+  padding-top: 0.25em;
+}
+
+.nh-step__zone--down {
+  align-items: flex-end;
+  padding-bottom: 0.25em;
+  border-top: 1px solid var(--st-seam);
+}
+
+.nh-step__float {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.nh-step__float > span {
+  display: block;
+  max-width: 90%;
+  padding: 0.3em 0.7em;
+  background: var(--st-badge);
+  border-radius: var(--st-radius);
+}
+
+.nh-step--split .nh-step__num {
+  font-size: min(1.9em, 50cqh);
+}
+
+/* Carousel: quiet chevrons at the edges, the reading across the width, dots for the position.
+   Each edge is a strip the full height of the tile, reaching half an em into the body's own
+   padding, with a glyph big enough to be seen as the target it is. */
+.nh-step__car {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.nh-step__edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2.75em;
+  color: var(--nh-text-dim);
+}
+
+.nh-step__edge .nh-step__ic {
+  width: 2.1em;
+  height: 2.1em;
+}
+
+.nh-step__edge.nh-step__btn--down {
+  left: -0.5em;
+}
+
+.nh-step__edge.nh-step__btn--up {
+  right: -0.5em;
+}
+
+.nh-step__edge:hover {
+  color: var(--st-ink);
+}
+
+.nh-step__edge:active {
+  color: var(--st-accent);
+}
+
+.nh-step__carmid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0 2em;
+}
+
+.nh-step__dots {
+  display: flex;
+  gap: 0.375em;
+}
+
+.nh-step__dot {
+  width: 0.375em;
+  height: 0.375em;
+  border-radius: 50%;
+  background: var(--nh-border);
+  transition: background 0.2s var(--st-ease);
+}
+
+.nh-step__dot--on {
+  background: var(--st-fill);
+  box-shadow: var(--st-fill-shadow);
+}
+
+/* A caption is text somebody is meant to read, so it is set at the tile's own size. */
+.nh-step__count {
+  color: var(--nh-text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* Range bar: the reading over a thin bar showing where it sits, a button at each end. Shares:
+   reading 34%, buttons 32%, two gaps of 6%, and the end labels at their own size, which fit
+   under that in any room over 4.5em; below it they go (the container query at the end). */
+.nh-step__range {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: min(0.5em, 6cqh);
+  height: 100%;
+}
+
+.nh-step--range .nh-step__num {
+  font-size: min(2.2em, 34cqh);
+}
+
+.nh-step__range .nh-step__row {
+  gap: 0.6em;
+}
+
+.nh-step__range .nh-step__box {
+  width: 2em;
+  height: min(2em, 32cqh);
+}
+
+.nh-step__track {
+  flex: 1;
+  min-width: 0;
+  height: 0.5em;
+  overflow: hidden;
+  background: var(--st-track);
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+}
+
+.nh-step__fill {
+  height: 100%;
+  background: var(--st-fill);
+  border-radius: 999px;
+  box-shadow: var(--st-fill-shadow);
+  transition: width 0.3s var(--st-ease);
+}
+
+.nh-step__segs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 0.2em;
+}
+
+.nh-step__seg {
+  flex: 1;
+  height: 0.5em;
+  background: var(--st-track);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+}
+
+.nh-step__seg--on {
+  background: var(--st-fill);
+  border-color: transparent;
+  box-shadow: var(--st-fill-shadow);
+}
+
+/* The two ends of the range, under the row's outer ends at the tile's own text size. Under the
+   bar's ends they would have to fit inside the bar, and in a 169px cell that is 60px, which
+   cannot hold "60.0" and "85.0" at a size a person can read. A label too long even for the
+   whole row is cut with an ellipsis rather than drawn over its neighbour. */
+.nh-step__bounds {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5em;
+  margin-top: -0.2em;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+}
+
+.nh-step__bounds span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Finishes. Each only redefines the properties the parts read, so every look takes it whole. */
+
+/* Glass: a frosted plate lit from above, mixed from the text colour so it reads as a darker
+   frost on a light theme rather than vanishing. */
+.nh-step--glass {
+  --st-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--nh-text) 15%, transparent),
+    color-mix(in srgb, var(--nh-text) 5%, transparent)
+  );
+  --st-bg-press: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--nh-text) 26%, transparent),
+    color-mix(in srgb, var(--nh-text) 12%, transparent)
+  );
+  --st-border: color-mix(in srgb, var(--nh-text) 24%, transparent);
+  --st-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent),
+    0 4px 14px rgba(0, 0, 0, 0.28);
+  --st-blur: 8px;
+  --st-value-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --st-track: color-mix(in srgb, var(--nh-text) 10%, transparent);
+  --st-radius: 12px;
+}
+
+/* Glow: dark plates outlined in the accent and lit from within; the reading is the accent
+   itself, with a halo. */
+.nh-step--glow {
+  --st-ink: var(--st-accent);
+  --st-bg: color-mix(in srgb, var(--st-accent) 9%, var(--nh-surface));
+  --st-bg-press: color-mix(in srgb, var(--st-accent) 28%, var(--nh-surface));
+  --st-border: color-mix(in srgb, var(--st-accent) 55%, transparent);
+  --st-shadow:
+    0 0 12px color-mix(in srgb, var(--st-accent) 32%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--st-accent) 10%, transparent);
+  --st-value: var(--st-accent);
+  --st-value-shadow: 0 0 16px color-mix(in srgb, var(--st-accent) 55%, transparent);
+  --st-fill-shadow: 0 0 8px color-mix(in srgb, var(--st-accent) 70%, transparent);
+  --st-seam: color-mix(in srgb, var(--st-accent) 40%, transparent);
+  --st-track: color-mix(in srgb, var(--st-accent) 8%, var(--nh-surface));
+}
+
+.nh-step--glow .nh-step__unit {
+  color: color-mix(in srgb, var(--st-accent) 70%, var(--nh-text-dim));
+}
+
+/* Solid: the accent as plates, inked with whatever reads on it; the reading takes the accent. */
+.nh-step--solid {
+  --st-ink: var(--nh-accent-ink, #fff);
+  --st-bg: var(--st-accent);
+  --st-bg-press: color-mix(in srgb, var(--st-accent) 82%, #fff);
+  --st-border: transparent;
+  --st-shadow: 0 3px 10px color-mix(in srgb, var(--st-accent) 38%, transparent);
+  --st-value: var(--st-accent);
+  --st-seam: color-mix(in srgb, var(--nh-accent-ink, #fff) 28%, transparent);
+  --st-zone-press: color-mix(in srgb, #fff 18%, transparent);
+  --st-zone-ink-press: var(--nh-accent-ink, #fff);
+  --st-track: color-mix(in srgb, var(--st-accent) 22%, var(--nh-surface));
+}
+
+.nh-step--solid .nh-step__num {
+  font-weight: 400;
+}
+
+.nh-step--solid .nh-step__half + .nh-step__half {
+  border-top-color: color-mix(in srgb, var(--nh-accent-ink, #fff) 28%, transparent);
+}
+
+/* Sheen: a glossy plate, lit at one corner and darkening to the other, with the reading
+   brushed in the same light. */
+.nh-step--sheen {
+  --st-ink: var(--nh-accent-ink, #fff);
+  --st-bg: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--st-accent) 88%, #fff) 0%,
+    var(--st-accent) 45%,
+    color-mix(in srgb, var(--st-accent) 72%, #000) 100%
+  );
+  --st-bg-press: linear-gradient(135deg, var(--st-accent), color-mix(in srgb, var(--st-accent) 60%, #000));
+  --st-border: color-mix(in srgb, #fff 20%, transparent);
+  --st-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 38%, transparent),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 6px 16px color-mix(in srgb, var(--st-accent) 35%, transparent);
+  --st-fill: linear-gradient(90deg, color-mix(in srgb, var(--st-accent) 70%, #000), color-mix(in srgb, var(--st-accent) 85%, #fff));
+  --st-seam: color-mix(in srgb, #fff 26%, transparent);
+  --st-zone-press: color-mix(in srgb, #fff 16%, transparent);
+  --st-zone-ink-press: var(--nh-accent-ink, #fff);
+  --st-radius: 11px;
+}
+
+.nh-step--sheen .nh-step__num {
+  font-weight: 400;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--st-accent) 70%, #fff) 0%,
+    var(--st-accent) 50%,
+    color-mix(in srgb, var(--st-accent) 55%, var(--nh-text)) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nh-step--sheen .nh-step__half + .nh-step__half {
+  border-top-color: color-mix(in srgb, #fff 26%, transparent);
+}
+
 /* ============================================================================
    Template placeholder, HABPanel import + report
    ============================================================================ */
@@ -5090,6 +5722,10 @@ button {
 .nh-gcell,
 .nh-cell {
   container-type: size;
+  /* Named, so a widget that makes its own root a size container (the stepper does, to size its
+     parts to the room a tile leaves) can still ask about the CELL: `@container nh-cell (...)`.
+     An unnamed query from inside such a widget answers for the widget's own box. */
+  container-name: nh-cell;
   /* Widget text tracks the cell size, the way icons do via --nh-iconscale: a dashboard is
      one proportional unit at any width. Everything inside a cell sizes its text in em, so
      this single declaration drives all of it. Editor chrome (the handle strip) deliberately

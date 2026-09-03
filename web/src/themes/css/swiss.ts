@@ -137,6 +137,9 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 .nh-selection__btn,
 .nh-roller__btn,
 .nh-player__btn,
+.nh-step--plain .nh-step__box,
+.nh-step--plain .nh-step__ctl,
+.nh-step--plain .nh-step__split,
 .nh-chip,
 .nh-chart__chip,
 .nh-chart__expand,
@@ -155,6 +158,7 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 .nh-selection__btn:active,
 .nh-roller__btn:active,
 .nh-player__btn:active,
+.nh-step--plain .nh-step__box:active,
 .nh-chip:active {
   background: color-mix(in srgb, var(--nh-text) 14%, transparent);
 }

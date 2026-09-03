@@ -200,7 +200,10 @@ body {
 }
 .nh-selection__btn,
 .nh-roller__btn,
-.nh-player__btn {
+.nh-player__btn,
+.nh-step--plain .nh-step__box,
+.nh-step--plain .nh-step__ctl,
+.nh-step--plain .nh-step__split {
   background: transparent;
   border-color: color-mix(in srgb, var(--nh-primary) 40%, transparent);
 }

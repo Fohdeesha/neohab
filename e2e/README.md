@@ -144,6 +144,12 @@ real server's `events.log` - onto two managed items it creates itself (`nh_e2e_f
 suite. It clicks nothing, commands are intercepted, and the count of them is one of its checks.
 Both items are deleted by name in cleanup, and it never touches file-provided items.
 
+`e2e-stepper.mjs` drives the stepper widget - six looks, five finishes, a number and a list -
+against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist`,
+`nh_e2e_stepfan`, `nh_e2e_stepnull`, `nh_e2e_stepmany`, all bound to nothing), so its commands
+are real and reach no device. It enters edit mode once to inspect the settings panel and leaves
+without saving. The dashboard and all five items are deleted by name in cleanup.
+
 `e2e-colorpower.mjs` drives the colour widget's on and off buttons against one managed Color item
 it creates itself (`nh_e2e_pwr`, bound to nothing), so its commands are real and reach openHAB but
 no device is involved. That is the point of the suite rather than a convenience: the feature rests

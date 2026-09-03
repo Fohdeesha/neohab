@@ -142,6 +142,12 @@ translate it.
   the light off and openHAB keeps its colour, so every panel still shows what it will come back to,
   and On restores the brightness it was last seen at instead of jumping to full. That takes no
   extra openHAB item and writes nothing to the server.
+- **Stepper.** A value with a step up and a step down: a thermostat setpoint, a volume, a fan
+  speed, or a list such as a TV's inputs, which it cycles through and can wrap around. Six looks
+  (a stack, a pair of buttons under the reading, a spinner, a split tile whose two halves are the
+  buttons, a carousel with position dots, a range bar), five finishes from the theme's plain
+  controls to frosted glass, a neon glow, solid accent plates and a glossy sheen, and your choice
+  of arrow glyph. A run of quick taps costs the device one command.
 - **Floor plan.** Upload a plan of your home (any image; a styling pipeline re-inks it to match
   the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
   brightness, thrown in every direction or out of one side only for a sconce or a cove, and

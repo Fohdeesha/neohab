@@ -59,6 +59,7 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
 }
 .nh-value__text,
 .nh-stat__value,
+.nh-step__num,
 .nh-weather__temp {
   position: relative;
   font-family: 'DSEG7', 'DSEG14', monospace;
@@ -104,6 +105,7 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
 .nh-value__frac::before,
 .nh-stat__value::before,
 .nh-stat__frac::before,
+.nh-step__num::before,
 .nh-weather__temp::before,
 .nh-clock__time::before {
   content: attr(data-ghost);
@@ -153,7 +155,10 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
 .nh-button,
 .nh-selection__btn,
 .nh-roller__btn,
-.nh-player__btn {
+.nh-player__btn,
+.nh-step--plain .nh-step__box,
+.nh-step--plain .nh-step__ctl,
+.nh-step--plain .nh-step__split {
   background: transparent;
   border: none;
   color: var(--nh-cellaccent, var(--nh-primary));

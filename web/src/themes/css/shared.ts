@@ -31,6 +31,9 @@ export function squareControls(): string {
 .nh-switch__thumb {
   border-radius: 0;
 }
+.nh-step {
+  --st-radius: 0;
+}
 .nh-color__track::-webkit-slider-runnable-track {
   border-radius: 0;
 }

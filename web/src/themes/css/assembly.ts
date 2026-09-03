@@ -187,7 +187,10 @@ ${wholeTileActive({
    ink (the vivid green is light enough that white text would wash out on it). */
 .nh-selection__btn,
 .nh-roller__btn,
-.nh-player__btn {
+.nh-player__btn,
+.nh-step--plain .nh-step__box,
+.nh-step--plain .nh-step__ctl,
+.nh-step--plain .nh-step__split {
   background: rgba(14, 22, 17, 0.5);
   border-color: rgba(190, 255, 210, 0.13);
 }

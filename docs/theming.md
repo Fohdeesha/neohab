@@ -110,6 +110,7 @@ adopting it.
 | `.nh-dash__bar` | The top bar |
 | `.nh-side` | The dashboard sidebar |
 | `.nh-button`, `.nh-selection__btn`, `.nh-roller__btn`, `.nh-player__btn` | Controls, each with an `--active` modifier |
+| `.nh-step--plain .nh-step__box`, `.nh-step__ctl`, `.nh-step__split` | The stepper's buttons in its plain finish, which is the one a theme should restyle. Its other finishes (glass, glow, solid, sheen) keep their own look in every theme on purpose, so target `.nh-step--plain` rather than `.nh-step__box` alone |
 | `.nh-switch__track`, `.nh-switch__thumb` | The switch. `.nh-switch--on` marks the on state |
 | `.nh-value__text`, `.nh-value__unit` | A reading and its unit, set separately |
 | `.nh-stat__value`, `.nh-stat__caption`, `.nh-stat__badge` | The stat tile |
