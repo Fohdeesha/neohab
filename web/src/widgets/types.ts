@@ -52,7 +52,13 @@ interface SettingCommon {
  */
 export type SettingField = SettingCommon &
   (
-    | { key: string; type: 'item'; label: string; itemTypes?: string[] }
+    /**
+     * An openHAB item. `readOnly` says the widget only ever READS this one - a thermostat's room
+     * temperature, its status item - so the detail sheet offers no control for it. It is a
+     * declaration rather than a convention: the registry check that every bound item gets a
+     * control skips these, and its converse requires that these get none.
+     */
+    | { key: string; type: 'item'; label: string; itemTypes?: string[]; readOnly?: boolean }
     | { key: string; type: 'icon'; label: string }
     | { key: string; type: 'text'; label: string; placeholder?: string }
     | { key: string; type: 'multiline'; label: string; placeholder?: string }

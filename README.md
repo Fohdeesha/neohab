@@ -148,6 +148,17 @@ translate it.
   buttons, a carousel with position dots, a range bar), five finishes from the theme's plain
   controls to frosted glass, a neon glow, solid accent plates and a glossy sheen, and your choice
   of arrow glyph. A run of quick taps costs the device one command.
+- **Thermostat.** The room's temperature and the setpoint, with buttons to move the setpoint and
+  a ring you can drag it round, plus buttons for the mode (heat or cool), the fan (auto or on)
+  and auxiliary heat, each bound to whatever item your thermostat binding gives you and each
+  optional. Four looks: an arc with the buttons in its gap, a solid dial in the mode's colour
+  ringed with ticks, a disc that marks both temperatures on its rim, and a ring around a plate of
+  readings. A face that is heating or cooling takes that colour; one that is neither is coloured
+  by temperature instead, its ring running cool to warm across the scale, so you can see how warm
+  a setting is before you read it. Both colours are yours to change. The commands and the words
+  your binding uses for heat, cool, auto and on are settings, so a Nest, an Ecobee and a Z-Wave
+  thermostat all fit, and a status item turns the label into Heating, Cooling or Idle. A run of
+  quick taps costs the device one command.
 - **Floor plan.** Upload a plan of your home (any image; a styling pipeline re-inks it to match
   the theme) and drag your lights onto it. Each light casts a live glow in its actual color and
   brightness, thrown in every direction or out of one side only for a sconce or a cove, and

@@ -3478,6 +3478,580 @@ button {
 }
 
 /* ============================================================================
+   Thermostat
+   ============================================================================ */
+
+/* The two colours a face is drawn in: the widget's own settings put an inline var over these,
+   and a theme can set them on `.nh-thermo`. Neutral - no mode item and nothing heating or
+   cooling - takes the tile's accent. The root is a size container so the row of mode buttons
+   can be shed by the room the tile leaves; queries about the CELL from in here go by name. */
+.nh-thermo {
+  --th-heat: #f26a1b;
+  --th-cool: #1f8cee;
+  /* The middle of the temperature ramp. Blended into the theme's own ink so it stays legible on
+     a light surface as well as a dark one: near-white ink gives a pale gold, near-black ink a
+     deep olive, and both read against the plate they are drawn on. */
+  --th-mid: color-mix(in srgb, #f0b429 55%, var(--nh-text));
+  --th-neutral: var(--nh-cellaccent, var(--nh-primary));
+  --th-tone: var(--th-neutral);
+  --th-ink: var(--nh-text);
+  --th-dim: var(--nh-text-dim);
+  --th-disc-ink: #fff;
+  --th-btn-bg: color-mix(in srgb, var(--nh-text) 8%, transparent);
+  --th-btn-border: color-mix(in srgb, var(--nh-text) 22%, transparent);
+  --th-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  container-type: size;
+  container-name: nh-thermo;
+}
+
+.nh-thermo--heat {
+  --th-tone: var(--th-heat);
+}
+
+.nh-thermo--cool {
+  --th-tone: var(--th-cool);
+}
+
+/* A neutral dial is drawn on the theme's raised surface, and its ink is the theme's. */
+/* A face with no mode item and nothing running takes the colour of the temperature it is SET to
+   (the widget sets --th-temp from the setpoint's place in the scale), so the arc's fill and the
+   ring's rim still say something rather than sitting in the theme's accent. Without a setpoint
+   to colour by there is no variable and the accent stands. The two dials keep their dark plate
+   and colour their tick ring per tick instead - see `ramped` in looks.tsx. */
+.nh-thermo--neutral {
+  --th-tone: var(--th-temp, var(--th-neutral));
+  --th-disc-ink: var(--nh-text);
+}
+
+.nh-thermo__empty {
+  margin: auto;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+/* The face: a square as big as the room allows. The face is its own size container so the
+   square can be the smaller of its two sides, and the square is another so everything drawn
+   on it - text, buttons, gaps - sizes in `cqw` of the square itself. */
+.nh-thermo__face {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+
+.nh-thermo__sq {
+  position: relative;
+  width: min(100cqw, 100cqh);
+  aspect-ratio: 1;
+  container-type: size;
+  container-name: nh-thermo-sq;
+}
+
+.nh-thermo__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  touch-action: none;
+}
+
+.nh-thermo__svg--drag {
+  cursor: grabbing;
+}
+
+/* What lies over the SVG lets the pointer through to it, so a drag round the ring works through
+   the readings, and a hold on the face reaches the cell. */
+.nh-thermo__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5cqw;
+  text-align: center;
+  pointer-events: none;
+  color: var(--th-ink);
+}
+
+/* A temperature: the whole part, the fraction set apart, the unit small beside it. */
+.nh-thermo__temp {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nh-thermo__num {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.nh-thermo__frac {
+  font-size: 0.5em;
+}
+
+.nh-thermo__unit {
+  font-size: 0.42em;
+  margin-left: 0.18em;
+  color: var(--th-dim);
+  align-self: flex-start;
+}
+
+/* The tenths raised as a small digit, the way a thermostat's ring prints them. */
+.nh-thermo__sp--raised .nh-thermo__frac {
+  font-size: 0.42em;
+  vertical-align: top;
+  position: relative;
+  top: 0.12em;
+  margin-left: 0.06em;
+  font-weight: 600;
+}
+
+.nh-thermo__ic {
+  display: block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}
+
+/* The two setpoint buttons. A button with nowhere to go is dimmed and inert rather than
+   `disabled`, which would swallow the pointer events the hold gesture on the cell needs. */
+/* Sized on the BUTTON, not on the square it sits in: a container cannot query itself, so `cqw`
+   in a declaration on `.nh-thermo__sq` resolves against the face around it rather than the
+   square - which on a wide tile is a different number entirely, and which made an override for
+   small faces do nothing at all. Every part sized against the face's own width is declared on a
+   descendant of it for the same reason. */
+.nh-thermo__btn {
+  --th-btn: clamp(2em, 17cqw, 3.4em);
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--th-btn);
+  height: var(--th-btn);
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--th-btn-border);
+  background: var(--th-btn-bg);
+  color: var(--th-ink);
+  transition:
+    background 0.2s var(--th-ease),
+    transform 0.2s var(--th-ease),
+    opacity 0.2s;
+}
+
+.nh-thermo__btn:hover {
+  background: color-mix(in srgb, var(--nh-text) 15%, transparent);
+}
+
+.nh-thermo__btn:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+
+.nh-thermo__btn--off {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.nh-thermo__sign {
+  width: 52%;
+  height: 52%;
+}
+
+.nh-thermo__sign path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* Arc: the track round the face, its fill to the setpoint, the handle and the room's dot. The
+   two buttons sit in the gap the arc leaves at the bottom. */
+.nh-thermo__track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--nh-text) 14%, transparent);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.nh-thermo__fill {
+  fill: none;
+  stroke: var(--th-tone);
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0.9;
+  transition: stroke 0.3s;
+}
+
+.nh-thermo__curdot {
+  fill: var(--th-dim);
+}
+
+.nh-thermo__handle {
+  fill: #fff;
+  stroke: var(--th-tone);
+  stroke-width: 1.6;
+  cursor: grab;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
+}
+
+/* The big readings size in `cqw` of the square with a floor at the tile's own text size, so a
+   square too small for the face's proportions draws the number at the size the tile reads at
+   rather than either clipping it or shrinking it past reading. */
+.nh-thermo--arc .nh-thermo__sp {
+  font-size: max(1em, 22cqw);
+}
+
+.nh-thermo__status {
+  font-size: max(1em, 6cqw);
+  font-weight: 500;
+  color: var(--th-tone);
+}
+
+.nh-thermo--neutral .nh-thermo__status {
+  color: var(--th-dim);
+}
+
+.nh-thermo__curline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  font-size: max(1em, 6.5cqw);
+  color: var(--th-ink);
+}
+
+.nh-thermo__curline .nh-thermo__ic {
+  color: var(--th-tone);
+}
+
+.nh-thermo__btn--gapl {
+  left: calc(35% - var(--th-btn) / 2);
+  bottom: 1%;
+}
+
+.nh-thermo__btn--gapr {
+  right: calc(35% - var(--th-btn) / 2);
+  bottom: 1%;
+}
+
+/* The two dials: a solid disc in the tone, white ticks and figures on it, the buttons in the
+   ring's gap at the bottom as translucent plates of the disc's own ink. */
+.nh-thermo__disc {
+  fill: var(--th-tone);
+  transition: fill 0.3s;
+}
+
+.nh-thermo--neutral .nh-thermo__disc {
+  fill: var(--nh-surface-2);
+}
+
+.nh-thermo__tick {
+  stroke: var(--th-disc-ink);
+  stroke-width: 0.55;
+  stroke-linecap: round;
+  opacity: 0.4;
+}
+
+.nh-thermo__tick--lit {
+  opacity: 0.95;
+}
+
+.nh-thermo__tick--fine {
+  stroke-width: 0.45;
+  opacity: 0.78;
+}
+
+.nh-thermo__tick--sp,
+.nh-thermo__tick--cur {
+  stroke-width: 1.4;
+  opacity: 1;
+}
+
+.nh-thermo__mark {
+  fill: var(--th-disc-ink);
+  font-size: 6.2px;
+  font-weight: 600;
+}
+
+.nh-thermo__markfrac {
+  font-size: 3.8px;
+}
+
+/* The big number starts a third of the way down the face, whatever hangs under it, so the rim's
+   figures - which sit at about two thirds of the radius and no lower than a fifth of the way
+   down - never land on it; the unit and the glyph take the room below, above the buttons. */
+.nh-thermo--dial .nh-thermo__center,
+.nh-thermo--disc .nh-thermo__center {
+  color: var(--th-disc-ink);
+  top: 31%;
+  bottom: 20%;
+  justify-content: flex-start;
+  gap: 1cqw;
+}
+
+.nh-thermo--dial .nh-thermo__sp {
+  font-size: max(1em, 27cqw);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.nh-thermo--disc .nh-thermo__sp {
+  font-size: max(1em, 29cqw);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.nh-thermo__unitline {
+  font-size: max(1em, 7cqw);
+  opacity: 0.85;
+}
+
+.nh-thermo__glyph {
+  width: max(1.1em, 8cqw);
+  height: max(1.1em, 8cqw);
+  opacity: 0.9;
+}
+
+.nh-thermo__glyph--faint {
+  width: max(1.2em, 9cqw);
+  height: max(1.2em, 9cqw);
+  opacity: 0.7;
+}
+
+.nh-thermo--dial .nh-thermo__btn,
+.nh-thermo--disc .nh-thermo__btn {
+  background: color-mix(in srgb, var(--th-disc-ink) 16%, transparent);
+  border-color: color-mix(in srgb, var(--th-disc-ink) 35%, transparent);
+  color: var(--th-disc-ink);
+}
+
+.nh-thermo--dial .nh-thermo__btn:hover,
+.nh-thermo--disc .nh-thermo__btn:hover {
+  background: color-mix(in srgb, var(--th-disc-ink) 28%, transparent);
+}
+
+/* The dials' buttons sit in the gap their ring leaves at the bottom, and both how BIG and how
+   far apart they are is decided by what else is down there: a setpoint at the bottom of the
+   scale puts its FIGURE beside the ring's first tick, which at the old 34% and 17cqw was
+   underneath the minus button (reported 2026-09-03). A figure at the end of the arc reaches
+   x=68 of the 100-unit face, so a 12-unit button centred at 59 clears it by three units - and
+   the suite measures exactly that, on a tile whose setpoint is at the end. */
+.nh-thermo--dial .nh-thermo__btn,
+.nh-thermo--disc .nh-thermo__btn {
+  --th-btn: clamp(1.5em, 12cqw, 2.8em);
+}
+
+.nh-thermo__btn--discl {
+  left: calc(41% - var(--th-btn) / 2);
+  bottom: 4%;
+}
+
+.nh-thermo__btn--discr {
+  right: calc(41% - var(--th-btn) / 2);
+  bottom: 4%;
+}
+
+/* Ring: a plate of the theme's raised surface bordered by a thick ring in the tone, the room's
+   temperature big under its caption, the setpoint and the mode in two cells under a hairline. */
+.nh-thermo__plate {
+  fill: var(--nh-surface-2);
+}
+
+.nh-thermo__rim {
+  fill: none;
+  stroke: var(--th-tone);
+  stroke-width: 5;
+  transition: stroke 0.3s;
+}
+
+.nh-thermo__rule {
+  stroke: color-mix(in srgb, var(--nh-text) 30%, transparent);
+  stroke-width: 0.5;
+}
+
+.nh-thermo__ringtop {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 12%;
+  height: 44%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1cqw;
+  color: var(--th-ink);
+  pointer-events: none;
+}
+
+.nh-thermo__ambient {
+  font-size: max(1em, 27cqw);
+}
+
+.nh-thermo__ambient .nh-thermo__frac {
+  font-size: 0.55em;
+}
+
+.nh-thermo__caption {
+  font-size: max(1em, 5.5cqw);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--th-dim);
+}
+
+/* The SET cell holds a reading between two buttons and the MODE cell one glyph, so the row is
+   split three to two; an even split put the minus button out over the rim in a three-column
+   tile. The row sits just under the rule rather than centred in the space below it: the plate is
+   a CIRCLE, so every centimetre lower costs width, and at the old 60%-to-90% the two buttons ran
+   out under the rim (reported 2026-09-03). The suite measures every part of this look against
+   the rim's inner edge. */
+.nh-thermo__ringrow {
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 57.5%;
+  height: 21%;
+  display: flex;
+}
+
+.nh-thermo__ringcell {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5cqw;
+}
+
+.nh-thermo__ringcell--set {
+  flex: 3;
+}
+
+.nh-thermo__setrow {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+}
+
+.nh-thermo__set {
+  font-size: max(1em, 10cqw);
+  color: var(--th-tone);
+}
+
+.nh-thermo__set .nh-thermo__frac {
+  font-size: 0.6em;
+}
+
+.nh-thermo__modecell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: max(1em, 11cqw);
+  color: var(--th-tone);
+}
+
+.nh-thermo__modecell .nh-thermo__glyph {
+  width: 1em;
+  height: 1em;
+}
+
+/* The ring's plate is a circle and its SET row sits low on it, where a chord is short, so these
+   two are the smallest buttons in the widget: they have to fit beside a reading inside the rim.
+   The suite measures every part of this look against the rim's inner edge. */
+.nh-thermo__btn--mini {
+  --th-btn: clamp(1.2em, 9cqw, 2.2em);
+  position: static;
+  flex: none;
+}
+
+/* The row of mode, fan and aux buttons under the face: pills, the two halves of a mode or a fan
+   pair joined, the one in force filled - a mode in its own colour, the rest in the accent. */
+.nh-thermo__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding-top: 0.5em;
+  min-width: 0;
+}
+
+.nh-thermo__seg {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--th-btn-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.nh-thermo__mbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  flex: none;
+  min-height: 2.2em;
+  padding: 0 0.85em;
+  font-size: 1em;
+  color: var(--th-dim);
+  background: var(--th-btn-bg);
+  border: 1px solid var(--th-btn-border);
+  border-radius: 999px;
+  transition:
+    background 0.2s var(--th-ease),
+    color 0.2s var(--th-ease);
+}
+
+.nh-thermo__seg .nh-thermo__mbtn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.nh-thermo__seg .nh-thermo__mbtn + .nh-thermo__mbtn {
+  border-left: 1px solid var(--th-btn-border);
+}
+
+.nh-thermo__mbtn:hover {
+  color: var(--th-ink);
+}
+
+.nh-thermo__mbtn .nh-thermo__ic {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.nh-thermo__mbtn--on,
+.nh-thermo__seg .nh-thermo__mbtn--on {
+  color: var(--nh-accent-ink, #fff);
+  background: var(--nh-cellaccent, var(--nh-primary));
+}
+
+.nh-thermo__seg .nh-thermo__mbtn--heat.nh-thermo__mbtn--on {
+  color: #fff;
+  background: var(--th-heat);
+}
+
+.nh-thermo__seg .nh-thermo__mbtn--cool.nh-thermo__mbtn--on {
+  color: #fff;
+  background: var(--th-cool);
+}
+
+/* ============================================================================
    Template placeholder, HABPanel import + report
    ============================================================================ */
 .nh-template {
@@ -6949,6 +7523,81 @@ button {
   }
 
   .nh-step__bounds {
+    display: none;
+  }
+}
+
+/* The thermostat's face sheds what a small square cannot hold - the status line, the room's
+   temperature under the setpoint, the ring's figures and captions - and keeps the setpoint and
+   its buttons. Measured on the square itself, since that is what the parts are sized by, and at
+   11em rather than 9 because the figures on the rim are the first thing a shrinking face has no
+   room for: below that the buttons stop shrinking (their em floor) while the figures keep
+   coming in, and the two meet. */
+@container nh-thermo-sq (max-width: 11em) {
+  .nh-thermo__status,
+  .nh-thermo__curline,
+  .nh-thermo__mark,
+  .nh-thermo__unitline,
+  .nh-thermo__glyph,
+  .nh-thermo__caption {
+    display: none;
+  }
+
+  /* ...and with the figures gone there is nothing for a dial's buttons to be under, so they
+     take that room back instead of shrinking with the ring. */
+  .nh-thermo--dial .nh-thermo__btn,
+  .nh-thermo--disc .nh-thermo__btn {
+    --th-btn: clamp(1.8em, 20cqw, 2.8em);
+  }
+
+  .nh-thermo__ringtop {
+    top: 8%;
+    height: 46%;
+  }
+}
+
+/* A square too small for finger-sized buttons beside the number - a landscape phone's row -
+   keeps the number alone; the buttons are in the detail sheet either way. */
+@container nh-thermo-sq (max-width: 7.5em) {
+  .nh-thermo__btn,
+  .nh-thermo__ringrow {
+    display: none;
+  }
+
+  .nh-thermo__ringtop {
+    top: 0;
+    height: 100%;
+  }
+
+  .nh-thermo--dial .nh-thermo__center,
+  .nh-thermo--disc .nh-thermo__center {
+    top: 0;
+    bottom: 0;
+    justify-content: center;
+  }
+}
+
+/* The row of mode buttons goes when the tile is too short to hold it under a face worth
+   drawing, and when it is too narrow for even the glyphs; the detail sheet still offers every
+   one of them. In between, a narrow tile keeps the glyphs and drops the words. */
+@container nh-thermo (max-height: 7.5em) {
+  .nh-thermo__bar {
+    display: none;
+  }
+}
+
+@container nh-thermo (max-width: 27em) {
+  .nh-thermo__mtext {
+    display: none;
+  }
+
+  .nh-thermo__mbtn {
+    padding: 0 0.7em;
+  }
+}
+
+@container nh-thermo (max-width: 13em) {
+  .nh-thermo__bar {
     display: none;
   }
 }

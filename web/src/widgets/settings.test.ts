@@ -14,6 +14,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingField } from './types'
+import { lookOf as thermostatLookOf } from './thermostat/model'
 
 // The registry is a tree of .tsx modules, so importing it drags in React and i18next even though
 // only the settings DATA is read here. i18next touches `document` when it activates a language.
@@ -93,6 +94,10 @@ const boundConfig = (def: (typeof widgets)[number]): Record<string, unknown> => 
   for (const field of def.settings ?? []) if (field.type === 'item') config[field.key] = 'nh_' + field.key
   return config
 }
+
+/** The items a widget declares it only READS (`readOnly` on the field), as `boundConfig` names them. */
+const readOnlyItems = (def: (typeof widgets)[number]): string[] =>
+  (def.settings ?? []).filter((f) => f.type === 'item' && f.readOnly === true).map((f) => 'nh_' + f.key)
 
 type SelectField = Extract<SettingField, { type: 'select' }>
 const selectsOf = (def: (typeof widgets)[number]): SelectField[] =>
@@ -209,6 +214,7 @@ describe('every widget settings schema', () => {
     for (const control of ['switch', 'slider', 'color', 'selection', 'rollershutter', 'player']) {
       expect(instanceCommands(control, { item: 'x' }), control).toBe(true)
     }
+    expect(instanceCommands('thermostat', { currentItem: 'x', setpointItem: 'y' })).toBe(true)
   })
 
   it('says no for a widget type nobody registered', () => {
@@ -233,11 +239,35 @@ describe('every widget settings schema', () => {
     for (const def of widgets) {
       const config = boundConfig(def)
       if (!instanceCommands(def.type, config)) continue
+      // An item the widget declares read-only is bound to be read, not written - the converse
+      // check below holds those to offering nothing.
+      const readOnly = readOnlyItems(def)
       for (const item of itemsForInstance(def.type, config)) {
+        if (readOnly.includes(item)) continue
         if (!instanceControl(def.type, config, item)) missing.push(`${def.type} binds ${item} and offers nothing`)
       }
     }
     expect(missing).toEqual([])
+  })
+
+  /**
+   * The other half of that declaration: a thermostat's room temperature is a sensor its tile
+   * never commands, and a hold on the tile must not hand out a slider for it. The check requires
+   * the declaration to be in use somewhere, or a widget that dropped its `readOnly` flags would
+   * leave nothing here to fail.
+   */
+  it('offers no control for an item it declares read-only', () => {
+    const declaring = widgets.filter((def) => readOnlyItems(def).length > 0)
+    expect(declaring.map((d) => d.type)).toContain('thermostat')
+    const offered: string[] = []
+    for (const def of declaring) {
+      const config = boundConfig(def)
+      for (const item of readOnlyItems(def)) {
+        const control = instanceControl(def.type, config, item)
+        if (control) offered.push(`${def.type} offers ${control.kind} for read-only ${item}`)
+      }
+    }
+    expect(offered).toEqual([])
   })
 
   /** A gauge's marker follows an item to draw a line on the face; the gauge never writes to it. */
@@ -345,6 +375,38 @@ describe('every widget settings schema', () => {
     const plan = { lights: [{ item: 'lamp' }] }
     expect(instanceControl('floorplan', plan, 'lamp')).toEqual({ kind: 'auto' })
     expect(instanceControl('floorplan', plan, 'other')).toBeUndefined()
+    // A thermostat: the setpoint on its own scale (the Celsius defaults here, with no item state
+    // or configured range to read), the mode and the fan as the two commands each was given, aux
+    // as on and off - and nothing at all for the two items it only reads.
+    const thermo = { currentItem: 'cur', setpointItem: 'sp', modeItem: 'mode', fanItem: 'fan', auxItem: 'aux', statusItem: 'st' }
+    expect(instanceControl('thermostat', thermo, 'sp')).toEqual({ kind: 'range', min: 10, max: 30, step: 0.5, unit: undefined })
+    expect(instanceControl('thermostat', { ...thermo, min: 60, max: 80, step: 1, unit: '°F' }, 'sp')).toEqual({
+      kind: 'range',
+      min: 60,
+      max: 80,
+      step: 1,
+      unit: '°F',
+    })
+    expect(instanceControl('thermostat', thermo, 'mode')).toEqual({
+      kind: 'choices',
+      choices: [
+        { command: 'HEAT', labelKey: 'Heat' },
+        { command: 'COOL', labelKey: 'Cool' },
+      ],
+    })
+    expect(instanceControl('thermostat', { ...thermo, heatCommand: 'heat', coolCommand: 'cool' }, 'mode')).toMatchObject({
+      choices: [{ command: 'heat' }, { command: 'cool' }],
+    })
+    expect(instanceControl('thermostat', thermo, 'fan')).toEqual({
+      kind: 'choices',
+      choices: [
+        { command: 'AUTO', labelKey: 'Auto' },
+        { command: 'ON', labelKey: 'On' },
+      ],
+    })
+    expect(instanceControl('thermostat', thermo, 'aux')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
+    expect(instanceControl('thermostat', thermo, 'cur')).toBeUndefined()
+    expect(instanceControl('thermostat', thermo, 'st')).toBeUndefined()
   })
 
   it('offers a multiselect nothing its own options do not list', () => {
@@ -398,6 +460,16 @@ describe('every widget settings schema', () => {
     expect(on).toBeGreaterThan(off)
     // Only `true` switches the buttons on, so only `true` may ask for the taller row.
     expect(instanceMinHeight('color', { powerButtons: 'yes' })).toBe(off)
+  })
+
+  it('starts a thermostat as the look its reader falls back to, and asks for a taller row with its button row', () => {
+    // The pure half of both rules is in thermostat/model.test.ts; this is the definition half,
+    // read through the registry, which is what the grids and the sheet actually ask.
+    const def = widgets.find((d) => d.type === 'thermostat')
+    expect(def?.defaultConfig().look).toBe(thermostatLookOf(undefined))
+    const bare = instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b' })
+    expect(bare).toBeGreaterThan(0)
+    expect(instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b', modeItem: 'm' })).toBeGreaterThan(bare)
   })
 
   it('resolves a definition default before asking the widget', () => {

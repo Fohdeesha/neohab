@@ -16,6 +16,7 @@ import { imageWidget } from './image'
 import { colorWidget } from './color'
 import { selectionWidget } from './selection'
 import { stepperWidget } from './stepper'
+import { thermostatWidget } from './thermostat'
 import { dialWidget } from './dial'
 import { chartWidget } from './chart'
 import { timelineWidget } from './timeline'
@@ -38,6 +39,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(colorWidget)
   registerWidget(selectionWidget)
   registerWidget(stepperWidget)
+  registerWidget(thermostatWidget)
   registerWidget(rollershutterWidget)
   registerWidget(playerWidget)
   registerWidget(valueWidget)
