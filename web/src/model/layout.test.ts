@@ -20,8 +20,10 @@ import {
   groupFrames,
   hiddenSurfaces,
   iconScale,
-  MIN_TEXT_SCALE,
   planBump,
+  POINTER_FLOOR_ROW,
+  POINTER_FULL_ROW,
+  POINTER_TEXT_FLOOR,
   projectDashboard,
   rectOf,
   SIDE_PANEL_WIDTH,
@@ -29,7 +31,9 @@ import {
   stackedTextScale,
   surfaceFor,
   tabletRects,
+  textFloor,
   textScale,
+  TOUCH_TEXT_FLOOR,
   widgetAccentInk,
   widgetTextScale,
 } from './layout'
@@ -169,23 +173,63 @@ describe('scaling', () => {
 
   it('never shrinks text below the readability floor', () => {
     const d = dash([], { columns: 36 })
-    expect(textScale(d, cellMetrics(d, 360).rowHeight)).toBeGreaterThanOrEqual(MIN_TEXT_SCALE)
+    const rh = cellMetrics(d, 360).rowHeight
+    // a 10px cell is far below either floor, so the floor is what decides
+    expect(iconScale(d, rh)).toBeLessThan(TOUCH_TEXT_FLOOR)
+    expect(textScale(d, rh, true)).toBe(TOUCH_TEXT_FLOOR)
+    expect(textScale(d, rh, false)).toBe(TOUCH_TEXT_FLOOR)
+  })
+
+  it('under a finger the floor is flat; under a mouse it is the room the row has', () => {
+    expect(TOUCH_TEXT_FLOOR).toBe(0.8)
+    expect(POINTER_TEXT_FLOOR).toBe(1)
+    for (const rh of [10, 70, POINTER_FLOOR_ROW, POINTER_FULL_ROW, 169, 400]) expect(textFloor(true, rh)).toBe(TOUCH_TEXT_FLOOR)
+    // full size once the row reaches the full-text height, and never above it
+    expect(textFloor(false, POINTER_FULL_ROW)).toBe(POINTER_TEXT_FLOOR)
+    expect(textFloor(false, 169)).toBe(POINTER_TEXT_FLOOR)
+    expect(textFloor(false, 400)).toBe(POINTER_TEXT_FLOOR)
+    // easing across the band, never under the touch floor
+    expect(textFloor(false, (POINTER_FLOOR_ROW + POINTER_FULL_ROW) / 2)).toBeCloseTo(0.9, 6)
+    expect(textFloor(false, 87)).toBeCloseTo(0.8267, 3)
+    expect(textFloor(false, POINTER_FLOOR_ROW)).toBe(TOUCH_TEXT_FLOOR)
+    expect(textFloor(false, 70)).toBe(TOUCH_TEXT_FLOOR)
+    expect(textFloor(false, 0)).toBe(TOUCH_TEXT_FLOOR)
+    expect(textFloor(false, NaN)).toBe(TOUCH_TEXT_FLOOR)
+  })
+
+  it('a mouse-driven desk monitor never shrinks text: a 12-column board at 1270px', () => {
+    // Jon's 1200p monitor with the browser sidebar: 100px rows, which used to read 12.8px
+    const d = dash([], { columns: 12, gap: 4 })
+    const rh = cellMetrics(d, 1270).rowHeight
+    expect(rh).toBeGreaterThanOrEqual(POINTER_FULL_ROW)
+    expect(iconScale(d, rh)).toBeLessThan(TOUCH_TEXT_FLOOR)
+    expect(textScale(d, rh, true)).toBe(TOUCH_TEXT_FLOOR)
+    expect(textScale(d, rh, false)).toBe(POINTER_TEXT_FLOOR)
+  })
+
+  it('leaves a cell that is already above the floor alone, whichever pointer', () => {
+    const d = dash([], { columns: 12 })
+    const rh = cellMetrics(d, 2560).rowHeight
+    expect(textScale(d, rh, false)).toBeGreaterThan(1)
+    expect(textScale(d, rh, true)).toBeCloseTo(textScale(d, rh, false), 6)
   })
 
   it('applies the dashboard text-size multiplier on top, clamped', () => {
     const d = dash([], { columns: 12, textSize: 150 })
     const plain = dash([], { columns: 12 })
     const unit = cellMetrics(d, 1920).rowHeight
-    expect(textScale(d, unit)).toBeCloseTo(textScale(plain, unit) * 1.5, 6)
-    expect(textScale(dash([], { textSize: 10_000 }), unit)).toBeLessThanOrEqual(textScale(plain, unit) * 3)
+    expect(textScale(d, unit, true)).toBeCloseTo(textScale(plain, unit, true) * 1.5, 6)
+    expect(textScale(dash([], { textSize: 10_000 }), unit, true)).toBeLessThanOrEqual(textScale(plain, unit, true) * 3)
   })
 
   it('sizes stacked rows by the room the row actually has', () => {
     const d = dash([], { columns: 8 })
     const unit = cellMetrics(d, 1280).rowHeight
     // a tall row reads at full size; a short one eases back toward the floor
-    expect(stackedTextScale(d, unit, 200)).toBeGreaterThan(stackedTextScale(d, unit, 40))
-    expect(stackedTextScale(d, unit, 200)).toBeLessThanOrEqual(1)
+    expect(stackedTextScale(d, unit, 200, true)).toBeGreaterThan(stackedTextScale(d, unit, 40, true))
+    expect(stackedTextScale(d, unit, 200, true)).toBeLessThanOrEqual(1)
+    // the mouse floor never exceeds the stack's own room term, so the two pointers agree row for row
+    for (const h of [40, 80, 87, 96, 100, 200]) expect(stackedTextScale(d, unit, h, false)).toBeCloseTo(stackedTextScale(d, unit, h, true), 6)
   })
 
   it('reads a widget text size stored as a string', () => {

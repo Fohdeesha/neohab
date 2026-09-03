@@ -4931,6 +4931,11 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(min(6.5em, 100%), 1fr));
   gap: 3px 14px;
   min-width: 0;
+  /* An inline-size container, so a reading in a short tile can size itself to the column it
+     is in (see the short-cell rules below). Inline size only: the height queries that decide
+     what a short hero sheds keep resolving against the cell, since a container that cannot
+     answer a height question is skipped. Verified in the browser, not assumed. */
+  container-type: inline-size;
 }
 
 .nh-weather__detail {
@@ -6052,11 +6057,26 @@ button {
    then cost four lines rather than eight, which is what lets them sit beside the reading at all
    in a one-row tile. Values right-aligned, so a column of them lines up. */
 @container (max-height: 200px) {
+  /* The readings stay BESIDE the reading in a short tile, whatever the text size. Left free to
+     wrap, they went under it the moment the two no longer fit side by side, and a tile that
+     has room for four readings beside a temperature has none for them below it: measured at
+     125% widget text in a 289x140 tile, the readings sat under the temperature and drew 82px
+     past the tile's bottom. Beside it they shrink instead, which the rule below arranges. */
+  .nh-weather__heromain {
+    flex-wrap: nowrap;
+  }
+
   .nh-weather__detail {
     flex-direction: row;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
+    /* Sized to the column, not only to the cell: a label beside its value is about 7.7em
+       wide for "Wind 10 mph SW", and a column narrower than that had the value hanging past
+       the tile edge (1.2px at 110% text in a 289px tile, 15px at 100% in a 249px one). 13cqi
+       is 1em at a 7.7em column, so a column that fits its readings is left exactly as it was,
+       and a narrower one draws them smaller rather than clipped, down to 0.7em. */
+    font-size: max(0.7em, min(1em, 13cqi));
   }
 
   .nh-weather__detvalue {
@@ -6146,6 +6166,153 @@ button {
 
 @container (max-height: calc(5.41em + 31px)) {
   .nh-widget--headed .nh-weather--hero .nh-weather__details {
+    display: none;
+  }
+}
+
+/* The stepper's split tile turns sideways in a wide cell: the down zone on the left, up on the
+   right, and the glyph that points along that axis instead of the one that points up. Only a
+   container query knows the cell's shape, which is why each zone carries both glyphs. Asked of
+   the cell by name: the stepper's own root is a size container, so an unnamed query from inside
+   it would answer for the widget's box instead. */
+@container nh-cell (min-aspect-ratio: 4/3) {
+  .nh-step__split {
+    flex-direction: row;
+  }
+
+  .nh-step__zone--up {
+    order: 2;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 0.6em 0 0;
+  }
+
+  .nh-step__zone--down {
+    order: 1;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 0 0 0.6em;
+    border-top: none;
+    border-right: 1px solid var(--st-seam);
+  }
+
+  .nh-step__zone .nh-step__ic--v {
+    display: none;
+  }
+
+  .nh-step__zone .nh-step__ic--h {
+    display: block;
+  }
+}
+
+/* A short room, measured on the stepper's own box. Under 4.5em of it a column cannot hold two
+   controls a finger can find with a reading between them at any size worth drawing, so the
+   three column looks lie down - the stack as down, reading, up; the pair and the range bar as
+   the reading beside the row - and the captions that need a row of their own go. At a 16px
+   cell font that is a headed cell under about 123px and a headless one under 98px; at the 0.8
+   floor, 105px and 84px. Above it the shares in the base rules shrink the parts on their own. */
+@container (max-height: 4.5em) {
+  .nh-step__stack {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.375em;
+    max-width: none;
+  }
+
+  .nh-step__stack .nh-step__box {
+    width: 2em;
+    height: min(2em, 90cqh);
+  }
+
+  .nh-step__stack .nh-step__btn--down {
+    order: 1;
+  }
+
+  .nh-step__stack .nh-step__mid {
+    order: 2;
+  }
+
+  .nh-step__stack .nh-step__btn--up {
+    order: 3;
+  }
+
+  .nh-step--stack .nh-step__num {
+    font-size: min(2.3em, 80cqh);
+  }
+
+  .nh-step__pair,
+  .nh-step__range {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6em;
+    max-width: none;
+  }
+
+  .nh-step__pair .nh-step__mid,
+  .nh-step__range .nh-step__value {
+    flex: none;
+  }
+
+  .nh-step__pair .nh-step__row,
+  .nh-step__range .nh-step__row {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+  }
+
+  .nh-step__pair .nh-step__box {
+    height: min(2.1em, 90cqh);
+  }
+
+  .nh-step--pair .nh-step__num {
+    font-size: min(2.5em, 80cqh);
+  }
+
+  .nh-step__range .nh-step__box {
+    height: min(2em, 90cqh);
+  }
+
+  .nh-step--range .nh-step__num {
+    font-size: min(2.2em, 80cqh);
+  }
+
+  .nh-step__ctl {
+    width: 2.2em;
+    height: 100%;
+  }
+
+  .nh-step__bounds,
+  .nh-step__dots,
+  .nh-step__count {
+    display: none;
+  }
+}
+
+/* A one-column cell keeps 4px of body padding, so the carousel's edge strips pull back to it
+   and their glyphs shrink, and the range bar's two end labels, which have nowhere to fit, go. */
+@container nh-cell (max-width: 120px) {
+  .nh-step__edge {
+    width: 2em;
+  }
+
+  .nh-step__edge .nh-step__ic {
+    width: 1.7em;
+    height: 1.7em;
+  }
+
+  .nh-step__edge.nh-step__btn--down {
+    left: -0.1em;
+  }
+
+  .nh-step__edge.nh-step__btn--up {
+    right: -0.1em;
+  }
+
+  .nh-step__carmid {
+    padding: 0 1.5em;
+  }
+
+  .nh-step__bounds {
     display: none;
   }
 }

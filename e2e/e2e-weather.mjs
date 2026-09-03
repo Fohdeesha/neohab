@@ -273,6 +273,15 @@ try {
             config: { source: 'openmeteo', look: 'hero', label: 'Tight', units: 'imperial', location: detroit, textSize: 110 },
             layout: { lg: { x: 0, y: 0, w: 2, h: 1 } },
           },
+          {
+            // 125% text in the same tile: the readings no longer fit beside the temperature at
+            // their full size. Left to wrap, they went under it and drew 82px past the tile's
+            // bottom; they stay beside it and shrink to their column instead.
+            id: 'w-tight-big',
+            type: 'weather',
+            config: { source: 'openmeteo', look: 'hero', label: 'Big', units: 'imperial', location: detroit, textSize: 125 },
+            layout: { lg: { x: 4, y: 0, w: 2, h: 1 } },
+          },
         ],
       },
     }),
@@ -443,6 +452,47 @@ try {
     tight !== null && tight.valueOverhang < 0,
     'furthest reading vs the cell edge: ' + tight?.valueOverhang
   )
+  // The same tile at 125%: the readings can no longer sit beside the temperature at full size.
+  const big = await probe(page, () => {
+    const label = [...document.querySelectorAll('.nh-widget__labeltext')].find((l) => l.textContent.trim() === 'Big')
+    const hero = label?.closest('.nh-gcell, .nh-cell')?.querySelector('.nh-weather--hero')
+    if (!hero) return null
+    const cell = hero.closest('.nh-gcell, .nh-cell')
+    const cr = cell.getBoundingClientRect()
+    const det = hero.querySelector('.nh-weather__details')
+    const now = hero.querySelector('.nh-weather__now')
+    // Everything the hero draws, except what sits inside a scrolling strip, where content past
+    // the edge is what scrolling is for.
+    const scrolls = (el) => {
+      for (let p = el.parentElement; p && p !== cell; p = p.parentElement) {
+        const o = getComputedStyle(p)
+        if (/auto|scroll/.test(o.overflowX + ' ' + o.overflowY)) return true
+      }
+      return false
+    }
+    const drawn = [...hero.querySelectorAll('*')].filter((e) => {
+      const q = e.getBoundingClientRect()
+      return q.width > 1 && q.height > 1 && !scrolls(e)
+    })
+    return {
+      shown: det ? getComputedStyle(det).display !== 'none' : false,
+      beside: det && now ? det.getBoundingClientRect().left >= now.getBoundingClientRect().right - 1 : false,
+      readingFont: det ? parseFloat(getComputedStyle(det.querySelector('.nh-weather__detail')).fontSize) : 0,
+      cellFont: parseFloat(getComputedStyle(cell).fontSize),
+      bottomOverhang: Math.round(Math.max(...drawn.map((e) => e.getBoundingClientRect().bottom - cr.bottom))),
+      rightOverhang: Math.round(Math.max(...drawn.map((e) => e.getBoundingClientRect().right - cr.right))),
+    }
+  })
+  ok(
+    'at 125% text the readings stay beside the reading, drawn smaller to fit their column',
+    big !== null && big.shown && big.beside && big.readingFont < big.cellFont,
+    JSON.stringify(big)
+  )
+  ok(
+    'and nothing the hero draws is outside its tile',
+    big !== null && big.bottomOverhang <= 0 && big.rightOverhang <= 0,
+    JSON.stringify(big)
+  )
 
 
   /* ---- section 3d: a tile too small for everything shrinks and sheds, it never crops ---- */
@@ -451,10 +501,12 @@ try {
   // it past the tile edge, and `overflow: hidden` cut them off mid-glyph. In portrait the same
   // panel showed no readings at all with 384px of its own width empty to the right.
   //
-  // Both shapes are driven here, and BOTH heroes on the board at each: one drawing a name and one
-  // not. A header row costs the body about 1.05em plus 8px while a container query measures the
-  // CELL, so the two have different budgets and different shed thresholds - checking one checks
-  // half the rule, and the half that was wrong first time round put 17px outside the tile.
+  // Both shapes are driven here, and all THREE heroes on the board at each: one drawing a name,
+  // one not, and one at 125% text. A header row costs the body about 1.05em plus 8px while a
+  // container query measures the CELL, so the first two have different budgets and different
+  // shed thresholds - checking one checks half the rule, and the half that was wrong first time
+  // round put 17px outside the tile. The third is the text size at which the readings stopped
+  // fitting beside the temperature.
   //
   // The invariant is the same in every case, and it is the one that failed: whatever is drawn is
   // drawn INSIDE the tile.
@@ -506,18 +558,18 @@ try {
       })
     )
     const list = Array.isArray(fits) ? fits : []
-    ok(`${shape.name}: both heroes rendered`, list.length === 2, `${list.length} of 2`)
+    ok(`${shape.name}: all three heroes rendered`, list.length === 3, `${list.length} of 3`)
     const spilled = list.filter((f) => f.overV > 0 || f.overH > 0 || f.past > 0)
     ok(
       `${shape.name}: nothing is drawn outside the tile`,
-      list.length === 2 && spilled.length === 0,
+      list.length === 3 && spilled.length === 0,
       spilled.length ? JSON.stringify(spilled) : JSON.stringify(list.map((f) => ({ headed: f.headed, cell: f.cell })))
     )
     // The precondition that makes the check above mean anything: these really are tiles too small
     // for the natural layout, so something had to give.
     ok(
       `${shape.name}: and they really are short tiles`,
-      list.length === 2 && list.every((f) => f.cell.h < 130),
+      list.length === 3 && list.every((f) => f.cell.h < 130),
       list.map((f) => `${f.cell.w}x${f.cell.h}`).join(' ')
     )
     // The reported panel is the one with no name drawn, so that is the one the two claims below

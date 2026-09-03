@@ -508,11 +508,15 @@ try {
     await ctx.close()
   }
 
-  /* --------- label font scales with the cell --------- */
+  /* --------- label font scales with the cell ---------
+     The label widget's authored px size follows --nh-textscale, whose floor is chosen by the
+     pointer: under a finger a narrow screen scales the label down, under a mouse it never
+     drops below its authored size while the rows can hold it (100px and taller, which a
+     12-column board reaches at about 1250px; 1300 is inside that). */
   {
     const sizes = {}
-    for (const [name, width] of [['1920', 1920], ['1024', 1024]]) {
-      const ctx = await browser.newContext({ viewport: { width, height: 800 } })
+    for (const [name, width, touch] of [['1920', 1920, false], ['1300', 1300, false], ['1024-touch', 1024, true]]) {
+      const ctx = await browser.newContext({ viewport: { width, height: 800 }, ...(touch ? { hasTouch: true } : {}) })
       await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
       const page = await ctx.newPage()
       await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
@@ -525,7 +529,8 @@ try {
       await ctx.close()
     }
     ok('label font = authored 40px * textscale @1920', Math.abs(sizes['1920'].font - 40 * sizes['1920'].scale) < 0.5, JSON.stringify(sizes['1920']))
-    ok('label font scales down on a narrow screen', sizes['1024'].font < sizes['1920'].font, `1024=${sizes['1024'].font} 1920=${sizes['1920'].font}`)
+    ok('label font scales down on a narrow touch screen', sizes['1024-touch'].font < sizes['1920'].font && sizes['1024-touch'].scale < 1, `1024-touch=${JSON.stringify(sizes['1024-touch'])} 1920=${sizes['1920'].font}`)
+    ok('label keeps its authored size on a narrower mouse-driven screen', sizes['1300'].scale === 1 && Math.abs(sizes['1300'].font - 40) < 0.5, JSON.stringify(sizes['1300']))
   }
 
   /* --------- a component from a NEWER neohab is refused, and left strictly alone ---------

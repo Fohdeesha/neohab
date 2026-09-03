@@ -33,6 +33,7 @@ import {
   useEditorStore,
 } from '../store/editor'
 import { CellHandle } from './CellHandle'
+import { useCoarsePointer } from './useCoarsePointer'
 import { WidgetHost } from './WidgetHost'
 
 /** Touch hold that starts a multi-selection (mirrors the wide grid). */
@@ -52,6 +53,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const [drag, setDrag] = useState<DragState | null>(null)
+  // The text-scale floor is the device's as well as the row's (see textFloor).
+  const coarse = useCoarsePointer()
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   // Touch long-press → multi-select, matching the wide grid.
   const longPressRef = useRef<number | null>(null)
@@ -188,7 +191,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
               style={
                 {
                   height,
-                  '--nh-textscale': stackedTextScale(dashboard, unit, height),
+                  '--nh-textscale': stackedTextScale(dashboard, unit, height, coarse),
                   '--nh-widgetscale': widgetTextScale(widget),
                   '--nh-labelalign': widgetLabelAlign(widget),
                   '--nh-cellaccent': widgetAccentColor(widget),

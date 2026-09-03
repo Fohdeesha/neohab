@@ -48,11 +48,12 @@ translate it.
 **Layout**
 
 - **Mobile-first.** Phones and portrait tablets get a single-column stack you can reorder
-  independently of the grid. On the grid, icons and text both scale with the cell, and widget
-  chrome slims down in tight cells so labels stay readable, and a big reading is sized to the tile
-  it is in rather than clipped by it - a clock in a landscape phone's short row shrinks to fit
-  instead of losing half of itself. Text size is adjustable per dashboard, per widget and per
-  device.
+  independently of the grid. On the grid, icons and text both scale with the cell (on a screen
+  driven by a mouse the text keeps its normal size wherever the row can hold it, so a narrower
+  window does not mean small labels), widget chrome slims down in tight cells so labels stay
+  readable, and a big reading is sized to the tile it is in rather than clipped by it - a clock
+  in a landscape phone's short row shrinks to fit instead of losing half of itself. Text size is
+  adjustable per dashboard, per widget and per device.
 - **Tablet layouts.** An optional second arrangement with its own column count. Any widget can be
   left out on phones, tablets or desktops entirely.
 - **Every widget, the same settings.** Whatever the widget, its title is called its Name, sits

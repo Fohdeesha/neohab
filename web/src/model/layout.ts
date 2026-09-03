@@ -270,8 +270,41 @@ export function iconScale(dashboard: Dashboard, rowHeight: number): number {
  * unit at any size - but only down to a floor, because text has a readability limit an icon
  * doesn't: a label shrunk to 7px is worse than a slightly-too-big one. At the floor the
  * remaining fit comes from the tight-cell padding sheds in app.css instead.
+ *
+ * Where the floor sits depends on what is holding the screen. Under a finger it is a phone or a
+ * tablet, and a landscape phone's 70px cells cannot hold full-size text at all, so there the
+ * text follows the cell down to 0.8 of normal and the sheds do the rest. Under a mouse it is a
+ * monitor at a desk, and a label drawn below its normal size there is small for no reason: a
+ * 1270px page put an 11-column board's labels at 12.8px, which read as tiny. So under a mouse
+ * the floor is the room the row has - the same idea the phone stack has used since it stopped
+ * pinning its rows to 0.8 - full size once a row can hold an icon and a wrapped label
+ * (POINTER_FULL_ROW), easing back to 0.8 below that. Measured before the easing was added: in a
+ * 70px row, 16px text put a switch 3px and a colour picker 8px outside their tiles, and a
+ * three-line label left its icon no room at all; a row that short cannot hold normal text
+ * whatever the pointer is. Rows are 100px or taller on any 12-column board wider than about
+ * 1250px, which is every desk monitor, so there the text simply never shrinks.
  */
-export const MIN_TEXT_SCALE = 0.8
+export const TOUCH_TEXT_FLOOR = 0.8
+export const POINTER_TEXT_FLOOR = 1
+
+/**
+ * The band the mouse floor eases across, in row height. Both ends were measured rather than
+ * chosen, by sweeping the scale in narrow windows and watching where a three-word button label
+ * takes a third line and squeezes its icon out: at 101px rows every label holds at full size,
+ * at 94px rows they hold up to 0.93, at 87px rows only up to 0.83. A row of 100px holds
+ * full-size text (two label lines, an icon, the tile's chrome); one of 85px holds it at 0.8,
+ * which is where the tight-cell sheds take over.
+ */
+export const POINTER_FULL_ROW = 100
+export const POINTER_FLOOR_ROW = 85
+
+/** The text-scale floor for this device and this row height (see above). */
+export function textFloor(coarsePointer: boolean, rowHeight: number): number {
+  if (coarsePointer) return TOUCH_TEXT_FLOOR
+  const h = Number.isFinite(rowHeight) ? rowHeight : 0
+  const t = Math.max(0, Math.min(1, (h - POINTER_FLOOR_ROW) / (POINTER_FULL_ROW - POINTER_FLOOR_ROW)))
+  return TOUCH_TEXT_FLOOR + (POINTER_TEXT_FLOOR - TOUCH_TEXT_FLOOR) * t
+}
 
 /**
  * The dashboard's authored text-size multiplier (`textSize` percent, 100 = normal), applied on
@@ -283,17 +316,24 @@ function dashTextScale(dashboard: Dashboard): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(3, Math.max(0.5, v / 100)) : 1
 }
 
-function baseTextScale(dashboard: Dashboard, rowHeight: number): number {
-  return Math.max(MIN_TEXT_SCALE, iconScale(dashboard, rowHeight))
+function baseTextScale(dashboard: Dashboard, rowHeight: number, coarsePointer: boolean): number {
+  return Math.max(textFloor(coarsePointer, rowHeight), iconScale(dashboard, rowHeight))
 }
 
-export function textScale(dashboard: Dashboard, rowHeight: number): number {
-  return dashTextScale(dashboard) * baseTextScale(dashboard, rowHeight)
+/**
+ * `coarsePointer` is the device's (see useCoarsePointer). Required rather than defaulted so that
+ * every grid has to say which it is passing, and a surface added later cannot quietly fall back
+ * to one.
+ */
+export function textScale(dashboard: Dashboard, rowHeight: number, coarsePointer: boolean): number {
+  return dashTextScale(dashboard) * baseTextScale(dashboard, rowHeight, coarsePointer)
 }
 
 /**
  * A stacked row a phone can comfortably read full-size text in: enough for a scaled icon, the
- * gap under it and a wrapped label. Below this the scale eases back down to the floor.
+ * gap under it and a wrapped label. Below this the scale eases back down to the floor. (Its
+ * own constant, not the mouse band's: a stacked row is as wide as the screen, so it holds a
+ * label in fewer lines than a grid cell of the same height does.)
  */
 export const STACK_COMFORT_HEIGHT = 96
 
@@ -307,12 +347,16 @@ export const STACK_COMFORT_HEIGHT = 96
  * can hold an icon and a label, easing to the floor for the short rows a many-column dashboard
  * stacks into. Never below the grid scale, so this can only ever add room, and never above 1:
  * a full-width row has width to spare, so there is nothing to gain by growing past normal
- * reading size.
+ * reading size. (Under a mouse the row's own floor never exceeds this room term, so the two
+ * pointers agree row for row here.)
  */
-export function stackedTextScale(dashboard: Dashboard, unit: number, cellHeight: number): number {
+export function stackedTextScale(dashboard: Dashboard, unit: number, cellHeight: number, coarsePointer: boolean): number {
+  // The floor is taken from the ROW's height, not the reference unit the row was sized from, so
+  // a 32px row is not handed full-size text because its dashboard's reference cell happens to
+  // be tall.
   return (
     dashTextScale(dashboard) *
-    Math.max(baseTextScale(dashboard, unit), Math.min(1, cellHeight / STACK_COMFORT_HEIGHT))
+    Math.max(textFloor(coarsePointer, cellHeight), iconScale(dashboard, unit), Math.min(1, cellHeight / STACK_COMFORT_HEIGHT))
   )
 }
 

@@ -1,6 +1,9 @@
 /**
  * Text scaling and small-cell layout:
- *   - widget text scales with the cell (--nh-textscale) + MIN_TEXT_SCALE floor
+ *   - widget text scales with the cell (--nh-textscale) down to a floor that depends on the
+ *     pointer: 0.8 under a finger; under a mouse the room the row has, 1.0 from 100px rows
+ *     easing to 0.8 at 85px (a monitor never draws small text, and a row that short cannot
+ *     hold it)
  *   - tight cells reclaim nested padding, so small-cell labels stop ellipsising
  *   - button labels are not bottom-clipped (glyph ink inside its own line box)
  *   - long unbreakable tokens break instead of ellipsising the whole label
@@ -69,13 +72,16 @@ const browser = await launchBrowser()
 
 try {
   /* ---------------- text scale math + no clipping, across viewports ---------------- */
+  // A phone is a TOUCH context: the text-scale floor is chosen by the pointer, not the width,
+  // so a 915px viewport with a mouse is a narrow desktop window and gets the desktop floor.
   for (const vp of [
-    { name: 'phone-landscape', width: 915, height: 411 },
+    { name: 'phone-landscape', width: 915, height: 411, touch: true },
+    { name: 'window-1190', width: 1190, height: 768 },
     { name: 'laptop-1366', width: 1366, height: 768 },
     { name: 'desktop-1920', width: 1920, height: 1080 },
     { name: 'desktop-2560', width: 2560, height: 1440 },
   ]) {
-    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 })
+    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1, ...(vp.touch ? { hasTouch: true } : {}) })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     const errors = []
@@ -118,6 +124,7 @@ try {
       return {
         textscale: parseFloat(gs.getPropertyValue('--nh-textscale')),
         iconscale: parseFloat(gs.getPropertyValue('--nh-iconscale')),
+        rowH: parseFloat(gs.gridAutoRows),
         cellFont: parseFloat(getComputedStyle(document.querySelector('.nh-gcell')).fontSize),
         docScrollX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         labels,
@@ -125,9 +132,12 @@ try {
       }
     })
 
-    // textScale = max(0.8, iconScale) - the floor lives in model/layout.ts
-    const expected = Math.max(0.8, m.iconscale)
-    ok(`${vp.name}: textscale = max(0.8, iconscale)`, Math.abs(m.textscale - expected) < 0.001, `${m.textscale} want ${expected.toFixed(3)}`)
+    // textScale = max(floor, iconScale): the floor is 0.8 under a finger, and under a mouse the
+    // room the row has, 1 from 100px rows easing to 0.8 at 85px - the rule lives in
+    // model/layout.ts (textFloor), mirrored here
+    const floor = vp.touch ? 0.8 : 0.8 + 0.2 * Math.max(0, Math.min(1, (m.rowH - 85) / 15))
+    const expected = Math.max(floor, m.iconscale)
+    ok(`${vp.name}: textscale = max(floor ${floor.toFixed(3)}, iconscale)`, Math.abs(m.textscale - expected) < 0.001, `${m.textscale} want ${expected.toFixed(3)} (rows ${m.rowH}px)`)
     ok(`${vp.name}: cell font = 16 * textscale`, Math.abs(m.cellFont - 16 * m.textscale) < 0.2, `${m.cellFont}px`)
     ok(`${vp.name}: no horizontal page scroll`, !m.docScrollX)
     ok(`${vp.name}: no label ellipsised`, m.labels.every((l) => !l.hClipped), JSON.stringify(m.labels.filter((l) => l.hClipped).map((l) => l.text)))
@@ -152,6 +162,19 @@ try {
       const token = m.labels.find((l) => l.text === 'Laptop>Studio AVB')
       ok('phone: unbreakable token breaks, not ellipsised', token && !token.hClipped, JSON.stringify(token))
       ok('phone: floor engaged (text bigger than raw scale)', m.textscale === 0.8 && m.iconscale < 0.8, `icon=${m.iconscale.toFixed(3)} text=${m.textscale}`)
+    }
+    if (vp.name === 'laptop-1366') {
+      // The mouse floor: the cells are smaller than a desktop's (icons shrink) and the text does
+      // not follow them down - a label never renders below its normal size under a mouse once
+      // the row can hold it.
+      ok('laptop (mouse): floor 1.0 engaged (text at normal size while icons shrink)', m.rowH >= 100 && m.textscale === 1 && m.iconscale < 1, `rows=${m.rowH} icon=${m.iconscale.toFixed(3)} text=${m.textscale}`)
+    }
+    if (vp.name === 'window-1190') {
+      // A narrow mouse window whose rows are inside the 85-100px band: the floor eases between
+      // the two ends rather than sitting at either. Measured before the easing existed:
+      // full-size text in a row this short put a switch and a colour picker outside their
+      // tiles, and a three-word label squeezed its icon out.
+      ok('window-1190 (mouse): a row between 85px and 100px eases the floor between 0.8 and 1', m.rowH > 85 && m.rowH < 100 && m.textscale > 0.8 && m.textscale < 1 && Math.abs(m.textscale - (0.8 + 0.2 * (m.rowH - 85) / 15)) < 0.001, `rows=${m.rowH} text=${m.textscale.toFixed(3)}`)
     }
     if (vp.name === 'desktop-2560') {
       ok('2560: text grows with icons (scale > 1)', m.textscale > 1 && Math.abs(m.textscale - m.iconscale) < 0.001, `text=${m.textscale.toFixed(3)}`)

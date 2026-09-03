@@ -67,7 +67,9 @@ const TIGHT = {
   },
 }
 
-/** The scale rule under test, mirrored from web/src/model/layout.ts. */
+/** The scale rule under test for a TOUCH screen, mirrored from web/src/model/layout.ts. (Under a
+ * mouse the grid's floor is the room the row has, 1 from 100px rows easing to 0.8 at 85px; the
+ * regression guard below covers that side.) */
 const wantScale = (iconscale, cellHeight) => Math.max(Math.max(0.8, iconscale), Math.min(1, cellHeight / 96))
 
 for (const d of [ROOMY, TIGHT]) {
@@ -111,13 +113,16 @@ const readCells = (page) =>
       stacked: grid.classList.contains('nh-grid--stacked'),
       iconscale: parseFloat(getComputedStyle(grid).getPropertyValue('--nh-iconscale')),
       gridScale: getComputedStyle(grid).getPropertyValue('--nh-textscale').trim(),
+      rowH: parseFloat(getComputedStyle(grid).gridAutoRows),
       docScrollX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       cells,
     }
   })
 
-const open = async (browser, width, height, route) => {
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 })
+// A phone is a TOUCH context: the text-scale floor is chosen by the pointer, not the width, so
+// this suite's phones emulate a finger and only the regression guard asks for a mouse.
+const open = async (browser, width, height, route, { touch = true } = {}) => {
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, ...(touch ? { hasTouch: true } : {}) })
   await ctx.addInitScript((t) => {
     try {
       localStorage.setItem('neohab:apiToken', t)
@@ -222,18 +227,24 @@ try {
     await ctx.close()
   }
 
-  /* ---------- REGRESSION GUARD: the wide grid is untouched ---------- */
+  /* ---------- REGRESSION GUARD: the wide grid follows its own rule ----------
+     max(floor, iconscale), where the floor is 0.8 under a finger and, under a mouse, the room
+     the row has: 1 from 100px rows, easing to 0.8 at 85px. */
   for (const vp of [
-    { name: 'phone-landscape-915', width: 915, height: 411 },
-    { name: 'laptop-1366', width: 1366, height: 768 },
-    { name: 'desktop-1920', width: 1920, height: 1080 },
-    { name: 'desktop-2560', width: 2560, height: 1440 },
+    { name: 'phone-landscape-915', width: 915, height: 411, touch: true },
+    { name: 'laptop-1366', width: 1366, height: 768, touch: false },
+    { name: 'desktop-1920', width: 1920, height: 1080, touch: false },
+    { name: 'desktop-2560', width: 2560, height: 1440, touch: false },
   ]) {
-    const { ctx, page, errors } = await open(browser, vp.width, vp.height, 'nh-e2e-portrait')
+    const { ctx, page, errors } = await open(browser, vp.width, vp.height, 'nh-e2e-portrait', { touch: vp.touch })
     const m = await readCells(page)
-    const expected = Math.max(0.8, m.iconscale)
+    const floor = vp.touch ? 0.8 : 0.8 + 0.2 * Math.max(0, Math.min(1, (m.rowH - 85) / 15))
+    const expected = Math.max(floor, m.iconscale)
     ok(`${vp.name}: wide grid, not stacked`, !m.stacked)
-    ok(`${vp.name}: grid scale still max(0.8, iconscale)`, Math.abs(parseFloat(m.gridScale) - expected) < 0.001, `${m.gridScale} want ${expected.toFixed(3)}`)
+    ok(`${vp.name}: grid scale = max(floor ${floor.toFixed(3)}, iconscale)`, Math.abs(parseFloat(m.gridScale) - expected) < 0.001, `${m.gridScale} want ${expected.toFixed(3)} (rows ${m.rowH}px)`)
+    if (vp.name === 'laptop-1366') {
+      ok('laptop-1366 (mouse): at the 1.0 floor, text normal while icons shrink', m.rowH >= 100 && parseFloat(m.gridScale) === 1 && m.iconscale < 1, `rows=${m.rowH} ${m.gridScale} icon=${m.iconscale.toFixed(3)}`)
+    }
     ok(
       `${vp.name}: cell font still 16 * grid scale (rows unchanged)`,
       m.cells.every((c) => Math.abs(c.font - 16 * expected) < 0.2),
@@ -249,10 +260,10 @@ try {
   }
   // The two ends of the range still differ the way they did before the change.
   {
-    const a = await open(browser, 915, 411, 'nh-e2e-portrait')
+    const a = await open(browser, 915, 411, 'nh-e2e-portrait', { touch: true })
     const land = await readCells(a.page)
     await a.ctx.close()
-    const b = await open(browser, 2560, 1440, 'nh-e2e-portrait')
+    const b = await open(browser, 2560, 1440, 'nh-e2e-portrait', { touch: false })
     const wide = await readCells(b.page)
     await b.ctx.close()
     ok('landscape phone still at the 0.8 floor: 12.8px', Math.abs(land.cells[0].font - 12.8) < 0.2, land.cells[0].font + 'px')

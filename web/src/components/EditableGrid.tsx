@@ -55,6 +55,7 @@ import { lookup } from '../model/lookup'
 import { CellHandle } from './CellHandle'
 import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
+import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
 import { useGridEditSurface } from './useEditSurface'
 
@@ -148,6 +149,8 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const dashboard = projectDashboard(draft, bp)
   const [placeTarget, setPlaceTarget] = useState<{ rect: Rect; valid: boolean } | null>(null)
   const containerWidth = useContainerWidth(containerRef)
+  // The text-scale floor is the device's as well as the row's (see textFloor).
+  const coarse = useCoarsePointer()
   const gridSurface = useGridEditSurface()
   const dwellRef = useRef<number | null>(null)
   // Touch long-press → multi-select. One press at a time; the ref survives re-renders.
@@ -524,7 +527,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
-          '--nh-textscale': textScale(dashboard, rowHeight),
+          '--nh-textscale': textScale(dashboard, rowHeight, coarse),
         } as React.CSSProperties
       }
       onPointerDown={onGridPointerDown}

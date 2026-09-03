@@ -43,6 +43,7 @@ import {
 } from '../model/layout'
 import { instanceMinHeight } from '../widgets/registry'
 import { WidgetHost } from './WidgetHost'
+import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
 import { useLongPress } from './useLongPress'
 import { WidgetDetail } from './WidgetDetail'
@@ -82,6 +83,8 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
+  // The text-scale floor is the device's as well as the row's (see textFloor).
+  const coarse = useCoarsePointer()
   // Declared with the other hooks: the early returns below skip later code, and a hook after one
   // of them would change the render's hook order.
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
@@ -149,7 +152,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
               style={
                 {
                   height,
-                  '--nh-textscale': stackedTextScale(dashboard, unit, height),
+                  '--nh-textscale': stackedTextScale(dashboard, unit, height, coarse),
                   '--nh-widgetscale': widgetTextScale(w),
                   '--nh-labelalign': widgetLabelAlign(w),
                   '--nh-cellaccent': widgetAccentColor(w),
@@ -175,7 +178,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
-          '--nh-textscale': textScale(dashboard, rowHeight),
+          '--nh-textscale': textScale(dashboard, rowHeight, coarse),
         } as React.CSSProperties
       }
     >
