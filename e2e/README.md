@@ -150,6 +150,13 @@ against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist
 are real and reach no device. It enters edit mode once to inspect the settings panel and leaves
 without saving. The dashboard and all five items are deleted by name in cleanup.
 
+`e2e-thermostat.mjs` drives the thermostat widget - four looks, the setpoint's buttons and its
+ring, the mode, fan and aux buttons, and the status item - against nine managed items it creates
+itself (`nh_e2e_thcur`, `nh_e2e_thset`, `nh_e2e_thmode`, `nh_e2e_thfan`, `nh_e2e_thaux`,
+`nh_e2e_thstat`, `nh_e2e_thcurc`, `nh_e2e_thsetc`, `nh_e2e_thnull`, all bound to nothing), so its
+commands are real and reach no device. It enters edit mode once to inspect the settings panel and
+leaves without saving. The dashboard and all nine items are deleted by name in cleanup.
+
 `e2e-colorpower.mjs` drives the colour widget's on and off buttons against one managed Color item
 it creates itself (`nh_e2e_pwr`, bound to nothing), so its commands are real and reach openHAB but
 no device is involved. That is the point of the suite rather than a convenience: the feature rests

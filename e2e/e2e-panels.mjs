@@ -261,6 +261,8 @@ try {
     ['value', { item: ITEMS.temperature, label: 'Value' }],
     ['stat', { item: ITEMS.temperature, label: 'Stat', caption: 'Caption', badge: 'NEW' }],
     ['compass', { item: ITEMS.dimmer, label: 'Compass' }],
+    ['thermostat', { currentItem: ITEMS.temperature, setpointItem: ITEMS.dimmer, modeItem: ITEMS.switch, label: 'Thermostat' }],
+    ['thermostat', { currentItem: ITEMS.temperature, setpointItem: ITEMS.dimmer, look: 'ring', label: 'Ring' }],
     ['label', { text: 'A label widget' }],
     ['clock', { showSeconds: true, showDate: true, dateFormat: 'full' }],
   ]
