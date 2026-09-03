@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSidebarLayout } from '../store/sidebar'
 
 interface SheetProps {
   title: string
@@ -20,8 +21,17 @@ interface SheetProps {
 
 export function Sheet({ title, onClose, side = false, collapsed = false, children }: SheetProps) {
   const { t } = useTranslation()
+  // A bottom sheet spans the viewport, and the sidebar is stacked above it because on a phone it
+  // has to overlay everything. On a wide screen with the sidebar pinned that put the sheet's
+  // first 260px underneath it: every palette card in the first column could not be pressed,
+  // which is how adding one more widget to the palette made the Clock card unclickable. The
+  // sheet takes the same inset the dashboard content does, so it starts where the sidebar ends.
+  const { inset } = useSidebarLayout()
   return (
-    <div className={'nh-sheet' + (side ? ' nh-sheet--side' : '') + (collapsed ? ' nh-sheet--collapsed' : '')}>
+    <div
+      className={'nh-sheet' + (side ? ' nh-sheet--side' : '') + (collapsed ? ' nh-sheet--collapsed' : '')}
+      style={!side && inset > 0 ? { left: inset } : undefined}
+    >
       <div className="nh-sheet__head">
         <span className="nh-sheet__title">{title}</span>
         <button type="button" className="nh-iconbtn nh-sheet__close" onClick={onClose} aria-label={t('Close')}>

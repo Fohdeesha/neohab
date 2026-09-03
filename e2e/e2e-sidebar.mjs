@@ -458,6 +458,16 @@ try {
     // make the draft dirty without touching the server
     await page.click('button[aria-label="Add widget"]')
     await page.waitForSelector('.nh-palette', { timeout: 8000 })
+    // A pinned sidebar is stacked above a bottom sheet (it has to overlay a phone), so the sheet
+    // must start where the sidebar ends or its first column of cards cannot be pressed. That is
+    // how the Clock click below died the day the palette gained one more card and Clock moved
+    // into that column: the sheet spanned the viewport and the sidebar covered its left 260px.
+    const sheetGeo = await page.evaluate(() => {
+      const sh = document.querySelector('.nh-sheet')?.getBoundingClientRect()
+      const sb = document.querySelector('.nh-side')?.getBoundingClientRect()
+      return sh && sb ? { sheetLeft: Math.round(sh.left), sideRight: Math.round(sb.right) } : null
+    })
+    ok('pinned: the palette sheet starts where the sidebar ends', sheetGeo && sheetGeo.sheetLeft >= sheetGeo.sideRight, JSON.stringify(sheetGeo))
     await page.locator('.nh-palette button', { hasText: 'Clock' }).first().click()
     await page.waitForTimeout(400)
 
