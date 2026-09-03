@@ -1,12 +1,16 @@
 /**
  * Per-theme custom CSS + Swiss Sheet themes e2e.
  *
- * Covers: the two Swiss Sheet built-ins appear and apply (tokens + injected stylesheet);
- * widget frames become flat top-ruled sheets (transparent bg, 2px top rule, no radius/shadow,
- * lowercase labels); Home tiles ruled, "+" tile keeps its dashed box; the injected stylesheet
- * survives reload via the pre-paint theme cache; light variant; theme editor gains a Custom CSS
- * textarea (copied on request, round-trips to the server, applies once the theme is adopted);
- * switching to a css-less theme removes the style element; console clean.
+ * Covers: the two Swiss Sheet built-ins appear and apply (tokens + injected stylesheet); the
+ * page is a plain black field with no texture; widgets are unboxed, and a named one sits under
+ * a 2px rule carried by its lowercase caption; a headerless button is an outlined block with
+ * no rule, and an active one is a plate in the text colour with the page colour as ink; the
+ * dial is a flat grey track with a fill in the text colour and square ends; the slider is a
+ * flat track; Home tiles are ruled and the "+" tile keeps its dashed box; the masthead carries
+ * a rule and a red mark; the stylesheet survives reload via the pre-paint theme cache; the light
+ * variant; the theme editor's Custom CSS textarea (copied on request, round-trips to the
+ * server, applies once the theme is adopted); switching to a css-less theme removes the style
+ * element; console clean.
  *
  * The editor section covers what the theme editor is FOR: a token change previews on the page
  * before anything is stored, every group of the token contract is offered (not just the original
@@ -16,7 +20,8 @@
  *
  * SAFE with a live config: creates only dashboard:nh-e2e-swiss and one theme:custom-* (found by
  * uid diff, deleted in cleanup). The `settings` component is snapshotted first and restored
- * VERBATIM. Commands NOTHING (label/clock/value widgets; value reads the temperature item).
+ * VERBATIM. Commands NOTHING: the dial is read-only, the slider is never touched, and every
+ * button is only ever read for its computed style.
  */
 import { chromium } from 'playwright-core'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
@@ -41,6 +46,17 @@ function launch() {
   return chromium.launch({ headless: true })
 }
 
+// Chromium serialises a color-mix() result as color(srgb r g b) in 0..1; everything else as
+// rgb(). Both are read into 0..255 channels so a check can compare either.
+const channels = (color) => {
+  const ch = (String(color).match(/[\d.]+/g) ?? []).map(Number)
+  return ch.length >= 3 && ch.slice(0, 3).every((v) => v <= 1) ? ch.map((v) => Math.round(v * 255)) : ch
+}
+const near = (color, want, tol = 2) => {
+  const ch = channels(color)
+  return ch.length >= 3 && want.every((w, i) => Math.abs(ch[i] - w) <= tol)
+}
+
 // ---------- pre-suite snapshots ----------
 const settingsBefore = await readSettings()
 const themeUidsBefore = (await listUids()).filter((u) => u.startsWith('theme:'))
@@ -58,7 +74,7 @@ await page.addInitScript((t) => {
 try {
   // ---------- seed a dashboard (nothing commandable is ever clicked) ----------
   // A toggle button whose command EQUALS the item's current state renders active without any
-  // interaction - the active red plate is asserted purely from SSE state, zero commands sent.
+  // interaction - the active plate is asserted purely from SSE state, zero commands sent.
   const presetState = (await (await fetch(BASE + `/rest/items/${ITEMS.switch}/state`, { headers: AUTH })).text()).trim()
   const seed = await fetch(NS, {
     method: 'POST',
@@ -84,6 +100,9 @@ try {
             config: { label: 'State Active', item: ITEMS.switch, command: presetState, toggle: true, icon: 'oh:light' },
             layout: { lg: { x: 9, y: 0, w: 3, h: 2 } },
           },
+          // a read-only gauge and an untouched slider: both only ever read for their style
+          { id: 'w-d', type: 'dial', config: { item: ITEMS.temperature, label: 'Gauge', readOnly: true, min: 0, max: 100 }, layout: { lg: { x: 0, y: 2, w: 3, h: 2 } } },
+          { id: 'w-s', type: 'slider', config: { item: ITEMS.dimmer, label: 'Level' }, layout: { lg: { x: 3, y: 2, w: 3, h: 2 } } },
         ],
       },
     }),
@@ -102,59 +121,72 @@ try {
   await sleep(600)
   const bodyStyle = await page.evaluate(() => {
     const s = getComputedStyle(document.body)
-    return { bg: s.backgroundColor, font: s.fontFamily }
+    return { bg: s.backgroundColor, img: s.backgroundImage, font: s.fontFamily }
   })
-  ok('swiss dark bg applied', bodyStyle.bg === 'rgb(10, 10, 10)', bodyStyle.bg)
-  ok('Instrument Sans stack applied', /Instrument Sans/i.test(bodyStyle.font), bodyStyle.font)
+  ok('swiss dark: the page is plain black', bodyStyle.bg === 'rgb(0, 0, 0)', bodyStyle.bg)
+  ok('swiss dark: no texture on the page', bodyStyle.img === 'none', bodyStyle.img.slice(0, 40))
+  ok('Helvetica system stack applied, no bundled font', /Helvetica/.test(bodyStyle.font) && !/Instrument/.test(bodyStyle.font), bodyStyle.font)
   ok('theme style element injected', await page.evaluate(() => !!document.getElementById('nh-theme-css')))
-  // the woff2 must actually be served from the jar and load - not just be declared
-  const fontLoaded = await page.evaluate(async () => {
-    await document.fonts.ready
-    return document.fonts.check("16px 'Instrument Sans'")
-  })
-  ok('Instrument Sans woff2 loads from the jar', fontLoaded)
+  const fontFetches = await page.evaluate(() =>
+    performance.getEntriesByType('resource').filter((r) => /\.woff2?$/.test(r.name)).map((r) => r.name.split('/').pop()))
+  ok('the theme downloads no webfont', fontFetches.length === 0, fontFetches.join(', '))
 
-  // ---------- widget frame is a flat top-ruled sheet ----------
+  // ---------- widget: unboxed, the name carries the rule ----------
   await page.goto(APP + '#/d/nh-e2e-swiss')
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   const frame = await page.$eval('.nh-gcell .nh-widget', (el) => {
     const s = getComputedStyle(el)
+    const a = getComputedStyle(el, '::after')
     return {
       bgImg: s.backgroundImage,
       bgColor: s.backgroundColor,
-      bgSize: s.backgroundSize,
       topW: s.borderTopWidth,
       bottomW: s.borderBottomWidth,
+      sideW: s.borderLeftWidth,
       radius: s.borderRadius,
       shadow: s.boxShadow,
+      after: a.content,
     }
   })
-  ok('widget UNBOXED: clean page-black region, no borders', frame.bgColor === 'rgb(10, 10, 10)' && frame.topW === '0px' && frame.bottomW === '0px', `${frame.bgColor} t${frame.topW} b${frame.bottomW}`)
-  ok('two-tone rule layer (red segment into ink run)', frame.bgSize.startsWith('100% 2px') && frame.bgImg.includes('rgb(226, 56, 42)') && frame.bgImg.includes('rgb(242, 242, 242)'), frame.bgSize)
-  ok('circle construction motif present', frame.bgImg.includes('radial-gradient'), frame.bgImg.slice(0, 30))
+  ok('widget UNBOXED: transparent, no borders', frame.bgColor === 'rgba(0, 0, 0, 0)' && frame.topW === '0px' && frame.bottomW === '0px' && frame.sideW === '0px', `${frame.bgColor} t${frame.topW} b${frame.bottomW} s${frame.sideW}`)
+  ok('widget carries no motif or texture', frame.bgImg === 'none', frame.bgImg.slice(0, 30))
   ok('widget square corners', frame.radius === '0px', frame.radius)
   ok('widget no shadow', frame.shadow === 'none', frame.shadow)
-  const bracket = await page.$eval('.nh-gcell .nh-widget', (el) => {
-    const s = getComputedStyle(el, '::after')
-    return { w: s.borderRightWidth, pe: s.pointerEvents }
-  })
-  ok('corner registration bracket (inert)', bracket.w === '1px' && bracket.pe === 'none', JSON.stringify(bracket))
-  const pageGrid = await page.evaluate(() => getComputedStyle(document.body).backgroundImage)
-  ok('drafting grid fills the page background', pageGrid.includes('repeating-linear-gradient'), pageGrid.slice(0, 40))
+  ok('no corner bracket pseudo-element', frame.after === 'none', frame.after)
   const labelStyle = await page.$eval('.nh-widget__label', (el) => {
     const s = getComputedStyle(el)
-    return { tf: s.textTransform, underline: s.borderBottomWidth }
+    return { tf: s.textTransform, rule: s.borderTopWidth, ruleColor: s.borderTopColor, weight: s.fontWeight, color: s.color, ml: s.marginLeft }
   })
-  ok('widget label lowercase', labelStyle.tf === 'lowercase', labelStyle.tf)
-  ok('label row NOT underlined anymore', labelStyle.underline === '0px', labelStyle.underline)
-  // hardcoded 10px + rounded in app.css - only the theme CSS changes these
-  const btn = await page.$eval('.nh-button', (el) => {
+  ok('the name row carries a 2px rule in the text colour', labelStyle.rule === '2px' && labelStyle.ruleColor === 'rgb(242, 242, 242)', `${labelStyle.rule} ${labelStyle.ruleColor}`)
+  ok('caption lowercase, regular weight, dim', labelStyle.tf === 'lowercase' && labelStyle.weight === '400' && labelStyle.color === 'rgb(140, 145, 153)', `${labelStyle.tf} ${labelStyle.weight} ${labelStyle.color}`)
+  ok('caption flush with the rule (rule inset by margin, not padding)', labelStyle.ml === '8px', labelStyle.ml)
+  // the value sits top-left under its caption, like a status tile
+  const valuePos = await page.$eval('.nh-value', (el) => {
+    const body = el.closest('.nh-widget__body')
+    const b = body.getBoundingClientRect()
+    const v = el.getBoundingClientRect()
+    return { left: v.left - b.left, topGap: v.top - b.top, bodyH: b.height, weight: getComputedStyle(el.querySelector('.nh-value__text')).fontWeight }
+  })
+  ok('reading sits top-left, set bold', valuePos.left < 12 && valuePos.topGap < valuePos.bodyH / 3 && valuePos.weight === '700', JSON.stringify(valuePos))
+
+  // ---------- buttons: outlined blocks, no rule, active = plate in the text colour ----------
+  const btn = await page.$eval('.nh-button:not(.nh-button--active)', (el) => {
     const s = getComputedStyle(el)
-    return { radius: s.borderRadius, face: s.backgroundImage, shadow: s.boxShadow, bg: s.backgroundColor, borderW: s.borderTopWidth }
+    const widget = el.closest('.nh-widget')
+    return {
+      radius: s.borderRadius,
+      face: s.backgroundImage,
+      shadow: s.boxShadow,
+      bg: s.backgroundColor,
+      borderW: s.borderTopWidth,
+      headed: widget.classList.contains('nh-widget--headed'),
+      widgetRule: getComputedStyle(widget).borderTopWidth,
+    }
   })
   ok('button squared by theme CSS', btn.radius === '0px', btn.radius)
-  ok('button outlined-transparent with reticle rings', btn.bg.startsWith('rgba(0, 0, 0, 0') && btn.borderW === '1px' && btn.face.includes('radial-gradient') && btn.shadow === 'none', `${btn.bg} ${btn.borderW}`)
-  // state-matching toggle button renders the solid red active plate - from SSE state alone.
+  ok('button outlined and transparent, no reticle', btn.bg === 'rgba(0, 0, 0, 0)' && btn.borderW === '1px' && btn.face === 'none' && btn.shadow === 'none', `${btn.bg} ${btn.borderW} ${btn.face.slice(0, 20)}`)
+  ok('a headerless button has no rule above it', !btn.headed && btn.widgetRule === '0px', `headed=${btn.headed} rule=${btn.widgetRule}`)
+  // state-matching toggle button renders the plate - from SSE state alone.
   // The class appears only once the item's state ARRIVES over SSE, so wait for it.
   // (and let .nh-button's 100ms background transition finish, or the sample lands mid-flight)
   const plate = await page
@@ -163,36 +195,52 @@ try {
       await sleep(300)
       return el.evaluate((n) => {
         const s = getComputedStyle(n)
-        return { bg: s.backgroundColor, color: s.color }
+        return { bg: s.backgroundColor, color: s.color, border: s.borderTopColor }
       })
     })
     .catch(() => null)
-  // lighter pink-leaning red: primary 75% + white 25% = ~rgb(233, 106, 95).
-  // Chromium serializes color-mix as color(srgb 0..1 ...) - normalize to 0..255.
-  let plateCh = plate ? (plate.bg.match(/[\d.]+/g) ?? []).map(Number) : []
-  if (plateCh.length >= 3 && plateCh.slice(0, 3).every((v) => v <= 1)) plateCh = plateCh.map((v) => v * 255)
-  const plateOk =
-    plateCh.length >= 3 &&
-    Math.abs(plateCh[0] - 233) <= 2 &&
-    Math.abs(plateCh[1] - 106) <= 2 &&
-    Math.abs(plateCh[2] - 95) <= 2
-  ok('active toggle = lighter red plate, white text', !!plate && plateOk && plate.color === 'rgb(255, 255, 255)', JSON.stringify(plate) + ' state=' + presetState)
+  ok('active toggle = plate in the text colour, page-colour ink', !!plate && near(plate.bg, [242, 242, 242]) && plate.color === 'rgb(0, 0, 0)', JSON.stringify(plate) + ' state=' + presetState)
   const iconFilters = await page.$$eval('.nh-icon--img', (els) => els.map((el) => getComputedStyle(el).filter))
   ok('image icons keep their color (no filter)', iconFilters.length > 0 && iconFilters.every((f) => f === 'none'), iconFilters.join(' | '))
+
+  // ---------- dial and slider: flat bars ----------
+  const dial = await page.$eval('.nh-dial', (el) => {
+    const track = getComputedStyle(el.querySelector('.nh-dial__track'))
+    const fill = el.querySelector('.nh-dial__fill')
+    return { track: track.stroke, cap: track.strokeLinecap, width: track.strokeWidth, fill: fill ? getComputedStyle(fill).stroke : null }
+  })
+  ok('dial track is the flat grey, square-ended', dial.track === 'rgb(43, 43, 43)' && dial.cap === 'butt', `${dial.track} ${dial.cap} ${dial.width}`)
+  ok('dial fills in the text colour', dial.fill === 'rgb(242, 242, 242)', String(dial.fill))
+  const slider = await page.$eval('.nh-slider__input', (el) => {
+    const s = getComputedStyle(el)
+    return { appearance: s.appearance || s.webkitAppearance, bg: s.backgroundColor }
+  })
+  ok('slider is a flat custom track', slider.appearance === 'none', JSON.stringify(slider))
+
+  // ---------- masthead ----------
   const barRule = await page.$eval('.nh-dash__bar', (el) => {
     const s = getComputedStyle(el)
-    return { bw: s.borderBottomWidth, size: s.backgroundSize, img: s.backgroundImage }
+    return { bw: s.borderBottomWidth, bc: s.borderBottomColor, img: s.backgroundImage }
   })
-  ok('two-tone masthead rule under the header', barRule.bw === '0px' && barRule.size === '100% 3px' && barRule.img.includes('rgb(226, 56, 42)'), `${barRule.bw} ${barRule.size}`)
+  ok('2px rule under the masthead, no gradient', barRule.bw === '2px' && barRule.bc === 'rgb(242, 242, 242)' && barRule.img === 'none', `${barRule.bw} ${barRule.bc} ${barRule.img.slice(0, 20)}`)
+  const mark = await page.$eval('.nh-dash__title', (el) => {
+    const s = getComputedStyle(el, '::before')
+    return { w: s.width, bg: s.backgroundColor, tf: getComputedStyle(el).textTransform, weight: getComputedStyle(el).fontWeight }
+  })
+  ok('title lowercase bold with a red mark', mark.w === '9px' && mark.bg === 'rgb(226, 56, 42)' && mark.tf === 'lowercase' && mark.weight === '700', JSON.stringify(mark))
 
   // ---------- Home tiles ruled; "+" tile keeps its dashed box ----------
   await page.goto(APP + '#/')
   await page.waitForSelector('.nh-tile', { timeout: 20000 })
+  // the pointer is still where the theme card was, which can be over the first tile: a hover
+  // wash and the base stylesheet's border transition would then be what gets sampled
+  await page.mouse.move(0, 0)
+  await sleep(250)
   const tile = await page.$eval('.nh-tile:not(.nh-tile--new)', (el) => {
     const s = getComputedStyle(el)
-    return { bgImg: s.backgroundImage, bgSize: s.backgroundSize, topW: s.borderTopWidth, sideW: s.borderLeftWidth }
+    return { bg: s.backgroundColor, bgImg: s.backgroundImage, topW: s.borderTopWidth, topC: s.borderTopColor, sideW: s.borderLeftWidth }
   })
-  ok('tile = unboxed sheet section (two-tone rule + motif)', tile.bgImg.includes('radial-gradient') && tile.bgSize.startsWith('100% 2px') && tile.topW === '0px' && tile.sideW === '0px', JSON.stringify({ ...tile, bgImg: tile.bgImg.slice(0, 20) }))
+  ok('tile = unboxed section under a 2px rule', tile.bg === 'rgba(0, 0, 0, 0)' && tile.bgImg === 'none' && tile.topW === '2px' && tile.topC === 'rgb(242, 242, 242)' && tile.sideW === '0px', JSON.stringify(tile))
   const newTile = await page.$eval('.nh-tile--new', (el) => {
     const s = getComputedStyle(el)
     return { style: s.borderTopStyle, w: s.borderTopWidth }
@@ -203,7 +251,7 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForFunction(() => !!document.getElementById('nh-theme-css'), null, { timeout: 5000 })
   const reloadBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-  ok('swiss survives reload via theme cache', reloadBg === 'rgb(10, 10, 10)', reloadBg)
+  ok('swiss survives reload via theme cache', reloadBg === 'rgb(0, 0, 0)', reloadBg)
 
   // ---------- light variant ----------
   await page.goto(APP + '#/settings')
@@ -214,8 +262,16 @@ try {
   ok('swiss light bg white', lightBg === 'rgb(255, 255, 255)', lightBg)
   await page.goto(APP + '#/d/nh-e2e-swiss')
   await page.waitForSelector('.nh-widget')
-  const lightRule = await page.$eval('.nh-gcell .nh-widget', (el) => getComputedStyle(el).backgroundImage)
-  ok('light variant rules in near-black ink', lightRule.includes('rgb(17, 17, 17)'), lightRule.slice(0, 60))
+  const lightRule = await page.$eval('.nh-widget__label', (el) => getComputedStyle(el).borderTopColor)
+  ok('light variant rules in near-black ink', lightRule === 'rgb(17, 17, 17)', lightRule)
+  const lightPlate = await page
+    .waitForSelector('.nh-button--active', { timeout: 15000 })
+    .then(async (el) => {
+      await sleep(300)
+      return el.evaluate((n) => ({ bg: getComputedStyle(n).backgroundColor, color: getComputedStyle(n).color }))
+    })
+    .catch(() => null)
+  ok('light variant: active plate is ink with white lettering', !!lightPlate && near(lightPlate.bg, [17, 17, 17]) && lightPlate.color === 'rgb(255, 255, 255)', JSON.stringify(lightPlate))
 
   // ---------- editor: live preview, token groups, contrast, explicit stylesheet copy ----------
   await page.goto(APP + '#/settings')
@@ -237,8 +293,8 @@ try {
   ok('a new theme does inherit its colours',
     (await page.inputValue('#tok-primary')).toLowerCase() === activePrimary,
     `${await page.inputValue('#tok-primary')} vs ${activePrimary}`)
-  // ...but NOT a pinned accent ink. The built-ins pin it for the accent they ship with; carrying
-  // that into a copy would disable the automatic choice for an accent about to be changed.
+  // ...and NOT a pinned accent ink. Swiss leaves it to the automatic choice, and the copy must
+  // too, so an accent about to be changed keeps an ink that follows it.
   ok('a new theme does not inherit a pinned accent ink', (await page.inputValue('#tok-accent-ink')) === '',
     JSON.stringify(await page.inputValue('#tok-accent-ink')))
 
@@ -278,9 +334,9 @@ try {
   // The stylesheet copy is offered explicitly, and says what it is.
   await page.fill('#tok-primary', activePrimary)
   await page.click('button:has-text("Start from")')
-  await page.waitForFunction(() => document.querySelector('#theme-css')?.value?.includes('Instrument Sans'), null, { timeout: 10000 })
+  await page.waitForFunction(() => document.querySelector('#theme-css')?.value?.includes('Helvetica'), null, { timeout: 10000 })
   const copied = await page.inputValue('#theme-css')
-  ok('the stylesheet can be copied on request', copied.includes("'Instrument Sans'") && copied.includes('radial-gradient'),
+  ok('the stylesheet can be copied on request', copied.includes("'Helvetica Neue'") && copied.includes('.nh-widget__label'),
     copied.slice(0, 40) + '…')
 
   const MARKER = 'body { letter-spacing: 0.31px; }'

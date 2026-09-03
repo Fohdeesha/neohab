@@ -239,8 +239,7 @@ states or numeric ranges, so a dimmer at `0`, `1-49` and `50-100` can be three d
 
 The themes that need one bundle it, so nothing is fetched from the internet. All are under the
 [SIL Open Font License 1.1](https://openfontlicense.org/), with the license included in the
-add-on: [Instrument Sans](https://github.com/Instrument/instrument-sans) (© Instrument),
-[DSEG](https://github.com/keshikan/DSEG) (© keshikan),
+add-on: [DSEG](https://github.com/keshikan/DSEG) (© keshikan),
 [Montserrat](https://github.com/JulietaUla/Montserrat) (© Julieta Ulanovsky et al.) and
 [Poppins](https://github.com/itfoundry/poppins) (© Indian Type Foundry).
 

@@ -209,7 +209,8 @@ A flat theme with square corners and an outlined button:
 The editor offers to copy the stylesheet of the theme you are looking at. Know what you get:
 
 - **Swiss Sheet** is built entirely from tokens through `color-mix()`, which is how one stylesheet
-  serves both its dark and light variants. This is the one to copy.
+  serves both its dark and light variants, and it bundles no font or image. This is the one to
+  copy.
 - **Ember**, **LCD Console**, **Operations** and **Assembly** contain colours written directly
   into them, plus bundled fonts and, for Assembly, a background image. They will **not** follow
   the tokens you change. Copy them to study, not to recolour.

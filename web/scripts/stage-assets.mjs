@@ -139,18 +139,12 @@ stageIconifyPack({ pkg: 'meteocons', dir: 'meteo' })
 
 /* ------------------------------ Fonts ------------------------------ */
 
-// Instrument Sans (OFL-1.1) - the Swiss Sheet themes' grotesque, declared via @font-face in
-// the theme's own CSS, so it is only ever downloaded when one of those themes is active.
-const fontSrc = join(root, 'node_modules', '@fontsource-variable', 'instrument-sans')
-if (!existsSync(fontSrc)) {
-  console.error('stage-assets: @fontsource-variable/instrument-sans is not installed')
-  process.exit(1)
-}
+// Each theme that needs a font declares it via @font-face in its own CSS, so a face is only ever
+// downloaded when that theme is active. The directory is rebuilt from scratch on every run: a
+// face a theme stopped using would otherwise stay staged and ride into the jar for good.
 const fontsDir = join(root, 'public', 'fonts')
+rmSync(fontsDir, { recursive: true, force: true })
 mkdirSync(fontsDir, { recursive: true })
-cpSync(join(fontSrc, 'files', 'instrument-sans-latin-wght-normal.woff2'), join(fontsDir, 'instrument-sans.woff2'))
-cpSync(join(fontSrc, 'LICENSE'), join(fontsDir, 'instrument-sans-LICENSE.txt'))
-console.log('stage-assets: fonts: Instrument Sans staged')
 
 // Montserrat (OFL-1.1) - the Operations theme's geometric sans: light weights for the big
 // readouts, semibold for the spaced uppercase micro-labels, from one variable file.
