@@ -244,12 +244,15 @@ const CONVERTERS: Record<string, Converter> = {
   }),
 
   slider: (w, report) => {
-    if (w.vertical || w.inverted) report.add('info', 'Vertical/inverted slider options are shown as regular sliders')
+    // A vertical slider is a slider on end here too, so that one carries across. `inverted` - the
+    // scale running the other way - has no equivalent, so it is reported rather than pretended.
+    if (w.inverted) report.add('info', 'An inverted slider is imported the right way up')
     return {
       type: 'slider',
       config: {
         item: str(w.item) ?? '',
         label: str(w.name),
+        orient: w.vertical ? 'vertical' : undefined,
         min: num(w.floor) ?? 0,
         max: num(w.ceil) ?? 100,
         step: num(w.step) ?? 1,

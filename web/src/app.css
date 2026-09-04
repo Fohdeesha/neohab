@@ -818,6 +818,10 @@ button {
 }
 
 /* Slider */
+/* The plain style, and the same control the detail sheet and the floor plan's popup draw. The
+   browser's own range with the theme's accent on it, which is what a theme restyling
+   `.nh-slider__input` expects to find - the four styled looks below are a separate namespace so
+   that restyling never lands on a track this stylesheet has already painted. */
 .nh-slider {
   display: flex;
   align-items: center;
@@ -837,6 +841,482 @@ button {
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--nh-text);
+}
+
+/* The plain style stood on end. Only the slider widget ever asks for this: the shared popup
+   controls never carry the modifier, so they are untouched. `writing-mode` plus `direction: rtl`
+   is the browser's own vertical range - the minimum at the bottom, ArrowUp raising the value -
+   and it is left native, so a theme's own colours still apply. */
+.nh-slider--v {
+  flex-direction: column;
+}
+
+.nh-slider--v .nh-slider__input {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  flex: 1;
+  width: 36px;
+  height: auto;
+  min-height: 0;
+}
+
+.nh-slider--v .nh-slider__value {
+  min-width: 0;
+  text-align: center;
+}
+
+/* ============================================================================
+   Slider: the four styled looks
+   ============================================================================ */
+
+/* Each look is the same three parts - a groove, a fill and the range input whose thumb you drag -
+   and a set of custom properties saying what they are made of, so a look and an orientation
+   combine without a rule per pair. The parts are painted here and the input is transparent on top
+   of them, which is what lets a fill be a three-stop gradient or a wedge; the thumb is still the
+   input's own, so it sits exactly where the browser puts it and drags natively.
+
+   Colours: each look ships in the colours of the reference it came from, and `--tinted` (the tile
+   has an Accent color of its own) rebuilds them in that colour - a ramp that still travels rather
+   than one flat wash. Grooves are mixed from the ink colour instead of being fixed dark, so the
+   looks work on a light theme as well as a dark one. */
+.nh-fader {
+  --fd-accent: var(--nh-cellaccent, var(--nh-primary));
+  --fd-groove: color-mix(in srgb, var(--nh-text) 12%, transparent);
+  --fd-fill: var(--fd-accent);
+  --fd-read: var(--nh-text);
+  /* The thumb's size ALONG the track: it drives both the thumb and the fill, which have to agree
+     because a range input insets the thumb's travel by half of this at each end. `--fd-thumb-cross`
+     is across it, for a look whose thumb is a capsule rather than a disc. */
+  --fd-thumb: 18px;
+  --fd-thumb-cross: var(--fd-thumb);
+  --fd-thumb-bg: #fff;
+  --fd-thumb-border: none;
+  --fd-thumb-radius: 50%;
+  --fd-thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  /* The band the pointer can grab. A 6px track is not a touch target; the input covers all of
+     this, and the thumb is centred in it. */
+  --fd-hit: 32px;
+  --fd-track: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  /* A size container, so the reading row is shed by the room the look actually has rather than by
+     a guess at the cell's height. Queries about the CELL from in here go by name. */
+  container-type: size;
+}
+
+/* The reading. At the tile's own text size: it is the number the control exists to set. */
+.nh-fader__read {
+  flex: none;
+  text-align: right;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--fd-read);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nh-fader--v .nh-fader__read {
+  text-align: center;
+}
+
+/* The track's box. Everything in it is absolutely positioned against this, so the fill and the
+   input measure from the same edges the browser lays the thumb out between. */
+.nh-fader__rail {
+  position: relative;
+  flex: none;
+  width: 100%;
+  height: var(--fd-hit);
+  min-width: 0;
+}
+
+.nh-fader--v .nh-fader__rail {
+  flex: 1 1 auto;
+  align-self: center;
+  width: var(--fd-hit);
+  height: auto;
+  min-height: 0;
+}
+
+.nh-fader__track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: var(--fd-track);
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--fd-groove);
+}
+
+.nh-fader--v .nh-fader__track {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  width: var(--fd-track);
+  height: auto;
+  transform: translateX(-50%);
+}
+
+/* The fill ends under the thumb's CENTRE, which is why the thumb's own size is in the sum: the
+   browser insets the travel by half a thumb at each end, so a plain percentage would run ahead of
+   the thumb at the bottom of the scale and behind it at the top. */
+.nh-fader__fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: var(--fd-track);
+  width: calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2);
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--fd-fill);
+}
+
+.nh-fader--v .nh-fader__fill {
+  top: auto;
+  bottom: 0;
+  left: 50%;
+  width: var(--fd-track);
+  height: calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2);
+  transform: translateX(-50%);
+}
+
+/* The input covers the whole rail and paints nothing but its thumb. */
+.nh-fader__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.nh-fader--v .nh-fader__input {
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.nh-fader__input:disabled {
+  cursor: default;
+}
+
+.nh-fader__input:focus-visible {
+  border-radius: 999px;
+}
+
+/* A runnable track as tall as the rail, so the thumb's own margin is what centres it: webkit
+   parks the thumb at the top edge of the track box, and a percentage margin there would resolve
+   against the width. Firefox centres its thumb on the track and ignores the margin. */
+.nh-fader__input::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+}
+
+.nh-fader__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: var(--fd-thumb);
+  height: var(--fd-thumb-cross);
+  margin-top: calc((var(--fd-hit) - var(--fd-thumb-cross)) / 2);
+  border: var(--fd-thumb-border);
+  border-radius: var(--fd-thumb-radius);
+  background: var(--fd-thumb-bg);
+  box-shadow: var(--fd-thumb-shadow);
+}
+
+/* Turned on its side the thumb's two sizes swap, so `--fd-thumb` still means "along the track"
+   and the fill's arithmetic above is the same sum either way round. */
+.nh-fader--v .nh-fader__input::-webkit-slider-thumb {
+  width: var(--fd-thumb-cross);
+  height: var(--fd-thumb);
+  margin-top: 0;
+  margin-left: calc((var(--fd-hit) - var(--fd-thumb-cross)) / 2);
+}
+
+.nh-fader__input::-moz-range-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+}
+
+.nh-fader__input::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--fd-thumb);
+  height: var(--fd-thumb-cross);
+  border: var(--fd-thumb-border);
+  border-radius: var(--fd-thumb-radius);
+  background: var(--fd-thumb-bg);
+  box-shadow: var(--fd-thumb-shadow);
+}
+
+.nh-fader--v .nh-fader__input::-moz-range-thumb {
+  width: var(--fd-thumb-cross);
+  height: var(--fd-thumb);
+}
+
+/* Gradient (reference 1): a thin track, a three-stop ramp that is complete AT the thumb rather
+   than spread across the whole track, and a white ring with the card showing through it. The
+   reading is the ramp's first colour, which is where the reference puts it. */
+.nh-fader--gradient {
+  --fd-g1: #22c8e6;
+  --fd-g2: #7b5cd6;
+  --fd-g3: #ec3a95;
+  --fd-track: 6px;
+  --fd-thumb: 18px;
+  --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-g1), var(--fd-g2), var(--fd-g3));
+  --fd-read: var(--fd-g1);
+  /* The reference's thumb is a white ring with the card showing through it. The core is a fixed
+     dark rather than the theme's surface, because on a light theme a white core inside a white
+     ring is no ring at all - and the ring has to stay light to read against the track. */
+  --fd-thumb-bg: #16202b;
+  --fd-thumb-border: 5px solid #fff;
+  --fd-thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+
+.nh-fader--gradient.nh-fader--v {
+  --fd-angle: 0deg;
+}
+
+/* Tinted, the ramp is rebuilt in the tile's own colour rather than mixed toward it: mixing an
+   accent into three unrelated hues turns the first stop to mud (a red tile came out brown), where
+   pale -> accent -> deep keeps a ramp that still travels and is plainly the colour that was
+   asked for. */
+.nh-fader--gradient.nh-fader--tinted {
+  --fd-g1: color-mix(in srgb, var(--fd-accent) 55%, #fff);
+  --fd-g2: var(--fd-accent);
+  --fd-g3: color-mix(in srgb, var(--fd-accent) 62%, #0b0b0b);
+  --fd-read: var(--fd-accent);
+}
+
+/* Wedge (reference 5): a hairline track with an amber wedge under it, thin where the scale starts
+   and full thickness at the thumb, glowing. The thumb is a large soft warm white. */
+.nh-fader--taper {
+  --fd-amber: #f5a524;
+  --fd-track: 4px;
+  --fd-thumb: 22px;
+  --fd-hit: 34px;
+  --fd-groove: color-mix(in srgb, var(--nh-text) 28%, transparent);
+  --fd-fill: linear-gradient(
+    var(--fd-angle, 90deg),
+    color-mix(in srgb, var(--fd-amber) 55%, transparent),
+    var(--fd-amber)
+  );
+  --fd-thumb-bg: #fdf6ec;
+  --fd-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.nh-fader--taper.nh-fader--v {
+  --fd-angle: 0deg;
+}
+
+.nh-fader--taper.nh-fader--tinted {
+  --fd-amber: var(--fd-accent);
+}
+
+/* The wedge itself: a box as thick as the fill's widest point, cut to a point at the far end. Its
+   right edge is straight and the thumb covers it, exactly as in the reference. */
+.nh-fader--taper .nh-fader__fill {
+  height: 16px;
+  border-radius: 0;
+  clip-path: polygon(0 44%, 100% 0, 100% 100%, 0 56%);
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--fd-amber) 60%, transparent));
+}
+
+/* The height is restated here and it is NOT redundant: the wedge's own `height: 16px` above and
+   the vertical rule's `height: <the fill's length>` are both two classes deep, so the later of the
+   two wins - and that is the wedge's, which turned a fader's fill into a 16px triangle at the
+   bottom of the track. Three classes settles it. */
+.nh-fader--taper.nh-fader--v .nh-fader__fill {
+  width: 16px;
+  height: calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2);
+  clip-path: polygon(0 0, 100% 0, 56% 100%, 44% 100%);
+}
+
+/* Inset rail (reference 3): the track sunk into a plate with the ends of the scale printed either
+   side of it, and a capsule thumb standing proud of the rail. */
+.nh-fader--inset {
+  --fd-periwinkle: #7d8ef6;
+  --fd-track: 10px;
+  --fd-hit: 30px;
+  --fd-thumb: 13px;
+  --fd-thumb-cross: 26px;
+  --fd-thumb-radius: 7px;
+  --fd-groove: color-mix(in srgb, var(--nh-text) 22%, transparent);
+  --fd-fill: var(--fd-periwinkle);
+  --fd-thumb-bg: color-mix(in srgb, var(--fd-periwinkle) 40%, #fff);
+  --fd-thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.nh-fader--inset.nh-fader--tinted {
+  --fd-periwinkle: var(--fd-accent);
+}
+
+.nh-fader__plate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--nh-text) 7%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.nh-fader--v .nh-fader__plate {
+  /* Bottom to top, so the minimum is printed under the rail and the maximum over it, whichever
+     way the markup lists them. */
+  flex-direction: column-reverse;
+  flex: 1 1 auto;
+  align-self: center;
+  gap: 8px;
+  padding: 8px 6px;
+}
+
+.nh-fader__bound {
+  flex: none;
+  line-height: 1.2;
+  color: var(--nh-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scoped to the flat case on purpose: this makes the rail fill the plate BETWEEN the two end
+   labels, and unscoped it also beat the vertical rule's `width: var(--fd-hit)` - which left the
+   rail as wide as the plate's text and the thumb sitting off the side of its own track. */
+.nh-fader--inset.nh-fader--h .nh-fader__rail {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* Bubble (reference 2): a pill track with the value riding the thumb, so the look needs no
+   reading row of its own. */
+.nh-fader--bubble {
+  --fd-cyan: #22c8e6;
+  --fd-track: 10px;
+  --fd-thumb: 16px;
+  --fd-hit: 28px;
+  --fd-badge-bg: var(--fd-cyan);
+  --fd-badge-ink: #06222c;
+  --fd-fill-a: color-mix(in srgb, var(--fd-cyan) 62%, #1d7fd6);
+  --fd-fill-b: var(--fd-cyan);
+  --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-fill-a), var(--fd-fill-b));
+  --fd-thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+}
+
+.nh-fader--bubble.nh-fader--v {
+  --fd-angle: 0deg;
+}
+
+/* Same rule as the gradient's: a deeper tone of the accent into the accent, rather than the
+   accent mixed into a blue that is no longer there. */
+.nh-fader--bubble.nh-fader--tinted {
+  --fd-cyan: var(--fd-accent);
+  --fd-fill-a: color-mix(in srgb, var(--fd-accent) 72%, #0b0b0b);
+  --fd-badge-ink: var(--nh-accent-ink, #fff);
+}
+
+/* Room for the badge above the track (beside it, turned on end), reserved by the rail rather than
+   by the container, so the pair is still centred as one thing in the tile. */
+.nh-fader--bubble.nh-fader--h .nh-fader__rail {
+  margin-top: 2.1em;
+}
+
+/* Room for the widest badge a scale can produce ("100%"), so it never reaches the tile's edge. */
+.nh-fader--bubble.nh-fader--v .nh-fader__rail {
+  margin-right: 4.2em;
+}
+
+.nh-fader__badge {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  /* Clamped so a value at either end of the scale keeps the badge inside the tile; the pointer
+     stays under the badge, which is a few pixels off the thumb at the very ends and nowhere else. */
+  left: clamp(2.2em, calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2), calc(100% - 2.2em));
+  padding: 2px 8px;
+  transform: translateX(-50%);
+  border-radius: 7px;
+  background: var(--fd-badge-bg);
+  color: var(--fd-badge-ink);
+  font-size: 0.9em;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.nh-fader__badge::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--fd-badge-bg);
+}
+
+.nh-fader--v .nh-fader__badge {
+  bottom: auto;
+  left: calc(100% + 7px);
+  /* Measured from the top, where the fill is measured from the bottom. */
+  top: clamp(1em, calc((1 - var(--fd-f)) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2), calc(100% - 1em));
+  transform: translateY(-50%);
+}
+
+.nh-fader--v .nh-fader__badge::after {
+  top: 50%;
+  left: auto;
+  right: 100%;
+  transform: translateY(-50%);
+  border-top-color: transparent;
+  border-right-color: var(--fd-badge-bg);
+}
+
+/* Shed by the room the look has, not the cell's: a tile too short for a reading row keeps the
+   track, which is the part you drag. The inset rail keeps the ends of its scale either way - they
+   are what tell you what the track spans. Last in the section so a skin above cannot outrank it. */
+@container (max-height: calc(1.4em + 44px)) {
+  .nh-fader__read {
+    display: none;
+  }
+
+  .nh-fader--bubble.nh-fader--h .nh-fader__rail {
+    margin-top: 1.9em;
+  }
+}
+
+@container (max-width: 150px) {
+  .nh-fader__plate {
+    gap: 7px;
+    padding: 6px 8px;
+  }
+}
+
+/* Below this a scale printed at both ends leaves the rail 25px of the tile, which is a control
+   nobody can aim at. The rail is what the widget is for, so the ends give way and the plate keeps
+   the sunken look that makes the style what it is. */
+@container (max-width: 132px) {
+  .nh-fader--h .nh-fader__bound {
+    display: none;
+  }
+
+  .nh-fader--h .nh-fader__plate {
+    padding: 6px 10px;
+  }
 }
 
 /* Value */

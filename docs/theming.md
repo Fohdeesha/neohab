@@ -112,6 +112,8 @@ adopting it.
 | `.nh-button`, `.nh-selection__btn`, `.nh-roller__btn`, `.nh-player__btn` | Controls, each with an `--active` modifier |
 | `.nh-step--plain .nh-step__box`, `.nh-step__ctl`, `.nh-step__split` | The stepper's buttons in its plain finish, which is the one a theme should restyle. Its other finishes (glass, glow, solid, sheen) keep their own look in every theme on purpose, so target `.nh-step--plain` rather than `.nh-step__box` alone |
 | `.nh-thermo`, `.nh-thermo__btn`, `.nh-thermo__mbtn` | The thermostat: its root carries `--th-heat`, `--th-cool` and `--th-mid`, the colours its face and its temperature ramp are drawn in, which a theme can set there; `.nh-thermo--heat`, `--cool` and `--neutral` say which is in force |
+| `.nh-slider`, `.nh-slider__input`, `.nh-slider__value` | The plain range control: the slider widget in its plain style, and the one a long press or a floor-plan light puts in front of you. This is the one to restyle |
+| `.nh-fader__*` | The slider widget's four other styles (gradient, wedge, inset rail, bubble), which keep their own look in every theme on purpose. `.nh-fader__read` is the reading, `__bound` the ends of an inset scale, `__track` and `__fill` the two painted layers |
 | `.nh-switch__track`, `.nh-switch__thumb` | The switch. `.nh-switch--on` marks the on state |
 | `.nh-value__text`, `.nh-value__unit` | A reading and its unit, set separately |
 | `.nh-stat__value`, `.nh-stat__caption`, `.nh-stat__badge` | The stat tile |

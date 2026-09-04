@@ -204,7 +204,9 @@ ${wholeTileActive({
 .nh-gauge__value {
   font-family: 'DSEG7', 'DSEG14', monospace;
 }
-.nh-slider__value {
+.nh-slider__value,
+.nh-fader__read,
+.nh-fader__bound {
   font-family: 'DSEG7', 'DSEG14', monospace;
   color: var(--nh-cellaccent, var(--nh-primary));
   text-shadow: 0 0 0.3em color-mix(in srgb, currentColor 45%, transparent);

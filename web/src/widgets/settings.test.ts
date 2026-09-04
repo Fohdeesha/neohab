@@ -15,6 +15,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingField } from './types'
 import { lookOf as thermostatLookOf } from './thermostat/model'
+import { orientOf as sliderOrientOf, styleOf as sliderStyleOf } from './slider/model'
 
 // The registry is a tree of .tsx modules, so importing it drags in React and i18next even though
 // only the settings DATA is read here. i18next touches `document` when it activates a language.
@@ -470,6 +471,19 @@ describe('every widget settings schema', () => {
     const bare = instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b' })
     expect(bare).toBeGreaterThan(0)
     expect(instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b', modeItem: 'm' })).toBeGreaterThan(bare)
+  })
+
+  it('starts a slider as the style its reader falls back to, and asks for a taller row on end', () => {
+    // The pure half of both rules is in slider/model.test.ts; this is the definition half, read
+    // through the registry, which is what the grids and the settings panel actually ask. A
+    // default that drifted from its reader would draw one style and offer another in the form.
+    const def = widgets.find((d) => d.type === 'slider')
+    expect(def?.defaultConfig().style).toBe(sliderStyleOf(undefined))
+    expect(def?.defaultConfig().orient).toBe(sliderOrientOf(undefined))
+    const flat = instanceMinHeight('slider', { item: 'x' })
+    expect(flat).toBeGreaterThan(0)
+    // A fader needs travel, and a stacked row is the only place a widget can ask for it.
+    expect(instanceMinHeight('slider', { item: 'x', orient: 'vertical' })).toBeGreaterThan(flat)
   })
 
   it('resolves a definition default before asking the widget', () => {

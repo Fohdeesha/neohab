@@ -178,12 +178,24 @@ describe('widget conversion', () => {
     expect(w.config.icon).toBeUndefined()
   })
 
-  it('keeps a slider range and says vertical is not reproduced', () => {
+  it('keeps a slider range, and stands a vertical one on end', () => {
     const { dashboards, notes } = importFixture()
     expect(widget(dashboards[0], 'slider').config).toEqual({
-      item: 'Hall_Dimmer', label: 'Hall Dimmer', min: 10, max: 90, step: 5, unit: '%',
+      item: 'Hall_Dimmer', label: 'Hall Dimmer', orient: 'vertical', min: 10, max: 90, step: 5, unit: '%',
     })
-    expect(notes.some((n) => n.message.includes('Vertical/inverted'))).toBe(true)
+    // The fixture's slider is vertical and not inverted, and vertical is reproduced now, so there
+    // is nothing to report about it.
+    expect(notes.some((n) => n.message.includes('inverted'))).toBe(false)
+  })
+
+  it('leaves a slider the right way up when there is nothing to say', () => {
+    const { widget: w } = convertOne({ type: 'slider', item: 'I' })
+    expect(w.config.orient).toBeUndefined()
+  })
+
+  it('cannot invert a scale, and says so rather than pretending', () => {
+    const { notes } = convertOne({ type: 'slider', item: 'I', inverted: true })
+    expect(notes.some((n) => n.message.includes('inverted'))).toBe(true)
   })
 
   it('gives a slider HABPanel’s own defaults when the range is absent', () => {

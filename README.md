@@ -142,6 +142,11 @@ translate it.
   the light off and openHAB keeps its colour, so every panel still shows what it will come back to,
   and On restores the brightness it was last seen at instead of jumping to full. That takes no
   extra openHAB item and writes nothing to the server.
+- **Slider.** Five styles: a gradient track, a wedge that thickens toward the thumb, a rail sunk
+  into a plate with the ends of its scale printed either side, the value riding the thumb in a
+  bubble, and the theme's own plain control. Any of them lies across the tile or stands on end as
+  a fader. Each keeps the colours it was designed in, and is rebuilt in the tile's accent colour
+  when you set one.
 - **Stepper.** A value with a step up and a step down: a thermostat setpoint, a volume, a fan
   speed, or a list such as a TV's inputs, which it cycles through and can wrap around. Six looks
   (a stack, a pair of buttons under the reading, a spinner, a split tile whose two halves are the

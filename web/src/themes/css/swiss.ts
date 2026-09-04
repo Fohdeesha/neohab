@@ -95,6 +95,7 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 .nh-dial__value,
 .nh-gauge__value,
 .nh-slider__value,
+.nh-fader__read,
 .nh-roller__pos,
 .nh-weather__detvalue {
   font-weight: 700;
