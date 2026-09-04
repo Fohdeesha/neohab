@@ -155,7 +155,7 @@ try {
   ok('switch reflects live state', switchUiOn === (afterSwitch === 'ON'), `ui-on=${switchUiOn}`)
 
   // --- Slider control --- (mirror a drag-release: set value, dispatch input + pointerup)
-  await page.$eval('.nh-slider__input', (el) => {
+  await page.$eval('.nh-fader__input', (el) => {
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     set.call(el, '60')
     el.dispatchEvent(new Event('input', { bubbles: true }))

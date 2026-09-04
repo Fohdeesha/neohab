@@ -102,7 +102,7 @@ try {
           },
           // a read-only gauge and an untouched slider: both only ever read for their style
           { id: 'w-d', type: 'dial', config: { item: ITEMS.temperature, label: 'Gauge', readOnly: true, min: 0, max: 100 }, layout: { lg: { x: 0, y: 2, w: 3, h: 2 } } },
-          { id: 'w-s', type: 'slider', config: { item: ITEMS.dimmer, label: 'Level' }, layout: { lg: { x: 3, y: 2, w: 3, h: 2 } } },
+          { id: 'w-s', type: 'slider', config: { item: ITEMS.dimmer, label: 'Level', style: 'plain' }, layout: { lg: { x: 3, y: 2, w: 3, h: 2 } } },
         ],
       },
     }),

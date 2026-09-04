@@ -53,7 +53,7 @@ try {
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
   await page.goto(APP + '#/d/nh-e2e-cmdfail', { waitUntil: 'domcontentloaded', timeout: 20000 })
-  const slider = page.locator('.nh-slider__input')
+  const slider = page.locator('.nh-fader__input')
   const hue = page.locator('input[aria-label="h"]')
   await slider.waitFor({ state: 'visible', timeout: 10000 })
   await sleep(1500)

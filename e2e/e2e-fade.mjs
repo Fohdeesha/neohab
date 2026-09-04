@@ -204,7 +204,7 @@ try {
   /* ---------------- D. the same for a numeric slider ---------------- */
   // Same hook, so the same rule: a dimmer fading through its range must not drag the thumb
   // back and forth. 40 is what the rule asked for and where it lands; 0 and 97 are the fade.
-  await armSampler(page, '.nh-slider__input')
+  await armSampler(page, '.nh-fader__input')
   await sleep(100)
   await putState(DIM_ITEM, '40')
   await sleep(60)

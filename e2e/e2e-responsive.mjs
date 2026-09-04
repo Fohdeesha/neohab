@@ -289,7 +289,7 @@ try {
     posts2.push(route.request().postData())
     route.continue()
   })
-  const sl = page.locator('.nh-slider__input')
+  const sl = page.locator('.nh-fader__input')
   await sl.focus()
   for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight')
   await sleep(900)
@@ -297,7 +297,7 @@ try {
   let snapped = ''
   for (let t = 0; t < 10; t++) {
     await sleep(300)
-    const v = await page.evaluate(`Number(document.querySelector('.nh-slider__input').value)`)
+    const v = await page.evaluate(`Number(document.querySelector('.nh-fader__input').value)`)
     if (Math.abs(v - sent) > 1) snapped = `shows ${v}, sent ${sent}`
   }
   ok('slider: no snap-back after commit (3s watch)', !snapped && Number.isFinite(sent), snapped || `sent ${sent}`)

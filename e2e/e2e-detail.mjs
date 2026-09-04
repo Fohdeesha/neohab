@@ -324,7 +324,7 @@ try {
 
   // The same on a slider, which is where this was reported: press the track well away from the
   // thumb, hold, and the thumb must come back with nothing sent.
-  const slid = page.locator('.nh-gcell .nh-slider__input').first()
+  const slid = page.locator('.nh-gcell .nh-fader__input').first()
   const sbox = await slid.boundingBox()
   const farAlong = { x: sbox.x + sbox.width * 0.85, y: sbox.y + sbox.height / 2 }
   const sliderValue = () => slid.inputValue().catch(() => '')

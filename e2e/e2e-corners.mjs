@@ -30,7 +30,7 @@ await fetch(NS, {
       version: 1, id: 'nh-corner-edit', name: 'nh-corner-edit', columns: 12, rowHeight: 60, gap: 8,
       widgets: [
         { id: 'a', type: 'label', config: { text: 'anchor' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-        { id: 'b', type: 'slider', config: { item: ITEMS.dimmer, label: 'lvl' }, layout: { lg: { x: 3, y: 0, w: 4, h: 2 } } },
+        { id: 'b', type: 'slider', config: { item: ITEMS.dimmer, label: 'lvl', style: 'plain' }, layout: { lg: { x: 3, y: 0, w: 4, h: 2 } } },
         { id: 'n', type: 'button', config: { label: 'gohome', action: 'navigate', navigateDashboard: 'nh-corner-tpl', command: 'ON' }, layout: { lg: { x: 7, y: 0, w: 2, h: 2 } } },
       ],
     },

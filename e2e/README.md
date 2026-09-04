@@ -150,6 +150,13 @@ against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist
 are real and reach no device. It enters edit mode once to inspect the settings panel and leaves
 without saving. The dashboard and all five items are deleted by name in cleanup.
 
+`e2e-slider.mjs` drives the slider widget - five styles, both orientations - against one managed
+Dimmer it creates itself (`nh_e2e_slide`, bound to nothing), so its commands are real and reach no
+device. Its geometry section is why the item is its own: the four painted styles draw a fill under
+the browser's own range input, and proving the two agree means moving the value to both ends of
+the scale and pressing at measured positions. It enters edit mode once to inspect the settings
+panel and leaves without saving. The dashboard and the item are deleted by name in cleanup.
+
 `e2e-thermostat.mjs` drives the thermostat widget - four looks, the setpoint's buttons and its
 ring, the mode, fan and aux buttons, and the status item - against nine managed items it creates
 itself (`nh_e2e_thcur`, `nh_e2e_thset`, `nh_e2e_thmode`, `nh_e2e_thfan`, `nh_e2e_thaux`,

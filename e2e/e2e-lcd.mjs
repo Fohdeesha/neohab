@@ -108,7 +108,7 @@ try {
           // every other readout wears the segment face too - display-only, never touched
           { id: 'w-dial', type: 'dial', config: { item: ITEMS.dimmer, label: 'Dial', readOnly: true, accentColor: GREEN }, layout: { lg: { x: 3, y: 4, w: 3, h: 3 } } },
           { id: 'w-gauge', type: 'dial', config: { item: ITEMS.dimmer, label: 'Gauge', style: 'led', readOnly: true }, layout: { lg: { x: 6, y: 5, w: 3, h: 3 } } },
-          { id: 'w-slider', type: 'slider', config: { item: ITEMS.dimmer, label: 'Slider' }, layout: { lg: { x: 9, y: 4, w: 3, h: 2 } } },
+          { id: 'w-slider', type: 'slider', config: { item: ITEMS.dimmer, label: 'Slider', style: 'plain' }, layout: { lg: { x: 9, y: 4, w: 3, h: 2 } } },
           // never clicked: active comes from the command matching the live state (ember trick)
           { id: 'w-btnon', type: 'button', config: { item: ITEMS.dimmer, label: 'OnBtn', command: String(dimmerStart), toggle: true, accentColor: GREEN }, layout: { lg: { x: 0, y: 6, w: 3, h: 1 } } },
           { id: 'w-btnoff', type: 'button', config: { item: ITEMS.dimmer, label: 'OffBtn', command: '87654', toggle: true }, layout: { lg: { x: 9, y: 6, w: 3, h: 1 } } },
