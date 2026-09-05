@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="web/public/logo.svg">
+  <img src="web/public/logo-light.svg" alt="neohab" width="360">
+</picture>
+
 # neohab
 
 A modern dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for

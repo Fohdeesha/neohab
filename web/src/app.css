@@ -92,18 +92,27 @@ button {
 /* ============================================================================
    Wordmark + home
    ============================================================================ */
+/* The wordmark is an inline SVG (app/Wordmark.tsx): the letters take the theme's text colour
+   and the lit parts its brand colour, so it follows every theme like the rest of the chrome. */
 .nh-wordmark {
+  display: block;
+  width: clamp(13rem, 38vw, 21rem);
   margin: 0;
-  font-size: clamp(2.5rem, 8vw, 4rem);
-  font-weight: 200;
-  letter-spacing: 0.3em;
-  margin-right: -0.3em; /* recenter tracked-out text */
-  color: var(--nh-text);
 }
 
-.nh-wordmark__n {
-  color: var(--nh-brand);
-  font-weight: 300;
+.nh-wordmark__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nh-wordmark__ink {
+  fill: var(--nh-text);
+}
+
+.nh-wordmark__n,
+.nh-wordmark__brand {
+  fill: var(--nh-brand);
 }
 
 .nh-home {
