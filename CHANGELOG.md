@@ -7,6 +7,8 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.26.0
+
 - Adding neohab to a phone's home screen while a dashboard is open now pins that dashboard. The
   icon is named after it and opens straight into it, and a second dashboard gets a second icon
   rather than replacing the first. Adding it from the dashboard list still gives a plain neohab
