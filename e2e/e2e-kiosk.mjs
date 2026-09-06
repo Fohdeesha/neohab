@@ -94,6 +94,182 @@ try {
   }
 
   {
+    // A shortcut made from a dashboard has to open that dashboard, and the icon it gets has to
+    // survive the launcher's mask.
+    const { context, page } = await newPage(browser)
+    await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
+
+    const geom = await page
+      .evaluate(async (url) => {
+        const img = new Image()
+        await new Promise((res, rej) => {
+          img.onload = res
+          img.onerror = () => rej(new Error('did not load'))
+          img.src = url
+        })
+        const w = img.naturalWidth
+        const c = document.createElement('canvas')
+        c.width = w
+        c.height = w
+        const ctx = c.getContext('2d', { willReadFrequently: true })
+        ctx.drawImage(img, 0, 0)
+        const d = ctx.getImageData(0, 0, w, w).data
+        const at = (x, y) => {
+          const i = (y * w + x) * 4
+          return [d[i], d[i + 1], d[i + 2]]
+        }
+        const plate = at(1, 1)
+        let minX = w, minY = w, maxX = -1, maxY = -1, furthest = 0
+        for (let y = 0; y < w; y++) {
+          for (let x = 0; x < w; x++) {
+            const p = at(x, y)
+            const isPlate = Math.abs(p[0] - plate[0]) <= 6 && Math.abs(p[1] - plate[1]) <= 6 && Math.abs(p[2] - plate[2]) <= 6
+            if (isPlate) continue
+            if (x < minX) minX = x
+            if (x > maxX) maxX = x
+            if (y < minY) minY = y
+            if (y > maxY) maxY = y
+            const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / w
+            if (r > furthest) furthest = r
+          }
+        }
+        return { w, drew: maxX >= 0, top: minY, bottom: w - 1 - maxY, left: minX, right: w - 1 - maxX, furthest }
+      }, BASE + '/neohab/pwa-maskable-512.png')
+      .catch((e) => ({ error: String(e).split('\n')[0] }))
+
+    ok('the maskable icon is served and has a mark on it', geom.drew === true, JSON.stringify(geom))
+    ok(
+      'the mark is centred in the maskable icon',
+      geom.drew === true && Math.abs(geom.top - geom.bottom) <= 1 && Math.abs(geom.left - geom.right) <= 1,
+      `top ${geom.top} bottom ${geom.bottom} left ${geom.left} right ${geom.right}`
+    )
+    // a launcher shows about the middle two thirds of a maskable icon and masks that to a circle,
+    // so ink beyond 1/3 of the width from the centre is ink somebody loses
+    ok(
+      'the mark fits the mask a launcher applies',
+      geom.drew === true && geom.furthest <= 0.32,
+      'furthest ink ' + Math.round((geom.furthest ?? 0) * 1000) / 10 + '% of the width, want <= 32%'
+    )
+
+    const readManifest = async () => {
+      const href = await page.evaluate(() => document.querySelector('link[rel="manifest"]')?.href ?? '')
+      const tag = 'data:application/manifest+json,'
+      if (!href.startsWith(tag)) return { href, json: null }
+      try {
+        return { href, json: JSON.parse(decodeURIComponent(href.slice(tag.length))) }
+      } catch {
+        return { href, json: null }
+      }
+    }
+
+    await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await page.waitForSelector('.nh-gcell', { timeout: 15000 }).catch(() => {})
+    const onDash = await readManifest()
+    ok(
+      'a dashboard offers a manifest that starts on it',
+      onDash.json?.start_url?.includes('#/d/nh-e2e-kiosk') === true,
+      String(onDash.json?.start_url ?? onDash.href.slice(0, 60))
+    )
+    ok(
+      'the shortcut is named after the dashboard',
+      onDash.json?.short_name === 'E2E Kiosk' && onDash.json?.name === 'E2E Kiosk - neohab',
+      JSON.stringify({ short_name: onDash.json?.short_name, name: onDash.json?.name })
+    )
+    ok(
+      'the page is titled after the dashboard too, which is what iOS names a shortcut from',
+      (await page.title()) === 'E2E Kiosk - neohab',
+      await page.title()
+    )
+    ok(
+      'it offers the maskable icon',
+      onDash.json?.icons?.some((i) => i.purpose === 'maskable' && String(i.src).endsWith('pwa-maskable-512.png')) === true,
+      JSON.stringify(onDash.json?.icons?.map((i) => i.src) ?? [])
+    )
+
+    // writing a manifest is one thing, the browser taking it is another - and one it rejected
+    // would leave the app with no manifest at all, which is worse than the bug being fixed
+    let chrome = null
+    try {
+      const cdp = await context.newCDPSession(page)
+      chrome = await cdp.send('Page.getAppManifest')
+      await cdp.detach()
+    } catch (e) {
+      chrome = { unavailable: String(e).split('\n')[0] }
+    }
+    let chromeRead = null
+    try {
+      chromeRead = JSON.parse(chrome?.data ?? 'null')
+    } catch {}
+    ok(
+      'the browser reads it and takes no exception to it',
+      String(chrome?.url ?? '').startsWith('data:application/manifest+json,') &&
+        (chrome?.errors ?? [null]).length === 0 &&
+        chromeRead?.start_url?.includes('#/d/nh-e2e-kiosk') === true,
+      JSON.stringify({
+        url: String(chrome?.url ?? chrome?.unavailable ?? '').slice(0, 40),
+        errors: (chrome?.errors ?? []).map((e) => e.message),
+        start_url: chromeRead?.start_url,
+      })
+    )
+
+    await page.goto(APP + '#/d/nh-e2e-kiosk2', { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await page.waitForSelector('.nh-gcell', { timeout: 15000 }).catch(() => {})
+    const onOther = await readManifest()
+    // a browser drops the fragment before it decides two shortcuts are the same app, so the
+    // dashboard has to be in the part before it as well
+    const identity = (m) => String(m.json?.start_url ?? '').split('#')[0]
+    ok(
+      'two dashboards are two shortcuts, fragment or no fragment',
+      identity(onDash) !== identity(onOther) && identity(onOther).includes('app=nh-e2e-kiosk2'),
+      identity(onDash) + ' vs ' + identity(onOther)
+    )
+
+    await page.goto(APP + '#/', { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 }).catch(() => {})
+    const onHome = await readManifest()
+    ok(
+      'the dashboard list keeps the manifest the add-on ships',
+      onHome.href.endsWith('/neohab/manifest.json') && onHome.json === null,
+      onHome.href.slice(0, 70)
+    )
+    ok('and its title', (await page.title()) === 'neohab', await page.title())
+
+    // a launcher that drops the fragment still has ?app= to go on
+    await page.goto(APP + '?app=nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await page.waitForSelector('.nh-gcell', { timeout: 15000 }).catch(() => {})
+    // cells are the tell: the dashboard list draws none, so this cannot pass by landing on it
+    const landed = await page.evaluate(() => ({ hash: location.hash, cells: document.querySelectorAll('.nh-gcell').length }))
+    ok(
+      'a launch with no fragment still opens the dashboard ?app= names',
+      landed.hash === '#/d/nh-e2e-kiosk' && landed.cells >= 2,
+      JSON.stringify(landed)
+    )
+    await context.close()
+
+    // Inside an installed app there is no add-to-home-screen to serve, and a browser that found a
+    // different manifest under one might take it for an update and rename the icon somebody has.
+    // Headless has no standalone mode to emulate, so say so the way a launcher would.
+    const installed = await newPage(browser)
+    await installed.page.addInitScript(() => {
+      const real = window.matchMedia.bind(window)
+      window.matchMedia = (q) =>
+        q.includes('display-mode: standalone')
+          ? { matches: true, media: q, onchange: null, addEventListener() {}, removeEventListener() {},
+              addListener() {}, removeListener() {}, dispatchEvent: () => false }
+          : real(q)
+    })
+    await installed.page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
+    await installed.page.waitForSelector('.nh-gcell', { timeout: 15000 }).catch(() => {})
+    const installedHref = await installed.page.evaluate(() => document.querySelector('link[rel="manifest"]')?.href ?? '')
+    ok(
+      'an installed app is left on the manifest it was installed from',
+      installedHref.endsWith('/neohab/manifest.json'),
+      installedHref.slice(0, 70)
+    )
+    await installed.context.close()
+  }
+
+  {
     secureBrowser = await launch(['--unsafely-treat-insecure-origin-as-secure=' + BASE])
     const { context, page, errs } = await newPage(secureBrowser)
     await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -127,9 +303,23 @@ try {
     }))
     ok('offline: app shell served from the service worker', offlineShell.root && offlineShell.app,
       JSON.stringify(offlineShell))
+
+    // a shortcut into a dashboard launches index.html?app=<id>, which has to match the same
+    // precached index.html or a wall panel that is offline gets nothing at all
+    await page.goto(APP + '?app=nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {})
+    await sleep(2000)
+    const offlineShortcut = await page.evaluate(() => ({
+      root: !!document.querySelector('#root')?.children.length,
+      app: !!document.querySelector('.nh-app'),
+      text: document.body.innerText.slice(0, 80),
+    }))
+    ok('offline: a shortcut into a dashboard is served from that same shell',
+      offlineShortcut.root && offlineShortcut.app, JSON.stringify(offlineShortcut))
     await context.setOffline(false)
 
-    await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 })
+    // goto rather than reload: the check above left the page on a shortcut's URL, and what
+    // follows is about the dashboard list
+    await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('.nh-home__status', { timeout: 15000 })
     ok('wake lock API present (secure context)', await page.evaluate(() => 'wakeLock' in navigator))
     await setKiosk(page, { kiosk: false, screensaver: 'off', screensaverMinutes: 10, wakeLock: true })
