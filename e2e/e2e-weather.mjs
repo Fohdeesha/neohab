@@ -1,25 +1,12 @@
-/**
- * The weather widget, end to end: the three looks, both data sources, the shared fetch, the
- * settings fields, the failure paths and the LCD segment treatment.
- *
- * Every Open-Meteo request is answered from the fixture files in fixtures/ via page.route -
- * the suite never talks to the real service, so it is deterministic, works offline, and a
- * battery cannot be failed by a third party. The checks that compare readings compare against
- * the SAME fixture the routes serve, and the fixture is internally consistent (hour columns
- * derive from its own current time), so it never goes stale.
- *
- * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-weather and
- * dashboard:nh-e2e-weather-tight, saves
- * nothing through the app (REST seed, no restore point), commands nothing - the items-mode
- * widget only READS the harness temperature item. The theme is pinned per device
- * (themeOverride), so the shared settings component is never written.
- */
+// The weather widget, end to end: the three looks, both data sources, the shared fetch, the settings fields,
+// the failure paths and the LCD segment treatment.
+// SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-weather and
+// dashboard:nh-e2e-weather-tight, saves nothing through the app (REST seed, no restore.
 import { readFileSync } from 'node:fs'
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-weather'
-/** A board shaped like the reported one: ten columns, so a two-column hero is about 280x140. */
 const UID_TIGHT = 'dashboard:nh-e2e-weather-tight'
 const forecast = JSON.parse(readFileSync(new URL('./fixtures/weather-forecast.json', import.meta.url), 'utf8'))
 const geocode = JSON.parse(readFileSync(new URL('./fixtures/weather-geocode.json', import.meta.url), 'utf8'))
@@ -39,15 +26,12 @@ async function launch() {
   return launchChromium({ headless: true })
 }
 
-/** Expected strings derived from the fixture, so the checks and the routes cannot disagree. */
 const FX = {
   temp: String(Math.round(forecast.current.temperature_2m)),
   humidity: Math.round(forecast.current.relative_humidity_2m) + '%',
   high: Math.round(forecast.daily.temperature_2m_max[0]) + '°',
   low: Math.round(forecast.daily.temperature_2m_min[0]) + '°',
   curHour: parseInt(forecast.current.time.slice(11, 13), 10),
-  // The current block's chance is TODAY's, which the fixture deliberately differs from the
-  // current hour's - the reported bug was a hero reading 22% beside outlets showing 60% and up.
   precipToday: forecast.daily.precipitation_probability_max[0] + '%',
   precipThisHour: forecast.current.precipitation_probability + '%',
 }
@@ -66,13 +50,10 @@ page.on('console', (m) => {
 await page.addInitScript((cfg) => {
   try {
     localStorage.setItem('neohab:apiToken', cfg.token)
-    // pin the default theme for the geometry/ghost checks - but an init script runs on EVERY
-    // load, so the LCD section sets a keep flag before switching themes or this would clobber it
     if (!localStorage.getItem('nh-e2e-keep-theme')) localStorage.setItem('neohab:themeOverride', 'dark')
   } catch {}
 }, { token: TOKEN })
 
-// Route ALL Open-Meteo traffic to the fixtures, counting forecast requests per URL.
 let forecastHits = []
 await page.route('https://api.open-meteo.com/**', (route) => {
   forecastHits.push(route.request().url())
@@ -138,7 +119,6 @@ async function seed() {
             layout: { lg: { x: 6, y: 4, w: 6, h: 4 } },
           },
           {
-            // a model of its own, at a place of its own so its request is identifiable
             id: 'w-model',
             type: 'weather',
             config: {
@@ -168,14 +148,12 @@ async function seed() {
             config: { source: 'openmeteo', look: 'hero', label: 'Small', units: 'imperial', location: detroit },
             layout: { lg: { x: 4, y: 8, w: 4, h: 2 } },
           },
-          // a narrow hero: no width to put the readings beside the temperature, so they go under
           {
             id: 'w-narrow',
             type: 'weather',
             config: { source: 'openmeteo', look: 'hero', label: 'Narrow', units: 'imperial', location: detroit },
             layout: { lg: { x: 8, y: 8, w: 1, h: 3 } },
           },
-          // named, and told not to draw it
           {
             id: 'w-noname',
             type: 'weather',
@@ -189,11 +167,9 @@ async function seed() {
   return res.status === 200 || res.status === 201
 }
 
-/* Runs IN THE PAGE: everything the render checks need, in one pass. */
 const readDash = () => {
   const q = (sel, root = document) => [...root.querySelectorAll(sel)]
   const widget = (id) => document.querySelector(`[data-nh-widget="${id}"]`) ?? null
-  // widgets are not tagged by id, so find them by their seeded order in the grid
   const cells = q('.nh-gcell .nh-weather, .nh-cell .nh-weather')
   const byLook = {
     hero: q('.nh-weather--hero'),
@@ -239,8 +215,6 @@ const readDash = () => {
 
 try {
   ok('seed dashboard created', await seed())
-  // A second board shaped like the one in the report: on it a two-column hero lands at about
-  // 280x140, which is where the details used to disappear.
   await fetch(NS + '/' + encodeURIComponent(UID_TIGHT), { method: 'DELETE', headers: AUTH }).catch(() => {})
   await fetch(NS, {
     method: 'POST',
@@ -256,9 +230,6 @@ try {
         rowHeight: 'match',
         widgets: [
           {
-            // The same tile with no name to draw: a header row costs the body about 1.05em plus
-            // 8px, so the two have different budgets and each has its own shed threshold. The
-            // panel that was reported is this one - named, but told not to show it.
             id: 'w-tight-bare',
             type: 'weather',
             config: { source: 'openmeteo', look: 'hero', label: 'Bare', labelMode: 'none', units: 'imperial', location: detroit, textSize: 110 },
@@ -267,16 +238,10 @@ try {
           {
             id: 'w-tight',
             type: 'weather',
-            // 110% text, as the reported widget had: a per-widget scale is what pushed the
-            // readings past the tile edge, because a grid column with a minimum wider than its
-            // own container cannot shrink to fit.
             config: { source: 'openmeteo', look: 'hero', label: 'Tight', units: 'imperial', location: detroit, textSize: 110 },
             layout: { lg: { x: 0, y: 0, w: 2, h: 1 } },
           },
           {
-            // 125% text in the same tile: the readings no longer fit beside the temperature at
-            // their full size. Left to wrap, they went under it and drew 82px past the tile's
-            // bottom; they stay beside it and shrink to their column instead.
             id: 'w-tight-big',
             type: 'weather',
             config: { source: 'openmeteo', look: 'hero', label: 'Big', units: 'imperial', location: detroit, textSize: 125 },
@@ -288,7 +253,6 @@ try {
   })
   await page.goto(APP + '#/d/nh-e2e-weather')
   await page.waitForSelector('.nh-weather, .nh-weather__empty', { timeout: 25000 }).catch(() => {})
-  // wait for the forecast fetch to land and the icons to decode
   await page
     .waitForFunction(() => document.querySelectorAll('.nh-weather__col').length > 10, { timeout: 20000 })
     .catch(() => {})
@@ -296,7 +260,6 @@ try {
 
   const d = await probe(page, readDash)
 
-  /* ---- section 1: the three looks render from the fixture ---- */
   ok('all eight widgets render a weather surface or a message', d.weatherCount + d.emptyTexts.length >= 8, `surfaces=${d.weatherCount} messages=${d.emptyTexts.length}`)
   ok('hero look renders', d.heroCount >= 4, 'heroes=' + d.heroCount)
   ok('compact look renders', d.compactCount === 2, 'compacts=' + d.compactCount)
@@ -318,7 +281,6 @@ try {
     `${d.heroDetailValues.Precipitation} (today ${FX.precipToday}, this hour ${FX.precipThisHour})`
   )
 
-  /* ---- section 2: forecast columns ---- */
   ok('hero shows hourly and daily strips', d.heroStripCount === 2, 'strips=' + d.heroStripCount)
   ok('hourly columns default to 12', d.heroHourCols.length === 12, String(d.heroHourCols.length))
   const nextHour = (FX.curHour + 1) % 24
@@ -332,14 +294,8 @@ try {
   ok('daily columns default to 5, first labelled Today', d.heroDayCols.length === 5 && d.heroDayCols[0]?.label === 'Today', d.heroDayCols.map((c) => c.label).join(','))
   ok('a day column shows high and low', (d.heroDayCols[0]?.main ?? '').includes(FX.high) && (d.heroDayCols[0]?.main ?? '').includes(FX.low), String(d.heroDayCols[0]?.main))
 
-  /* ---- section 3: icons actually decode (the vis pass caught them hidden) ---- */
   ok('weather icons render and decode', d.iconTotal > 20 && d.iconsLoaded === d.iconTotal, `${d.iconsLoaded}/${d.iconTotal}`)
 
-  /* ---- section 3a: the hero fills its tile, and its name can be dropped ---- */
-  // Reported: a hero in a wide one-row tile used half the box and drew a "WEATHER" title over an
-  // obviously-weather panel. The readings sit BESIDE the temperature wherever there is width for
-  // them and underneath where there is not, and nothing may overflow the widget either way -
-  // measured, because a row that does not fit is clipped mid-value rather than dropped.
   const heroes = await probe(page, () =>
     [...document.querySelectorAll('.nh-gcell')]
       .map((cell) => {
@@ -383,7 +339,6 @@ try {
   )
   ok('a name told not to show leaves no title bar', hiddenName === false, String(hiddenName))
 
-  /* ---- section 3b: a short hero sheds its hourly strip (tight-cell rule) ---- */
   const small = await probe(page, () => {
     const heroes = [...document.querySelectorAll('.nh-weather--hero')]
     const target = heroes.find((h) => h.closest('.nh-widget')?.querySelector('.nh-widget__labeltext')?.textContent?.trim() === 'Small')
@@ -402,13 +357,9 @@ try {
     JSON.stringify(small)
   )
 
-  /* ---- section 3c: the readings survive a smaller monitor ---- */
   await page.goto(APP + '#/d/nh-e2e-weather-tight')
   await page.waitForSelector('.nh-weather--hero', { timeout: 20000 }).catch(() => {})
   await sleep(1500)
-  // Reported: half the panel disappeared on a smaller screen. The details shed at a guessed
-  // 300px cell width while there was room for them twice over - the widget takes back most of
-  // the body's side padding now, and the shed is at the width the row actually wraps at.
   const tight = await probe(page, () => {
     const hero = document.querySelector('.nh-weather--hero')
     if (!hero) return null
@@ -419,12 +370,10 @@ try {
     const det = hero.querySelector('.nh-weather__details')
     return {
       cellW: Math.round(cellR.width),
-      // the panel is wider than the body's content box: it bleeds into the side padding
       bleed: Math.round(hero.getBoundingClientRect().width - (body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))),
       details: det ? getComputedStyle(det).display : 'absent',
       readings: det ? [...det.querySelectorAll('.nh-weather__detail')].length : 0,
       overflow: Math.round(hero.getBoundingClientRect().right - cellR.right),
-      // the furthest any reading reaches past the tile's own right edge
       valueOverhang: det
         ? Math.round(
             Math.max(
@@ -452,7 +401,6 @@ try {
     tight !== null && tight.valueOverhang < 0,
     'furthest reading vs the cell edge: ' + tight?.valueOverhang
   )
-  // The same tile at 125%: the readings can no longer sit beside the temperature at full size.
   const big = await probe(page, () => {
     const label = [...document.querySelectorAll('.nh-widget__labeltext')].find((l) => l.textContent.trim() === 'Big')
     const hero = label?.closest('.nh-gcell, .nh-cell')?.querySelector('.nh-weather--hero')
@@ -461,8 +409,6 @@ try {
     const cr = cell.getBoundingClientRect()
     const det = hero.querySelector('.nh-weather__details')
     const now = hero.querySelector('.nh-weather__now')
-    // Everything the hero draws, except what sits inside a scrolling strip, where content past
-    // the edge is what scrolling is for.
     const scrolls = (el) => {
       for (let p = el.parentElement; p && p !== cell; p = p.parentElement) {
         const o = getComputedStyle(p)
@@ -495,25 +441,8 @@ try {
   )
 
 
-  /* ---- section 3d: a tile too small for everything shrinks and sheds, it never crops ---- */
-  // Reported from a phone: in landscape both the weather panel and the clock beside it were
-  // "terribly cropped instead of shrank" - the reading kept its full size, pushed the lines under
-  // it past the tile edge, and `overflow: hidden` cut them off mid-glyph. In portrait the same
-  // panel showed no readings at all with 384px of its own width empty to the right.
-  //
-  // Both shapes are driven here, and all THREE heroes on the board at each: one drawing a name,
-  // one not, and one at 125% text. A header row costs the body about 1.05em plus 8px while a
-  // container query measures the CELL, so the first two have different budgets and different
-  // shed thresholds - checking one checks half the rule, and the half that was wrong first time
-  // round put 17px outside the tile. The third is the text size at which the readings stopped
-  // fitting beside the temperature.
-  //
-  // The invariant is the same in every case, and it is the one that failed: whatever is drawn is
-  // drawn INSIDE the tile.
   const shapes = [
-    // stacked, as a phone renders it: wide and short - the portrait report
     { name: 'a full-width row on a phone', w: 540, h: 900, wide: true },
-    // a short grid cell, as landscape renders it
     { name: 'a short grid cell', w: 885, h: 420, wide: false },
   ]
   for (const shape of shapes) {
@@ -545,7 +474,6 @@ try {
           cell: { w: Math.round(cr.width), h: Math.round(cr.height) },
           overV: body.scrollHeight - body.clientHeight,
           overH: body.scrollWidth - body.clientWidth,
-          // measured per element too: a body can report no overflow while a centred child spills
           past: Math.round(Math.max(0, ...parts.map((e) => e.getBoundingClientRect().bottom - br.bottom))),
           details: det ? getComputedStyle(det).display : 'absent',
           readings: det
@@ -565,33 +493,24 @@ try {
       list.length === 3 && spilled.length === 0,
       spilled.length ? JSON.stringify(spilled) : JSON.stringify(list.map((f) => ({ headed: f.headed, cell: f.cell })))
     )
-    // The precondition that makes the check above mean anything: these really are tiles too small
-    // for the natural layout, so something had to give.
     ok(
       `${shape.name}: and they really are short tiles`,
       list.length === 3 && list.every((f) => f.cell.h < 130),
       list.map((f) => `${f.cell.w}x${f.cell.h}`).join(' ')
     )
-    // The reported panel is the one with no name drawn, so that is the one the two claims below
-    // are about; its twin is here to prove the header row is accounted for, not ignored.
     const bare = list.find((f) => !f.headed)
     if (shape.wide) {
-      // Beside the reading the readings cost no height at all, so a short tile with width to
-      // spare must still show them. Height alone used to be enough to shed them.
       ok(
         'a wide short row keeps its readings beside the temperature',
         bare !== undefined && bare.cell.w > 400 && bare.details === 'grid' && bare.readings === 4,
         JSON.stringify(bare)
       )
     } else {
-      // Nothing left to put beside the reading, so what is drawn is drawn smaller - and the
-      // temperature is the part with room to give.
       ok(
         'a short cell draws the reading smaller rather than clipping it',
         bare !== undefined && bare.tempPx < 2.6 * bare.emPx,
         `temp ${bare?.tempPx}px vs 2.6em = ${Math.round(2.6 * (bare?.emPx ?? 0))}px`
       )
-      // Shed back to front: the current reading is the point, the high/low is the first to go.
       ok(
         'and what it cannot fit it sheds, keeping the reading',
         bare !== undefined && bare.drawn.includes('temp') && !bare.drawn.includes('range'),
@@ -601,9 +520,6 @@ try {
     await p2.close()
   }
 
-  /* ---- section 3e: the whole forecast, a hold away ---- */
-  // A compact row shows a temperature and a word, and a hero on a phone sheds its strips - all
-  // of it out of one seven-day request. Holding the tile opens what was fetched.
   await page.goto(APP + '#/d/nh-e2e-weather')
   await page.waitForSelector('.nh-weather--compact', { timeout: 20000 }).catch(() => {})
   await sleep(1200)
@@ -620,7 +536,6 @@ try {
     const panel = document.querySelector('.nh-detail__panel')
     if (!panel) return { open: false }
     const px = (el, prop) => (el ? parseFloat(getComputedStyle(el)[prop]) : 0)
-    /** A block's columns, how many rows they fall into, and where the block sits. */
     const block = (sel) => {
       const el = panel.querySelector(sel)
       if (!el) return null
@@ -633,7 +548,6 @@ try {
         cols: cols.length,
         rows: tops.length,
         perRow: tops.map((t) => cols.filter((c) => Math.round(c.getBoundingClientRect().top) === t).length),
-        // How far the drawn columns sit from each edge of the block: equal means centred.
         padLeft: first ? Math.round(first.left - r.left) : -1,
         padRight: last ? Math.round(r.right - last.right) : -1,
         width: first && last ? Math.round(last.right - first.left) : 0,
@@ -642,7 +556,6 @@ try {
         secondChip: cols[1] ? getComputedStyle(cols[1]).backgroundColor : '',
         labelPx: px(cols[0]?.querySelector('.nh-weather__collabel'), 'fontSize'),
         mainPx: px(cols[0]?.querySelector('.nh-weather__colmain'), 'fontSize'),
-        // Nothing may hang outside the panel, at any viewport.
         past: Math.max(0, Math.round(r.right - panel.getBoundingClientRect().right)),
       }
     }
@@ -658,22 +571,17 @@ try {
       tempPx: px(panel.querySelector('.nh-weather__temp'), 'fontSize'),
       valuePx: px(panel.querySelector('.nh-weather__detvalue'), 'fontSize'),
       panelWidth: Math.round(panel.getBoundingClientRect().width),
-      // Wider than a tile's strip: the hero is drawn on a panel of its own here.
       heroWash: getComputedStyle(panel.querySelector('.nh-weather--hero') ?? panel).backgroundImage,
     }
   })
   ok('a hold on a weather tile opens its own view', sheet.open === true && box !== null, JSON.stringify(sheet).slice(0, 120))
   ok('naming the place it is for', sheet.place === detroit.name, sheet.place || '(none)')
   ok('showing the reading the tile shows', sheet.temp === FX.temp, `${sheet.temp} vs ${FX.temp}`)
-  // The tile is a compact row: it draws no readings and no strips at all, so every one of these
-  // is something the sheet added rather than something it copied.
   ok(
     'with every reading, whatever the tile was set to show',
     ['Feels like', 'Humidity', 'Wind', 'Precipitation'].every((l) => (sheet.details ?? []).includes(l)),
     (sheet.details ?? []).join(',') || '(none)'
   )
-  // Twelve hours, laid out as two rows of six: the arrangement IS the feature, so it is measured
-  // rather than counted - a build that drew twelve in one scrolling row would pass a count.
   ok(
     'the next twelve hours, in two rows of six',
     sheet.hourly?.cols === 12 && sheet.hourly?.rows === 2 && (sheet.hourly?.perRow ?? []).every((n) => n === 6),
@@ -692,8 +600,6 @@ try {
     (sheet.heads ?? []).length === 2 && (sheet.heads ?? []).some((h) => /week/i.test(h)),
     (sheet.heads ?? []).join(' | ') || '(none)'
   )
-  // "you really like tiny text all the time?" - the tile's columns are 0.62em labels over 0.8em
-  // readings, which is right for a cell and far too small for a panel this size.
   ok(
     'set at a size worth reading, not the tile’s',
     (sheet.hourly?.labelPx ?? 0) >= 12 && (sheet.hourly?.mainPx ?? 0) >= 15 && sheet.valuePx >= 18 && sheet.tempPx >= 45,
@@ -712,19 +618,12 @@ try {
   ok('nothing hangs outside the panel', (sheet.hourly?.past ?? 1) === 0 && (sheet.daily?.past ?? 1) === 0, `${sheet.hourly?.past} / ${sheet.daily?.past}`)
   ok('and the panel takes the room a full-screen sheet has', sheet.panelWidth > 760, `${sheet.panelWidth}px`)
 
-  // Same sheet on a phone, both ways up. The seven-day row is what decides the column width, so
-  // a phone is where a block hangs out of the panel if the arithmetic is wrong; the sheet itself
-  // is fixed-position, so resizing re-lays it out with no second gesture.
   for (const shape of [
     { name: 'portrait phone', w: 393, h: 800 },
     { name: 'landscape phone', w: 885, h: 457 },
     { name: 'small window', w: 620, h: 720 },
   ]) {
     await page.setViewportSize({ width: shape.w, height: shape.h })
-    // The resize remounts the widget behind the sheet, so its view is empty for a beat and then
-    // fills in again. Waiting for the block is not enough on its own - the OLD one is still on
-    // screen when the wait is made, so it returns at once and the sample lands in the gap. Wait
-    // for two consecutive samples that agree instead.
     for (let i = 0, seen = 0; i < 30 && seen < 2; i++) {
       await sleep(200)
       seen = (await probe(page, () => !!document.querySelector('.nh-wdetail__days'))) ? seen + 1 : 0
@@ -741,7 +640,6 @@ try {
         return {
           rows: tops.length,
           past: Math.max(0, Math.round(r.right - panel.getBoundingClientRect().right)),
-          // The narrowest column: too narrow to hold "83° 66°" is a squeeze, not a layout.
           narrowest: Math.min(...cols.map((c) => Math.round(c.getBoundingClientRect().width))),
         }
       }
@@ -773,7 +671,6 @@ try {
   await page.waitForSelector('.nh-weather--striplook', { timeout: 20000 }).catch(() => {})
   await sleep(1200)
 
-  /* ---- section 4: strip look details ---- */
   const stripInfo = await probe(page, () => {
     const strips = [...document.querySelectorAll('.nh-weather--striplook')]
     const read = (root) => ({
@@ -787,13 +684,10 @@ try {
   ok('day strip shows 7 columns with a current block', stripInfo.days?.cols === 7 && stripInfo.days?.mini === true, JSON.stringify(stripInfo.days?.labels))
   ok('hour strip hides the current block when asked', stripInfo.hours?.mini === false, 'cols=' + stripInfo.hours?.cols)
   const hourLabels = stripInfo.hours?.labels ?? []
-  // positive precondition first: an empty list must fail, not pass vacuously
   ok('hour strip columns are hours, not weekdays', hourLabels.length > 0 && hourLabels.every((l) => /\d/.test(l)), JSON.stringify(hourLabels))
 
-  /* ---- section 5: precipitation toggle ---- */
   const noPrecip = await probe(page, () => {
     const heroes = [...document.querySelectorAll('.nh-weather--hero')]
-    // the Berlin hero is the one whose details lack the Precipitation entry
     const target = heroes.find((h) => ![...h.querySelectorAll('.nh-weather__detlabel')].some((l) => l.textContent.trim() === 'Precipitation'))
     if (!target) return null
     return {
@@ -803,9 +697,6 @@ try {
   })
   ok('precipitation off removes chance columns and the detail', noPrecip !== null && noPrecip.probs === 0, JSON.stringify(noPrecip))
 
-  /* ---- section 5b: the forecast model ---- */
-  // Models disagree - sometimes by 40 percentage points on the same morning - so a widget may
-  // name one. An unknown id must never be sent: the service answers 400 and there is no weather.
   const modelHit = forecastHits.find((u) => u.includes('latitude=33.3333'))
   ok('a widget with a model asks for it by name', String(modelHit).includes('models=ecmwf_ifs025'), String(modelHit))
   ok(
@@ -814,7 +705,6 @@ try {
     forecastHits.filter((u) => u.includes('models=')).length + ' of ' + forecastHits.length + ' name a model'
   )
 
-  /* ---- section 6: shared fetch - many widgets, two places, two requests ---- */
   const detroitHits = forecastHits.filter((u) => u.includes('latitude=42.3314')).length
   const berlinHits = forecastHits.filter((u) => u.includes('latitude=52.52')).length
   ok('widgets sharing a place share one forecast request', detroitHits === 1, 'detroit=' + detroitHits)
@@ -825,7 +715,6 @@ try {
     forecastHits.length + ' urls'
   )
 
-  /* ---- section 7: items mode and the unconfigured message ---- */
   const itemsView = await probe(page, () => {
     const heroes = [...document.querySelectorAll('.nh-weather--hero')]
     const sensor = heroes.find((h) => h.closest('.nh-widget')?.querySelector('.nh-widget__labeltext')?.textContent?.trim() === 'Sensor')
@@ -841,7 +730,6 @@ try {
     JSON.stringify(d.emptyTexts)
   )
 
-  /* ---- section 8: the failure path - a place the network cannot answer ---- */
   await page.unroute('https://api.open-meteo.com/**')
   await page.route('https://api.open-meteo.com/**', (route) => route.abort())
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
@@ -879,13 +767,10 @@ try {
     JSON.stringify(failText)
   )
 
-  /* ---- section 9: the editor - location search, pattern preview, showIf gating ---- */
   await page.unroute('https://api.open-meteo.com/**')
   await page.route('https://api.open-meteo.com/**', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(forecast) })
   )
-  // every wait here is guarded: on a build without the feature the ASSERTIONS must be what
-  // fails, never an abort that swallows the rest of the suite
   await page.click('[aria-label="Edit dashboard"]').catch(() => {})
   await page.waitForSelector('.nh-grid--edit .nh-cell', { timeout: 15000 }).catch(() => {})
   await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip').catch(() => {})
@@ -900,7 +785,6 @@ try {
   })
   ok('the Style select offers the three looks', JSON.stringify(styleOptions) === JSON.stringify(['Hero', 'Compact row', 'Forecast strip']), JSON.stringify(styleOptions))
 
-  // location search against the fixture geocoder
   await page.fill('.nh-sheet .nh-camerafield input', 'detroit').catch(() => {})
   await page.click('.nh-sheet .nh-camerafield__find').catch(() => {})
   await page.waitForSelector('.nh-sheet .nh-camerafield__pick', { timeout: 8000 }).catch(() => {})
@@ -915,7 +799,6 @@ try {
   ok('picking a place fills the coordinates', Math.abs(parseFloat(coords.lat) - 42.33143) < 0.01 && Math.abs(parseFloat(coords.lon) - -83.04575) < 0.01, JSON.stringify(coords))
   ok('the picked place is named under the search', (coords.current ?? '').includes('Detroit'), String(coords.current))
 
-  // switch the source to items: the location field leaves, the pickers and patterns arrive
   await page
     .selectOption('.nh-sheet .nh-field:has(.nh-field__label:text-is("Weather source")) select', 'items')
     .catch(() => {})
@@ -927,11 +810,9 @@ try {
   }))
   ok('items mode hides the location and offers the pickers', itemsPanel.location === false && itemsPanel.pickers >= 5 && itemsPanel.pattern === true, JSON.stringify(itemsPanel))
 
-  // the pattern preview, typed per keystroke (the picker lesson: fill masks per-keystroke bugs)
   const patternInput = page.locator('.nh-sheet .nh-field:has(.nh-field__label:text-is("Day high pattern")) input')
   await patternInput.click().catch(() => {})
   await page.keyboard.type('Xx_{n}_High', { delay: 15 })
-  // the preview waits for the item catalog, which a large server takes a moment to list
   await page
     .waitForFunction(
       () => [...document.querySelectorAll('.nh-sheet .nh-field__hint')].some((e) => e.textContent.startsWith('Found ')),
@@ -952,8 +833,6 @@ try {
   await page.click('button:has-text("Exit")').catch(() => {})
   await page.waitForSelector('.nh-grid--edit', { state: 'detached', timeout: 8000 }).catch(() => {})
 
-  /* ---- section 10: the LCD segment treatment, and its inertness in dark ---- */
-  // leaving the editor remounts the widget, which waits a beat before its first fetch
   await page.waitForSelector('.nh-weather__temp', { timeout: 15000 }).catch(() => {})
   const darkGhost = await probe(page, () => {
     const temp = document.querySelector('.nh-weather__temp')
@@ -976,10 +855,6 @@ try {
   })
   ok('LCD: the temp draws in DSEG with the ghost underlay', lcdGhost !== null && lcdGhost.before === '"88"' && lcdGhost.font.includes('DSEG'), JSON.stringify(lcdGhost))
 
-  // The detail sheet draws that reading three times the size a tile does, and a face whose ink
-  // runs past its em box then puts the digits through the condition line underneath - which is
-  // what LCD Console and Operations both did. The INK is what has to be measured: the element's
-  // own box stops at the line box, so a box-to-box comparison sees nothing.
   const holdWeather = async () => {
     const cell = page.locator('.nh-gcell').filter({ has: page.locator('.nh-weather--hero') }).first()
     const b = await cell.boundingBox().catch(() => null)
@@ -1002,7 +877,6 @@ try {
     const box = temp.getBoundingClientRect()
     const size = parseFloat(cs.fontSize)
     const lineHeight = cs.lineHeight === 'normal' ? size * 1.2 : parseFloat(cs.lineHeight)
-    // Where the baseline sits inside the line box, then how far the ink falls below it.
     const half = (lineHeight - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
     const baseline = box.top + half + m.fontBoundingBoxAscent
     return {

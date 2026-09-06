@@ -1,7 +1,3 @@
-/**
- * The docs renderer. It runs at build time over files nobody re-reads afterwards, so the value
- * of these checks is that a mangled page is caught here rather than shipped.
- */
 import { describe, expect, it } from 'vitest'
 import { renderMarkdown, renderPage } from './markdown.mjs'
 
@@ -28,8 +24,6 @@ describe('the docs renderer', () => {
   })
 
   it('leaves a number in prose alone next to a code span', () => {
-    // The placeholder used to be the span's index wrapped in spaces, so " 0 " in the prose was
-    // replaced by the first code span. Nothing about that failure was visible until it shipped.
     expect(md('set it to 0 and `x` is 1')).toBe('<p>set it to 0 and <code>x</code> is 1</p>')
     expect(md('`a` then 0 then `b`')).toBe('<p><code>a</code> then 0 then <code>b</code></p>')
   })
@@ -53,7 +47,6 @@ describe('the docs renderer', () => {
     expect(md('- one\n- two')).toBe('<ul><li>one</li><li>two</li></ul>')
     expect(md('1. one\n2. two')).toBe('<ol><li>one</li><li>two</li></ol>')
     expect(md('- one\n  continued\n- two')).toBe('<ul><li>one continued</li><li>two</li></ul>')
-    // Switching kind starts a new list rather than silently merging them.
     expect(md('- a\n1. b')).toBe('<ul><li>a</li></ul>\n<ol><li>b</li></ol>')
   })
 
@@ -68,7 +61,6 @@ describe('the docs renderer', () => {
     const page = renderPage('T & T', '<p>hi</p>')
     expect(page).toContain('<title>T &amp; T</title>')
     expect(page).toContain('<p>hi</p>')
-    // No external requests: the openHAB server it is served from may have no internet.
     expect(page).not.toMatch(/https?:\/\//)
   })
 })

@@ -1,15 +1,10 @@
-// Settings suite: item picker, theme switching, backup export + replace/merge import.
-// Assumes an EMPTY namespace (wipe -> restore cycle); creates its own dashboard via REST.
+// Settings suite: item picker, theme switching, backup export and replace/merge import.
+// Assumes an EMPTY namespace (the wipe/restore cycle); creates its own dashboard over REST.
 import { launchChromium } from './lib/browser.mjs'
 import { readFileSync } from 'node:fs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 
-// WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
-// Refuse to run against a live config - snapshot + wipe first, restore + verify after
-// (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs - see the README). Running
-// one of these against a live config once forced a full restore; the guard makes that
-// mistake impossible.
 {
   const pre = await (await fetch(NS)).json()
   if (pre.length > 0) {
@@ -59,7 +54,6 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
-  // The suite's own dashboard (color widget so the picker checks have a configured item).
   const st = await restPost('dashboard:nh-e2e-set', 'neohab:dashboard', {
     version: 1,
     id: 'nh-e2e-set',
@@ -72,7 +66,6 @@ try {
   })
   ok('suite dashboard created', st === 200 || st === 201, `status=${st}`)
 
-  // ---------- item picker: populated value + obvious dropdown ----------
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tile:not(.nh-tile--new)')
   await page.click('.nh-tile:not(.nh-tile--new)')
@@ -88,10 +81,6 @@ try {
   ok('dropdown button is visible', await page.locator('.nh-picker__toggle').isVisible())
   await page.locator('.nh-picker__toggle').click()
   await page.waitForSelector('.nh-picker__list', { timeout: 3000 })
-  // The list appears saying "Loading items..." and fills in when the catalog lands - about 440ms
-  // against a 3000-item server, and invisibly fast against a small one. Counting the moment the
-  // list exists reads 0 on a big install and passes everywhere else, which is the worst kind of
-  // check: green on the servers where it does not matter.
   await page.waitForSelector('.nh-picker__option', { timeout: 15000 }).catch(() => {})
   const optionCount = await page.locator('.nh-picker__option').count()
   ok('dropdown lists color items', optionCount >= 1, `options=${optionCount}`)
@@ -103,10 +92,7 @@ try {
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]')
 
-  // ---------- settings: theme switch applies + persists ----------
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-  // .nh-home__settings, not :has-text("Settings"): page.click is non-strict and takes the FIRST
-  // match, which is now the sidebar's own (hidden) Settings row rendered ahead of <main>.
   await page.click('.nh-home__settings')
   await page.waitForSelector('.nh-themes')
 
@@ -119,7 +105,6 @@ try {
   const savedSettings = await restGet(NS + '/settings')
   ok('theme choice persisted to server', savedSettings.status === 200 && savedSettings.body?.config?.theme === 'oled')
 
-  // ---------- backup: export bundle ----------
   const downloadPromise = page.waitForEvent('download')
   await page.click('button:has-text("Export configuration")')
   const download = await downloadPromise
@@ -129,8 +114,6 @@ try {
   ok('export includes settings', bundle.components.some((c) => c.uid === 'settings'))
   ok('export includes suite dashboard', bundle.components.some((c) => c.uid === 'dashboard:nh-e2e-set'))
 
-  // ---------- import (replace): choice UI appears, confirm auto-accepted ----------
-  // scope to the Backup heading: the Custom icons section also contains a file input
   const fileInput = page.locator('section:has(h2:text-is("Backup")) input[type="file"]')
   await fileInput.setInputFiles({ name: 'neohab-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bundle)) })
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 5000 })
@@ -141,7 +124,6 @@ try {
   const afterImport = await restGet(NS + '/settings')
   ok('config intact after replace round-trip', afterImport.status === 200 && afterImport.body?.config?.theme === 'oled')
 
-  // ---------- import (merge): components missing from the bundle survive ----------
   const st2 = await restPost('dashboard:nh-e2e-merge', 'neohab:dashboard', {
     version: 1,
     id: 'nh-e2e-merge',
@@ -168,7 +150,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup: remove everything the test persisted ----------
 const list = await restGet(NS)
 let cleaned = true
 for (const c of list.body ?? []) {

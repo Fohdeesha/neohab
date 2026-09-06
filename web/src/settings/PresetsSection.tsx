@@ -1,9 +1,3 @@
-/**
- * Lighting presets manager. The presets themselves are openHAB scenes on the server (created
- * from a floor plan widget's "Save preset", or in Main UI - both show here); this section
- * renames and deletes them, links the status item that mirrors "this preset is active", and
- * keeps the wall-switch bridge rule in step.
- */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PresetBridgeFields } from '../components/PresetBridgeFields'
@@ -140,11 +134,6 @@ function PresetRow({
   )
 }
 
-/**
- * The status-item link. The item goes into the scene's own configuration block (readable by
- * every role, so signed-out panels can highlight the active preset); the bridge checkbox
- * creates or removes the managed rule that lets the item trigger the scene.
- */
 function BridgeEditor({
   preset,
   bridged,

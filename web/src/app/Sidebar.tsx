@@ -1,20 +1,3 @@
-/**
- * Dashboard navigation sidebar: reachable from every screen via the ☰ in the top-left, so
- * switching dashboards never means going via Home (Home stays, and is the list's first entry).
- *
- * Opening it insets the dashboard beside it on wide screens and overlays it on phones. Once open
- * it stays open until it is deliberately dismissed - by clicking or tapping somewhere else, by
- * picking a dashboard, on Escape, or on navigation. It deliberately does NOT close when the
- * pointer merely moves away: reading down a list of dashboards means moving off it, and a menu
- * that vanishes because a mouse drifted is one you have to re-open to use.
- *
- * While it is unpinned a scrim covers everything else, so the click that dismisses it does just
- * that and does not also work whatever it landed on. The dashboard is live under a *pinned*
- * sidebar, which is not going anywhere, and inert under an unpinned one.
- *
- * The order matches Home's tiles (by name) on purpose - two lists of the same dashboards that
- * disagreed about their order would be a puzzle to use.
- */
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
@@ -31,15 +14,11 @@ export function Sidebar() {
 
   const { enabled, open, pinned } = layout
 
-  // Any navigation closes it, not just the rows below: arriving somewhere via browser-back or a
-  // Home tile has finished with the sidebar just as much as clicking a row has. Harmless while
-  // pinned, where being open does not depend on this flag.
   const routeKey = route.name === 'dashboard' ? 'd:' + route.id : route.name
   useEffect(() => {
     closeSidebar()
   }, [routeKey])
 
-  // Escape is the keyboard's version of clicking away; the scrim below handles pointers.
   useEffect(() => {
     if (!open || pinned) return
     const onKey = (e: KeyboardEvent) => {
@@ -49,13 +28,9 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, pinned])
 
-  // useSidebarLayout reports the sidebar disabled in kiosk mode, so this covers that too.
   if (!enabled) return null
 
   const go = (to: Parameters<typeof navigate>[0]) => {
-    // An unsaved draft is asked about by the editor itself, on any route change (see
-    // DashboardView) - browser Back and a bookmark deserve the same question as a link here, and
-    // two places asking meant two dialogs for one click.
     if (!pinned) closeSidebar()
     navigate(to)
   }
@@ -136,11 +111,6 @@ export function Sidebar() {
   )
 }
 
-/**
- * Top-left button of any screen: ☰ with the sidebar on (Home is the list's first entry), or the
- * classic ‹ straight back to Home with it off. Renders nothing while the sidebar is pinned open,
- * since both destinations are already on screen.
- */
 export function NavButton() {
   const { t } = useTranslation()
   const { enabled } = useSidebarLayout()
@@ -154,10 +124,6 @@ export function NavButton() {
   )
 }
 
-/**
- * The ☰ that opens the sidebar. Renders nothing when the sidebar is switched off, and nothing
- * when it is pinned - the list is already on screen, so a button to summon it would do nothing.
- */
 export function SidebarTrigger({ className = 'nh-iconbtn' }: { className?: string }) {
   const { t } = useTranslation()
   const { enabled, pinned } = useSidebarLayout()

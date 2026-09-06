@@ -1,7 +1,3 @@
-/**
- * LED-gauge settings editors: severity color stops, markers, and zones. Registered as
- * SettingField types 'gaugeseverity'/'gaugemarkers'/'gaugezones' and rendered by SettingsPanel.
- */
 import { useTranslation } from 'react-i18next'
 import { ItemPicker } from '../components/ItemPicker'
 import type { WidgetInstance } from '../model/dashboard'
@@ -11,7 +7,6 @@ import type { GaugeMarker, GaugeZone, SeverityStop } from '../widgets/dial/gauge
 
 const MARKER_ITEM_TYPES = ['Number', 'Dimmer']
 
-/** Keyed by the field, so the outer ring's `severity` and the inner ring's `severity2` share it. */
 export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; field: SettingField }) {
   const { t } = useTranslation()
   const rows = Array.isArray(widget.config[field.key]) ? (widget.config[field.key] as SeverityStop[]) : []

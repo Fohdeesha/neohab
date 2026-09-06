@@ -1,19 +1,7 @@
-/**
- * Choosing a widget for an item.
- *
- * Everything here is pure and free of React, so the generator's decisions can be exercised
- * directly. The item's type decides the shape of the control; the semantic model, where there
- * is one, refines it (a Switch tagged as a Status point is an indicator, not a control) and
- * supplies an icon.
- */
 import type { Item } from '../api/types'
 import { lookup } from '../model/lookup'
 import type { Semantics } from './semantics'
 
-/**
- * Why the obvious widget was not used. Surfaced in the preview so a fallback is never silent;
- * the wording lives in the UI, keeping this module free of copy.
- */
 export type SuggestNote = 'readonly' | 'norange'
 
 export interface Suggestion {
@@ -22,15 +10,7 @@ export interface Suggestion {
   note?: SuggestNote
 }
 
-/**
- * Grid sizes for generated widgets, in cells of a 12-column dashboard with square cells.
- *
- * Deliberately more compact than the palette's `defaultSize`: those are tuned for placing one
- * widget by hand, while a generated dashboard puts twenty on the grid at once and has to stay
- * readable without a page of scrolling. Square cells make every extra row as tall as a column is
- * wide, so anything that is really just text gets one row; only the genuinely two-dimensional
- * widgets (a dial, a colour picker, a chart) are given the height they need.
- */
+// more compact than the palette's defaultSize: a generated dashboard puts twenty widgets on the grid at once
 export const GENERATED_SIZES: Record<string, { w: number; h: number }> = {
   switch: { w: 2, h: 2 },
   button: { w: 2, h: 2 },
@@ -50,7 +30,6 @@ export function sizeFor(type: string): { w: number; h: number } {
   return lookup(GENERATED_SIZES, type) ?? { w: 2, h: 2 }
 }
 
-/** Icons for the common semantic properties, so a generated dashboard is not a wall of text. */
 const PROPERTY_ICONS: Record<string, string> = {
   Temperature: 'thermometer',
   Humidity: 'water-percent',
@@ -81,7 +60,6 @@ const PROPERTY_ICONS: Record<string, string> = {
   Pressure: 'gauge'
 }
 
-/** Icons for equipment, used when a point carries no property of its own. */
 const EQUIPMENT_ICONS: Record<string, string> = {
   AlarmSystem: 'shield-home',
   Battery: 'battery',
@@ -138,7 +116,6 @@ const EQUIPMENT_ICONS: Record<string, string> = {
   Window: 'window-closed'
 }
 
-/** Icons for locations, used for the generated dashboard's Home tile. */
 const LOCATION_ICONS: Record<string, string> = {
   Apartment: 'home-city',
   Building: 'office-building',
@@ -188,18 +165,15 @@ export function equipmentIcon(tagName: string | undefined): string | undefined {
   return mdi(lookup(EQUIPMENT_ICONS, tagName))
 }
 
-/** The icon for one point: its property first, falling back to the equipment it belongs to. */
 export function pointIcon(sem: Semantics, equipmentTag?: string): string | undefined {
   return mdi(lookup(PROPERTY_ICONS, sem.property?.name)) ?? equipmentIcon(equipmentTag)
 }
 
-/** Base type of an item: `Number:Temperature` -> `Number`, a typed Group -> its member type. */
 export function baseType(item: Item): string {
   const type = item.type === 'Group' ? (item.groupType ?? '') : item.type
   return type.split(':')[0]
 }
 
-/** Command/state options an item declares, as the selection widget's `CMD=Label` lines. */
 function optionLines(item: Item): string | null {
   const options =
     item.commandDescription?.commandOptions?.map((o) => ({ value: o.command, label: o.label })) ?? item.stateDescription?.options ?? []
@@ -207,7 +181,6 @@ function optionLines(item: Item): string | null {
   return options.map((o) => `${o.value}=${o.label ?? o.value}`).join('\n')
 }
 
-/** A numeric range the item itself declares - never invented, so a slider can't send nonsense. */
 function declaredRange(item: Item): { min: number; max: number; step: number } | null {
   const sd = item.stateDescription
   if (!sd || typeof sd.minimum !== 'number' || typeof sd.maximum !== 'number') return null
@@ -215,17 +188,12 @@ function declaredRange(item: Item): { min: number; max: number; step: number } |
   return { min: sd.minimum, max: sd.maximum, step: typeof sd.step === 'number' && sd.step > 0 ? sd.step : 1 }
 }
 
-/** True when the model says this point is read-only: a measurement or a status. */
 export function isReadOnlyPoint(item: Item, sem: Semantics): boolean {
   if (item.stateDescription?.readOnly === true) return true
   const point = sem.point?.name
   return point === 'Measurement' || point === 'Status' || point === 'Alarm'
 }
 
-/**
- * The widget types offered for an item in the preview, best first. Only types that can actually
- * drive the item are listed, so an override can't produce a widget that does nothing.
- */
 export function widgetChoices(item: Item, suggested: string): string[] {
   const type = baseType(item)
   const byType: Record<string, string[]> = {
@@ -244,11 +212,6 @@ export function widgetChoices(item: Item, suggested: string): string[] {
   return [suggested, ...list.filter((t) => t !== suggested)]
 }
 
-/**
- * Build the config for one widget type bound to an item. Used both for the initial suggestion
- * and when the preview's type override changes it, so an override is configured as fully as the
- * suggestion was.
- */
 export function configFor(
   type: string,
   item: Item,
@@ -263,7 +226,6 @@ export function configFor(
       return { ...base, item: item.name, ...(icon ? { icon } : {}), command: 'ON', commandAlt: 'OFF', toggle: true }
     case 'slider':
     case 'dial': {
-      // A range is only ever taken from the item; percentage types are the one safe assumption.
       const pct = { min: 0, max: 100, step: 1 }
       const bounds = declaredRange(item) ?? pct
       return {
@@ -282,15 +244,10 @@ export function configFor(
     case 'value':
       return { ...base, item: item.name, ...(icon ? { icon } : {}) }
     default:
-      // color, rollershutter, player: bound and named, but they take no icon setting.
       return { ...base, item: item.name }
   }
 }
 
-/**
- * Pick a widget for an item, or null when there is nothing sensible to show - a plain Group is a
- * container rather than a value, and an Image item's state is raw image data no widget renders.
- */
 export function suggestWidget(item: Item, sem: Semantics, label: string, equipmentTag?: string): Suggestion | null {
   const type = baseType(item)
   if (item.type === 'Group' && !item.groupType) return null
@@ -321,8 +278,6 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
     case 'Number': {
       if (readOnly) return make('value')
       if (declaredRange(item)) return make('slider')
-      // A settable number with no declared range: a slider would have to invent one, so show the
-      // value and let the preview's type override put a slider there deliberately.
       return make('value', 'norange')
     }
     default:
@@ -330,11 +285,6 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
   }
 }
 
-/**
- * A readable widget name for an item: its label when it has one, otherwise its item name made
- * presentable - with the cluster's own prefix removed, so a "Kitchen" dashboard reads
- * "Main Lights Level" instead of repeating "kitchen" on every widget.
- */
 export function prettyLabel(item: Item, stripPrefix?: string): string {
   if (item.label && item.label.trim()) return item.label.trim()
   let name = item.name

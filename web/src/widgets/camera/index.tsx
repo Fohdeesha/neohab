@@ -28,14 +28,6 @@ const TRANSPORT_LABEL: Record<CameraTransport, string> = {
   iframe: 'Embedded player'
 }
 
-/**
- * Live camera view.
- *
- * The transports themselves live in ./player, loaded on demand. This component owns everything
- * around them: when to be connected at all, what a tap does, and what to say when the picture
- * cannot be produced - which for cameras is at least as common as success, and is otherwise
- * indistinguishable from a black rectangle.
- */
 function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   const { t } = useTranslation()
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -43,8 +35,6 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   const playerRef = useRef<PlayerHandle | null>(null)
   const [status, setStatus] = useState<PlayerStatus>({ phase: 'connecting', transport: null, failed: [] })
   const [onScreen, setOnScreen] = useState(config.offscreen === 'keep')
-  // The screensaver covers the page without hiding it: `visibilityState` stays visible and an
-  // IntersectionObserver knows nothing about occlusion, so it has to be asked directly.
   const covered = useScreensaverStore((s) => s.active)
   const wanted = onScreen && !(covered && config.offscreen !== 'keep')
 
@@ -54,7 +44,6 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   const firstUrl = chain.map((tr) => transportUrl(config, tr)).find((u): u is string => !!u) ?? ''
   const mixed = mixedContent(firstUrl)
 
-  // Anything that changes what we would connect to must restart the stream.
   const streamKey = JSON.stringify([
     config.source,
     normalizeServer(config.server),
@@ -67,12 +56,6 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
     poster
   ])
 
-  /*
-   * Only stream what someone can actually see. A dashboard left open on another tab, or a
-   * camera scrolled off a long phone layout, otherwise keeps a decoder and a socket busy
-   * indefinitely - which on a wall panel is the difference between working and saturating
-   * the uplink. 'keep' opts out for the one case that wants it: instant switching.
-   */
   useEffect(() => {
     if (config.offscreen === 'keep') {
       setOnScreen(true)
@@ -149,14 +132,8 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
     }
   }
 
-  // Nothing to open, navigate from, or make fullscreen until there is a picture to act on.
   const interactive = !ctx.editing && configured && !mixed && (config.tapAction ?? 'fullscreen') !== 'none'
 
-  /*
-   * WebRTC and MSE both ride a WebSocket the camera server can refuse cross-origin, while its
-   * HLS and image endpoints stay open. When exactly that pattern shows up, the fix is one line
-   * of server config, so say which line rather than reporting a generic failure.
-   */
   const wsRefused =
     (config.source ?? 'go2rtc') !== 'url' &&
     !isOwnOrigin(normalizeServer(config.server)) &&
@@ -207,11 +184,6 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   )
 }
 
-/**
- * Real fullscreen, not a fixed-position overlay: grid cells are size containers, which makes
- * them the containing block for fixed descendants, so an overlay could never escape its cell.
- * iOS has no element fullscreen at all, and only ever offers it on the video itself.
- */
 async function enterFullscreen(el: HTMLElement | null): Promise<void> {
   if (!el) return
   if (document.fullscreenElement) {
@@ -236,8 +208,6 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
   defaultSize: { w: 6, h: 5 },
   minPixelHeight: 140,
   hasHeader: true,
-  // "Show the name" gains a third choice here: the name written on the video itself, so the
-  // whole cell stays picture. The universal In the title bar / Not at all come with the field.
   labelModes: {
     options: [{ value: 'overlay', label: 'Over the picture' }],
     hint: 'Over the picture puts the name on the video itself, so the whole cell stays picture. It sits wherever Name alignment and Name position put it.'

@@ -1,11 +1,3 @@
-/**
- * The generator pipeline: items -> clusters -> a reviewable plan -> dashboards.
- *
- * The properties that matter are the ones a user would have to fix by hand if they were wrong -
- * widgets that overlap, widgets outside the grid, an id that overwrites a dashboard they already
- * have - plus the promise the preview makes: nothing is created that the review did not show,
- * and anything that cannot become a widget is reported rather than dropped.
- */
 import { describe, expect, it } from 'vitest'
 import type { Item } from '../api/types'
 import type { Rect } from '../model/dashboard'
@@ -17,7 +9,6 @@ const item = (name: string, over: Partial<Item> = {}): Item => ({ name, type: 'S
 
 const INDEX = buildTagIndex()
 
-/** A small house with a real semantic model: one location, one piece of equipment, two points. */
 const MODELLED: Item[] = [
   item('gKitchen', { type: 'Group', label: 'Kitchen', tags: ['Kitchen'] }),
   item('gCeiling', { type: 'Group', tags: ['Lightbulb'], groupNames: ['gKitchen'] }),
@@ -43,8 +34,6 @@ const rects = (widgets: { layout: { lg?: Rect } }[]): Rect[] =>
   })
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
-/* ------------------------------- sources ------------------------------- */
-
 describe('finding clusters', () => {
   it('clusters by name prefix, case-insensitively, which is the source that works with no model', () => {
     const items = [item('studio_volume'), item('Studio_Power'), item('STUDIO_mode'), item('hall_light')]
@@ -66,7 +55,6 @@ describe('finding clusters', () => {
     const clusters = semanticClusters(MODELLED, INDEX)
     expect(clusters).toHaveLength(1)
     expect(clusters[0].name).toBe('Kitchen')
-    // the ceiling light's two points sit under their equipment; the temperature sits directly
     const sectionSizes = clusters[0].sections.map((s) => s.items.length).sort()
     expect(sectionSizes).toEqual([1, 2])
     expect(clusters[0].count).toBe(3)
@@ -100,12 +88,8 @@ describe('finding clusters', () => {
   })
 })
 
-/* ------------------------------- the plan ------------------------------- */
-
 describe('the reviewable plan', () => {
   it('reports an item that cannot become a widget instead of dropping it', () => {
-    // Hand-picking is the source that does no filtering of its own, so it is where an unplaceable
-    // item actually reaches the plan. The clustering sources drop containers before this point.
     const items = [item('a'), item('grp', { type: 'Group' }), item('pic', { type: 'Image' })]
     const p = plan(items, [pickedCluster(['a', 'grp', 'pic'], 'Picks')], 'pick')
     expect(p.skipped).toEqual(
@@ -114,7 +98,6 @@ describe('the reviewable plan', () => {
         { item: 'pic', reason: 'image' }
       ])
     )
-    // and the one placeable item still made it through
     expect(p.clusters[0].sections[0].widgets.map((w) => w.item.name)).toEqual(['a'])
   })
 
@@ -127,7 +110,6 @@ describe('the reviewable plan', () => {
   it('strips the cluster prefix from labels only for the prefix source', () => {
     const items = [item('kitchen_fan'), item('kitchen_light')]
     expect(plan(items).clusters[0].sections[0].widgets.map((w) => w.label)).toEqual(['Fan', 'Light'])
-    // the same items via hand-picking keep their full names, since there is no shared prefix to strip
     const picked = plan(items, [pickedCluster(['kitchen_fan'], 'Picks')], 'pick')
     expect(picked.clusters[0].sections[0].widgets[0].label).toBe('Kitchen Fan')
   })
@@ -158,8 +140,6 @@ describe('the reviewable plan', () => {
     expect(plan(items).clusters).toEqual([])
   })
 })
-
-/* ------------------------------- the dashboards ------------------------------- */
 
 describe('building dashboards', () => {
   const many = Array.from({ length: 18 }, (_, i) => item(`room_i${i}`, { type: ['Switch', 'Dimmer', 'Number', 'Color', 'Player'][i % 5] }))
@@ -209,7 +189,6 @@ describe('building dashboards', () => {
     expect(dashboards).toHaveLength(1)
     const headings = dashboards[0].widgets.filter((w) => w.type === 'label')
     expect(headings.map((h) => h.config.text).sort()).toEqual(['Hall', 'Shed'])
-    // a heading spans the grid so it reads as a divider
     for (const h of headings) expect(h.layout.lg?.w).toBe(GENERATED_COLUMNS)
   })
 
@@ -237,7 +216,6 @@ describe('building dashboards', () => {
   it('keeps a section’s widgets together rather than scattering them into earlier gaps', () => {
     const items = [item('room_big', { type: 'Color' }), item('room_a'), item('room_b')]
     const d = build(items)[0]
-    // everything lands in a contiguous band starting at the top
     const maxBottom = Math.max(...rects(d.widgets).map((r) => r.y + r.h))
     expect(maxBottom).toBeLessThanOrEqual(6)
   })

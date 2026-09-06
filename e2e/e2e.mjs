@@ -1,16 +1,7 @@
-// Core smoke suite. Assumes an EMPTY neohab:config namespace (run inside wipe→restore):
-// checks the first-run welcome, then creates its own dashboard via REST (the in-code demo
-// no longer exists), exercises the core widgets against the three approved items, and
-// cleans up the component + item states.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 
-// WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
-// Refuse to run against a live config - snapshot + wipe first, restore + verify after
-// (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs - see the README). Running
-// one of these against a live config once forced a full restore; the guard makes that
-// mistake impossible.
 {
   const pre = await (await fetch(NS)).json()
   if (pre.length > 0) {
@@ -51,7 +42,7 @@ function launch() {
     try {
       return launchChromium({ channel, headless: true })
     } catch {
-      /* try next */
+      // try next
     }
   }
   return launchChromium({ headless: true })
@@ -60,7 +51,6 @@ function launch() {
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 
-// Record initial states so cleanup restores what the owner actually had.
 const initial = {
   switch: await getState(SWITCH_ITEM),
   slider: await getState(SLIDER_ITEM),
@@ -81,15 +71,12 @@ page.on('response', (r) => {
 })
 
 try {
-  // --- First-run welcome (empty namespace) ---
   await page.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
   await page.waitForSelector('.nh-wordmark', { timeout: 10000 })
   ok('home wordmark renders', (await page.textContent('.nh-wordmark'))?.includes('neohab'))
   ok('brand-colored n present', (await page.$('.nh-wordmark__n')) !== null)
   await page.waitForSelector('.nh-welcome', { timeout: 10000 })
   ok('first-run welcome shows on empty config', true)
-  // This page is signed out, and signed out is a view-only device by default - the welcome
-  // must offer a sign-in and nothing that edits.
   ok(
     'signed out, the welcome offers exactly a sign-in',
     (await page.locator('.nh-welcome__actions .nh-btn').count()) === 1 &&
@@ -101,7 +88,6 @@ try {
   )
   ok('no dashboard tiles yet', (await page.locator('.nh-tile').count()) === 0)
 
-  // Signed in as an administrator, the same screen offers the four ways to start.
   {
     const adminPage = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await adminPage.addInitScript((t) => {
@@ -109,7 +95,6 @@ try {
     }, TOKEN)
     await adminPage.goto(APP, { waitUntil: 'domcontentloaded', timeout: 20000 })
     await adminPage.waitForSelector('.nh-welcome', { timeout: 10000 })
-    // The buttons appear once the token has proven itself an administrator - wait for one.
     const offered = await adminPage
       .waitForSelector('.nh-welcome__actions .nh-btn:has-text("Generate from my items")', { timeout: 15000 })
       .then(() => true)
@@ -122,7 +107,6 @@ try {
     await adminPage.close()
   }
 
-  // --- Create the suite's dashboard via REST, reload home ---
   const resp = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -140,10 +124,8 @@ try {
   const widgetCount = await page.$$eval('.nh-widget', (els) => els.length)
   ok('all 8 widgets render', widgetCount >= 8, `found ${widgetCount}`)
 
-  // Wait for SSE state to arrive
   await sleep(2500)
 
-  // --- Switch control --- (assert it toggles, whatever the starting state)
   const beforeSwitch = await getState(SWITCH_ITEM)
   await page.click('.nh-switch')
   await sleep(1200)
@@ -154,7 +136,6 @@ try {
   const switchUiOn = await page.$eval('.nh-switch', (el) => el.classList.contains('nh-switch--on'))
   ok('switch reflects live state', switchUiOn === (afterSwitch === 'ON'), `ui-on=${switchUiOn}`)
 
-  // --- Slider control --- (mirror a drag-release: set value, dispatch input + pointerup)
   await page.$eval('.nh-fader__input', (el) => {
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     set.call(el, '60')
@@ -165,15 +146,8 @@ try {
   const sliderState = parseFloat(await getState(SLIDER_ITEM))
   ok('slider sets item', sliderState === 60, `level=${sliderState}`)
 
-  // --- Color control --- 10 keyboard steps must coalesce into exactly ONE command with the
-  // stepped hue. Assert on the POST itself (route-capture, passed through): some bindings (DMX
-  // for one) echo the pre-fade state right back, so "item state changed" is not a reliable
-  // signal even when everything works.
   const beforeColor = await getState(COLOR_ITEM)
   const beforeHue = Math.round(parseFloat(beforeColor))
-  // Step away from whichever end the live hue sits near. The track clamps at 360 and the widget
-  // wraps that to 0 (openHAB rejects hue 360 outright), so a blind +10 near the top would assert
-  // on a value that can never be sent - the same trap the saturation check fell into.
   const stepUp = beforeHue <= 340
   const expectedHue = stepUp ? beforeHue + 10 : beforeHue - 10
   const colorPosts = []
@@ -202,7 +176,6 @@ try {
   await browser.close()
 }
 
-// --- Cleanup: remove the suite's dashboard, restore approved items ---
 const del = await fetch(NS + '/' + encodeURIComponent(DASH_UID), { method: 'DELETE', headers: AUTH })
 ok('cleanup: dashboard component deleted', del.ok || del.status === 404, String(del.status))
 

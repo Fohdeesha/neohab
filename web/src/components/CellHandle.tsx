@@ -1,11 +1,3 @@
-/**
- * The chrome strip along the top of every widget cell in edit mode: drag grip, widget type,
- * and a delete button. Shared by both edit surfaces (the wide grid and the phone stack) so a
- * widget offers the same handles wherever it is edited.
- *
- * Deleting is deliberately not confirmed: it only touches the draft, and both undo and Discard
- * bring the widget back.
- */
 import { useTranslation } from 'react-i18next'
 import type { Surface } from '../model/layout'
 import { removeWidget } from '../store/editor'
@@ -20,7 +12,6 @@ export function CellHandle({
 }: {
   id: string
   type: string
-  /** Surfaces this widget is hidden on, marked here so a dimmed cell explains itself. */
   hiddenOn?: Surface[]
   onDragStart: (e: React.PointerEvent) => void
 }) {
@@ -41,7 +32,6 @@ export function CellHandle({
         className="nh-cell__delete"
         aria-label={t('Delete widget')}
         title={t('Delete widget')}
-        // the strip starts a drag on pointerdown; pressing delete must not begin one
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation()

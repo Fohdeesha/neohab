@@ -7,13 +7,10 @@ import { isSameOrigin, mixedContent, safeUrl } from '../../model/url'
 interface FrameConfig {
   url: string
   label?: string
-  /** Reload interval in seconds (0 = never). */
   refresh?: number
-  /** Sandbox a page served from this openHAB (default false). Ignored for other origins. */
   sandbox?: boolean
 }
 
-/** Frame - embeds an external page (weather, cameras, other UIs). */
 function FrameWidget({ config }: WidgetProps<FrameConfig>) {
   const { t } = useTranslation()
   const [generation, setGeneration] = useState(0)
@@ -24,9 +21,6 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     return () => clearInterval(id)
   }, [config.refresh])
 
-  // An iframe pointed at a `javascript:` URL executes in the EMBEDDING page's origin - this
-  // page, its session and its token - so the stored URL goes through the same allow-list the
-  // template engine applies to the ones its expressions produce.
   const url = safeUrl(config.url)
   if (!url) {
     return (
@@ -36,8 +30,6 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     )
   }
 
-  // An http page cannot be embedded in an https one: the browser blocks it and shows nothing,
-  // which is indistinguishable from a page that failed to load. Say which it is.
   if (mixedContent(url)) {
     return (
       <WidgetFrame label={config.label} center>
@@ -48,10 +40,6 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
     )
   }
 
-  // Only same-origin pages are worth sandboxing: the browser already walls off other origins
-  // from the app's DOM, storage and token, and sandboxing them breaks pages that legitimately
-  // need their own origin (WebRTC camera streams). A URL we cannot place counts as ours, so it
-  // is at least sandboxable rather than silently exempt.
   const sandboxed = config.sandbox === true && isSameOrigin(url, true)
 
   return (

@@ -1,23 +1,6 @@
-/**
- * Operations theme + stat widget + tick-ring gauge + panel groups.
- *
- * Covers: the stat widget (reading with its unit set apart, caption, second reading and its
- * caption, badge, trend arrow against another item with the good/bad tone, alignment, color
- * stops), the tick-ring dial style (radial marks, lit marks colored by the value, hairline
- * rims, the name drawn inside the face instead of the tile header, the raised unit, the
- * sparkline), panel groups (one rule around every widget naming the same group, two groups,
- * none when ungrouped, inert to the pointer), the outlined tile accent, label chips (pill and
- * box shapes with their own fill, left/right alignment), the selection dropdown, the clock's
- * date formats and date-only mode, and the Operations theme itself (tokens, bundled
- * Montserrat, lit translucent panels with a gradient bezel on every tile, spaced uppercase
- * micro-labels, container-sized readings, link-style buttons, good/bad tokens and the chart
- * palette override).
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-ops and deletes exactly it, and the
- * theme is applied through the per-device override so the `settings` component is never
- * written. The dimmer is commanded via REST only (recorded first, restored at the end); the
- * seeded controls are never clicked, so nothing in the app can command a device.
- */
+// Operations theme + stat widget + tick-ring gauge + panel groups.
+// SAFE with a live config: creates only dashboard:nh-e2e-ops and deletes exactly it, and the theme is
+// applied through the per-device override so the `settings` component.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -49,10 +32,8 @@ function launch() {
 const rgb = (s) => {
   let m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(s ?? '')
   if (m) return [Number(m[1]), Number(m[2]), Number(m[3])]
-  // Chromium serializes color-mix results as color(srgb r g b) with 0..1 floats
   m = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(s ?? '')
   if (m) return [0, 1, 2].map((i) => Math.round(Number(m[i + 1]) * 255))
-  // token values come back as authored, i.e. hex
   m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((s ?? '').trim())
   if (m) return [1, 2, 3].map((i) => parseInt(m[i], 16))
   return null
@@ -63,8 +44,6 @@ const browser = await launch()
 const errs = []
 const initialDimmer = await itemState(ITEMS.dimmer)
 
-/* A deterministic pair for the trend arrows: whichever way the two live readings fall, the
-   dimmer is driven clear of the reference item so the direction cannot be a coin toss. */
 const refValue = Number(await itemState(ITEMS.temperature))
 const dimmerTarget = Number.isFinite(refValue) && refValue < 50 ? 90 : 5
 const expectUp = dimmerTarget > refValue
@@ -89,10 +68,6 @@ async function newPage(theme = 'ops', viewport = { width: 1400, height: 1000 }) 
 
 const w = (id, type, x, y, ww, h, config) => ({ id, type, config, layout: { lg: { x, y, w: ww, h } } })
 
-/**
- * Read the page without letting a missing element abort the run: a build that lacks the
- * feature must fail the checks that cover it, not swallow every check after the first.
- */
 const probe = async (page, fn) => {
   try {
     return (await page.evaluate(fn)) ?? {}
@@ -106,7 +81,6 @@ try {
   await sendItem(ITEMS.dimmer, dimmerTarget)
   await sleep(900)
 
-  // ---------- seed ----------
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
@@ -122,7 +96,6 @@ try {
         rowHeight: 'match',
         gap: 0,
         widgets: [
-          /* the stat tile, in full: caption, second reading, badge, trend, color stops */
           w('s-full', 'stat', 0, 0, 4, 3, {
             item: ITEMS.dimmer,
             label: 'Full',
@@ -138,7 +111,6 @@ try {
             severity: [{ value: 200, color: '#a3ce4a' }],
             group: 'panel',
           }),
-          /* same movement, opposite judgement: the arrow must flip tone, not direction */
           w('s-bad', 'stat', 4, 0, 4, 3, {
             item: ITEMS.dimmer,
             label: 'Bad',
@@ -148,7 +120,6 @@ try {
             align: 'center',
             group: 'panel',
           }),
-          /* compared with itself: no movement, and no judgement to make */
           w('s-flat', 'stat', 8, 0, 4, 3, {
             item: ITEMS.dimmer,
             label: 'Flat',
@@ -158,10 +129,8 @@ try {
             subText: 'fixed text',
             subCaption: 'Static',
           }),
-          /* a second, separate panel */
           w('s-solo', 'stat', 12, 0, 4, 3, { item: ITEMS.dimmer, label: 'Solo', group: 'other', accentColor: '#ff00ff' }),
 
-          /* the tick ring: name inside the face, sparkline, raised unit, outlined tile */
           w('g-ticks', 'dial', 0, 3, 5, 5, {
             item: ITEMS.dimmer,
             label: 'Response',
@@ -178,24 +147,19 @@ try {
             historyPeriod: '24h',
             accent: 'outlined',
           }),
-          /* the same style without the extras: header label, no sparkline */
           w('g-plain', 'dial', 5, 3, 5, 5, { item: ITEMS.dimmer, label: 'Plain', style: 'ticks', readOnly: true }),
 
-          /* label chips and alignment */
           w('l-pill', 'label', 10, 3, 3, 1, { text: 'Pill', shape: 'pill', fill: '#e0242b', fontSize: 13 }),
           w('l-box', 'label', 13, 3, 3, 1, { text: 'Box', shape: 'box', fontSize: 13 }),
           w('l-left', 'label', 10, 4, 3, 1, { text: 'Left', align: 'left', fontSize: 13 }),
           w('l-right', 'label', 13, 4, 3, 1, { text: 'Right', align: 'right', fontSize: 13 }),
 
-          /* dropdown selection, never touched */
           w('sel-drop', 'selection', 10, 5, 6, 1, {
             item: ITEMS.switch,
             display: 'dropdown',
             choices: 'ON=Running\nOFF=Stopped',
           }),
-          /* clock: date only, month and year */
           w('clk', 'clock', 10, 6, 6, 2, { mode: 'digital', hideTime: true, showDate: true, dateFormat: 'monthYear' }),
-          /* a link-style button, never clicked */
           w('btn', 'button', 0, 8, 4, 1, { label: 'Productivity', action: 'navigate', navigateDashboard: ID }),
         ],
       },
@@ -203,7 +167,6 @@ try {
   })
   ok('seed: dashboard created', seed.status < 300, 'status=' + seed.status)
 
-  // ---------- the theme itself ----------
   const page = await newPage('ops')
   await page.goto(APP + '#/d/' + ID, { waitUntil: 'load', timeout: 60000 })
   await page.waitForSelector('.nh-stat', { timeout: 20000 }).catch(() => {})
@@ -266,8 +229,6 @@ try {
       btnColor: btn ? getComputedStyle(btn).color : 'n/a',
     }
   })
-  // every widget is a lit panel: a translucent navy surface the page light falls across,
-  // so tiles separate from each other without going back to flat opaque cards
   const alpha = /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*(0?\.\d+)\)/.exec(chrome.bg ?? '')
   ok('theme: a widget is a lit translucent panel, not a void or a flat card',
     !!alpha && Number(alpha[1]) > 0 && Number(alpha[1]) < 1, `bg=${chrome.bg}`)
@@ -287,7 +248,6 @@ try {
   ok('theme: a framed region is washed inward from its rule', /inset/.test(chrome.groupShadow ?? ''),
     (chrome.groupShadow ?? '').slice(0, 60))
 
-  // home tiles take the same panel treatment, and the + tile keeps its dashed invitation
   await page.goto(APP + '#/')
   await page.waitForSelector('.nh-tile', { timeout: 15000 }).catch(() => {})
   const home = await probe(page, () => {
@@ -312,7 +272,6 @@ try {
   ok('theme: buttons read as links, not plates', chrome.btnBg === 'rgba(0, 0, 0, 0)' && chrome.btnBorder === '0px' &&
     near(rgb(chrome.btnColor), [63, 127, 224]), `${chrome.btnBg} ${chrome.btnBorder} ${chrome.btnColor}`)
 
-  // ---------- the stat widget ----------
   const stat = await probe(page, () => {
     const cell = (id) => [...document.querySelectorAll('.nh-gcell')].find((c) => c.textContent.includes(id))
     const full = cell('Full')
@@ -371,11 +330,6 @@ try {
   ok('stat: alignment is per widget', stat.centered === 'center' && stat.leftAligned !== 'center',
     `${stat.centered} vs ${stat.leftAligned}`)
 
-  // ---------- the tick-ring gauge ----------
-  // The sparkline is drawn from persistence, which is fetched asynchronously after the gauge
-  // first paints. Sampling once raced that fetch and failed at random inside a full battery
-  // (where the server is busiest); wait for the trace, and let the assertion below be what
-  // fails if it never arrives.
   await page.waitForSelector('.nh-dial--ticks .nh-gauge__spark', { timeout: 15000 }).catch(() => {})
   const ring = await probe(page, () => {
     const cell = (t) => [...document.querySelectorAll('.nh-gcell')].find((c) => c.textContent.includes(t))
@@ -438,7 +392,6 @@ try {
     ring.plainHasHeader === true && !ring.plainHasName && !ring.plainHasSpark,
     `header=${ring.plainHasHeader} name=${ring.plainHasName} spark=${ring.plainHasSpark}`)
 
-  // ---------- panel groups ----------
   const groups = await probe(page, () => {
     const frames = [...document.querySelectorAll('.nh-group')].map((g) => {
       const cs = getComputedStyle(g)
@@ -452,8 +405,6 @@ try {
       }
     })
     const solo = [...document.querySelectorAll('.nh-gcell')].find((c) => c.textContent.includes('Solo'))
-    // the rule has to be painted OVER the tiles it encloses, or a theme whose tiles have an
-    // opaque background would hide it entirely
     const kids = [...(document.querySelector('.nh-grid')?.children ?? [])]
     const lastCell = kids.map((k) => k.classList.contains('nh-gcell')).lastIndexOf(true)
     const firstFrame = kids.map((k) => k.classList.contains('nh-group')).indexOf(true)
@@ -475,7 +426,6 @@ try {
       groups.frames.every((f) => Math.abs(f.rect.width - groups.soloRect.width) < 400 ||
         f.rect.left > groups.soloRect.left + 5 || f.rect.right < groups.soloRect.right - 5))
 
-  // ---------- accents, chips, dropdown, clock ----------
   const bits = await probe(page, () => {
     const cell = (t) => [...document.querySelectorAll('.nh-gcell')].find((c) => c.textContent.includes(t))
     const chip = (t) => cell(t)?.querySelector('.nh-label')
@@ -518,7 +468,6 @@ try {
   ok('clock: the month-and-year format writes both', /\d{4}/.test(bits.clockDate ?? '') &&
     /[A-Za-z]{3,}/.test(bits.clockDate ?? ''), bits.clockDate)
 
-  // ---------- other themes are unaffected by the new metadata ----------
   const dark = await newPage('dark')
   await dark.goto(APP + '#/d/' + ID, { waitUntil: 'load', timeout: 60000 })
   await dark.waitForSelector('.nh-stat', { timeout: 20000 }).catch(() => {})
@@ -539,14 +488,13 @@ try {
   ok('dark: panel groups are not theme-specific', darkBits.groups === 2, 'frames=' + darkBits.groups)
   await dark.close()
 
-  // ---------- the editor offers the new settings ----------
   try {
     await page.click('[aria-label="Edit dashboard"]')
     await page.waitForSelector('.nh-grid--edit .nh-cell', { timeout: 15000 })
     await page.locator('.nh-cell').first().locator('.nh-cell__grip').click()
     await page.waitForSelector('.nh-sheet .nh-form', { timeout: 10000 })
   } catch {
-    /* a build without the editor affordances fails the three checks below, not the run */
+    // a build without the editor affordances fails the three checks below,
   }
   const form = await probe(page, () => {
     const labels = [...document.querySelectorAll('.nh-sheet .nh-field__label')].map((l) => l.textContent)
@@ -565,10 +513,8 @@ try {
 } catch (e) {
   ok('suite ran to completion', false, String(e && e.message).slice(0, 200))
 } finally {
-  // ---------- cleanup ----------
   const del = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
   const list = await (await fetch(NS, { headers: AUTH })).json()
-  // scoped to the uids this suite creates: another suite's leftovers are not this suite's failure
   const mine = list.filter((c) => c.uid === UID).map((c) => c.uid)
   ok('cleanup: ' + UID + ' deleted', mine.length === 0, `del=${del.status} left=${mine.join(',')}`)
 

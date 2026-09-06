@@ -1,13 +1,3 @@
-/**
- * Client-side processing for user-uploaded icons. Everything is normalized before storage:
- * raster images (PNG/JPEG/WebP/BMP/...) are downscaled to fit MAX_DIMENSION and re-encoded as
- * PNG - transparency survives, exotic formats come out uniform. GIFs are kept byte-for-byte
- * so animation survives; SVGs are sanitized (no scripts) and kept as vectors.
- *
- * The size cap exists because icons live inside openHAB's JSON config store, which is held in
- * memory and rewritten on every change - this is for icons, not artwork. The default cap can
- * be overridden via the `maxIconKB` app setting.
- */
 import i18n from '../i18n'
 
 export const DEFAULT_MAX_ICON_KB = 300
@@ -45,7 +35,6 @@ async function processSvg(file: File, maxKB: number): Promise<ProcessedIcon> {
 }
 
 async function processGif(file: File, maxKB: number): Promise<ProcessedIcon> {
-  // Kept as-is: re-encoding through a canvas would drop the animation.
   checkSize(file.size, maxKB, i18n.t('GIFs are stored unchanged to keep animation - shrink it first.'))
   return { dataUri: await readAsDataUrl(file), bytes: file.size }
 }
@@ -58,7 +47,6 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
     await img.decode().catch(() => {
       throw new Error(i18n.t('That image could not be decoded by the browser.'))
     })
-    // Try full-size (capped) first; if the PNG still busts the cap, retry at half scale.
     for (const dimension of [MAX_DIMENSION, MAX_DIMENSION / 2]) {
       const dataUri = drawToPng(img, dimension)
       const bytes = Math.round((dataUri.length - dataUri.indexOf(',') - 1) * 0.75)
@@ -77,14 +65,6 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
   }
 }
 
-/**
- * Backgrounds go through their own pipeline: stored LOSSLESSLY as PNG (dashboards are looked
- * at all day - compression artifacts would show), at up to 5K, transparency preserved. The
- * byte ceiling only guards against pathological images: the server takes components this size
- * comfortably (measured: an 18 MB component writes in ~0.5 s on openHAB 4.3), and when a PNG
- * busts the ceiling the image is downscaled - resolution is the only lossless lever - never
- * re-encoded lossily. SVGs are sanitized and kept as vectors, like icons.
- */
 const MAX_BACKGROUND_DIMENSION = 5120
 const MAX_BACKGROUND_BYTES = 24 * 1024 * 1024
 

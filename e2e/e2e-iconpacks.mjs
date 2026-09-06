@@ -1,8 +1,6 @@
-/**
- * Icon packs + per-state icons + custom uploads e2e. SAFE with a live config: adds only the
- * nh-e2e-packs dashboard and icon:e2e-cust-* components, deletes exactly those afterwards,
- * restores item state. Never wipes the namespace, never writes settings.
- */
+// Icon packs + per-state icons + custom uploads e2e.
+// SAFE with a live config: adds only the nh-e2e-packs dashboard and icon:e2e-cust-* components, deletes
+// exactly those afterwards, restores item state.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -16,8 +14,6 @@ const listNs = async () => await (await fetch(NS)).json()
 
 const ITEM = ITEMS.switch
 const origState = await getState(ITEM)
-
-/* ------------------------- pack assets served from the jar ------------------------- */
 
 for (const [file, min] of [
   ['fluent-index.json', 1500],
@@ -35,8 +31,6 @@ for (const p of ['fluent/light-bulb', 'fc/electrical-sensor', 'meteo/clear-day']
 for (const d of ['fluent', 'fc', 'meteo']) {
   ok(`${d} attribution shipped`, (await fetch(`${BASE}/neohab/icons/${d}/ATTRIBUTION.txt`)).ok)
 }
-// curation: known skin-tone variants and flag emoji are gone, neutral bases and
-// legit "-light"/"flag-in-hole" style names survive
 const fluentIdx = await (await fetch(`${BASE}/neohab/icons/fluent-index.json`)).json()
 const fluentNames = new Set(fluentIdx.map((r) => r.split('|')[0]))
 ok(
@@ -53,8 +47,6 @@ ok(
   'fluent keeps neutral people + lookalike names',
   ['thumbs-up', 'waving-hand', 'vertical-traffic-light', 'flag-in-hole'].every((n) => fluentNames.has(n))
 )
-
-/* --------------------------------- seed dashboard --------------------------------- */
 
 await sendCmd(ITEM, 'OFF')
 await fetch(NS, {
@@ -93,8 +85,6 @@ try {
   await page.waitForSelector('.nh-button', { timeout: 15000 })
   await sleep(1500)
 
-  /* ------------------------- rendering + per-state behavior ------------------------- */
-
   const packImg = page.locator('.nh-button[aria-label="PackBtn"] img.nh-icon--img')
   ok('fluent icon renders as img', (await packImg.count()) === 1)
   ok('fluent img src from jar pack', ((await packImg.getAttribute('src')) ?? '').includes('icons/fluent/light-bulb.svg'))
@@ -125,8 +115,6 @@ try {
     .catch(() => {})
   ok('inactive state falls back to base icon', ((await packImg.getAttribute('src')) ?? '').includes('light-bulb.svg'))
 
-  /* ------------------------------- picker tabs + picks ------------------------------- */
-
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.click('.nh-cell:has(.nh-button[aria-label="PackBtn"]) .nh-cell__overlay')
@@ -150,13 +138,10 @@ try {
   await sleep(300)
   ok('picking from Weather tab sets meteo ref', (await iconInput.inputValue()) === 'meteo:clear-night', await iconInput.inputValue())
 
-  /* --------------------------------- custom uploads --------------------------------- */
-
   const PNG_1PX = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64'
   )
-  // hand-built 2x2 24bpp red BMP (no alpha) - must come out as a PNG data URI
   const bmp = Buffer.alloc(70)
   bmp.write('BM', 0, 'ascii')
   bmp.writeUInt32LE(70, 2)
@@ -216,8 +201,6 @@ try {
   await page.click('button:has-text("Exit")')
   await sleep(400)
 
-  /* ------------------------------ settings manager ------------------------------ */
-
   await page.goto(BASE + '/neohab/index.html#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h2:has-text("Custom icons")', { timeout: 10000 })
   ok('Custom icons section present', true)
@@ -244,8 +227,6 @@ try {
 } finally {
   await browser.close()
 }
-
-/* ------------------------------------ cleanup ------------------------------------ */
 
 await fetch(NS + '/dashboard:nh-e2e-packs', { method: 'DELETE', headers: AUTH })
 for (const uid of ['icon:e2e-cust-png', 'icon:e2e-cust-bmp', 'icon:e2e-cust-svg']) {

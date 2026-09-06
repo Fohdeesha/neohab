@@ -1,12 +1,3 @@
-/**
- * Deletes EVERY component in every neohab namespace (`neohab:config`, and the version history in
- * `neohab:history` and `neohab:historydata`), to prepare for the wipe-cycle suites. Refuses to
- * run without --yes, and
- * refuses a non-empty namespace unless a snapshot file is named that actually covers what is
- * live, so there is always a way back:
- *
- *   node tools/config-wipe.mjs --yes --snapshot snapshot.json
- */
 import { readFileSync } from 'node:fs'
 import { ALL_NS, AUTH } from '../lib/target.mjs'
 
@@ -51,7 +42,6 @@ try {
   console.error(`snapshot file not readable: ${snapFile}`)
   process.exit(2)
 }
-// A snapshot taken before the version history existed is a bare array of config components.
 const snapshot = Array.isArray(raw) ? { config: raw } : raw
 
 for (const [kind] of ALL_NS) {

@@ -1,15 +1,5 @@
-/**
- * LED gauge e2e: the dial widget's 'led' style. Rendering (beads, severity colors, bloom,
- * hide-unlit, partial arcs), scale ticks + clamped labels, markers (fixed and item-bound),
- * zones, the alarm pulse, live SSE updates, pointer set-by-tap (route-fulfilled, nothing real
- * commanded by the tap), read-only, the classic style untouched, and the settings form's
- * Style switch + row editors.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-gauge and deletes exactly it.
- * The dimmer item is commanded via REST for the live-update checks (initial state recorded
- * and restored); every in-app tap that could command goes through a fulfilled route, so no
- * widget interaction ever reaches a real device.
- */
+// LED gauge e2e: the dial widget's 'led' style.
+// SAFE with a live config: creates only dashboard:nh-e2e-gauge and deletes exactly it.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -37,7 +27,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-/** The suite's own copy of the lighting rule: LED i is lit when its fraction <= value fraction. */
 const litCount = (frac, n) => (frac > 0 ? Math.min(n, Math.floor(frac * n + 1e-9) + 1) : 0)
 
 const browser = await launch()
@@ -53,11 +42,9 @@ await page.addInitScript((t) => {
 const initialDimmer = await itemState(ITEMS.dimmer)
 
 try {
-  // a known dimmer value the severity/lighting expectations are computed from
   await sendItem(ITEMS.dimmer, 60)
   await sleep(800)
 
-  // ---------- seed ----------
   const SEV = [
     { value: 30, color: '#2196f3' },
     { value: 70, color: '#ff9800' },
@@ -83,7 +70,6 @@ try {
             type: 'dial',
             config: {
               item: ITEMS.dimmer, label: 'LED', style: 'led', unit: '%', ledCount: 60,
-              // color present AND severity stops: the stops must win by value
               color: '#123456',
               severity: SEV, showTicks: true, tickSteps: 5, bloom: true,
               markers: [{ value: 80, label: 'ref', color: '#ffffff' }, { item: ITEMS.dimmer, color: '#00ff00' }],
@@ -143,8 +129,6 @@ try {
             layout: { lg: { x: 6, y: 3, w: 3, h: 3 } },
           },
           {
-            // hostile stored config: lists that are not lists, numbers out of range - a hand
-            // edit or foreign import is written verbatim, and the widget must render, not throw
             id: 'w-hostile',
             type: 'dial',
             config: { item: ITEMS.dimmer, label: 'Hostile', style: 'led', readOnly: true, markers: {}, zones: 'nope', severity: 42, ledCount: 0, arcSweep: 9999, arcStart: -720, item2: {}, color: 17 },
@@ -180,7 +164,6 @@ try {
   })
   ok('seed dashboard created', seed.ok, String(seed.status))
 
-  // every item POST the page makes is fulfilled, never forwarded - taps cannot reach a device
   const posts = []
   await page.route('**/rest/items/**', (route) => {
     if (route.request().method() === 'POST') {
@@ -196,23 +179,18 @@ try {
 
   const cell = (label) => page.locator(`.nh-gcell:has(.nh-widget__labeltext:text-is("${label}"))`)
 
-  // ---------- LED rendering ----------
   const gauges = await page.locator('.nh-dial--ring').count()
   ok('thirteen ring gauges render', gauges === 13, String(gauges))
   ok('LED-kind gauges carry the led class', (await page.locator('.nh-dial--led').count()) === 10)
 
-  // hostile config: renders with every bad value clamped instead of crashing the dashboard
   ok('hostile config still shows its value', (await cell('Hostile').locator('.nh-gauge__value').textContent()) === '60')
   const hostileBeads = await cell('Hostile').locator('.nh-gauge__led, .nh-gauge__ledlit').count()
   ok('hostile ledCount 0 clamps to 8 beads', hostileBeads === 8, String(hostileBeads))
   ok('hostile item2 draws no inner ring', (await cell('Hostile').locator('.nh-gauge__led--inner, .nh-gauge__ledlit--inner').count()) === 0)
 
-  // ---------- plain color + precedence ----------
   const plainStop = await cell('Plain color').locator('radialGradient[id^="nh-g-led-"] stop').last().evaluate((el) => el.style.stopColor)
   ok('plain Color drives the beads without stops', /0,\s*255,\s*136|#00ff88/i.test(plainStop), plainStop)
-  // w-led carries color #123456 AND stops: its orange severity check above proves stops win
 
-  // ---------- dual gauge ----------
   const dualInnerLit = await cell('Dual').locator('.nh-gauge__ledlit--inner').count()
   ok('dual gauge lights an inner ring', dualInnerLit > 0, String(dualInnerLit))
   const radii = await cell('Dual').evaluate((el) => {
@@ -224,7 +202,6 @@ try {
     return { outer: at('.nh-gauge__ledlit:not(.nh-gauge__ledlit--inner)'), inner: at('.nh-gauge__ledlit--inner') }
   })
   ok('inner ring sits inside the outer', radii.outer !== null && radii.inner !== null && radii.inner < radii.outer - 5, JSON.stringify(radii))
-  // evaluate-based so a build without the feature FAILS these instead of timing out on a wait
   const innerStop = await cell('Dual').evaluate(
     (el) => [...el.querySelectorAll('radialGradient[id^="nh-g-led2-"] stop')].pop()?.style.stopColor ?? 'absent'
   )
@@ -233,7 +210,6 @@ try {
   const second = await cell('Dual').evaluate((el) => el.querySelector('.nh-gauge__second')?.textContent ?? 'absent')
   ok('center shows the inner reading beneath', /^\d+ °$/.test(second), String(second))
 
-  // ---------- solid arc style ----------
   ok('arc: solid value band with the configured color', (await cell('Arc').evaluate((el) => el.querySelector('.nh-gauge__band')?.getAttribute('stroke') ?? 'absent')) === '#2196f3')
   ok('arc: dim full-length track', (await cell('Arc').locator('.nh-gauge__btrack').count()) === 1)
   ok('arc: sector face drawn', (await cell('Arc').locator('.nh-gauge__face').count()) === 1)
@@ -241,29 +217,23 @@ try {
   ok('arc: zone band drawn', (await cell('Arc').locator('.nh-gauge__zone').count()) === 1)
   ok('arc: tick labels present', (await cell('Arc').locator('.nh-gauge__ticklabel').count()) > 0)
 
-  // ---------- blocks style ----------
   const blkLit = await cell('Blocks').locator('.nh-gauge__blklit').count()
   const blkUnlit = await cell('Blocks').locator('.nh-gauge__blk').count()
   ok('blocks: 20 segments by default', blkLit + blkUnlit === 20, `${blkLit}+${blkUnlit}`)
   ok('blocks: midpoint rule lights 12 at 60%', blkLit === 12, String(blkLit))
   ok('blocks: lit stroke is the configured color', (await cell('Blocks').evaluate((el) => el.querySelector('.nh-gauge__blklit')?.getAttribute('stroke') ?? 'absent')) === '#ffb300')
 
-  // ---------- 3d style ----------
   ok('3d: clay block bodies', (await cell('Clay').locator('.nh-gauge__claybody').count()) === 20)
   ok('3d: offset shadows under the blocks', (await cell('Clay').locator('.nh-gauge__clayshadow').count()) > 20)
   ok('3d: solid value arc present', (await cell('Clay').locator('.nh-gauge__band').count()) === 1)
   ok('3d: raised center disc sheen', (await cell('Clay').locator('.nh-gauge__clayhi2').count()) === 1)
   ok('3d: decorative dot ring', (await cell('Clay').locator('.nh-gauge__led').count()) >= 14)
 
-  // ---------- history bars ----------
   await page.waitForSelector('.nh-gcell:has(.nh-widget__labeltext:text-is("Hist")) .nh-gauge__bar', { timeout: 15000 }).catch(() => {})
   const histBars = await cell('Hist').locator('.nh-gauge__bar').count()
   ok('history bars render from persistence', histBars > 3 && histBars <= 24, String(histBars))
   ok('history mode puts the unit beside the value', (await cell('Hist').locator('.nh-gauge__value tspan').count()) === 1)
 
-  // nearest-ring taps (route-fulfilled - nothing real is commanded). The dual cell sits on the
-  // bottom row, below the 1000px viewport fold - scroll it into view first or the raw mouse
-  // click lands outside the viewport and silently does nothing.
   posts.length = 0
   await cell('Dual').locator('svg.nh-dial--led').scrollIntoViewIfNeeded()
   const dbox = await cell('Dual').locator('svg.nh-dial--led').boundingBox()
@@ -283,14 +253,11 @@ try {
   const unlit = await cell('LED').locator('.nh-gauge__led').count()
   ok('unlit beads fill the rest of the ring', lit + unlit === 60, `unlit=${unlit}`)
 
-  // severity: 60 sits in the 30..70 band -> orange
   const stopColor = await cell('LED').locator('radialGradient[id^="nh-g-led-"] stop').last().evaluate((el) => el.style.stopColor)
   ok('bead gradient carries the severity color', /255,\s*152,\s*0|#ff9800/i.test(stopColor), stopColor)
 
-  // the computed fill of a lit bead is the gradient, not a stylesheet color
   const litFill = await cell('LED').locator('.nh-gauge__ledlit').first().evaluate((el) => getComputedStyle(el).fill)
   ok('lit bead fill is the gradient url', litFill.includes('url('), litFill)
-  // negative control: re-applying the old base-class fill rule must break the check above
   await page.addStyleTag({ content: '.nh-gauge__ledlit { fill: var(--nh-text); }' })
   const brokenFill = await cell('LED').locator('.nh-gauge__ledlit').first().evaluate((el) => getComputedStyle(el).fill)
   ok('(control) a stylesheet fill would defeat the gradient - check has power', !brokenFill.includes('url('), brokenFill)
@@ -301,7 +268,6 @@ try {
   ok('center value reads 60', value === '60', value)
   ok('unit under the value', (await cell('LED').locator('.nh-gauge__unit').textContent()) === '%')
 
-  // ---------- ticks ----------
   const labels = await cell('LED').locator('.nh-gauge__ticklabel').allTextContents()
   ok('tick labels majors only, zeros stripped', JSON.stringify(labels) === JSON.stringify(['0', '20', '40', '60', '80']), JSON.stringify(labels))
   const tickClear = await cell('LED').locator('.nh-gauge__ticklabel').evaluateAll((els) => {
@@ -314,37 +280,28 @@ try {
   })
   ok('every tick label inside the viewBox (no clipping)', tickClear)
 
-  // ---------- markers + zones ----------
   const markers = await cell('LED').locator('.nh-gauge__marker').count()
   ok('two markers drawn (fixed + item-bound)', markers === 2, String(markers))
   ok('marker label rendered', (await cell('LED').locator('.nh-gauge__markerlabel').textContent()) === 'ref')
   ok('zone arc drawn with its color', (await cell('LED').locator('.nh-gauge__zone').getAttribute('stroke')) === '#f44336')
 
-  // ---------- alarm pulse ----------
   ok('alarm gauge pulses', (await cell('Alarm on').locator('.nh-gauge__bloom--pulse').count()) === 1)
   ok('out-of-range alarm does not pulse', (await cell('Alarm off').locator('.nh-gauge__bloom--pulse').count()) === 0)
   ok('out-of-range alarm still blooms', (await cell('Alarm off').locator('.nh-gauge__bloom').count()) === 1)
 
-  // ---------- hide-unlit + partial arc + no bloom ----------
   ok('hidden-unlit shows only lit beads', (await cell('Half').locator('.nh-gauge__led').count()) === 0)
   const halfLit = await cell('Half').locator('.nh-gauge__ledlit').count()
   ok('half gauge lit count', Math.abs(halfLit - Math.floor(0.6 * 39 + 1 + 1e-9)) <= 1, String(halfLit))
   ok('bloom off leaves no bloom', (await cell('Half').locator('.nh-gauge__bloom').count()) === 0)
 
-  // ---------- bidirectional: lights from the zero reference ----------
-  // dimmer 60 in [-100,100]: zero at fraction 0.5, value at 0.8 -> roughly 0.3 * 40 beads lit
   const bidiLit = await cell('Bidi').locator('.nh-gauge__ledlit').count()
   ok('bidirectional lights the zero..value span, not min..value', bidiLit >= 11 && bidiLit <= 15, String(bidiLit))
 
-  // ---------- classic untouched ----------
   for (const sel of ['.nh-dial__track', '.nh-dial__fill', '.nh-dial__knob', '.nh-dial__value']) {
     ok(`classic keeps ${sel}`, (await cell('Classic').locator(sel).count()) === 1)
   }
   ok('classic value text', (await cell('Classic').locator('.nh-dial__value').textContent()) === '60%')
 
-  // ---------- live update via SSE: color band change + lit count + item-bound marker ----------
-  // compare BOTH coordinates: x alone is mirror-symmetric about the vertical axis, so two
-  // different values can share it exactly (the timeclock second-hand lesson)
   const markerPos = async () => {
     const m = cell('LED').locator('.nh-gauge__marker').nth(1)
     return { x: Number(await m.getAttribute('x1')), y: Number(await m.getAttribute('y1')) }
@@ -361,23 +318,19 @@ try {
   const moved = Math.hypot(posAfter.x - posBefore.x, posAfter.y - posBefore.y)
   ok('item-bound marker moved with the item', moved > 5, `moved ${moved.toFixed(1)} units`)
 
-  // ---------- pointer set: tap at 3 o'clock -> 25% of a full circle from the top ----------
   posts.length = 0
   const box = await cell('LED').locator('svg.nh-dial--led').boundingBox()
-  // svg is square-centered: tap on the ring at the right (25% around a full circle from 12h)
   await page.mouse.click(box.x + box.width / 2 + Math.min(box.width, box.height) * 0.44, box.y + box.height / 2)
   await sleep(400)
   ok('tap sends one command', posts.length === 1, JSON.stringify(posts))
   ok('tap maps the angle to the value (25)', posts.length === 1 && posts[0].body === '25', posts[0]?.body)
 
-  // ---------- read-only sends nothing ----------
   posts.length = 0
   const rbox = await cell('RO').locator('svg.nh-dial--led').boundingBox()
   await page.mouse.click(rbox.x + rbox.width / 2 + Math.min(rbox.width, rbox.height) * 0.44, rbox.y + rbox.height / 2)
   await sleep(400)
   ok('read-only tap sends nothing', posts.length === 0, JSON.stringify(posts))
 
-  // ---------- settings form: style switch + row editors, then discarded ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
@@ -395,7 +348,6 @@ try {
   ok('second-item field offered', (await page.locator('.nh-sheet--side').getByText('Second item (inner ring)').count()) === 1)
   ok('inner fields hidden without a second item', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 0)
 
-  // the picker's clear button: set the second item, then clear it with the ✕
   const itemField = page.locator('.nh-sheet--side .nh-field:has-text("Second item")').locator('.nh-picker')
   await itemField.locator('input').fill(ITEMS.dimmer)
   await sleep(400)
@@ -415,7 +367,6 @@ try {
   const storedClassic = stored?.config?.widgets?.find((w) => w.id === 'w-classic')
   ok('exit discarded the style experiment', storedClassic && storedClassic.config.style === undefined, JSON.stringify(storedClassic?.config?.style))
 
-  // ---------- console health ----------
   const realErrs = errs.filter((e) => !/ERR_INTERNET_DISCONNECTED/.test(e))
   ok('no console/page errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } catch (err) {

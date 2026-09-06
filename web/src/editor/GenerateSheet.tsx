@@ -1,11 +1,3 @@
-/**
- * Generate dashboards from the items an openHAB server already has.
- *
- * Four steps: choose where the structure comes from, choose which groups of items to use (or
- * pick items by hand), review every widget it would create, then create them. Nothing is written
- * to the server until the last step, and the review lets any row be dropped or given a different
- * widget - a generator that guesses on forty items has to be correctable.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getSemanticTags } from '../api/tags'
@@ -46,15 +38,11 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     const controller = new AbortController()
     getSemanticTags(controller.signal)
       .then((tags) => setIndex(buildTagIndex(tags)))
-      // No /rest/tags on this server: the bundled default hierarchy still classifies stock tags.
       .catch(() => setIndex(buildTagIndex()))
     return () => controller.abort()
   }, [])
 
-  // Both halves have to be in before this means anything. Surveying an empty `items` the moment
-  // the tag index arrives makes every source report "nothing found" while the catalog is still
-  // downloading - a wrong answer rather than a wait, and one that only shows up on a big
-  // install: at 130 items the gap is invisible, at 3000 it is on screen long enough to read.
+  // wait for both, or an empty catalog reports "nothing found" while it is still downloading
   const survey = useMemo(() => (index && catalogLoaded ? surveySources(items, index) : null), [items, index, catalogLoaded])
 
   const clustersFor = (kind: SourceKind): Cluster[] => {
@@ -110,9 +98,6 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     step === 'preview' ? t('Review what will be created') : step === 'source' ? t('Generate dashboards') : t('Choose what to include')
 
   return (
-    // The steps share one scrolling body, so without the reset the review opened at whatever
-    // scroll position the cluster list had been left at - halfway down a list of widgets, with
-    // no sign that there was anything above.
     <Sheet title={title} onClose={onClose} scrollResetKey={step}>
       {!survey ? (
         <p className="nh-settings__text">
@@ -155,8 +140,6 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     </Sheet>
   )
 }
-
-/* ------------------------------------ step 1: source ------------------------------------ */
 
 function SourceStep({ survey, onChoose }: { survey: ReturnType<typeof surveySources>; onChoose: (kind: SourceKind) => void }) {
   const { t } = useTranslation()
@@ -204,8 +187,6 @@ function SourceStep({ survey, onChoose }: { survey: ReturnType<typeof surveySour
     </div>
   )
 }
-
-/* ---------------------------------- step 2a: clusters ----------------------------------- */
 
 function ClusterStep({
   clusters,
@@ -290,8 +271,6 @@ function ClusterStep({
   )
 }
 
-/* ------------------------------------ step 2b: pick ------------------------------------- */
-
 const PICK_LIMIT = 300
 
 function PickStep({
@@ -355,8 +334,6 @@ function PickStep({
   )
 }
 
-/* ----------------------------------- step 3: preview ------------------------------------ */
-
 function PreviewStep({
   plan,
   setPlan,
@@ -419,7 +396,6 @@ function PreviewStep({
                       patch(widget.key, (w) => ({
                         ...w,
                         type: e.target.value,
-                        // The note explained the suggestion; a deliberate override supersedes it.
                         note: e.target.value === w.suggested ? w.note : undefined
                       }))
                     }>
@@ -454,7 +430,6 @@ function PreviewStep({
   )
 }
 
-/** Why a fallback widget was chosen. Kept as literal copy here rather than in the engine. */
 function noteText(t: (key: string) => string, note: NonNullable<PlanWidget['note']>): string {
   return note === 'readonly' ? t('read-only') : t('no range declared')
 }

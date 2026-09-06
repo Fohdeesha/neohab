@@ -1,38 +1,4 @@
-/**
- * Audit fixes for configuration that did not come from the editor.
- *
- * The editor validates what it writes, but a dashboard component can also arrive from a backup, a
- * shared partial export or a hand edit, and is then stored verbatim. Everything here is that kind
- * of input:
- *   - importer survives a widget type that names an Object.prototype member ("constructor")
- *   - a nameless dashboard component no longer takes down the whole config load
- *   - backup import writes before deleting (a failed replace cannot leave you with nothing)
- *   - a nonsensical column count (0) still renders, instead of dividing the cell size to Infinity
- *   - a gap that is not a number does the same, in the one geometry field that had no guard
- *   - a rect that is not a rect is repaired at the read, rather than becoming a NaN free-spot
- *     search and a grid-row counted backwards from the end of the grid
- *   - a widget whose config throws is ONE broken tile: it used to unmount the entire app, so a
- *     blank page was all you got and the editor that could fix it went with it
- *   - a stored tablet rect wider than the tablet grid is clamped into it
- *   - label widget font size scales with the cell like everything else
- *   - a component written by a NEWER neohab is refused, explained, kept whole and never
- *     collected: the danger is not that it fails to render, it is that an old build would treat
- *     everything it referenced as unused and delete it
- *   - a widget bound to an item NAMED after an Object.prototype member renders as an unset
- *     widget, not as the boundary's error tile: the state map is a miss for it, and a miss on an
- *     ordinary object answers with a function that no `?? fallback` catches
- *   - a malformed hash does not blank the app: `decodeURIComponent` used to throw during App's
- *     own render, which is above every boundary the app had
- *   - and when a screen DOES fail, it fails as a panel with a way out rather than as a blank page.
- *     A last-resort wall has to be tested with an injected failure - leaving a real bug in place
- *     as the fixture would be the wrong trade - so the config RESPONSE is poisoned for one page
- *     rather than a component being stored: nothing persists, and the server is untouched
- *   - ItemPicker: does selecting an item leave the list open? (behaviour probe)
- *
- * SAFE: creates only nh-e2e-a2* components, exact-uid cleanup, commands nothing. It DOES save
- * one of its own dashboards through the app, which mints a restore point - that is the point,
- * since the collector under test runs immediately after a save.
- */
+// Audit fixes for configuration that did not come from the editor.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -49,7 +15,6 @@ const put = async (comp) => {
   return r.ok
 }
 
-// A dashboard with a label widget (font scaling) + a nameless dashboard (load robustness)
 await put({
   uid: 'dashboard:nh-e2e-a2',
   component: 'neohab:dashboard',
@@ -62,11 +27,6 @@ await put({
     ],
   },
 })
-// Widgets bound to items NAMED after Object.prototype members. openHAB item names are
-// `[a-zA-Z_][a-zA-Z0-9_]*` (ItemUtil.isValidItemName), so every one of these is a name a person
-// can really give an item - and none of them needs to EXIST for the bug to bite, because the
-// failing read is the MISS: on an ordinary map `states['constructor']` answers with the `Object`
-// function, which is truthy, so `isOn` then read `.state` off it and threw.
 await put({
   uid: 'dashboard:nh-e2e-a2-proto',
   component: 'neohab:dashboard',
@@ -81,16 +41,12 @@ await put({
     ],
   },
 })
-// nameless dashboard: config load used to throw on .name.localeCompare and lose EVERYTHING
 await put({
   uid: 'dashboard:nh-e2e-a2-nameless',
   component: 'neohab:dashboard',
   tags: [],
   config: { version: 1, id: 'nh-e2e-a2-nameless', columns: 4, rowHeight: 'match', widgets: [] },
 })
-// columns: 0 divided the column width to Infinity, which took the row height and the icon scale
-// with it. It only bites a 'match' dashboard - a numeric rowHeight was returned as-is and hid the
-// divide, which is why that is a SEPARATE case below rather than the same one.
 await put({
   uid: 'dashboard:nh-e2e-a2-nocols',
   component: 'neohab:dashboard',
@@ -100,7 +56,6 @@ await put({
     widgets: [{ id: 'a2-v', type: 'label', config: { text: 'Survives' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
   },
 })
-// a zero fixed row height, from the same unvalidated config
 await put({
   uid: 'dashboard:nh-e2e-a2-norow',
   component: 'neohab:dashboard',
@@ -110,8 +65,6 @@ await put({
     widgets: [{ id: 'a2-r', type: 'label', config: { text: 'Floored' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
   },
 })
-// a gap that is not a number: the column count and the row height were guarded and this was not,
-// so the cell width came out NaN and the grid had nothing to lay anything out with
 await put({
   uid: 'dashboard:nh-e2e-a2-nogap',
   component: 'neohab:dashboard',
@@ -121,9 +74,6 @@ await put({
     widgets: [{ id: 'a2-g', type: 'label', config: { text: 'Gapped' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
   },
 })
-// a rect that is not a rect. An unreadable height made findFreeSpot return y: NaN - which was
-// then SAVED onto the next widget added - and a negative y became a grid-row counted from the
-// end of the grid, so the widget rendered somewhere nobody put it.
 await put({
   uid: 'dashboard:nh-e2e-a2-badrect',
   component: 'neohab:dashboard',
@@ -136,9 +86,6 @@ await put({
     ],
   },
 })
-// a widget whose stored config is the wrong SHAPE. Guards live at each read, but a widget that
-// throws during render used to unmount the whole React tree - the dashboard, the editor and the
-// way to Settings went together, leaving a blank page and no route back to the cause.
 await put({
   uid: 'dashboard:nh-e2e-a2-throws',
   component: 'neohab:dashboard',
@@ -153,7 +100,6 @@ await put({
     ],
   },
 })
-// a stored tablet rect wider than the tablet grid it lands in
 await put({
   uid: 'dashboard:nh-e2e-a2-mdwide',
   component: 'neohab:dashboard',
@@ -169,7 +115,6 @@ await put({
 
 const browser = await launchBrowser()
 try {
-  /* --------- nameless dashboard must not break the config load --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -180,13 +125,11 @@ try {
     await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 })
     await page.waitForTimeout(800)
     const tiles = await page.locator('.nh-tile:not(.nh-tile--new)').count()
-    // the live count varies - what matters is that this suite's own two tiles made it through
     ok('config loads despite a nameless dashboard', tiles >= 2, 'tiles=' + tiles)
     ok('no page error from the nameless dashboard', errs.length === 0, errs.join('|'))
     await ctx.close()
   }
 
-  /* --------- a nonsensical column count still renders --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -211,8 +154,6 @@ try {
         label: document.querySelector('.nh-label')?.textContent ?? '',
       }
     })
-    // The row height is the tell: 'match' derives it from the column width, so a zero column
-    // count used to make it Infinity - a cell taller than any screen, with nothing readable in it.
     const rowPx = parseFloat(geom.rows)
     ok('columns=0: the row height is finite and sane', Number.isFinite(rowPx) && rowPx > 0 && rowPx < 4000, geom.rows)
     ok('columns=0: the widget renders at a finite height', geom.cellH > 0 && geom.cellH < 4000, JSON.stringify(geom))
@@ -223,7 +164,6 @@ try {
     await ctx.close()
   }
 
-  /* --------- a zero fixed row height is floored rather than collapsed --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -238,15 +178,11 @@ try {
     await ctx.close()
   }
 
-  /* --------- a gap that is not a number --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-nogap')
-    // Tolerant: a NaN cell width leaves the grid with no size at all, so it never becomes
-    // "visible" and a plain wait would time out and take every later check in this suite with it.
-    // The assertions below are what should fail here, not the wait.
     await page.waitForSelector('.nh-grid', { state: 'attached', timeout: 15000 }).catch(() => {})
     await page.waitForTimeout(800)
     const g = await page.evaluate(() => {
@@ -261,14 +197,11 @@ try {
       }
     })
     ok('gap="wide": the row height is a real length', /px/.test(g.rows) && !/NaN/.test(g.rows), JSON.stringify(g))
-    // A pixel value, not merely "no NaN": an unreadable gap resolved to the CSS keyword `normal`,
-    // which contains no NaN either, so testing for that alone passed on the broken build too.
     ok('gap="wide": the gap falls back to the default length', /^8px/.test(g.gap), g.gap)
     ok('gap="wide": the widget has a size', g.h > 0 && g.w > 0, JSON.stringify(g))
     await ctx.close()
   }
 
-  /* --------- a rect that is not a rect --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -298,9 +231,6 @@ try {
       !!bad && Number(bad.rowStart) >= 1 && Number(bad.colStart) >= 1,
       JSON.stringify(bad)
     )
-    // A NaN maxY meant the free-spot search never ran, and the widget added next was stored at
-    // y: NaN. Adding one here proves the search still works on this dashboard. Every step is
-    // tolerant so a build that cannot get this far fails the assertions rather than the suite.
     await page.click('[aria-label="Edit dashboard"]').catch(() => {})
     await page.waitForSelector('.nh-grid--edit', { state: 'attached', timeout: 10000 }).catch(() => {})
     await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0).catch(() => {})
@@ -316,7 +246,6 @@ try {
     await ctx.close()
   }
 
-  /* --------- an item named after an Object.prototype member --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -336,34 +265,19 @@ try {
       tiles.length === 4 && tiles.every((t) => !t.errored),
       JSON.stringify(tiles)
     )
-    // The switch is the one that used to throw: `isOn` read `.state` off the Object function.
     const sw = await page.locator('.nh-switch').count()
     ok('the switch bound to an item called constructor draws a switch', sw >= 1, 'switches=' + sw)
     await ctx.close()
   }
 
-  /* --------- a screen that fails, fails as a panel with a way out --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
-    // The boundary names itself in the console when it catches something. Asserting that is what
-    // stops this whole section passing for the wrong reason: without it, a poison that failed to
-    // throw would look exactly like a boundary that worked.
     const caught = []
     page.on('console', (m) => {
       if (m.type() === 'error' && /failed to render/.test(m.text())) caught.push(m.text())
     })
-    // One dashboard whose widget list holds a null entry. `widgetsOf` guards the LIST, and this is
-    // a valid list, so the null reaches the render and throws there - a plain render failure above
-    // every widget boundary, which is exactly what the app-level wall is for. It is also a chosen
-    // poison: it breaks ONE dashboard's route, so home and settings still work and the panel's own
-    // links are a real way out. (A name that is not a string breaks every screen that lists
-    // dashboards at once, which is why that one is coerced at load rather than left to the wall.)
-    //
-    // Injected into the RESPONSE, not stored: the component list carries a literal colon, so the
-    // route needs a RegExp (a glob does not match it), and poisoning one page leaves the server
-    // exactly as it was.
     await page.route(/\/rest\/ui\/components\/neohab:config/, async (route) => {
       if (route.request().method() !== 'GET') return route.continue()
       const res = await route.fetch()
@@ -397,10 +311,6 @@ try {
     ok('a screen that throws shows a panel rather than a blank page', state.panel === 1 && !state.blank, JSON.stringify(state))
     ok('the panel says what went wrong', state.title.length > 0 && state.message > 0, JSON.stringify(state))
     ok('and offers a way out', state.actions.includes('#/') && state.actions.includes('#/settings'), JSON.stringify(state.actions))
-    // The way out has to actually work, or a wall you cannot leave is no better than a blank page.
-    // Measured on tiles that really rendered, not on `main.nh-app`, which is there whatever
-    // happened - the first version of this check asserted the latter and passed while the panel
-    // was still on screen.
     await page.click('.nh-appfail__actions a[href="#/"]').catch(() => {})
     await page.waitForTimeout(1800)
     const recovered = await page.evaluate(() => ({
@@ -413,15 +323,10 @@ try {
     await ctx.close()
   }
 
-  /* --------- a malformed hash does not blank the app --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
-    // `#/d/100%` is a hash a person can type and a chat client can produce by mangling a link.
-    // The app never writes one (navigate() always encodes), which is why it went unseen: the
-    // throw happened inside App's own render, above every boundary the app had, so the result
-    // was a blank page with no header and no route to Settings.
     await page.goto(BASE + '/neohab/index.html#/d/100%')
     await page.waitForTimeout(2000)
     const shown = await page.evaluate(() => ({
@@ -431,7 +336,6 @@ try {
     }))
     ok('a malformed hash still renders the app', shown.root && shown.app > 0, JSON.stringify(shown))
     ok('and it is not a blank page', shown.body > 0, JSON.stringify(shown))
-    // Reaching a working route from there is the other half: a wall you cannot leave is no better.
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
     await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
     const cells = await page.locator('.nh-gcell').count()
@@ -439,14 +343,11 @@ try {
     await ctx.close()
   }
 
-  /* --------- a widget that throws is one broken tile, not a blank app --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-throws')
-    // Deliberately tolerant: without a boundary the whole tree unmounts, so there is no cell to
-    // wait for and the state read below is what reports it.
     await page.waitForSelector('.nh-gcell', { state: 'attached', timeout: 15000 }).catch(() => {})
     await page.waitForTimeout(1500)
     const state = await page.evaluate(() => ({
@@ -456,12 +357,10 @@ try {
       header: document.querySelectorAll('.nh-dash__bar').length,
       root: (document.getElementById('root')?.childElementCount ?? 0) > 0,
     }))
-    // Without a boundary the whole tree unmounted: no cells, no header, an empty #root.
     ok('every widget on the dashboard still has a cell', state.cells === 4, JSON.stringify(state))
     ok('the working widget beside them still renders', state.alive, JSON.stringify(state))
     ok('the dashboard header survives', state.header === 1 && state.root, JSON.stringify(state))
     ok('the unrenderable widgets say so in their own tiles', state.errors >= 1, JSON.stringify(state))
-    // Recovery: the editor is still reachable, which is the whole point of containing it.
     await page.click('[aria-label="Edit dashboard"]').catch(() => {})
     const editable = await page
       .waitForSelector('.nh-grid--edit', { state: 'attached', timeout: 10000 })
@@ -471,9 +370,7 @@ try {
     await ctx.close()
   }
 
-  /* --------- an oversized stored tablet rect is clamped into the tablet grid --------- */
   {
-    // 1000px is inside the tablet band (>= 840, < 1200), so the tablet layout is what renders.
     const ctx = await browser.newContext({ viewport: { width: 1000, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
@@ -497,8 +394,6 @@ try {
         }
       })
     })
-    // The 9-wide stored rect used to create five implicit columns, so the grid was 9 columns
-    // rather than the 4 the dashboard asked for and every other widget was laid out against.
     ok('tablet layout renders with its own column count', placed.every((p) => p.cols === 4), JSON.stringify(placed))
     ok(
       'no tablet cell spans past the last column',
@@ -508,11 +403,6 @@ try {
     await ctx.close()
   }
 
-  /* --------- label font scales with the cell ---------
-     The label widget's authored px size follows --nh-textscale, whose floor is chosen by the
-     pointer: under a finger a narrow screen scales the label down, under a mouse it never
-     drops below its authored size while the rows can hold it (100px and taller, which a
-     12-column board reaches at about 1250px; 1300 is inside that). */
   {
     const sizes = {}
     for (const [name, width, touch] of [['1920', 1920, false], ['1300', 1300, false], ['1024-touch', 1024, true]]) {
@@ -533,11 +423,6 @@ try {
     ok('label keeps its authored size on a narrower mouse-driven screen', sizes['1300'].scale === 1 && Math.abs(sizes['1300'].font - 40) < 0.5, JSON.stringify(sizes['1300']))
   }
 
-  /* --------- a component from a NEWER neohab is refused, and left strictly alone ---------
-     The dangerous case is not that it fails to render, it is what an old build does NEXT: drop
-     it from the working set, then treat everything it referenced as unused. So this checks the
-     refusal AND that the refusal costs nothing - the plan image belonging to a dashboard this
-     build cannot read must survive a collection triggered by an ordinary save. */
   {
     const FUT_BG_ID = 'nh-e2e-a2futbg'
     const FUT_BG = 'background:' + FUT_BG_ID
@@ -554,7 +439,6 @@ try {
     await put({
       uid: FUT_DASH,
       component: 'neohab:dashboard',
-      // version 99: written by a neohab that does not exist yet
       config: {
         version: 99,
         id: 'nh-e2e-a2fut',
@@ -574,8 +458,6 @@ try {
     await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 })
     await page.waitForTimeout(1000)
 
-    // evaluate-based rather than a locator wait: on a build without this feature the notice
-    // never appears, and a wait would abort every check after it instead of failing its own.
     const seen = await page.evaluate(() => ({
       notice: document.querySelectorAll('.nh-incompat').length,
       noticeText: document.querySelector('.nh-incompat')?.textContent ?? '',
@@ -587,9 +469,6 @@ try {
     ok('the rest of the configuration still loaded', seen.tiles.length >= 2, 'tiles=' + seen.tiles.length)
     ok('no page error from a config out of the future', errs.length === 0, errs.join('|'))
 
-    // Now make the app collect. An editor save is the real trigger - and the lesson that put
-    // this check here is that a suite which never saves through the app cannot catch a
-    // save-time bug. Deliberately NOT the global background field: that belongs to the user.
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2')
     await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
     await page.click('[aria-label="Edit dashboard"]')
@@ -604,13 +483,11 @@ try {
     const futBgStatus = (await fetch(NS + '/' + encodeURIComponent(FUT_BG), { headers: AUTH })).status
     ok('an image held only by a refused component survives a save-time collection', futBgStatus === 200, 'status ' + futBgStatus)
 
-    // and the component itself was never rewritten by a build that could not read it
     const stored = await (await fetch(NS + '/' + encodeURIComponent(FUT_DASH), { headers: AUTH })).json()
     ok('the refused component is stored exactly as it was', Number(stored?.config?.version) === 99, 'version=' + String(stored?.config?.version))
     await ctx.close()
   }
 
-  /* --------- ItemPicker: is the list still open after selecting? --------- */
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -640,7 +517,6 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  // scoped to what THIS suite made: an unrelated stray must not fail this suite's cleanup
   const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-a2'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 }

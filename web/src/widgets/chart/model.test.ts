@@ -1,10 +1,3 @@
-/**
- * What a chart configuration describes.
- *
- * These read stored configuration during render, which makes them the place a hostile or
- * half-written component turns into a thrown exception, and a widget throwing during render used
- * to unmount the whole app, not one tile.
- */
 import { describe, expect, it } from 'vitest'
 import {
   PERIODS,
@@ -76,8 +69,6 @@ describe('periods', () => {
   })
 
   it('does not find Object.prototype behind a stored period id', () => {
-    // A bare PERIODS[key] answers `constructor` and `toString` with a function, which is not
-    // nullish, so the `??` never fires and the arithmetic downstream silently becomes NaN.
     for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
       expect(isPeriod(key), key).toBe(false)
       expect(periodMs(key), key).toBe(PERIODS['24h'])
@@ -95,7 +86,6 @@ describe('chipPeriods', () => {
   })
 
   it('always keeps a way back to the default and to the range on screen', () => {
-    // Without these a chip row strands you: pick another range and the one you came from is gone.
     expect(chipPeriods(['1h'], '7d', '12h')).toEqual(['1h', '12h', '7d'])
   })
 
@@ -133,8 +123,6 @@ describe('decimate', () => {
   })
 
   it('averages by time held rather than emitting the extremes', () => {
-    // A value that held for almost the whole bucket decides it; min/max-per-bucket used to turn
-    // noisy data into a full-amplitude sawtooth that looked nothing like the raw plot.
     const xs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     const ys = [0, 100, 0, 0, 0, 0, 0, 0, 0, 0]
     const [, out] = decimate(xs, ys, 2)

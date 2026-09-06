@@ -1,11 +1,3 @@
-/**
- * The uPlot half of the chart widget: option building, gradient fills, threshold drawing,
- * the crosshair tooltip, drag-zoom detection and resize handling. This module (and uPlot
- * itself) is imported on demand by the widget, so dashboards without charts don't pay for it.
- *
- * Theme colors are sampled from the CSS custom properties at creation time; a theme change
- * refreshes them when the chart next rebuilds (the documented chart/theme behavior).
- */
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 
@@ -14,11 +6,9 @@ export interface PlotSeries {
   color: string
   axis: 'y' | 'y2'
   width: number
-  /** Peak gradient-fill opacity, 0-100. */
   fill: number
   mode: 'smooth' | 'linear' | 'step'
   points: boolean
-  /** Bars suit aggregated buckets (a sum per day); lines suit a continuous reading. */
   kind?: 'line' | 'bar'
 }
 
@@ -34,23 +24,16 @@ export interface PlotParams {
   host: HTMLElement
   series: PlotSeries[]
   thresholds: PlotThreshold[]
-  /**
-   * 'time' plots timestamps; 'category' plots bucket indexes (hour of day, day of week) with
-   * `categoryLabels` on the ticks and in the tooltip, since 3 means "03:00", not a moment.
-   */
   xMode?: 'time' | 'category'
   categoryLabels?: string[]
   yMin?: number
   yMax?: number
   y2Min?: number
   y2Max?: number
-  /** Format a series value for the tooltip (unit-aware; supplied by the widget). */
   formatValue: (seriesIndex: number, value: number) => string
-  /** Fired when drag-zoom starts or the zoom is reset (double-click or resetZoom()). */
   onZoom: (zoomed: boolean) => void
 }
 
-/** One series' history as [timestamps in seconds, values]. */
 export type SeriesTable = [number[], (number | null)[]]
 
 export interface ChartHandle {
@@ -64,7 +47,6 @@ function cssVar(name: string): string {
   return getComputedStyle(document.body).getPropertyValue(name).trim()
 }
 
-/** Hex color -> rgba at the given opacity; non-hex colors pass through unchanged. */
 function alpha(color: string, a: number): string {
   const m = /^#([0-9a-f]{6})$/i.exec(color)
   if (!m) return color
@@ -79,11 +61,8 @@ function esc(s: string): string {
 export function createChart(p: PlotParams): ChartHandle {
   const host = p.host
   const theme = { dim: cssVar('--nh-text-dim'), grid: cssVar('--nh-border') }
-  // Only scales that actually carry a series exist - an axis without data would render
-  // uPlot's meaningless default 0..1 range (all-series-on-y2 charts showed exactly that).
   const hasY = p.series.some((s) => s.axis === 'y')
   const hasY2 = p.series.some((s) => s.axis === 'y2')
-  /** Resolve a requested axis to a scale that exists (thresholds may name an unused axis). */
   const scaleFor = (axis: 'y' | 'y2'): 'y' | 'y2' => (axis === 'y2' ? (hasY2 ? 'y2' : 'y') : hasY ? 'y' : 'y2')
 
   const category = p.xMode === 'category'
@@ -91,12 +70,9 @@ export function createChart(p: PlotParams): ChartHandle {
   const paths = {
     smooth: uPlot.paths.spline!(),
     linear: uPlot.paths.linear!(),
-    // align 1 = step-after: an item holds its state until the next change
     step: uPlot.paths.stepped!({ align: 1 }),
-    // 0.85 of the slot, capped so a two-bucket chart doesn't draw two enormous slabs
     bar: uPlot.paths.bars!({ size: [0.85, 60] })
   }
-  /** A bucket index as its label ("Mon", "14"), or the raw value if there is no label for it. */
   const categoryLabel = (v: number): string => labels[Math.round(v)] ?? String(v)
 
   const gradient =
@@ -124,7 +100,6 @@ export function createChart(p: PlotParams): ChartHandle {
     font: '11px system-ui, sans-serif'
   }
 
-  /* Crosshair tooltip: absolutely positioned inside the host, driven by setCursor. */
   const tt = document.createElement('div')
   tt.className = 'nh-chart__tt'
   host.appendChild(tt)
@@ -170,7 +145,6 @@ export function createChart(p: PlotParams): ChartHandle {
     tt.style.transform = `translate(${Math.round(lx)}px, ${Math.round(ly)}px)`
   }
 
-  /* Threshold lines and bands, drawn above the grid but under the series. */
   const drawThresholds = (u: uPlot) => {
     if (p.thresholds.length === 0) return
     const ctx = u.ctx
@@ -218,7 +192,6 @@ export function createChart(p: PlotParams): ChartHandle {
     ctx.restore()
   }
 
-  /* Zoomed = the x scale covers less than the data extent (drag-zoom in, dblclick out). */
   let zoomed = false
   const onSetScale = (u: uPlot, key: string) => {
     if (key !== 'x') return
@@ -256,7 +229,6 @@ export function createChart(p: PlotParams): ChartHandle {
         ...axisStyle,
         ...(category
           ? {
-              // one tick per bucket, named; uPlot's numeric splits would read 0, 5, 10...
               splits: (_u: uPlot, _ax: number, min: number, max: number) => {
                 const out: number[] = []
                 for (let v = Math.ceil(min); v <= Math.floor(max); v++) out.push(v)
@@ -267,7 +239,6 @@ export function createChart(p: PlotParams): ChartHandle {
           : {})
       },
       ...(hasY ? [{ ...axisStyle, scale: 'y' } as uPlot.Axis] : []),
-      // the horizontal gridlines belong to whichever y axis exists; never draw them twice
       ...(hasY2 ? [{ ...axisStyle, scale: 'y2', side: 1, grid: { show: !hasY } } as uPlot.Axis] : [])
     ],
     series: [
@@ -280,7 +251,6 @@ export function createChart(p: PlotParams): ChartHandle {
         spanGaps: true,
         paths: s.kind === 'bar' ? paths.bar : paths[s.mode],
         points: { show: s.points, size: 6, stroke: s.color, fill: s.color },
-        // bars are filled solid: a gradient that fades to nothing would erase their base
         fill:
           s.kind === 'bar'
             ? alpha(s.color, Math.min(1, (s.fill > 0 ? s.fill : 70) / 100))

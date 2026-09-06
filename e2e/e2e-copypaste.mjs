@@ -1,11 +1,6 @@
-/**
- * Copy/paste + multi-select + exit-edit-mode e2e.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-cpa and dashboard:nh-e2e-cpb and
- * deletes exactly those in cleanup (guarded, runs even if a section throws). The server's own
- * dashboards are never touched. NO item commands anywhere - every seeded widget is a clock or
- * label (neither sends a command), so nothing on a real device can move.
- */
+// Copy/paste + multi-select + exit-edit-mode e2e.
+// SAFE with a live config: creates only dashboard:nh-e2e-cpa and dashboard:nh-e2e-cpb and deletes exactly
+// those in cleanup (guarded, runs even if a section throws).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -40,8 +35,6 @@ const page = await context.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
-/** Named, so a check that needs to answer a dialog differently can lift it first - two listeners
- *  both acting on one dialog is an error, not a race. */
 const acceptDialogs = (d) => d.accept()
 page.on('dialog', acceptDialogs)
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
@@ -66,7 +59,6 @@ const selCount = async () => {
 }
 const selectedCells = () => page.locator('.nh-cell--selected').count()
 
-// Grid rects of every cell, in seeded/DOM order.
 const rects = () =>
   page.$$eval('.nh-cell', (els) =>
     els.map((e) => {
@@ -95,7 +87,6 @@ const ctrlClickCell = (i) =>
 const clickCell = (i) => page.locator('.nh-cell').nth(i).locator('.nh-cell__overlay').click()
 
 try {
-  // ---------- seed two dashboards ----------
   const wA = [
     { id: 'w-a', type: 'clock', config: { showDate: false }, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } },
     { id: 'w-c', type: 'clock', config: { showDate: false }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
@@ -111,8 +102,6 @@ try {
   await page.goto(APP + '#/d/nh-e2e-cpa', { waitUntil: 'domcontentloaded', timeout: 20000 })
   await page.waitForSelector('.nh-grid', { timeout: 15000 })
 
-  // ================= EXIT EDIT MODE =================
-  // Save commits and returns to run mode.
   await enterEdit()
   await page.click('[aria-label="Add widget"]')
   await page.waitForSelector('.nh-sheet', { timeout: 5000 })
@@ -124,12 +113,7 @@ try {
   ok('Save returns to run mode', (await page.locator('.nh-grid--edit').count()) === 0)
   ok('Save persisted the added widget', (await widgetCount(UID_A)) === 4, String(await widgetCount(UID_A)))
 
-  // Cancel discards and exits (with a confirm when dirty).
   await enterEdit()
-  // Hover first: the editor's chrome is only DRAWN on the cell being pointed at (so that an
-  // editing dashboard looks like the saved one), and the delete button, alone among it, also
-  // waits to be seen before it accepts a press - a tap on an invisible corner must not remove
-  // a widget. A mouse is always over the cell before it clicks; a suite has to say so.
   await page.locator('.nh-cell').nth(0).hover()
   await page.locator('.nh-cell').nth(0).locator('.nh-cell__delete').click()
   await sleep(200)
@@ -139,7 +123,6 @@ try {
   ok('Cancel returns to run mode', (await page.locator('.nh-grid--edit').count()) === 0)
   ok('Cancel did not persist the delete', (await widgetCount(UID_A)) === 4, String(await widgetCount(UID_A)))
 
-  // Cancel with no changes exits without a confirm dialog.
   await enterEdit()
   let dialogs = 0
   const countDialog = () => dialogs++
@@ -149,7 +132,6 @@ try {
   page.off('dialog', countDialog)
   ok('clean Cancel needs no confirm', dialogs === 0, `dialogs=${dialogs}`)
 
-  // ================= MULTI-SELECT =================
   await enterEdit()
   ok('nothing selected at first', (await selectedCells()) === 0)
   await clickCell(0)
@@ -164,12 +146,10 @@ try {
   await ctrlClickCell(1)
   await sleep(150)
   ok('ctrl-click toggles the second off', (await selectedCells()) === 1)
-  // shift-click adds
   await page.locator('.nh-cell').nth(2).locator('.nh-cell__overlay').click({ modifiers: ['Shift'] })
   await sleep(150)
   ok('shift-click adds', (await selectedCells()) === 2)
 
-  // ---- reported bug #1: a modifier-click must NEVER open the settings panel ----
   await page.keyboard.press('Escape')
   await sleep(120)
   await ctrlClickCell(0)
@@ -178,7 +158,6 @@ try {
   await ctrlClickCell(1)
   await sleep(150)
   ok('second ctrl-click reaches 2 with no panel ever shown', (await selectedCells()) === 2 && (await page.locator('.nh-sheet--side').count()) === 0)
-  // shift-click as the FIRST selection: same rule
   await page.keyboard.press('Escape')
   await sleep(120)
   await page.locator('.nh-cell').nth(0).locator('.nh-cell__overlay').click({ modifiers: ['Shift'] })
@@ -187,23 +166,18 @@ try {
   await page.keyboard.press('Escape')
   await sleep(120)
 
-  // ---- reported bug #2: ctrl-click on the widget's HANDLE STRIP must toggle too ----
   await page.locator('.nh-cell').nth(0).locator('.nh-cell__handle').click({ modifiers: ['Control'], position: { x: 8, y: 8 } })
   await sleep(200)
   ok('ctrl-click on the handle toggles into selection (no panel)', (await selectedCells()) === 1 && (await page.locator('.nh-sheet--side').count()) === 0, `sel=${await selectedCells()}`)
   await page.locator('.nh-cell').nth(1).locator('.nh-cell__handle').click({ modifiers: ['Control'], position: { x: 8, y: 8 } })
   await sleep(200)
   ok('ctrl-click a second handle reaches 2', (await selectedCells()) === 2)
-  // plain handle click still single-selects and opens the panel
   await page.locator('.nh-cell').nth(0).locator('.nh-cell__handle').click({ position: { x: 8, y: 8 } })
   await sleep(200)
   ok('plain handle click single-selects and opens the panel', (await selectedCells()) === 1 && (await page.locator('.nh-sheet--side').count()) === 1)
   await page.locator('.nh-sheet--side .nh-sheet__close').click()
   await sleep(150)
 
-  // ---- reported bug #3: lasso starting ON A WIDGET BODY (dense boards have no background) ----
-  // Not an Escape press to clear the selection: Escape LEAVES edit mode once there is nothing
-  // left to back out of, and closing the panel has already cleared it. Asserted, not assumed.
   ok('closing the settings panel cleared the selection', (await selectedCells()) === 0)
   {
     const a = await page.locator('.nh-cell').nth(0).boundingBox()
@@ -218,20 +192,17 @@ try {
     ok('lasso from a widget body selects both widgets', (await selectedCells()) === 2, String(await selectedCells()))
     ok('lasso from a widget body opens no panel', (await page.locator('.nh-sheet--side').count()) === 0)
   }
-  // sub-threshold press on a body is still just a click
   await clickCell(2)
   await sleep(200)
   ok('plain body click after a lasso still single-selects + panel', (await selectedCells()) === 1 && (await page.locator('.nh-sheet--side').count()) === 1)
   await page.locator('.nh-sheet--side .nh-sheet__close').click()
   await sleep(150)
-  // re-establish the 2-widget selection the COPY section below expects (panel close cleared it)
   await ctrlClickCell(0)
   await sleep(120)
   await ctrlClickCell(2)
   await sleep(120)
   ok('selection rebuilt for the copy flow', (await selectedCells()) === 2, String(await selectedCells()))
 
-  // ================= COPY / PASTE (toolbar buttons) =================
   const before = await cellCount()
   await page.click('.nh-selbar button:has-text("Copy")')
   await sleep(150)
@@ -241,18 +212,15 @@ try {
   ok('pasted widgets become the selection', (await selectedCells()) === 2)
   ok('no overlap after paste', !anyOverlap(await rects()), JSON.stringify(await rects()))
 
-  // ================= DELETE MULTIPLE =================
   const beforeDel = await cellCount()
   await page.click('.nh-selbar button:has-text("Delete")')
   await sleep(200)
   ok('delete removes the whole selection', (await cellCount()) === beforeDel - 2, `${beforeDel} -> ${await cellCount()}`)
   ok('selection is empty after delete', (await selectedCells()) === 0)
 
-  // ================= MARQUEE =================
   await page.evaluate(() => window.scrollTo(0, 0))
   const g = await page.locator('.nh-grid--edit').boundingBox()
   const cellW = (g.width - GAP * (COLS - 1)) / COLS
-  // start on empty background (col ~8, row 0) - proven empty by the marquee itself starting there
   const emptyX = g.x + 8 * (cellW + GAP) + cellW / 2
   const emptyY = g.y + ROW / 2
   {
@@ -268,12 +236,10 @@ try {
     ok('marquee box renders while dragging', marqueeShown)
     ok('marquee selects the enclosed widgets', (await selectedCells()) >= 2, String(await selectedCells()))
   }
-  // a bare click on that same empty background clears the selection
   await page.mouse.click(emptyX, emptyY)
   await sleep(150)
   ok('clicking empty space clears the selection', (await selectedCells()) === 0)
 
-  // ================= NATIVE Ctrl+C / Ctrl+V =================
   await clickCell(0)
   await sleep(120)
   const beforeKb = await cellCount()
@@ -283,7 +249,6 @@ try {
   await sleep(250)
   ok('Ctrl+C then Ctrl+V pastes', (await cellCount()) === beforeKb + 1, `${beforeKb} -> ${await cellCount()}`)
 
-  // ================= Ctrl+A select all, Delete key =================
   await page.keyboard.press('Control+a')
   await sleep(150)
   const total = await cellCount()
@@ -291,12 +256,8 @@ try {
   await page.keyboard.press('Escape')
   await sleep(120)
   ok('Escape clears the selection', (await selectedCells()) === 0)
-  // ...and still editing, because backing out of a selection is the first layer, not the last.
   ok('and that Escape did not also leave edit mode', (await page.locator('.nh-grid--edit').count()) === 1)
 
-  // ================= Escape leaves edit mode =================
-  // The way out, without hunting for the button - the complaint that named the Exit button in the
-  // first place. This draft is dirty (a paste above), so it has to ask before discarding.
   let asked = 0
   const dismiss = (d) => {
     asked++
@@ -316,7 +277,6 @@ try {
   ok('Escape leaves edit mode', (await page.locator('.nh-grid--edit').count()) === 0)
   ok('and discarded the draft, exactly as the Exit button does', (await widgetCount(UID_A)) === 4, String(await widgetCount(UID_A)))
 
-  // A clean draft needs no question at all.
   await enterEdit()
   let cleanAsked = 0
   const countClean = () => cleanAsked++
@@ -326,8 +286,6 @@ try {
   page.off('dialog', countClean)
   ok('a clean draft leaves on Escape with no question', cleanAsked === 0 && (await page.locator('.nh-grid--edit').count()) === 0, `dialogs=${cleanAsked}`)
 
-  // ================= CROSS-DASHBOARD PASTE =================
-  // Copy on A, navigate to B, paste there.
   await enterEdit()
   await clickCell(0)
   await sleep(120)
@@ -356,7 +314,6 @@ try {
   await browser.close()
 }
 
-// cleanup guard: only ever this suite's dashboards
 await fetch(NS + '/' + UID_A, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + UID_B, { method: 'DELETE', headers: AUTH })
 ok('cleanup: A removed', (await getComp(UID_A)) === null)

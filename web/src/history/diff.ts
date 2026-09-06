@@ -1,19 +1,8 @@
-/**
- * Comparing two configuration states.
- *
- * Pure and free of any i18n or React: the UI decides how to phrase things, this decides what
- * actually differs. Two levels come out of it - one row per component (added / changed / removed)
- * and, inside a changed one, the individual fields that differ with their before and after values.
- *
- * Arrays of objects that carry an `id` (a dashboard's widgets, a chart's series) are matched by
- * that id rather than by position, so moving a widget does not read as "every widget changed".
- */
 import { entryCategory, entryName, type SnapshotEntry } from '../model/history'
 
 export type ChangeKind = 'added' | 'changed' | 'removed'
 
 export interface FieldChange {
-  /** Dotted path within the component's config, e.g. `widgets[Lamp].config.icon`. */
   path: string
   kind: ChangeKind
   before?: unknown
@@ -22,19 +11,15 @@ export interface FieldChange {
 
 export interface ComponentDiff {
   uid: string
-  /** `dashboard`, `theme`, `icon`, `settings`, ... taken from the uid prefix. */
   category: string
   name: string
   kind: ChangeKind
   fields: FieldChange[]
-  /** Set when the component differs in more fields than are listed. */
   truncated: boolean
 }
 
-/** Field changes listed for one component before the rest are summarised away. */
 export const MAX_FIELDS = 120
 
-/** Longest rendered value before it is shortened for display. */
 const MAX_VALUE_CHARS = 120
 
 export function deepEqual(a: unknown, b: unknown): boolean {
@@ -55,7 +40,6 @@ export function deepEqual(a: unknown, b: unknown): boolean {
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
-/** An array whose elements are all objects with a usable id - matchable by identity, not position. */
 function keyedArray(v: unknown): Record<string, unknown>[] | null {
   if (!Array.isArray(v) || v.length === 0) return null
   const out: Record<string, unknown>[] = []
@@ -70,11 +54,6 @@ function keyedArray(v: unknown): Record<string, unknown>[] | null {
   return out
 }
 
-/**
- * Label for one element of a keyed array: whatever the reader would recognise it by. A widget
- * carries its name inside its own config, so that is looked at too; an unnamed one keeps its id,
- * which is still an identity rather than a position.
- */
 function elementLabel(el: Record<string, unknown>): string {
   const config = isPlainObject(el.config) ? el.config : {}
   for (const candidate of [el.name, el.label, config.label, config.name]) {
@@ -85,10 +64,6 @@ function elementLabel(el: Record<string, unknown>): string {
 
 const join = (path: string, key: string) => (path ? `${path}.${key}` : key)
 
-/**
- * Collect the differences between two values. Stops adding once `limit` changes are collected;
- * the caller reports that the list was cut short rather than pretending it is complete.
- */
 export function diffValues(before: unknown, after: unknown, path: string, out: FieldChange[], limit = MAX_FIELDS): void {
   if (out.length >= limit) return
   if (deepEqual(before, after)) return
@@ -134,11 +109,8 @@ function pushChange(out: FieldChange[], change: FieldChange, limit: number): voi
   if (out.length < limit) out.push(change)
 }
 
-/** Everything that differs inside one component. */
 export function diffEntry(before: SnapshotEntry, after: SnapshotEntry): { fields: FieldChange[]; truncated: boolean } {
   const fields: FieldChange[] = []
-  // An image body is stored by hash and never loaded for a comparison: differing hashes are all
-  // it takes to know the picture changed, and loading megabytes to say so would be worse.
   if (before.blobHash !== after.blobHash) {
     fields.push({ path: 'image', kind: 'changed', before: before.blobHash, after: after.blobHash })
   }
@@ -149,7 +121,6 @@ export function diffEntry(before: SnapshotEntry, after: SnapshotEntry): { fields
   return { fields, truncated: fields.length >= MAX_FIELDS }
 }
 
-/** Compare two configuration states, one row per component that is not identical in both. */
 export function diffEntries(before: SnapshotEntry[], after: SnapshotEntry[]): ComponentDiff[] {
   const b = new Map(before.map((e) => [e.uid, e]))
   const a = new Map(after.map((e) => [e.uid, e]))
@@ -172,13 +143,11 @@ export function diffEntries(before: SnapshotEntry[], after: SnapshotEntry[]): Co
     }
   }
 
-  // Stable, readable order: by kind then name, so the same comparison always reads the same way.
   const rank: Record<ChangeKind, number> = { changed: 0, added: 1, removed: 2 }
   rows.sort((x, y) => rank[x.kind] - rank[y.kind] || x.name.localeCompare(y.name) || x.uid.localeCompare(y.uid))
   return rows
 }
 
-/** Short, safe rendering of a before/after value for the change list. */
 export function formatValue(value: unknown): string {
   if (value === undefined) return '-'
   if (value === null) return 'null'

@@ -1,20 +1,9 @@
-/**
- * HABPanel importer.
- *
- * Accepts either a `habpanel-config.json` export file (including the legacy bare-array format)
- * or a live `habpanel:panelconfig` UI component read from the server, and converts it into
- * neohab dashboards with a best-effort widget mapping and an honest report of everything that
- * was approximated or dropped. Template and custom widgets keep their original AngularJS
- * templates, which neohab's own template engine renders.
- */
 import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
 import { lookup } from '../model/lookup'
 import type { AppSettings } from '../store/config'
-
-/* ------------------------------- source model ------------------------------- */
 
 type HPWidget = Record<string, unknown> & { type: string }
 interface HPDashboard {
@@ -24,9 +13,7 @@ interface HPDashboard {
   row_height?: unknown
   widget_margin?: unknown
   font_scale?: unknown
-  /** Home-menu tile appearance; only its icon has an equivalent here. */
   tile?: Record<string, unknown>
-  /** HABPanel's drawer options; `hide` keeps a dashboard out of the menu. */
   drawer?: Record<string, unknown>
   widgets: HPWidget[]
 }
@@ -43,12 +30,9 @@ export interface HPPanelConfig {
   customwidgets: Record<string, HPCustomWidget>
 }
 
-/* ------------------------------- report ------------------------------- */
-
 export type NoteLevel = 'info' | 'warn' | 'skip'
 export interface ImportNote {
   level: NoteLevel
-  /** English text, translated at render time; dynamic parts ride in `params`. */
   message: string
   params?: Record<string, string>
 }
@@ -71,23 +55,13 @@ class Report {
 
 export interface HabpanelImportResult {
   dashboards: Dashboard[]
-  /** Preserved HABPanel custom-widget definitions, ready to store as components. */
   widgetDefs: UIComponent[]
-  /**
-   * Global settings mapped from the HABPanel panel settings (theme, background image,
-   * speech item, Speak-button visibility). Empty when nothing mapped.
-   */
   settingsPatch: Partial<AppSettings>
   widgetCount: number
   notes: (ImportNote & { count: number })[]
 }
 
-/* ------------------------------- parsing ------------------------------- */
-
-/** Parse a habpanel-config.json export (current or legacy bare-array format). */
 export function parseHabpanelFile(json: unknown): HPPanelConfig {
-  // An empty list is not a configuration to import; accepting it only produces a confirmation
-  // dialog offering nothing and a restore point recording that nothing happened.
   if (Array.isArray(json)) {
     if (json.length === 0) throw new Error('Not a HABPanel configuration (no dashboards found)')
     return { dashboards: normalizeDashboards(json), settings: {}, customwidgets: {} }
@@ -105,8 +79,6 @@ export function parseHabpanelFile(json: unknown): HPPanelConfig {
 
 function normalizeDashboards(raw: unknown[]): HPDashboard[] {
   return raw.map((d) => {
-    // every dashboard entry must be a plain object that looks like one - a bare array of
-    // arrays/scalars is NOT the legacy format, just a wrong file
     if (!d || typeof d !== 'object' || Array.isArray(d)) {
       throw new Error('Not a HABPanel configuration (dashboard list contains invalid entries)')
     }
@@ -119,7 +91,6 @@ function normalizeDashboards(raw: unknown[]): HPDashboard[] {
   })
 }
 
-/** Decode a live `habpanel:panelconfig` component (slot-encoded) into a panel config. */
 export function panelConfigFromComponent(component: UIComponent): HPPanelConfig {
   const slots = component.slots ?? {}
   const dashboards: HPDashboard[] = (slots.dashboards ?? []).map((dc) => ({
@@ -152,8 +123,6 @@ export function panelConfigFromComponent(component: UIComponent): HPPanelConfig 
   }
 }
 
-/* ------------------------------- helpers ------------------------------- */
-
 function num(v: unknown): number | undefined {
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string' && v.trim() !== '') {
@@ -167,22 +136,18 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v !== '' ? v : undefined
 }
 
-/** One HABPanel interactive-chart series -> a neohab chart series (defaults omitted). */
 function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
   return {
     item: str(s.item),
     label: str(s.name),
     color: str(s.color),
     axis: s.axis === 'y2' ? 'y2' : undefined,
-    // display_line/area default true in HABPanel's series editor; only deviations are stored
     width: s.display_line === false ? 0 : undefined,
     fill: s.display_area === false ? 0 : undefined,
     points: s.display_dots === true ? true : undefined
   }
 }
 
-// Every HABPanel chart period has an exact neohab counterpart; `exact: false` only remains
-// for unknown values falling back to a day.
 export const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   h: { period: '1h', exact: true },
   '4h': { period: '4h', exact: true },
@@ -199,11 +164,6 @@ export const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   Y: { period: '1y', exact: true }
 }
 
-/**
- * HABPanel's seven themes, each with a port of its own. The ids match, so this is a pass-through
- * rather than a table of approximations, and a dashboard that came from HABPanel arrives wearing
- * something recognisable instead of the default dark.
- */
 export const THEME_MAP: Record<string, string> = {
   default: 'aqua',
   material: 'material',
@@ -214,12 +174,6 @@ export const THEME_MAP: Record<string, string> = {
   'orange-tree': 'orange-tree'
 }
 
-/* ------------------------------- widget converters ------------------------------- */
-
-/**
- * HABPanel icons reference server icon sets; keep them as state-aware oh: icons.
- * HABPanel's "eclipse-smarthome-classic" id is the classic set (servers only accept "classic").
- */
 function ohIcon(name: string | undefined, rawIconset: string | undefined): string | undefined {
   if (!name) return undefined
   const iconset = rawIconset === 'eclipse-smarthome-classic' || rawIconset === 'smarthome-classic' ? 'classic' : rawIconset
@@ -242,8 +196,6 @@ const CONVERTERS: Record<string, Converter> = {
   }),
 
   slider: (w, report) => {
-    // A vertical slider is a slider on end here too, so that one carries across. `inverted` - the
-    // scale running the other way - has no equivalent, so it is reported rather than pretended.
     if (w.inverted) report.add('info', 'An inverted slider is imported the right way up')
     return {
       type: 'slider',
@@ -379,7 +331,7 @@ const CONVERTERS: Record<string, Converter> = {
   },
 
   clock: (w) => {
-    // HABPanel stores the mode capitalized ('Analog'/'Digital'); compare case-insensitively.
+    // HABPanel stores the mode capitalised
     const analog = (str(w.mode) ?? '').toLowerCase() === 'analog'
     const format = str(w.digital_format) ?? ''
     return {
@@ -388,7 +340,6 @@ const CONVERTERS: Record<string, Converter> = {
         mode: analog ? 'analog' : undefined,
         showDate: true,
         showSeconds: analog ? undefined : /s/.test(format),
-        // HABPanel's clock is a card too, with a "No background" checkbox to take it away.
         tileBackground: w.nobackground ? false : undefined
       }
     }
@@ -402,7 +353,6 @@ const CONVERTERS: Record<string, Converter> = {
     if (str(w.charttype) === 'interactive' && hpSeries.length > 0) {
       series = hpSeries.filter((s) => str(s.item)).map((s) => hpChartSeries(s))
     } else {
-      // 'default'/'rrd4j' charts are server-rendered images of one item (or a whole group)
       const item = str(w.item) ?? (hpSeries.length > 0 ? str(hpSeries[0].item) : undefined)
       if (w.isgroup === true) {
         report.add('warn', "Group charts plot the group item's own state; add member items as extra series if needed")
@@ -465,17 +415,13 @@ const CONVERTERS: Record<string, Converter> = {
   }
 }
 
-/* ------------------------------- conversion ------------------------------- */
-
 function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashboard {
   const columns = Math.max(1, Math.round(num(hp.columns) ?? 12))
-  // HABPanel's default row_height is 'match' (square cells: row height = column width).
-  // Only an explicit numeric value maps to a fixed pixel height.
+  // HABPanel's default row_height is 'match': square cells, row height = column width
   const rowHeightNum = num(hp.row_height)
   const rowHeight = rowHeightNum !== undefined ? Math.round(rowHeightNum) : ('match' as const)
-  // widget_margin defaults to 5 in HABPanel.
   const gap = Math.max(0, Math.round(num(hp.widget_margin) ?? 5))
-  // font_scale is a ratio (1.5 = 150%); ours is stored as percent.
+  // font_scale is a ratio (1.5 = 150%); ours is percent
   const fontScale = num(hp.font_scale)
   const textSize =
     fontScale !== undefined && fontScale > 0 && fontScale !== 1 ? Math.min(300, Math.max(50, Math.round(fontScale * 100))) : undefined
@@ -485,8 +431,6 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     version: MODEL_VERSION,
     id,
     name: str(hp.name) ?? id,
-    // The menu tile's icon carries over to the Home tile and the sidebar; the rest of the tile
-    // styling (backdrops, colours, background images) has no equivalent and is dropped.
     icon: ohIcon(str(hp.tile?.icon), str(hp.tile?.iconset)),
     hideInSidebar: hp.drawer?.hide === true ? true : undefined,
     columns,
@@ -497,9 +441,8 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
   }
 
   for (const hpWidget of hp.widgets) {
-    // `lookup`, not a bare index: a widget typed "constructor"/"toString" would otherwise find an
-    // Object.prototype member, get called as a converter, and crash the import instead of being
-    // reported as an unknown type.
+    // lookup, not a bare index: a widget typed "constructor" would find an Object.prototype member and get CALLED
+    // as a converter
     const converter = lookup(CONVERTERS, hpWidget.type)
     if (!converter) {
       report.add('skip', 'Unknown HABPanel widget type “{{type}}” was skipped', { type: String(hpWidget.type) })
@@ -519,14 +462,9 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
       rect = findFreeSpot(dashboard, w, h)
     }
 
-    // strip undefined config values for clean storage
     const config = Object.fromEntries(Object.entries(converted.config).filter(([, v]) => v !== undefined))
 
     const instance: WidgetInstance = {
-      // Minted the same way a widget added in the editor is. Built from the dashboard's own id
-      // with a per-dashboard counter, two dashboards whose ids slug alike ("Living Room" and
-      // "living room") produced identical widget ids - and a widget id is the key for per-instance
-      // state kept outside the dashboard, so the two would have shared a remembered chart period.
       id: newWidgetId(),
       type: converted.type,
       config,
@@ -542,10 +480,6 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
 
   const dashboards = cfg.dashboards.map((d, i) => convertDashboard(d, i, report))
 
-  // Turn HABPanel's ids into the same web-address-safe form a dashboard created here gets, and
-  // de-duplicate against what is already on this server. HABPanel ids are free text and often
-  // carry spaces ("Bedroom Lighting"), which then travelled through the URL and the component
-  // uid; slugifying here is what makes an imported dashboard indistinguishable from a new one.
   const taken = new Set(existingDashboardIds)
   for (const d of dashboards) {
     const tidy = slugifyDashboardId(d.id, new Set())
@@ -591,9 +525,6 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   }
   const stylesheet = str(cfg.settings.additional_stylesheet_url)
   if (stylesheet) {
-    // Say plainly that it was NOT brought across, and where it goes. Calling this "replaced by
-    // neohab themes" read as an equivalence, and a power user's whole stylesheet went quietly
-    // missing. neohab's version of it is a theme's own Custom CSS.
     report.add(
       'warn',
       'Your extra stylesheet ({{url}}) was not imported - its selectors are HABPanel’s, not neohab’s. Copy what you need into Settings › Appearance › edit a theme › Custom CSS.',

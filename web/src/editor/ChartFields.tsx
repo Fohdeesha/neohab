@@ -1,7 +1,3 @@
-/**
- * Chart-specific settings editors: the series list and the thresholds list. Registered as
- * SettingField types 'chartseries'/'chartthresholds' and rendered by SettingsPanel.
- */
 import { useTranslation } from 'react-i18next'
 import { ItemPicker } from '../components/ItemPicker'
 import type { WidgetInstance } from '../model/dashboard'
@@ -13,9 +9,7 @@ const CHART_ITEM_TYPES = ['Number', 'Dimmer', 'Switch', 'Contact', 'Rollershutte
 
 export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
-  // Show the RAW stored list - a just-added row has an empty item and must stay editable,
-  // so this can't go through effectiveSeries (the renderer filters empty rows, not the form).
-  // A legacy single-`item` config shows up as its implied series; any change writes `series`.
+  // the RAW stored list: a just-added row has an empty item, which the renderer filters out
   const raw = Array.isArray(widget.config.series) ? (widget.config.series as ChartSeries[]) : []
   const rows = raw.length > 0 ? raw : effectiveSeries(widget.config as ChartConfig)
   const scheme = chartScheme()

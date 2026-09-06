@@ -1,17 +1,7 @@
-/**
- * Timeline widget + analog clock e2e: bands from real persistence, explicit color maps
- * (numeric-tolerant), the tap-for-details line, period chips, live band extension from SSE,
- * the analog clock face, the settings editors, and the importer's new 1:1 timeline/analog
- * mapping (synthetic file, so no HABPanel data is involved).
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-timeclock and the imported
- * dashboard:nh-e2e-hpx (both deleted), commands only the configured dimmer item (initial
- * state recorded and restored), and restores the `settings` component VERBATIM after the
- * import writes its speech-item mapping.
- *
- * Pins the default theme: the clock's card is asserted against another widget's, and a theme
- * is free to paint either of them differently (LCD deliberately gives every widget a panel).
- */
+// Timeline widget + analog clock e2e: bands from real persistence, explicit color maps (numeric-tolerant),
+// the tap-for-details line, period chips.
+// SAFE with a live config: creates only dashboard:nh-e2e-timeclock and the imported dashboard:nh-e2e-hpx
+// (both deleted), commands only the configured dimmer item (initial.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
@@ -37,16 +27,11 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// ---------- snapshots ----------
 const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 console.log(`snapshot: ${dimmer}=${dimmerOrig}, settings ${settingsOrig ? 'present' : 'absent'}`)
 
-// Put the dimmer on a value of our own choosing and wait for it to settle, rather than reading
-// whatever it happens to hold. Run inside the battery, the item is driven by neighbouring suites
-// and by the server's own rules, which keep firing after a suite has exited - a colour map built
-// from a value read a moment earlier could then describe a band that is already history.
 const dimmerNow = Math.round(Number(dimmerOrig)) === 44 ? 46 : 44
 await postItem(dimmer, dimmerNow)
 {
@@ -61,8 +46,6 @@ await postItem(dimmer, dimmerNow)
   }
 }
 
-// The color map targets the dimmer's CURRENT value, so the current (rightmost) band must be
-// red whatever the item happens to sit at - and '64' must match a stored '64.0' band.
 await fetch(NS, {
   method: 'POST',
   headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -88,7 +71,6 @@ await fetch(NS, {
           layout: { lg: { x: 8, y: 0, w: 4, h: 4 } },
         },
         { id: 'w-dig', type: 'clock', config: {}, layout: { lg: { x: 0, y: 4, w: 4, h: 2 } } },
-        // the same widget with its card turned off, so "has a card" cannot pass by accident
         {
           id: 'w-nobg', type: 'clock',
           config: { label: 'No card', tileBackground: false },
@@ -113,7 +95,6 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
-  // ---------- timeline rendering ----------
   await page.goto(APP + '#/d/nh-e2e-timeclock', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tl__row', { timeout: 20000 })
   ok('timeline renders', true)
@@ -126,10 +107,6 @@ try {
   ok('temperature row has bands', tempBands > 0, `bands=${tempBands}`)
   ok('axis has four tick labels', (await page.locator('.nh-tl__axis span').count()) === 4)
 
-  // The current run (rightmost band) matches the numeric-tolerant color map -> red. Waited for
-  // rather than sampled: the band for a value set moments ago arrives either with the next
-  // persistence read or over the live stream, and sampling once races both. A map that did not
-  // work still fails here, it just takes the timeout to say so.
   const lastBand = page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').last()
   const lastColor = await (async () => {
     const until = Date.now() + 20000
@@ -142,25 +119,21 @@ try {
   })()
   ok('color map (numeric-tolerant) colors the current band red', lastColor === 'rgb(255, 0, 0)', lastColor)
 
-  // unmapped states get palette colors, not the explicit red
   const tempColor = await page
     .locator('.nh-tl__row').nth(1).locator('.nh-tl__band').first()
     .evaluate((el) => getComputedStyle(el).backgroundColor)
   ok('unmapped state auto-colored from the palette', tempColor !== 'rgb(255, 0, 0)' && tempColor !== 'rgba(0, 0, 0, 0)', tempColor)
 
-  // tap for details
   await lastBand.click()
   await sleep(200)
   const info = await page.textContent('.nh-tl__info').catch(() => null)
   ok('tapping a band shows its details', !!info && info.includes('Dim') && info.includes('·'), info ?? 'none')
 
-  // period chips: switch to 1h and back
   ok('period chips present', (await page.locator('.nh-chart__chip').count()) >= 6)
   await page.click('.nh-chart__chip:text-is("1h")')
   await page.waitForSelector('.nh-tl__row', { timeout: 15000 })
   ok('1h chip active after click', (await page.locator('.nh-chart__chip--on').textContent()) === '1h')
 
-  // ---------- live band extension ----------
   const before = await page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').count()
   const target = dimmerNow === 57 ? 62 : 57 // a different value, so the band genuinely changes
   await postItem(dimmer, target)
@@ -174,7 +147,6 @@ try {
   const after = await page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').count()
   ok('live state change starts a new band', after > before, `${before} -> ${after}`)
 
-  // ---------- analog clock ----------
   const face = page.locator('#w-ana .nh-clock__face, .nh-clock__face')
   ok('analog face renders', (await page.locator('.nh-clock__face').count()) === 1)
   const lines = await page.locator('.nh-clock__face line').count()
@@ -182,8 +154,6 @@ try {
   ok('numerals shown', (await page.locator('.nh-clock__face text').count()) === 12)
   const strokes = await page.locator('.nh-clock__face line').last().getAttribute('stroke')
   ok('hands colored by theme tokens', String(strokes).includes('var(--nh-'), String(strokes))
-  // Both coordinates, not just x: the hand's x is mirror-symmetric about the vertical axis, so
-  // seconds 44 and 46 (say) share it exactly and a moving hand can look stopped.
   const tip = async () => {
     const hand = page.locator('.nh-clock__face line').last()
     return (await hand.getAttribute('x2')) + ',' + (await hand.getAttribute('y2'))
@@ -195,10 +165,6 @@ try {
   ok('digital clock unchanged beside it', (await page.locator('.nh-clock__time').count()) === 2)
   void face
 
-  // ---------- the clock is a tile like the others ----------
-  // It used to be the one widget with nothing around it, which on a dashboard of cards reads
-  // as a rendering fault. Compared against a real card rather than against fixed colours, so
-  // the check says what was actually asked for and holds under any theme.
   const cards = await page.evaluate(() => {
     const cell = (id) => document.querySelector(`[data-widget-id="${id}"] .nh-widget, #${id} .nh-widget`)
     const paint = (el) => {
@@ -216,7 +182,6 @@ try {
     const timeline = widgets.find((w) => w.querySelector('.nh-tl__row'))
     void cell
     return {
-      // the two clocks that asked for nothing, and the one that asked for no card
       plain: clocks.filter((c) => !c.classList.contains('nh-widget--bare')).map(paint),
       off: clocks.filter((c) => c.classList.contains('nh-widget--bare')).map(paint),
       timeline: paint(timeline),
@@ -237,7 +202,6 @@ try {
     JSON.stringify(cards.off)
   )
 
-  // ---------- settings editors ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, undefined, { timeout: 5000 })
@@ -250,14 +214,11 @@ try {
   await sleep(200)
   ok('Add state color adds a row', (await page.locator('.nh-sheet .nh-chartcard').count()) === rowCards + 1)
 
-  // the clock's own card, offered and honoured live
   await page.locator('.nh-cell', { has: page.locator('.nh-clock__time') }).first().click()
   await page.waitForSelector('.nh-sheet', { timeout: 5000 })
   const bgField = page.locator('.nh-field', { hasText: 'Show the tile background' }).locator('input[type=checkbox]')
   ok('clock settings offer the tile background', (await bgField.count()) === 1)
   ok('and it is on for a clock that never said otherwise', (await bgField.isChecked().catch(() => null)) === true)
-  // Both ends asserted: "it is bare now" is true on any build where the clock is ALWAYS bare,
-  // which is exactly the build this is about.
   const clockBare = () =>
     page
       .evaluate(() => {
@@ -275,7 +236,6 @@ try {
     `before=${bareBefore} after=${bareAfter}`)
   await page.click('button:has-text("Exit")') // dirty -> confirm dialog auto-accepted
 
-  // ---------- importer: timeline + analog clock + speech item ----------
   const hpFile = {
     dashboards: [
       {
@@ -330,7 +290,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup (always) ----------
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + IMPORTED, { method: 'DELETE', headers: AUTH })
 const settingsBack = await restoreSettings(settingsOrig)

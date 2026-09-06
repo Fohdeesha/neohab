@@ -1,14 +1,3 @@
-/**
- * One chart, full screen, with calendar navigation.
- *
- * A dashboard cell is the wrong place to step through months: there is no room for the controls,
- * and the point of stepping is looking closely. This view takes a chart widget's own configuration
- * (series, aggregation, thresholds, axes) and renders it over a window you choose - a rolling
- * range like the widget's, or an aligned day/week/month/year you can walk backwards and forwards.
- *
- * Deliberately not live-updating: a fixed calendar window that quietly grew would be a different
- * window from the one named at the top. The rolling ranges refetch when you pick them.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
@@ -39,7 +28,6 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
   const widget = dashboard?.widgets.find((w) => w.id === widgetId)
   const config = (widget?.config ?? {}) as ChartConfig
 
-  /** 'rolling' uses one of the period chips; the calendar units use an aligned window. */
   const [unit, setUnit] = useState<CalendarUnit | 'rolling'>('rolling')
   const [offset, setOffset] = useState(0)
   const [period, setPeriod] = useState(config.period ?? '24h')
@@ -50,15 +38,11 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
 
   const isChart = widget?.type === 'chart'
   const resolved = resolveChart(config)
-  // Only the units, and only for the series on screen: subscribing to the whole state map
-  // re-rendered this view on every item change in the installation, to read a handful of strings.
   const units = useItemsStore(useShallow((s) => resolved.series.map((series) => s.states[series.item]?.unit)))
 
   const nowMs = Date.now()
   const window =
     unit === 'rolling' ? { from: nowMs / 1000 - periodMs(period) / 1000, to: nowMs / 1000 } : calendarWindow(unit, offset, nowMs)
-  // Only the *choice* goes in the dependency list: a rolling window recomputed on every render
-  // would refetch forever.
   const windowKey = unit === 'rolling' ? `rolling:${period}` : `${unit}:${offset}`
   const seriesKey = JSON.stringify(resolved)
 
@@ -77,10 +61,6 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
       return unitLabel ? out + ' ' + unitLabel : out
     }
 
-    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
-    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
-    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
-    // every earlier window running to completion.
     const ctrl = new AbortController()
 
     async function run() {
@@ -136,7 +116,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
           y2Max: resolved.y2Max,
           formatValue: fmtValue,
           onZoom: () => {
-            /* zooming inside the window is uPlot's own; nothing to refetch */
+            // zooming inside the window is uPlot's own business
           }
         })
       }

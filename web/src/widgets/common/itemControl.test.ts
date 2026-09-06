@@ -15,11 +15,6 @@ describe('numericScale', () => {
     expect(numericScale('10', '30', '2')).toEqual({ min: 10, max: 30, step: 2 })
   })
 
-  /**
-   * The values here decide a range input's own attributes and the dial's pointer arithmetic. A
-   * step of zero makes the input inert and divides by zero in the snap; a maximum at or below the
-   * minimum leaves no range to map a value onto.
-   */
   it('refuses a scale a control could not work in', () => {
     expect(numericScale('abc', {}, null)).toEqual({ min: 0, max: 100, step: 1 })
     expect(numericScale(50, 10, 1)).toEqual({ min: 50, max: 150, step: 1 })
@@ -57,7 +52,6 @@ describe('rangeControl', () => {
   it('leaves the unit out unless one was actually stored', () => {
     expect(rangeControl(numericScale(0, 100, 1), '').unit).toBeUndefined()
     expect(rangeControl(numericScale(0, 100, 1), undefined).unit).toBeUndefined()
-    // A number here would be rendered beside the value as if it were a unit.
     expect(rangeControl(numericScale(0, 100, 1), 17).unit).toBeUndefined()
   })
 })

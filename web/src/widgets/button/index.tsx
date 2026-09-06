@@ -10,17 +10,13 @@ interface ButtonConfig extends StateIconConfig {
   label: string
   command: string
   commandAlt?: string
-  /** When true and bound to an item, alternate between command/commandAlt based on state. */
   toggle?: boolean
-  /** 'command' (default) sends to the item; 'navigate' opens a dashboard or URL. */
   action?: 'command' | 'navigate'
   navigateDashboard?: string
   navigateUrl?: string
   iconSize?: number
   hideLabel?: boolean
-  /** An illustration filling the card above the label; when set it replaces the icon. */
   imageUrl?: string
-  /** Small dim line under the label - the zone-card layout. */
   caption?: string
 }
 
@@ -32,8 +28,6 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
     if (ctx.editing) return
     if (config.action === 'navigate') {
       if (config.navigateDashboard) navigate({ name: 'dashboard', id: config.navigateDashboard })
-      // openExternal, not window.open: a stored `javascript:` URL opened this way would run with
-      // this page's origin behind it.
       else if (config.navigateUrl) openExternal(config.navigateUrl)
       return
     }
@@ -86,9 +80,6 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
         { value: 'navigate', label: 'Navigate (neohab)' }
       ]
     },
-    // Item/Command/Toggle stay visible in navigate mode: they still decide the active icon,
-    // so a navigation button can light up with the state of what it navigates to. Only the
-    // alternate command is dead there - press() navigates and returns before ever reading it.
     { key: 'item', type: 'item', label: 'openHAB Item' },
     { key: 'command', type: 'text', label: 'Command' },
     { key: 'commandAlt', type: 'text', label: 'Alternate command', showIf: isCommand },
@@ -97,18 +88,11 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate, subresource: false }
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),
-  // In navigate mode the item only lights the tile up; nothing is ever sent to it.
   canCommand: (c) => c.action !== 'navigate',
-  // The commands this button was configured to send, and nothing else: a button bound to a
-  // dimmer means "this value", not "any value", so inventing a slider would offer something its
-  // author deliberately did not.
   controlFor: (c, item) => {
     if (c.action === 'navigate' || item !== c.item) return undefined
-    // The alternate is dead unless this button toggles - `press()` only ever reaches it through
-    // `toggle` - so offering it here would hand out a command the tile itself never sends.
     const both = [c.command, ...(c.toggle ? [c.commandAlt] : [])]
     const commands = [...new Set(both.filter((s): s is string => typeof s === 'string' && s !== ''))]
-    // The command IS the label here - it is the author's own text, so it is never translated.
     return commands.length ? { kind: 'choices', choices: commands.map((command) => ({ command, label: command })) } : undefined
   },
   Component: ButtonWidget

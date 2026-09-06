@@ -1,49 +1,13 @@
-/**
- * Aggregation for the chart widget: grouping a history into buckets, the hour-by-weekday heatmap
- * matrix, and the calendar windows the expanded chart view steps through.
- *
- * openHAB's persistence REST API has no aggregation of its own (starttime/endtime/paging and
- * nothing else - checked against core), so all of this happens here, on the data the chart has
- * already fetched.
- *
- * The data model is deliberately explicit about *what* is being averaged. openHAB persistence is
- * usually change-based: a value is stored once and then holds until the next change, so counting
- * stored rows equally would make a value that held for an hour weigh the same as one that held
- * for a second. Two families of function follow from that:
- *
- *   - interval functions (average, min, max, first, last) look at the value over TIME. Each
- *     sample covers the interval until the next one, split at bucket boundaries, so a bucket with
- *     no stored row of its own still reports the value that was in force during it.
- *   - sample functions (sum, count) look at the stored rows themselves, and a bucket with no rows
- *     is empty for them - a sum of readings that invented values would be a lie.
- *
- * Everything here is pure and works in local time (a "day" is the user's day, DST included).
- */
-
 export type AggregateFunction = 'average' | 'min' | 'max' | 'first' | 'last' | 'sum' | 'count'
 
-export type GroupBy =
-  | 'none'
-  /** Fixed time buckets, plotted on the time axis. */
-  | 'hour'
-  | 'day'
-  | 'week'
-  | 'month'
-  /** Categorical buckets, plotted on a numeric axis with named ticks. */
-  | 'hourOfDay'
-  | 'dayOfWeek'
-  | 'monthOfYear'
+export type GroupBy = 'none' | 'hour' | 'day' | 'week' | 'month' | 'hourOfDay' | 'dayOfWeek' | 'monthOfYear'
 
 export const AGGREGATE_FUNCTIONS: AggregateFunction[] = ['average', 'min', 'max', 'first', 'last', 'sum', 'count']
 
-/** True for the group-bys whose x values are category indexes rather than timestamps. */
 export function isCategorical(groupBy: GroupBy): boolean {
   return groupBy === 'hourOfDay' || groupBy === 'dayOfWeek' || groupBy === 'monthOfYear'
 }
 
-/* -------------------------------- bucket boundaries -------------------------------- */
-
-/** The bucket a timestamp (seconds) belongs to: its key, and when the bucket ends (seconds). */
 interface BucketOf {
   key: number
   end: number
@@ -51,7 +15,6 @@ interface BucketOf {
 
 const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const startOfHour = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours())
-/** Monday-based week start, matching ISO weeks (and the day-of-week ordering used below). */
 const startOfWeek = (d: Date): Date => {
   const s = startOfDay(d)
   s.setDate(s.getDate() - ((s.getDay() + 6) % 7))
@@ -101,10 +64,7 @@ function bucketFor(groupBy: GroupBy, tSec: number): BucketOf {
   }
 }
 
-/* --------------------------------- accumulation --------------------------------- */
-
 interface Acc {
-  /** interval family */
   weighted: number
   weight: number
   min: number
@@ -113,7 +73,6 @@ interface Acc {
   firstValue: number
   lastAt: number
   lastValue: number
-  /** sample family */
   sum: number
   count: number
 }
@@ -147,17 +106,11 @@ function valueOf(acc: Acc, fn: AggregateFunction): number | null {
       return Number.isFinite(acc.lastValue) ? acc.lastValue : null
     default: {
       if (acc.weight > 0) return acc.weighted / acc.weight
-      // a bucket whose only sample sits exactly at its end has no duration to weigh
       return acc.count > 0 ? acc.sum / acc.count : null
     }
   }
 }
 
-/**
- * Walk the samples as time intervals, splitting each at bucket boundaries, and hand every piece
- * to `onPiece`. Sample-level facts (a stored row) go to `onSample`. `endSec` closes the last
- * interval - the end of the window being charted, not "now", so a fixed window is reproducible.
- */
 function walk(
   xs: number[],
   ys: (number | null)[],
@@ -173,8 +126,6 @@ function walk(
     const until = Math.max(from, i + 1 < xs.length ? xs[i + 1] : endSec)
     onSample(bucketFor(groupBy, from).key, v, from)
     let cur = from
-    // A zero-length interval (the final sample at the window end, or two samples at the same
-    // instant) still names its bucket, so `first`/`last`/`min`/`max` see it.
     if (until === cur) {
       onPiece(bucketFor(groupBy, cur).key, v, 0, cur)
       continue
@@ -188,11 +139,6 @@ function walk(
   }
 }
 
-/**
- * Group a series into buckets. Returns the bucket keys (timestamps in seconds for time buckets,
- * category indexes for the categorical ones) and one aggregated value each, in ascending key
- * order. `groupBy: 'none'` returns the input untouched.
- */
 export function aggregateSeries(
   xs: number[],
   ys: (number | null)[],
@@ -248,23 +194,15 @@ export function aggregateSeries(
   return [outX, outY]
 }
 
-/* ----------------------------------- heatmap ----------------------------------- */
-
 export const HEATMAP_ROWS = 7 // Monday..Sunday
 export const HEATMAP_COLS = 24 // hour of day
 
 export interface HeatmapData {
-  /** [weekday 0=Monday][hour 0..23] -> aggregated value, or null where nothing is known. */
   cells: (number | null)[][]
   min: number
   max: number
 }
 
-/**
- * The classic "when does this happen" matrix: hour of day across, day of week down, aggregated
- * over the whole window. Hours nest inside days, so splitting the intervals at hour boundaries
- * also keeps every piece inside one weekday.
- */
 export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: number, fn: AggregateFunction): HeatmapData {
   const accs = new Map<number, Acc>()
   const at = (key: number): Acc => {
@@ -279,8 +217,6 @@ export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: numbe
     const d = new Date(tSec * 1000)
     return ((d.getDay() + 6) % 7) * HEATMAP_COLS + d.getHours()
   }
-  // 'hourOfDay' gives the boundary walk the hour splits; the key is recomputed per piece so it
-  // carries the weekday too.
   walk(
     xs,
     ys,
@@ -301,9 +237,6 @@ export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: numbe
         acc.lastValue = value
       }
     },
-    // Stored rows, counted in the cell they were recorded in - the same thing `sum` and `count`
-    // mean on a grouped chart. Accumulating them per time-slice instead made `count` on a heatmap
-    // count hours rather than readings, which is a different question with the same name on it.
     (_key, value, atSec) => {
       const acc = at(cellKey(atSec))
       acc.sum += value
@@ -329,21 +262,13 @@ export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: numbe
   return { cells, min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max }
 }
 
-/* ------------------------------- calendar windows ------------------------------- */
-
 export type CalendarUnit = 'day' | 'week' | 'month' | 'year'
 
 export interface TimeWindow {
-  /** Seconds since the epoch. */
   from: number
   to: number
 }
 
-/**
- * An aligned calendar window: `offset` 0 is the one containing `nowMs`, -1 the one before it.
- * Aligned windows are what makes "previous month" mean the whole of last month rather than
- * "30 days ago to now".
- */
 export function calendarWindow(unit: CalendarUnit, offset: number, nowMs: number): TimeWindow {
   const now = new Date(nowMs)
   switch (unit) {
@@ -368,7 +293,6 @@ export function calendarWindow(unit: CalendarUnit, offset: number, nowMs: number
   }
 }
 
-/** Human label for a calendar window ("29 July 2026", "July 2026", "2026", "week of 27 July"). */
 export function calendarLabel(unit: CalendarUnit, window: TimeWindow, locale?: string): string {
   const d = new Date(window.from * 1000)
   switch (unit) {
@@ -386,18 +310,15 @@ export function calendarLabel(unit: CalendarUnit, window: TimeWindow, locale?: s
   }
 }
 
-/** True when the window covers the moment `nowMs` (so "next" would step into the future). */
 export function windowIsCurrent(window: TimeWindow, nowMs: number): boolean {
   const now = nowMs / 1000
   return now >= window.from && now < window.to
 }
 
-/** Tick labels for a categorical group-by (weekday and month names come from the locale). */
 export function categoryLabels(groupBy: GroupBy, locale?: string): string[] {
   if (groupBy === 'hourOfDay') return Array.from({ length: 24 }, (_, h) => String(h))
   if (groupBy === 'dayOfWeek') {
     const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' })
-    // 2024-01-01 was a Monday, which is index 0 here
     return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)))
   }
   if (groupBy === 'monthOfYear') {

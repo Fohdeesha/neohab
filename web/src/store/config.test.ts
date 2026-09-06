@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { named } from './config'
 
-/*
- * The name of a dashboard, theme, widget definition or icon is drawn on nearly every screen at
- * once: the home tiles, the sidebar, the settings lists. React refuses to render an object as a
- * child, so a single stored name that is not a string takes all of them out together - and then
- * there is no working screen left to fix it from, which is a different order of problem from one
- * widget or one screen failing.
- */
 describe('named', () => {
   it('leaves a normal config exactly as it is', () => {
     const config = { version: 1, id: 'kitchen', name: 'Kitchen' }

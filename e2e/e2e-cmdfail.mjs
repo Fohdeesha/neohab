@@ -1,14 +1,5 @@
-/**
- * Rejected-command e2e: a command the server refuses must (a) tell the user and (b) stop the
- * control from showing a value the device never took.
- *
- * Failures are injected with route-fulfil (400), so NOTHING is commanded on a real device in
- * the failure sections - the request never leaves the browser. The last section unroutes and
- * sends one genuine command to prove the happy path is silent.
- *
- * SAFE with the live config: creates only dashboard:nh-e2e-cmdfail, deletes exactly that in a
- * guarded cleanup. Real commands only ever touch the dimmer item (approved), restored exactly.
- */
+// Rejected-command e2e: a command the server refuses must (a) tell the user and (b) stop the control from
+// showing a value the device never took.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -62,7 +53,6 @@ try {
   const liveHue = await hue.inputValue()
   console.log('live: dimmer=' + liveDim + ' hue=' + liveHue)
 
-  // ---- Inject rejection: the request is fulfilled locally and never reaches openHAB.
   let intercepted = 0
   const reject400 = async (route) => {
     if (route.request().method() !== 'POST') return route.continue()
@@ -72,7 +62,6 @@ try {
   await page.route('**/rest/items/' + DIM, reject400)
   await page.route('**/rest/items/' + COLOR, reject400)
 
-  // ---- 1. slider: drag somewhere clearly different, get refused
   const sb = await slider.boundingBox()
   await page.mouse.move(sb.x + sb.width * 0.15, sb.y + sb.height / 2)
   await page.mouse.down()
@@ -85,14 +74,11 @@ try {
   const toastText = (await toast.first().textContent()) || ''
   console.log('toast: ' + toastText.trim())
   ok('toast names the item', toastText.includes(DIM), toastText.trim())
-  // What the server said, not the number it said it with. A status code in a toast tells the
-  // person pressing the button nothing they can act on, and reads like a fault in the panel.
   ok('toast carries the server’s reason', /Simulated rejection/.test(toastText), toastText.trim())
   ok('toast shows no bare HTTP status', !/\b(400|401|403|404|5\d\d)\b/.test(toastText), toastText.trim())
   ok('slider reverted to the live value', (await slider.inputValue()) === liveDim, 'shows ' + (await slider.inputValue()) + ' want ' + liveDim)
   ok('device untouched (request never left the browser)', (await stateOf(DIM)) === dimInitial, 'state=' + (await stateOf(DIM)))
 
-  // ---- 2. repeated identical failures must not stack a wall of toasts
   const before = await toast.count()
   for (let i = 0; i < 3; i++) {
     await page.mouse.move(sb.x + sb.width * 0.92, sb.y + sb.height / 2)
@@ -102,7 +88,6 @@ try {
   await sleep(800)
   ok('identical failures de-duped', (await toast.count()) <= Math.max(before, 3), 'toasts=' + (await toast.count()))
 
-  // ---- 3. colour: the far-end hue case, if the server ever refuses it anyway
   const hb = await hue.boundingBox()
   await page.mouse.move(hb.x + hb.width * 0.4, hb.y + hb.height / 2)
   await page.mouse.down()
@@ -112,10 +97,8 @@ try {
   ok('colour rejection toasts too', (await page.locator('.nh-toast', { hasText: COLOR }).count()) > 0)
   ok('hue reverts instead of sticking at 360', (await hue.inputValue()) === liveHue, 'shows ' + (await hue.inputValue()) + ' want ' + liveHue)
 
-  // ---- 4. the rejection is handled: no unhandled promise rejection any more
   ok('no unhandled rejection', pageErrors.length === 0, pageErrors.join(' ~ ') || '(clean)')
 
-  // ---- 5. dismiss (screenshot first: this is the only look at the new UI)
   await page.screenshot({ path: 'toast.png' })
   const openToasts = await toast.count()
   await page.locator('.nh-toast__close').first().click()
@@ -123,13 +106,11 @@ try {
   const afterClose = await toast.count()
   ok('close button removes exactly one toast', openToasts >= 1 && afterClose === openToasts - 1, `${openToasts} -> ${afterClose}`)
 
-  // ---- 6. toast auto-dismisses (NOTICE_MS 6000)
   await sleep(6500)
   ok('toasts auto-dismiss', (await toast.count()) === 0, 'toasts=' + (await toast.count()))
 
   ok('failures were injected, not real', intercepted > 0, 'intercepted=' + intercepted)
 
-  // ---- 7. happy path: a real accepted command must stay silent and stick
   await page.unroute('**/rest/items/' + DIM)
   await page.unroute('**/rest/items/' + COLOR)
   const target = liveDim === '70' ? '40' : '70'

@@ -1,19 +1,7 @@
-/**
- * Thin fetch wrapper around the openHAB REST API.
- * The access token is attached whenever one is available, so servers running with
- * `requireToken` (no anonymous user role) work for reading and commands too, not just
- * for admin writes. Without a token, requests go out anonymous as before.
- */
 import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
 import { ohUrl } from './base'
 
 export class ApiError extends Error {
-  /**
-   * `message` is the technical line (`PUT /rest/... -> 401: Authentication required`), which is
-   * what belongs in a log or a diagnostics report. `detail` is the server's own words with that
-   * prefix stripped, so a notice can say what happened without reading like a stack trace - see
-   * `errorText` in ./errors.
-   */
   constructor(
     public status: number,
     message: string,
@@ -27,12 +15,10 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: string
   body?: unknown
-  /** Send as text/plain instead of JSON (item commands). */
   text?: boolean
   signal?: AbortSignal
 }
 
-/** Pull the human-meaningful part out of an openHAB error response, if any. */
 async function errorDetail(res: Response): Promise<string> {
   try {
     const text = await res.text()
@@ -58,19 +44,15 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     }
   }
 
-  // The proxy's credentials go on first: applyAuthHeader knows to move an openHAB token out of
-  // the Authorization header when they are present.
   applyProxyAuth(headers)
   const token = await getAccessToken()
   if (token) applyAuthHeader(headers, token)
 
-  // Resolved against openHAB's own path prefix, so this works behind a sub-path reverse proxy.
   const url = ohUrl(path)
   let res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   if (res.status === 401 && token) {
-    // A stale/revoked stored token must not break what anonymous access would allow
-    // (e.g. viewing dashboards with the default user role) - retry once without it. The proxy's
-    // own credentials stay: dropping those would fail the request before openHAB ever sees it.
+    // a stale token must not break what anonymous access allows, so retry once without it - the proxy's own
+    // credentials stay
     headers.delete('Authorization')
     headers.delete('X-OPENHAB-TOKEN')
     applyProxyAuth(headers)

@@ -1,8 +1,5 @@
-/**
- * Template engine e2e. SAFE with a live config: adds only nh-e2e-* components additively and
- * deletes exactly those afterwards; never wipes the namespace. Commands only the approved
- * test items and restores their states.
- */
+// Template engine e2e. SAFE with a live config: adds only nh-e2e-* components additively and deletes exactly
+// those afterwards; never wipes the namespace.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
@@ -16,7 +13,6 @@ const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/
 const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
 
-// ---- original states + settings to restore ----
 const origSwitch = await getState(ITEMS.switch)
 const origLevel = await getState(ITEMS.dimmer)
 const origSettings = await getSettings()
@@ -111,7 +107,6 @@ const page = await browser.newPage({ viewport: { width: 1500, height: 950 } })
 const consoleErrors = []
 page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
-// try/catch: init scripts also run inside the sandboxed widget iframe, where localStorage throws
 await page.addInitScript((t) => {
   try {
     localStorage.setItem('neohab:apiToken', t)
@@ -128,43 +123,36 @@ try {
 
   const sr = (sel) => page.locator('.nh-template__host').first().locator(sel) // playwright pierces shadow DOM
 
-  // Tier 1: interpolation, filter, x-if, x-for
   ok('template shows raw state', (await sr('#st').textContent()) === 'OFF')
   ok('lowercase filter works', (await sr('#up').textContent()) === 'off')
   ok('x-if false removes node', (await sr('#cond').count()) === 0)
   const rows = await sr('li').allTextContents()
   ok('x-for renders 3 rows with $index', JSON.stringify(rows) === JSON.stringify(['row1-0', 'row2-1', 'row3-2']), JSON.stringify(rows))
 
-  // ng-click sends command; SSE pushes new state back into the template
   await sr('#go').click()
   await sleep(1500)
   ok('ng-click sendCmd flips item', (await getState(ITEMS.switch)) === 'ON')
   ok('template re-rendered from SSE', (await sr('#st').textContent()) === 'ON')
   ok('x-if true shows node', (await sr('#cond').count()) === 1)
 
-  // server-side change also updates the template (pure SSE path)
   await sendCmd(ITEMS.switch, 'OFF')
   await sleep(1500)
   ok('server-side change reflected', (await sr('#st').textContent()) === 'OFF')
 
-  // x-on:tap alias
   await sr('#tap').click()
   await sleep(1200)
   ok('x-on:tap sends command', (await getState(ITEMS.switch)) === 'ON')
 
-  // Tier 2: on by default (they only ever run sandboxed), so no settings write is needed
   await page.waitForSelector('iframe.nh-template__frame', { timeout: 15000 })
   ok('js widget runs by default (no notice)', (await page.locator('.nh-template__text:has-text("disabled")').count()) === 0)
   ok('sandbox iframe present by default', (await page.locator('iframe.nh-template__frame').count()) === 1)
 
-  // an administrator can still stop them running
   await patchSettings(origSettings, { allowJsWidgets: false })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await sleep(1500)
   ok('turning them off shows the notice', await page.locator('.nh-template__text:has-text("disabled")').isVisible())
   ok('no sandbox iframe while off', (await page.locator('iframe.nh-template__frame').count()) === 0)
 
-  // back to the stored settings (no key at all = the default, on)
   await restoreSettings(origSettings)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('iframe.nh-template__frame', { timeout: 15000 })
@@ -178,7 +166,6 @@ try {
   ok('js sendCommand works', (await getState(ITEMS.dimmer)) === '42')
   ok('js onChange live update', (await frame.locator('#val').textContent()) === 'level=42')
 
-  // Button Action dropdown fix: select shows effective default, no blank first row
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.click('.nh-cell:has(.nh-cell__type:text-is("button")) .nh-cell__overlay')
@@ -194,7 +181,6 @@ try {
   await browser.close()
 }
 
-// ---- cleanup: remove ONLY our temp components, restore settings + item states ----
 for (const uid of TEMP_UIDS) {
   await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
 }
@@ -203,8 +189,6 @@ await sendCmd(ITEMS.dimmer, origLevel)
 await sleep(1500)
 const settingsBack = await restoreSettings(origSettings)
 ok(`settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
-// Scoped to what THIS suite made: asserting on every `nh-e2e` component made one suite's stray
-// leftover fail three unrelated suites in the same battery run.
 const left = (await (await fetch(NS)).json()).filter((c) => TEMP_UIDS.includes(c.uid))
 ok('temp components removed', left.length === 0, `left=${left.map((c) => c.uid).join(',')}`)
 ok('item states restored', (await getState(ITEMS.switch)) === origSwitch && (await getState(ITEMS.dimmer)) === origLevel)

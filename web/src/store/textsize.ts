@@ -1,10 +1,3 @@
-/**
- * Per-device text size (percent, 100 = normal). Lives in localStorage like the sidebar pin
- * and kiosk settings - a wall panel across the room and a desktop monitor want different
- * sizes for the same dashboards - and is deliberately not part of backup bundles.
- * Applied as a root CSS variable the cell font-size composes in, so it multiplies the
- * automatic scaling everywhere without touching any layout math.
- */
 import { create } from 'zustand'
 
 const KEY = 'neohab:textSize'
@@ -26,7 +19,6 @@ function readStored(): number {
 
 export const useTextSizeStore = create<{ percent: number }>(() => ({ percent: readStored() }))
 
-/** Set the root variable from the stored value; called at boot (pre-paint) and on change. */
 export function applyDeviceTextSize(): void {
   const pct = useTextSizeStore.getState().percent
   const root = document.documentElement.style
@@ -41,7 +33,7 @@ export function setDeviceTextSize(percent: number): void {
     if (pct === 100) localStorage.removeItem(KEY)
     else localStorage.setItem(KEY, String(pct))
   } catch {
-    // storage unavailable (private mode): still applies for this page load
+    // storage unavailable (private mode)
   }
   applyDeviceTextSize()
 }

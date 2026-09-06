@@ -1,14 +1,3 @@
-/**
- * Saves the whole neohab configuration to a JSON file, for restoring after a wipe-cycle run:
- * `node tools/config-snapshot.mjs snapshot.json`.
- *
- * Every namespace neohab owns is captured: `neohab:config`, and the version history in
- * `neohab:history` (the index) and `neohab:historydata` (the snapshots and shared images).
- * Restore points are a user's data too, and a wipe that dropped them could not be undone.
- *
- * Take the snapshot while nothing else is running - a snapshot taken mid-suite captures that
- * suite's temporary components and a later restore would resurrect them.
- */
 import { writeFileSync } from 'node:fs'
 import { ALL_NS, AUTH } from '../lib/target.mjs'
 

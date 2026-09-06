@@ -4,7 +4,6 @@ import { errorText } from './errors'
 
 describe('errorText', () => {
   it('never shows the request line an ApiError carries', () => {
-    // What the notices used to interpolate, verbatim: method, path, status, message.
     const err = new ApiError(
       401,
       'PUT /rest/ui/components/neohab:config/dashboard%3Akitchen -> 401: Authentication required',
@@ -16,8 +15,6 @@ describe('errorText', () => {
   })
 
   it('says what to do about a refusal rather than repeating the server’s HTTP wording', () => {
-    // openHAB answers both of these with "Authentication required", which describes the protocol
-    // and not the remedy, so the server's own detail is deliberately overruled here.
     for (const status of [401, 403]) {
       expect(errorText(new ApiError(status, 'x', 'Authentication required'))).toMatch(/administrator/)
     }
@@ -34,7 +31,6 @@ describe('errorText', () => {
   })
 
   it('turns a failed fetch into something about the server, not about fetch', () => {
-    // What a browser throws when it cannot reach the host at all.
     expect(errorText(new TypeError('Failed to fetch'))).toMatch(/openHAB/)
     expect(errorText(new TypeError('Failed to fetch'))).not.toContain('fetch')
   })

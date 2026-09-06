@@ -1,9 +1,3 @@
-/**
- * Partial exports: one dashboard, custom widget or theme, with everything it references.
- *
- * The cases that matter are the ones where "nothing of yours is touched" has to be literally
- * true, and the file being imported is somebody else's.
- */
 import { describe, expect, it } from 'vitest'
 import type { UIComponent } from '../api/types'
 import {
@@ -81,8 +75,6 @@ describe('validation', () => {
   })
 
   it('refuses a file carrying anything but the component kinds it may carry', () => {
-    // The copy path derives a free id from the uid prefix, so a prefix-less uid like `settings`
-    // resolves back to itself and would overwrite the global settings even in copy mode.
     const bad = bundle({ components: [dashboard('k'), c('settings', { theme: 'evil' }, 'neohab:settings')] }) as PartialBundle
     expect(validatePartialBundle(bad)).toMatch(/may not carry/)
   })
@@ -108,7 +100,6 @@ describe('validation', () => {
 
   it('makes a file name with no path in it, from any id', () => {
     expect(partialFileName('dashboard', 'Kitchen / Living')).toBe('neohab-dashboard-Kitchen-Living.json')
-    // Dots are legal in a file name; separators are what must not survive.
     for (const id of ['../../etc', 'a\\b', 'a/b', '', '   ']) {
       const name = partialFileName('theme', id)
       expect(name, id).not.toMatch(/[/\\]/)
@@ -159,8 +150,6 @@ describe('import resolution', () => {
   })
 
   it('copies a dependency that a renamed one points at, so nothing is left orphaned', () => {
-    // The dashboard is byte-identical, but its icon is not: reusing the dashboard would leave it
-    // pointing at the server's icon and orphan the copied one.
     const existing = [widgetdef('gauge'), c('icon:bulb', { version: 1, id: 'bulb', name: 'b', dataUri: 'data:,DIFFERENT' }, 'neohab:icon')]
     const defWithIcon = c(
       'widgetdef:gauge',

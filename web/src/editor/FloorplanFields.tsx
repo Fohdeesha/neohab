@@ -1,9 +1,3 @@
-/**
- * Floor plan settings fields: the plan image (the shared background control, so uploads work
- * the same everywhere) and the "Edit lights" sheet - a full-screen surface where lights are
- * added, dragged into place on the plan, labelled and removed. Placement cannot happen on the
- * widget itself: in edit mode a tap on a widget selects it, by design.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BackgroundField } from '../components/BackgroundField'
@@ -54,8 +48,6 @@ export function PlanLightsField({ field, widget }: { field: SettingField; widget
   )
 }
 
-/** The placement surface. Writes go into the editor draft like every other setting - one
- * coalesced undo entry, saved or discarded with the dashboard. */
 function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose: () => void }) {
   const { t } = useTranslation()
   const config = widget.config as FloorplanConfig
@@ -63,7 +55,6 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
   const [sel, setSel] = useState<string | null>(lights[0]?.id ?? null)
   const [pickItem, setPickItem] = useState('')
 
-  // Live glows while placing, so the plan being edited looks like the plan being used.
   const itemsKey = JSON.stringify(lights.map((l) => l.item))
   const itemNames = useMemo(() => JSON.parse(itemsKey) as string[], [itemsKey])
   useEffect(() => subscribeItems(itemNames), [itemNames])
@@ -87,8 +78,6 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
   }
 
   const placeSelected = (e: React.PointerEvent) => {
-    // A press on the plan background moves the selected light there; presses on markers are
-    // handled by the markers themselves (drag).
     if (!sel || e.target !== e.currentTarget) return
     const layer = (e.currentTarget as HTMLElement).getBoundingClientRect()
     if (layer.width <= 0 || layer.height <= 0) return
@@ -172,7 +161,6 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
   )
 }
 
-/** Markers that drag. Position updates locally per frame; the config is written once on drop. */
 function DragMarkers({
   lights,
   sel,

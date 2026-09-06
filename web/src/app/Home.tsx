@@ -16,7 +16,6 @@ import { useBackgroundStyle } from '../components/useBackground'
 
 export function Home({ ohVersion }: { ohVersion?: string }) {
   const { t } = useTranslation()
-  // Selectors, not the whole store: Home re-rendered on every settings change otherwise.
   const dashboards = useConfigStore((s) => s.dashboards)
   const error = useConfigStore((s) => s.error)
   const loading = useConfigStore((s) => s.loading)
@@ -26,13 +25,9 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   const [newOpen, setNewOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
-  /** Which sheet the sign-in prompt was standing in for, so signing in resumes what was asked. */
   const [afterSignIn, setAfterSignIn] = useState<'new' | 'generate' | 'none'>('none')
 
   const start = (what: 'new' | 'generate') => {
-    // The same test the dashboard's edit pencil makes: an administrator (or anyone, when
-    // anonymous editing is allowed) goes straight in; otherwise ask for credentials up front
-    // rather than after the work.
     if (!editingAllowed()) {
       setAfterSignIn(what)
       setSignInOpen(true)
@@ -40,7 +35,6 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
     else setGenerateOpen(true)
   }
   const openSignIn = () => {
-    // A plain sign-in, standing in for nothing: finishing it should not pop a sheet nobody asked for.
     setAfterSignIn('none')
     setSignInOpen(true)
   }
@@ -82,8 +76,6 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               </div>
             </>
           ) : error ? (
-            // A wall panel that booted while openHAB was restarting used to stay broken until
-            // someone found a keyboard: the message was accurate and there was nothing to press.
             <>
               <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
               <div className="nh-welcome__actions">

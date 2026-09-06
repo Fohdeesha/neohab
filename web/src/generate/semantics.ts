@@ -1,34 +1,16 @@
-/**
- * openHAB's semantic model, as much of it as a dashboard generator needs.
- *
- * Items carry semantic tags as plain strings - either a tag's short name (`Kitchen`) or its
- * fully qualified id (`Location_Indoor_Room_Kitchen`), both of which openHAB accepts. The tag's
- * root segment says what it means: a Location, a piece of Equipment, a Point (a controllable or
- * readable value) or a Property (what that value is about).
- *
- * The hierarchy is read from the server so user-defined tags classify correctly; the bundled
- * default hierarchy is the fallback for servers with no `/rest/tags` endpoint.
- */
 import type { SemanticTag } from '../api/tags'
 import type { Item } from '../api/types'
 
 export type TagRoot = 'Location' | 'Equipment' | 'Point' | 'Property'
 
 export interface TagInfo {
-  /** Short name, e.g. `Kitchen`. */
   name: string
   root: TagRoot
-  /** Display label, e.g. `Living Room`. */
   label: string
 }
 
-/** Tag lookup by short name and by fully qualified uid. */
 export type TagIndex = Map<string, TagInfo>
 
-/**
- * openHAB's default semantic tags. Only used when the server has no `/rest/tags` endpoint,
- * where it does, its answer is authoritative and includes user-defined tags as well.
- */
 const DEFAULT_TAG_UIDS = [
   'Equipment',
   'Equipment_AlarmSystem',
@@ -165,15 +147,10 @@ const DEFAULT_TAG_UIDS = [
 
 const ROOTS: TagRoot[] = ['Location', 'Equipment', 'Point', 'Property']
 
-/** `LivingRoom` -> `Living Room`, so a tag reads as a title when the server gives no label. */
 export function labelFromTagName(name: string): string {
   return name.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
 }
 
-/**
- * Build the lookup used to classify an item's tags. Pass the server's tag list when it has one;
- * without it the bundled defaults are used, which covers every stock tag but no custom ones.
- */
 export function buildTagIndex(tags?: SemanticTag[]): TagIndex {
   const index: TagIndex = new Map()
   const add = (uid: string, name: string, label?: string) => {
@@ -181,8 +158,6 @@ export function buildTagIndex(tags?: SemanticTag[]): TagIndex {
     if (!ROOTS.includes(root)) return
     const info: TagInfo = { name, root, label: label?.trim() || labelFromTagName(name) }
     index.set(uid, info)
-    // Short names are unique across the default hierarchy; a custom tag that reuses one keeps
-    // the first definition rather than silently redefining a stock tag.
     if (!index.has(name)) index.set(name, info)
   }
   if (tags && tags.length > 0) {
@@ -195,25 +170,13 @@ export function buildTagIndex(tags?: SemanticTag[]): TagIndex {
   return index
 }
 
-/** What the semantic model says an item is. */
 export interface Semantics {
-  /** Location / Equipment / Point, mirroring core's `SemanticTags.getSemanticType`. */
   kind: 'location' | 'equipment' | 'point' | null
-  /** The Location or Equipment tag, when the item is one. */
   tag?: TagInfo
-  /** The Point tag (Measurement, Control, Setpoint, Status...), when the item is a point. */
   point?: TagInfo
-  /** The Property tag (Temperature, Light, Power...), when the item carries one. */
   property?: TagInfo
 }
 
-/**
- * Classify one item.
- *
- * Mirrors openHAB's own rule: the first non-Property tag decides what the item is, and an item
- * carrying only a Property tag is still a point - a measurement when its state is read-only,
- * a control otherwise.
- */
 export function classify(item: Item, index: TagIndex): Semantics {
   let property: TagInfo | undefined
   let point: TagInfo | undefined
@@ -245,7 +208,6 @@ export function classify(item: Item, index: TagIndex): Semantics {
   return { kind: null }
 }
 
-/** True when this server's items carry any semantic tags at all. */
 export function hasSemanticModel(items: Item[], index: TagIndex): boolean {
   return items.some((item) => {
     const kind = classify(item, index).kind

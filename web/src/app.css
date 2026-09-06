@@ -1,7 +1,3 @@
-/* ============================================================================
-   neohab design tokens - the seed of the theme system. Themes will override
-   these custom properties; widgets and chrome only ever read from them.
-   ============================================================================ */
 :root {
   --nh-bg: #0f1317;
   --nh-surface: #1a212a;
@@ -10,15 +6,10 @@
   --nh-text: #dde3ea;
   --nh-text-dim: #8a94a0;
   --nh-primary: #38b6ff;
-  /* openHAB-flavored burnt orange, used as the neohab brand accent */
   --nh-brand: #e35a2b;
   --nh-radius: 12px;
   --nh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 
-  /* Semantic inks. `--nh-accent-ink` is what gets drawn ON the accent colour; the theme engine
-     sets it to white or near-black depending on which can actually be read on that accent, and
-     a tile with an accent colour of its own overrides it again on the cell. Declared here so the
-     whole token set is inspectable rather than existing only as fallbacks at the use sites. */
   --nh-good: #3fb950;
   --nh-bad: #e5484d;
   --nh-accent-ink: #ffffff;
@@ -27,20 +18,11 @@
   color-scheme: dark;
 }
 
-/* ============================================================================
-   Keyboard focus. Every interactive surface here is a real button or input, so
-   one rule covers all of them - but the browser's default ring is close to
-   invisible on the near-black surfaces several themes use, and nothing was
-   replacing it. Drawn in the brand colour rather than the accent, so the ring
-   never disappears into a control that is already painted in the accent.
-   ============================================================================ */
 :focus-visible {
   outline: 2px solid var(--nh-brand);
   outline-offset: 2px;
 }
 
-/* A widget card and a sheet clip their own overflow, so a ring drawn outside a
-   control inside one would be cut off; there it goes inside the control. */
 .nh-widget :focus-visible,
 .nh-sheet :focus-visible {
   outline-offset: -2px;
@@ -71,11 +53,6 @@ button {
   cursor: pointer;
 }
 
-/* ============================================================================
-   App shell
-   ============================================================================ */
-/* Flex column so a view can fill the viewport via flex: 1. Percentage heights cannot do it:
-   .nh-app's own height is indefinite (min-height only), so a child's min-height: 100% is inert. */
 .nh-app {
   display: flex;
   flex-direction: column;
@@ -89,11 +66,6 @@ button {
   justify-content: center;
 }
 
-/* ============================================================================
-   Wordmark + home
-   ============================================================================ */
-/* The wordmark is an inline SVG (app/Wordmark.tsx): the letters take the theme's text colour
-   and the lit parts its brand colour, so it follows every theme like the rest of the chrome. */
 .nh-wordmark {
   display: block;
   width: clamp(13rem, 38vw, 21rem);
@@ -116,7 +88,7 @@ button {
 }
 
 .nh-home {
-  position: relative; /* anchors the floating sidebar trigger */
+  position: relative;
   min-height: 100%;
   display: flex;
   flex-direction: column;
@@ -135,7 +107,6 @@ button {
   color: var(--nh-text);
 }
 
-/* First-run welcome (no dashboards yet) */
 .nh-welcome {
   display: flex;
   flex-direction: column;
@@ -225,19 +196,12 @@ button {
   line-height: 1;
 }
 
-/* ============================================================================
-   Dashboard chrome
-   ============================================================================ */
 .nh-dash {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* Wraps on purpose. In edit mode this row carries a title plus six or seven controls, which need
-   about 350px between them - so on a 393px phone the last of them (Save) was laid out past the
-   right edge and could not be pressed at all. Wrapping moves the overflow onto a second row
-   instead; nothing wraps at a width where everything fits. */
 .nh-dash__bar {
   position: sticky;
   top: 0;
@@ -252,9 +216,6 @@ button {
   border-bottom: 1px solid var(--nh-border);
 }
 
-/* One line, cut with an ellipsis. Without `min-width: 0` a flex item refuses to shrink below its
-   content, so "Editing - Guest Bedroom Lighting" broke into four lines and pushed the bar taller
-   than the screen it was meant to fit. */
 .nh-dash__title {
   flex: 0 1 auto;
   min-width: 0;
@@ -272,10 +233,6 @@ button {
   padding: 12px;
 }
 
-/* Contextual selection/clipboard action bar (shown in edit mode when something is selected or
-   the clipboard holds widgets). Sticky under the toolbar so batch actions stay reachable.
-   Content is left-aligned on purpose: the widget settings side-panel occupies 391px on the
-   right of a wide screen, so right-aligned buttons here would end up hidden behind it. */
 .nh-selbar {
   position: sticky;
   top: 0;
@@ -321,18 +278,10 @@ button {
   color: var(--nh-text);
 }
 
-/* ============================================================================
-   Grid
-   ============================================================================ */
 .nh-grid {
   display: grid;
 }
 
-/* An empty dashboard still needs a visible editing surface to drop widgets onto.
-   position: relative anchors the rubber-band selection box (.nh-marquee) to the grid.
-   user-select: none - a marquee dragged across widgets must not smear text selection.
-   flex: 1 - the grid owns all the empty space below the widgets (down to the edit hint),
-   so a lasso can start anywhere on it, not just between the rows. */
 .nh-grid--edit {
   position: relative;
   flex: 1;
@@ -340,7 +289,6 @@ button {
   user-select: none;
 }
 
-/* Rubber-band selection box dragged across empty grid area. */
 .nh-marquee {
   position: absolute;
   z-index: 25;
@@ -355,9 +303,6 @@ button {
   flex-direction: column;
 }
 
-/* ============================================================================
-   Widget frame
-   ============================================================================ */
 .nh-widget {
   height: 100%;
   display: flex;
@@ -375,8 +320,6 @@ button {
   box-shadow: none;
 }
 
-/* A widget that could not render: its own tile explains itself, so the dashboard around it and
-   the editor that can fix it both survive. */
 .nh-widget--error {
   align-items: center;
   justify-content: center;
@@ -426,9 +369,6 @@ button {
   text-overflow: ellipsis;
 }
 
-/* Icon + name as one group, aligned by the per-widget Name alignment setting (the cell sets
-   --nh-labelalign). Flexes into the space before the aside, so alignment stays meaningful
-   when the chart parks its period chips in the header. */
 .nh-widget__labelmain {
   flex: 1 1 auto;
   min-width: 0;
@@ -438,9 +378,7 @@ button {
   justify-content: var(--nh-labelalign, flex-start);
 }
 
-/* Per-widget "Name position: bottom": the header row renders under the body. Two selectors
-   deep on purpose - it must also outrank the tight-cell padding sheds at the end of this
-   file, which is why those blocks carry a bottom variant of their own. */
+/* two selectors deep on purpose: it has to outrank the tight-cell padding rules further down */
 .nh-labelbottom .nh-widget__label {
   order: 1;
   padding: 0 12px 8px;
@@ -452,8 +390,6 @@ button {
   display: flex;
   flex-direction: column;
   padding: 12px;
-  /* Content that cannot fit is clipped at the body edge. Without this, a centered body
-     (justify-content: center) spills its overflow BOTH ways, painting over the label row. */
   overflow: hidden;
 }
 
@@ -462,11 +398,6 @@ button {
   justify-content: center;
 }
 
-/* ============================================================================
-   Widgets
-   ============================================================================ */
-
-/* Switch */
 .nh-switch {
   display: flex;
   flex-direction: column;
@@ -517,7 +448,6 @@ button {
   background-color: var(--nh-primary);
 }
 
-/* Button */
 .nh-button {
   display: flex;
   flex-direction: column;
@@ -555,17 +485,11 @@ button {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Must be >= the font's own ascent+descent, or glyphs paint outside their line box and
-     overflow:hidden shaves the descenders off the last line - a subtle bottom-clip that gets
-     worse as the text scales down (0.7px at 12.8px). 1.2 was under it for system-ui. */
+  /* must be >= ascent+descent, or glyphs paint outside their line box and overflow:hidden shaves them */
   line-height: 1.35;
-  /* A label like "Laptop>Studio AVB" is one unbreakable token wider than a small cell; break
-     it rather than ellipsise the whole label away. */
   overflow-wrap: break-word;
 }
 
-/* The button's illustration (Image URL setting): fills the card above the label and is the
-   shrink victim, exactly like the icon it replaces. */
 .nh-button__media {
   flex: 1 1 auto;
   min-height: 0;
@@ -585,9 +509,6 @@ button {
   line-height: 1.35;
 }
 
-/* ============================================================================
-   Icons (mdi = masked span tinted by text color; oh = server-rendered img)
-   ============================================================================ */
 .nh-icon {
   display: inline-block;
   flex-shrink: 0;
@@ -608,8 +529,7 @@ button {
   object-fit: contain;
 }
 
-/* Inside widgets the icon is the shrink victim and text never clips: these come after the
-   .nh-icon base rule on purpose (same specificity - source order decides the cascade). */
+/* after the .nh-icon base rule on purpose: same specificity, so source order makes the icon the shrink victim */
 .nh-button__icon,
 .nh-switch__icon {
   flex: 0 1 auto;
@@ -619,7 +539,7 @@ button {
 
 .nh-button__label {
   flex-shrink: 0;
-  max-height: 4.05em; /* exactly three lines at the line-height above; the icon gives way first */
+  max-height: 4.05em;
 }
 
 .nh-switch__track,
@@ -627,7 +547,6 @@ button {
   flex-shrink: 0;
 }
 
-/* Icon picker popover */
 .nh-iconpicker__preview {
   display: flex;
   align-items: center;
@@ -657,7 +576,7 @@ button {
 
 .nh-iconpicker__tabs {
   display: flex;
-  flex-wrap: wrap; /* five tabs + Remove must not overflow the 300px popover on phones */
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
@@ -749,7 +668,6 @@ button {
   border-radius: 8px;
 }
 
-/* Clearable color setting (explicit color vs "follow the theme") */
 .nh-colorfield {
   display: flex;
   align-items: center;
@@ -779,7 +697,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* Custom icon manager (Settings) */
 .nh-iconman {
   display: flex;
   flex-direction: column;
@@ -839,11 +756,6 @@ button {
   }
 }
 
-/* Slider */
-/* The plain style, and the same control the detail sheet and the floor plan's popup draw. The
-   browser's own range with the theme's accent on it, which is what a theme restyling
-   `.nh-slider__input` expects to find - the four styled looks below are a separate namespace so
-   that restyling never lands on a track this stylesheet has already painted. */
 .nh-slider {
   display: flex;
   align-items: center;
@@ -865,10 +777,6 @@ button {
   color: var(--nh-text);
 }
 
-/* The plain style stood on end. Only the slider widget ever asks for this: the shared popup
-   controls never carry the modifier, so they are untouched. `writing-mode` plus `direction: rtl`
-   is the browser's own vertical range - the minimum at the bottom, ArrowUp raising the value -
-   and it is left native, so a theme's own colours still apply. */
 .nh-slider--v {
   flex-direction: column;
 }
@@ -887,36 +795,17 @@ button {
   text-align: center;
 }
 
-/* ============================================================================
-   Slider: the four styled looks
-   ============================================================================ */
-
-/* Each look is the same three parts - a groove, a fill and the range input whose thumb you drag -
-   and a set of custom properties saying what they are made of, so a look and an orientation
-   combine without a rule per pair. The parts are painted here and the input is transparent on top
-   of them, which is what lets a fill be a three-stop gradient or a wedge; the thumb is still the
-   input's own, so it sits exactly where the browser puts it and drags natively.
-
-   Colours: each look ships in the colours of the reference it came from, and `--tinted` (the tile
-   has an Accent color of its own) rebuilds them in that colour - a ramp that still travels rather
-   than one flat wash. Grooves are mixed from the ink colour instead of being fixed dark, so the
-   looks work on a light theme as well as a dark one. */
 .nh-fader {
   --fd-accent: var(--nh-cellaccent, var(--nh-primary));
   --fd-groove: color-mix(in srgb, var(--nh-text) 12%, transparent);
   --fd-fill: var(--fd-accent);
   --fd-read: var(--nh-text);
-  /* The thumb's size ALONG the track: it drives both the thumb and the fill, which have to agree
-     because a range input insets the thumb's travel by half of this at each end. `--fd-thumb-cross`
-     is across it, for a look whose thumb is a capsule rather than a disc. */
   --fd-thumb: 18px;
   --fd-thumb-cross: var(--fd-thumb);
   --fd-thumb-bg: #fff;
   --fd-thumb-border: none;
   --fd-thumb-radius: 50%;
   --fd-thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-  /* The band the pointer can grab. A 6px track is not a touch target; the input covers all of
-     this, and the thumb is centred in it. */
   --fd-hit: 32px;
   --fd-track: 6px;
   display: flex;
@@ -926,12 +815,9 @@ button {
   height: 100%;
   min-height: 0;
   min-width: 0;
-  /* A size container, so the reading row is shed by the room the look actually has rather than by
-     a guess at the cell's height. Queries about the CELL from in here go by name. */
   container-type: size;
 }
 
-/* The reading. At the tile's own text size: it is the number the control exists to set. */
 .nh-fader__read {
   flex: none;
   text-align: right;
@@ -948,8 +834,6 @@ button {
   text-align: center;
 }
 
-/* The track's box. Everything in it is absolutely positioned against this, so the fill and the
-   input measure from the same edges the browser lays the thumb out between. */
 .nh-fader__rail {
   position: relative;
   flex: none;
@@ -987,9 +871,6 @@ button {
   transform: translateX(-50%);
 }
 
-/* The fill ends under the thumb's CENTRE, which is why the thumb's own size is in the sum: the
-   browser insets the travel by half a thumb at each end, so a plain percentage would run ahead of
-   the thumb at the bottom of the scale and behind it at the top. */
 .nh-fader__fill {
   position: absolute;
   top: 50%;
@@ -1010,7 +891,6 @@ button {
   transform: translateX(-50%);
 }
 
-/* The input covers the whole rail and paints nothing but its thumb. */
 .nh-fader__input {
   position: absolute;
   inset: 0;
@@ -1037,9 +917,6 @@ button {
   border-radius: 999px;
 }
 
-/* A runnable track as tall as the rail, so the thumb's own margin is what centres it: webkit
-   parks the thumb at the top edge of the track box, and a percentage margin there would resolve
-   against the width. Firefox centres its thumb on the track and ignores the margin. */
 .nh-fader__input::-webkit-slider-runnable-track {
   width: 100%;
   height: 100%;
@@ -1059,8 +936,6 @@ button {
   box-shadow: var(--fd-thumb-shadow);
 }
 
-/* Turned on its side the thumb's two sizes swap, so `--fd-thumb` still means "along the track"
-   and the fill's arithmetic above is the same sum either way round. */
 .nh-fader--v .nh-fader__input::-webkit-slider-thumb {
   width: var(--fd-thumb-cross);
   height: var(--fd-thumb);
@@ -1090,17 +965,6 @@ button {
   height: var(--fd-thumb);
 }
 
-/* Gradient (reference 1): a thin track, a three-stop ramp that is complete AT the thumb rather
-   than spread across the whole track, and a white ring with the card showing through it. The
-   reading is the ramp's first colour, which is where the reference puts it. The colours are not
-   the reference's: its cyan-violet-magenta is the stock ramp on every second app now, so this
-   one is copper weathering to verdigris, with the tarnish between - two colours that belong to
-   one object. Picked from five candidates drawn on the real tile.
-
-   The reading is that first colour pulled a fifth of the way toward the theme's ink. The ramp is
-   untouched by it; only the number moves, a shade lighter on a dark theme and deeper on a light
-   one, because the plain copper reads at 4:1 on the dark surface and 2.6:1 on white, and the
-   pulled one at 6:1 and 4.4:1. */
 .nh-fader--gradient {
   --fd-g1: #d2763b;
   --fd-g2: #b9b06c;
@@ -1109,9 +973,6 @@ button {
   --fd-thumb: 18px;
   --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-g1), var(--fd-g2), var(--fd-g3));
   --fd-read: color-mix(in srgb, var(--fd-g1) 80%, var(--nh-text));
-  /* The reference's thumb is a white ring with the card showing through it. The core is a fixed
-     dark rather than the theme's surface, because on a light theme a white core inside a white
-     ring is no ring at all - and the ring has to stay light to read against the track. */
   --fd-thumb-bg: #16202b;
   --fd-thumb-border: 5px solid #fff;
   --fd-thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
@@ -1121,10 +982,6 @@ button {
   --fd-angle: 0deg;
 }
 
-/* Tinted, the ramp is rebuilt in the tile's own colour rather than mixed toward it: mixing an
-   accent into three unrelated hues turns the first stop to mud (a red tile came out brown), where
-   pale -> accent -> deep keeps a ramp that still travels and is plainly the colour that was
-   asked for. */
 .nh-fader--gradient.nh-fader--tinted {
   --fd-g1: color-mix(in srgb, var(--fd-accent) 55%, #fff);
   --fd-g2: var(--fd-accent);
@@ -1132,8 +989,6 @@ button {
   --fd-read: color-mix(in srgb, var(--fd-accent) 80%, var(--nh-text));
 }
 
-/* Wedge (reference 5): a hairline track with an amber wedge under it, thin where the scale starts
-   and full thickness at the thumb, glowing. The thumb is a large soft warm white. */
 .nh-fader--taper {
   --fd-amber: #f5a524;
   --fd-track: 4px;
@@ -1157,8 +1012,6 @@ button {
   --fd-amber: var(--fd-accent);
 }
 
-/* The wedge itself: a box as thick as the fill's widest point, cut to a point at the far end. Its
-   right edge is straight and the thumb covers it, exactly as in the reference. */
 .nh-fader--taper .nh-fader__fill {
   height: 16px;
   border-radius: 0;
@@ -1166,18 +1019,13 @@ button {
   filter: drop-shadow(0 0 9px color-mix(in srgb, var(--fd-amber) 60%, transparent));
 }
 
-/* The height is restated here and it is NOT redundant: the wedge's own `height: 16px` above and
-   the vertical rule's `height: <the fill's length>` are both two classes deep, so the later of the
-   two wins - and that is the wedge's, which turned a fader's fill into a 16px triangle at the
-   bottom of the track. Three classes settles it. */
+/* restated and NOT redundant: without it the wedge's own height wins and a vertical fader is a 16px triangle */
 .nh-fader--taper.nh-fader--v .nh-fader__fill {
   width: 16px;
   height: calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2);
   clip-path: polygon(0 0, 100% 0, 56% 100%, 44% 100%);
 }
 
-/* Inset rail (reference 3): the track sunk into a plate with the ends of the scale printed either
-   side of it, and a capsule thumb standing proud of the rail. */
 .nh-fader--inset {
   --fd-periwinkle: #7d8ef6;
   --fd-track: 10px;
@@ -1208,8 +1056,6 @@ button {
 }
 
 .nh-fader--v .nh-fader__plate {
-  /* Bottom to top, so the minimum is printed under the rail and the maximum over it, whichever
-     way the markup lists them. */
   flex-direction: column-reverse;
   flex: 1 1 auto;
   align-self: center;
@@ -1224,19 +1070,12 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* Scoped to the flat case on purpose: this makes the rail fill the plate BETWEEN the two end
-   labels, and unscoped it also beat the vertical rule's `width: var(--fd-hit)` - which left the
-   rail as wide as the plate's text and the thumb sitting off the side of its own track. */
 .nh-fader--inset.nh-fader--h .nh-fader__rail {
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
 }
 
-/* Bubble (reference 2): a pill track with the value riding the thumb, so the look needs no
-   reading row of its own. The reference's cyan went the way of the gradient's: the fill is the
-   same copper-to-verdigris ramp, and the badge takes the colour the fill reaches at the thumb,
-   with a dark ink that reads on it at 5.7:1. */
 .nh-fader--bubble {
   --fd-b1: #d2763b;
   --fd-b2: #b9b06c;
@@ -1254,8 +1093,6 @@ button {
   --fd-angle: 0deg;
 }
 
-/* Tinted, the same rule as the gradient's: pale, the accent, then a deeper tone of it. The badge
-   is the accent itself, so the ink derived for that colour is the right one on it. */
 .nh-fader--bubble.nh-fader--tinted {
   --fd-b1: color-mix(in srgb, var(--fd-accent) 55%, #fff);
   --fd-b2: var(--fd-accent);
@@ -1264,13 +1101,10 @@ button {
   --fd-badge-ink: var(--nh-accent-ink, #fff);
 }
 
-/* Room for the badge above the track (beside it, turned on end), reserved by the rail rather than
-   by the container, so the pair is still centred as one thing in the tile. */
 .nh-fader--bubble.nh-fader--h .nh-fader__rail {
   margin-top: 2.1em;
 }
 
-/* Room for the widest badge a scale can produce ("100%"), so it never reaches the tile's edge. */
 .nh-fader--bubble.nh-fader--v .nh-fader__rail {
   margin-right: 4.2em;
 }
@@ -1278,8 +1112,6 @@ button {
 .nh-fader__badge {
   position: absolute;
   bottom: calc(100% + 7px);
-  /* Clamped so a value at either end of the scale keeps the badge inside the tile; the pointer
-     stays under the badge, which is a few pixels off the thumb at the very ends and nowhere else. */
   left: clamp(2.2em, calc(var(--fd-f) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2), calc(100% - 2.2em));
   padding: 2px 8px;
   transform: translateX(-50%);
@@ -1306,7 +1138,6 @@ button {
 .nh-fader--v .nh-fader__badge {
   bottom: auto;
   left: calc(100% + 7px);
-  /* Measured from the top, where the fill is measured from the bottom. */
   top: clamp(1em, calc((1 - var(--fd-f)) * (100% - var(--fd-thumb)) + var(--fd-thumb) / 2), calc(100% - 1em));
   transform: translateY(-50%);
 }
@@ -1320,9 +1151,6 @@ button {
   border-right-color: var(--fd-badge-bg);
 }
 
-/* Shed by the room the look has, not the cell's: a tile too short for a reading row keeps the
-   track, which is the part you drag. The inset rail keeps the ends of its scale either way - they
-   are what tell you what the track spans. Last in the section so a skin above cannot outrank it. */
 @container (max-height: calc(1.4em + 44px)) {
   .nh-fader__read {
     display: none;
@@ -1340,9 +1168,6 @@ button {
   }
 }
 
-/* Below this a scale printed at both ends leaves the rail 25px of the tile, which is a control
-   nobody can aim at. The rail is what the widget is for, so the ends give way and the plate keeps
-   the sunken look that makes the style what it is. */
 @container (max-width: 132px) {
   .nh-fader--h .nh-fader__bound {
     display: none;
@@ -1353,7 +1178,6 @@ button {
   }
 }
 
-/* Value */
 .nh-value {
   display: flex;
   align-items: baseline;
@@ -1371,22 +1195,15 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* Label */
 .nh-label {
   font-weight: 300;
   text-align: center;
 }
 
-/* Clock */
 .nh-clock {
   text-align: center;
 }
 
-/* The reading sizes itself to the tile: the widget computes a min() of its em size and the
-   room the cell actually has (see clock/index.tsx), and this is where that lands. Never
-   wrapped - a time broken after the seconds is not a clock, and wrapping is what used to
-   make a 153x75 tile clip both lines. The fallbacks are the sizes it has always had, so a
-   theme overriding the font-size still wins outright. */
 .nh-clock__time {
   font-size: var(--nh-clock-timefit, 2em);
   font-weight: 300;
@@ -1395,9 +1212,6 @@ button {
   white-space: nowrap;
 }
 
-/* The zone caption, between the time and the date. Line-height matches CLOCK_LINES.zone in
-   clock/fit.ts: the caps stacked above and below it are solved from these numbers, so a change
-   here without a change there puts the tile's own arithmetic out. */
 .nh-clock__zone {
   margin-top: 4px;
   color: var(--nh-text-dim);
@@ -1419,7 +1233,6 @@ button {
   text-overflow: ellipsis;
 }
 
-/* Image */
 .nh-image {
   width: 100%;
   height: 100%;
@@ -1433,7 +1246,6 @@ button {
   font-size: 0.85em;
 }
 
-/* Color */
 .nh-color {
   display: flex;
   flex-direction: column;
@@ -1442,8 +1254,6 @@ button {
   min-height: 0;
 }
 
-/* The swatch absorbs spare height and is the first thing to shrink in short cells,
-   so the three channel sliders stay usable at HABPanel's one-row widget height. */
 .nh-color__swatch {
   flex: 1 1 0;
   min-height: 0;
@@ -1457,8 +1267,6 @@ button {
   gap: 6px;
 }
 
-/* Channel sliders show a live gradient of what dragging them does (--nh-track is set
-   per-channel by the widget from the current color). */
 .nh-color__track {
   appearance: none;
   -webkit-appearance: none;
@@ -1509,13 +1317,6 @@ button {
   opacity: 0.6;
 }
 
-/* On and off buttons on the swatch - the colour widget's optional pair, and nothing else asks for
-   them, so a picker without them is untouched.
-
-   A grid, so the buttons can share the swatch's row without living INSIDE it. They have to be able
-   to leave: a short tile shrinks the swatch until two buttons no longer fit on it, and shorter
-   still the swatch is not drawn at all - and a colour tile with no way to switch the light off
-   would be the worse widget. Both moves are the same one, further down. */
 .nh-color--aside {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1544,14 +1345,6 @@ button {
   min-height: 0;
 }
 
-/* An ordinary button in the theme's own colours, the same two everywhere the pair is drawn. It
-   used to take its ink from the swatch, so that white on a dim lamp became near-black when the
-   lamp brightened - readable at every step and impossible to learn. A fixed pair is worth more
-   here than a perfectly judged one.
-
-   Opaque, so the colour underneath never shows through: `--nh-bg` is the base under the raised
-   surface, which matters only in the two HABPanel ports whose surfaces are deliberately smoked
-   glass, and is invisible everywhere else. */
 .nh-color__pbtn {
   appearance: none;
   -webkit-appearance: none;
@@ -1568,7 +1361,6 @@ button {
   cursor: pointer;
 }
 
-/* The one in effect: the theme accent, like every other active control in the app. */
 .nh-color__pbtn--active {
   background-color: var(--nh-primary);
   background-image: none;
@@ -1581,9 +1373,6 @@ button {
   opacity: 0.6;
 }
 
-/* ============================================================================
-   Editor: toolbar buttons, edit cells, drag placeholder
-   ============================================================================ */
 .nh-dash__spacer {
   flex: 1;
 }
@@ -1644,7 +1433,6 @@ button {
   cursor: default;
 }
 
-/* editable grid cells */
 .nh-cell {
   position: relative;
 }
@@ -1663,8 +1451,6 @@ button {
   outline-offset: -1px;
 }
 
-/* A real button, so every widget is reachable by Tab and selectable with Enter - but styled
-   away to nothing, because visually it is just the widget underneath it. */
 .nh-cell__overlay {
   position: absolute;
   inset: 0;
@@ -1676,16 +1462,6 @@ button {
   cursor: pointer;
 }
 
-/* The handle strip and the resize corner are editor chrome drawn OVER the widget's own top and
-   bottom-right corners, not a band reserved beside them: a cell that reserved 26px would render
-   its widget 26px shorter than the same widget in run mode, which is enough to make it shed
-   content the finished dashboard will show. So they are only DRAWN on the cell being pointed at,
-   selected, focused or dragged - at rest, an editing dashboard is what a save produces.
-
-   They stay hit-testable while invisible, deliberately: a mouse reveals a cell's chrome by being
-   over it, so hiding it from the pointer as well would only break the press that follows, and on
-   a touch screen a press on the strip is a press on the widget (a handle that never moves selects
-   the widget, exactly as tapping its body does). The delete button is the exception below. */
 .nh-cell__handle,
 .nh-cell__resize {
   opacity: 0;
@@ -1699,7 +1475,6 @@ button {
   opacity: 1;
 }
 
-/* the corner keeps its softer resting alpha - it sits over the widget's own bottom corner */
 .nh-cell:hover > .nh-cell__resize,
 .nh-cell:focus-within > .nh-cell__resize,
 .nh-cell--selected > .nh-cell__resize,
@@ -1707,8 +1482,6 @@ button {
   opacity: 0.7;
 }
 
-/* Deleting is the one thing here that cannot be shrugged off, so it waits to be seen: a tap on
-   an invisible corner must never remove a widget. */
 .nh-cell__delete {
   pointer-events: none;
 }
@@ -1751,7 +1524,6 @@ button {
   letter-spacing: 0.06em;
   color: var(--nh-text);
   opacity: 0.85;
-  /* on a narrow cell the type yields, so the delete button is never pushed out of reach */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1765,7 +1537,7 @@ button {
   justify-content: center;
   width: 30px;
   height: 26px;
-  margin-right: -8px; /* reclaim the strip's padding: the hit area reaches the corner */
+  margin-right: -8px;
   padding: 0;
   border: 0;
   border-radius: 0 var(--nh-radius) 0 0;
@@ -1802,11 +1574,8 @@ button {
   z-index: 0;
 }
 
-/* Stacked (phone) reorder: drop-position line between rows */
 .nh-grid--stackedit {
   min-height: 240px;
-  /* As `.nh-grid--edit` above: a hold here selects a widget, so it must not also select the label
-     under the finger. This is the surface where that hold is a touch one. */
   user-select: none;
 }
 
@@ -1822,7 +1591,6 @@ button {
   background: color-mix(in srgb, #e53935 12%, transparent);
 }
 
-/* Palette drag-to-place: the target cell, named so it is identifiable under a finger. */
 .nh-drop--place {
   display: flex;
   align-items: center;
@@ -1844,10 +1612,6 @@ button {
   white-space: nowrap;
 }
 
-/*
- * A widget that is hidden on some screen size still shows here in edit mode - dimmed, with a ◌ on
- * its handle - because a widget you cannot see is a widget you cannot un-hide.
- */
 .nh-cell--hidden .nh-widget {
   opacity: 0.45;
 }
@@ -1858,7 +1622,6 @@ button {
   font-size: 0.8rem;
 }
 
-/* Buttons only the openHAB phone app provides (pin to home, back to the app). */
 .nh-home__app {
   display: flex;
   flex-wrap: wrap;
@@ -1867,9 +1630,6 @@ button {
   margin-top: 10px;
 }
 
-/* ============================================================================
-   Widget gallery cards (Settings)
-   ============================================================================ */
 .nh-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -1933,10 +1693,7 @@ button {
   font-size: 0.75rem;
 }
 
-/* Per-surface visibility toggles in the widget settings panel. */
 .nh-hideon,
-/* Any-number-of-these fields, such as a chart's offered ranges. Wraps, because the 391px panel
-   cannot hold a dozen chips on one line and a row that scrolls sideways hides its own options. */
 .nh-multisel {
   display: flex;
   flex-wrap: wrap;
@@ -1959,22 +1716,17 @@ button {
   color: var(--nh-accent-ink, #fff);
 }
 
-/* Which layout the editor is editing. The tablet state is marked, since it is the unusual one. */
 .nh-bpswitch--md {
   border-color: var(--nh-primary);
   color: var(--nh-primary);
 }
 
-/* Widgets an armed bump will relocate, previewed at the spot the drop would put them. */
 .nh-cell--bumped .nh-widget {
   outline: 2px dashed var(--nh-primary);
   outline-offset: -2px;
   opacity: 0.75;
 }
 
-/* ============================================================================
-   Sheets: bottom sheet by default, right side panel with .nh-sheet--side on wide screens
-   ============================================================================ */
 .nh-sheet {
   position: fixed;
   left: 0;
@@ -2009,13 +1761,6 @@ button {
   padding: 14px;
 }
 
-/* Wrapper around the editing grid, carrying the zoom that keeps the editor honest while a
-   panel is docked. A LAYOUT zoom, not a transform: the grid inside is laid out at the full
-   run-mode width - so cells, text scaling and every container query match what a save will
-   produce - and only drawn smaller to fit the space the panel leaves. `--nh-editzoom` is 1
-   whenever no panel is docked, and a browser without `zoom` simply gets the old squeeze.
-   See editZoom() in model/layout.ts for the arithmetic, and SIDE_PANEL_WIDTH for the 391
-   this shares with the rule below. */
 .nh-editzoom {
   flex: 1;
   display: flex;
@@ -2027,7 +1772,7 @@ button {
 @media (min-width: 900px) {
   .nh-sheet--side {
     left: auto;
-    top: 57px; /* below the sticky top bar (8+40+8 padding + 1 border) */
+    top: 57px;
     bottom: 0;
     width: 391px;
     max-height: none;
@@ -2041,9 +1786,6 @@ button {
   }
 }
 
-/* ============================================================================
-   Forms (settings panel), palette, sign-in
-   ============================================================================ */
 .nh-form {
   display: flex;
   flex-direction: column;
@@ -2082,7 +1824,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* explains a field; the negative margin pulls it back under the field it belongs to */
 .nh-field__hint {
   margin: -8px 0 0;
   font-size: 0.75rem;
@@ -2090,8 +1831,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* Sits where a hint sits, at a hint's size, so the form reads evenly; the color is what marks
-   it as something to act on. */
 .nh-field__warn {
   margin: -8px 0 0;
   font-size: 0.75rem;
@@ -2099,10 +1838,7 @@ button {
   color: var(--nh-bad, #e5534b);
 }
 
-/* `input:not([type])` matters more than it looks: an <input> with no type attribute IS a text
-   input, and three of them - New dashboard, Dashboard settings, Generate - were the first fields
-   a new administrator ever typed into. They rendered as the browser's grey inset box on a dark
-   theme, because every rule here was keyed on an attribute they did not carry. */
+/* an <input> with no type attribute IS a text input, and three of ours have none */
 .nh-field input:not([type]),
 .nh-field input[type='text'],
 .nh-field input[type='number'],
@@ -2118,10 +1854,6 @@ button {
   border-radius: 8px;
 }
 
-/* A <select>'s intrinsic width is its WIDEST option, and this one carries 419 of them - some as
-   long as "Argentina / Rio Gallegos". Left to size itself it would push the 391px settings panel
-   into a sideways scroll, which is the same class of bug an <input> caused in the light-placement
-   sheet. Pinned to its container instead. */
 .nh-zoneselect {
   width: 100%;
   min-width: 0;
@@ -2160,7 +1892,6 @@ button {
   border-radius: 10px;
 }
 
-/* A card is dragged with the pointer, so the browser must not treat the move as a scroll. */
 .nh-palette__card {
   touch-action: none;
 }
@@ -2171,11 +1902,6 @@ button {
   font-size: 0.85rem;
 }
 
-/*
- * A sheet that has stepped aside: the palette does this while a card is being dragged onto the
- * grid, which the sheet would otherwise cover. Still mounted (the drag's pointer events belong
- * to a card inside it) but out of the way and untouchable.
- */
 .nh-sheet--collapsed {
   transform: translateY(calc(100% - 44px));
   opacity: 0.4;
@@ -2211,15 +1937,9 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* ============================================================================
-   Item picker combobox
-   ============================================================================ */
 .nh-picker {
   position: relative;
-  /* An <input> has no min-content size smaller than its default width, so a picker used as a
-     flex item is floored at ~240px and pushes whatever sits beside it off the edge - the
-     min-width:0 on the input alone does not help, that only lets the input shrink INSIDE the
-     box. Release the floor here so a row can size the picker. */
+  /* an <input> has no min-content size below its default width, so a picker as a flex item is floored at ~240px */
   min-width: 0;
 }
 
@@ -2254,7 +1974,6 @@ button {
   transition: transform 0.12s;
 }
 
-/* clear button: sits between the input and the toggle, only while something is set */
 .nh-picker__clear {
   width: 36px;
   display: flex;
@@ -2277,7 +1996,7 @@ button {
 }
 
 .nh-picker__list {
-  position: fixed; /* escapes the sheet's scroll container; coords set inline */
+  position: fixed;
   z-index: 60;
   overflow-y: auto;
   margin: 0;
@@ -2322,9 +2041,6 @@ button {
   font-size: 0.85rem;
 }
 
-/* ============================================================================
-   Settings screen
-   ============================================================================ */
 .nh-settings {
   width: min(720px, 100%);
   margin: 0 auto;
@@ -2356,8 +2072,6 @@ button {
   flex-wrap: wrap;
 }
 
-/* Jump links to the sections below. Chips rather than a list: twelve of them wrap into two rows
-   at the top of the page instead of pushing the first section off the screen. */
 .nh-settings__index {
   display: flex;
   flex-wrap: wrap;
@@ -2454,7 +2168,6 @@ button {
   color: var(--nh-text);
 }
 
-/* sits to the left of the pencil, same size, so both stay reachable on a narrow card */
 .nh-theme__export {
   right: 40px;
 }
@@ -2475,8 +2188,6 @@ button {
   gap: 8px;
 }
 
-/* Token groups: one collapsible section per group in the token contract, so the editor offers
-   every themable variable without unfolding twenty-six fields at once. */
 .nh-tokengroup {
   display: flex;
   flex-direction: column;
@@ -2531,7 +2242,6 @@ button {
   border-radius: 6px;
 }
 
-/* Whether the colours can be read, while they are being chosen. */
 .nh-contrast {
   display: flex;
   flex-direction: column;
@@ -2570,9 +2280,6 @@ button {
   margin-top: 0.5rem;
 }
 
-/* ============================================================================
-   Parity widgets: selection, dial, chart, frame, rollershutter, player
-   ============================================================================ */
 .nh-field textarea {
   min-height: 84px;
   padding: 8px 10px;
@@ -2585,7 +2292,6 @@ button {
   resize: vertical;
 }
 
-/* Selection */
 .nh-selection {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
@@ -2615,7 +2321,6 @@ button {
   font-size: 0.85em;
 }
 
-/* Dial */
 .nh-dial {
   width: 100%;
   height: 100%;
@@ -2647,12 +2352,10 @@ button {
   font-weight: 300;
 }
 
-/* Ring gauges (dial styles LED ring / Solid arc / Blocks / 3D) */
 .nh-dial--ring {
   max-width: 320px;
 }
 
-/* solid-band styles: the dim full-length track, and the sector face behind the arc style */
 .nh-gauge__btrack {
   fill: none;
   stroke: var(--nh-surface-2);
@@ -2662,14 +2365,10 @@ button {
   opacity: 0.55;
 }
 
-/* the value band's stroke comes from its attribute - no stroke declared here */
 .nh-gauge__band {
   fill: none;
 }
 
-/* the band's light films: gradient-stroked overlays whose opacity comes from the theme
-   (--nh-band-light / --nh-band-shade), zero everywhere by default - no stroke declared here
-   either, their gradient paint is an attribute */
 .nh-gauge__bandlight,
 .nh-gauge__bandshade {
   fill: none;
@@ -2679,7 +2378,6 @@ button {
   fill: var(--nh-surface);
 }
 
-/* blocks: unlit segments only - lit ones carry their stroke as an attribute */
 .nh-gauge__blk {
   fill: none;
   stroke: var(--nh-text);
@@ -2690,7 +2388,6 @@ button {
   fill: none;
 }
 
-/* 3d clay shading: dark offset under, soft white sheen over; body stroke is an attribute */
 .nh-gauge__clayshadow {
   fill: none;
   stroke: #000;
@@ -2724,8 +2421,7 @@ button {
   opacity: 0.85;
 }
 
-/* unlit only - the lit bead (.nh-gauge__ledlit) must keep its gradient fill ATTRIBUTE,
-   which any stylesheet fill declaration would override */
+/* unlit only: the lit bead keeps its gradient fill ATTRIBUTE, which any stylesheet fill would beat */
 .nh-gauge__led {
   fill: var(--nh-text);
   opacity: 0.13;
@@ -2798,13 +2494,11 @@ button {
   fill: var(--nh-text-dim);
 }
 
-/* the "/ 58" scale maximum beside the reading (the showMax setting) */
 .nh-gauge__max {
   fill: var(--nh-text-dim);
   font-weight: 500;
 }
 
-/* Chart */
 .nh-chartwrap {
   flex: 1;
   min-height: 0;
@@ -2831,10 +2525,6 @@ button {
   font-size: 0.85em;
 }
 
-/* "This needs a persistence service", shared by the chart and the timeline. Two lines: what is
-   missing, then what to do about it. The detail is the first thing to go when the cell is small
-   (the @container block at the end of this file), because the headline alone still explains the
-   empty plot. */
 .nh-histnotice {
   display: flex;
   flex-direction: column;
@@ -2871,7 +2561,6 @@ button {
   gap: 4px;
 }
 
-/* Header slot for widget extras (the chart parks its period chips here when wide enough). */
 .nh-widget__aside {
   margin-left: auto;
   display: flex;
@@ -2883,7 +2572,6 @@ button {
   flex-wrap: nowrap;
 }
 
-/* Chip row + full-screen button on one line, above the plot or beside the widget name. */
 .nh-chart__tools {
   display: flex;
   align-items: center;
@@ -2891,7 +2579,6 @@ button {
   gap: 6px;
 }
 
-/* ⤢ opens the chart full screen. Sits beside the period chips, styled like one. */
 .nh-chart__expand {
   font-size: 0.8em;
   line-height: 1;
@@ -2908,7 +2595,6 @@ button {
   border-color: var(--nh-primary);
 }
 
-/* The heatmap draws itself on a canvas that fills the chart area. */
 .nh-heatmap {
   position: relative;
 }
@@ -2919,9 +2605,6 @@ button {
   height: 100%;
 }
 
-/* ============================================================================
-   Full-screen chart view (#/c/:dashboard/:widget)
-   ============================================================================ */
 .nh-chartview__units {
   display: flex;
   flex-wrap: wrap;
@@ -2944,7 +2627,6 @@ button {
   white-space: nowrap;
 }
 
-/* The plot takes every pixel left below the two bars - the point of a full-screen chart. */
 .nh-chartview__plot {
   flex: 1;
   min-height: 0;
@@ -3013,7 +2695,6 @@ button {
   border-radius: 3px;
 }
 
-/* Crosshair tooltip: fixed-size overlay, not textscale-driven */
 .nh-chart__tt {
   position: absolute;
   left: 0;
@@ -3061,7 +2742,6 @@ button {
   color: var(--nh-text);
 }
 
-/* Chart settings: series / threshold cards in the settings panel */
 .nh-chartcard {
   display: flex;
   flex-direction: column;
@@ -3136,7 +2816,6 @@ button {
   margin-top: 6px;
 }
 
-/* Frame */
 .nh-frame {
   width: 100%;
   height: 100%;
@@ -3145,7 +2824,6 @@ button {
   background: #fff;
 }
 
-/* Camera */
 .nh-camera {
   position: relative;
   width: 100%;
@@ -3160,7 +2838,6 @@ button {
   height: 100%;
 }
 
-/* The player appends exactly one of these; object-fit is set per instance. */
 .nh-camera__media {
   display: block;
   width: 100%;
@@ -3169,8 +2846,6 @@ button {
   background: #000;
 }
 
-/* A still under the live layer: the cell shows the last known picture rather than a black
-   hole while the stream is stopped or still connecting. */
 .nh-camera__poster {
   position: absolute;
   inset: 0;
@@ -3179,11 +2854,6 @@ button {
   opacity: 0.55;
 }
 
-/* Name written over the picture instead of in a title bar. Placement reuses the cell's
-   --nh-labelalign / .nh-labelbottom, so the per-widget Name alignment and Name position
-   settings drive it exactly as they drive the header row. White with a shadow rather than a
-   themed colour or a solid chip: it has to stay readable over arbitrary video, and the point
-   of the mode is that the picture keeps the whole cell. */
 .nh-camera__name {
   position: absolute;
   top: 0;
@@ -3207,8 +2877,6 @@ button {
   bottom: 0;
 }
 
-/* Black ink on a light shadow, for cameras looking at snow, pale ground or a bright sky, where
-   white on dark is the harder pair to read. */
 .nh-camera__name--dark {
   color: #000;
   text-shadow:
@@ -3241,9 +2909,6 @@ button {
   pointer-events: none;
 }
 
-/* The edit-mode diagnostics take whichever end of the cell the name is not using, so an
-   overlaid name is never hidden behind them. Both follow .nh-labelbottom, the same class the
-   name's own position comes from, which keeps them apart for all six name placements. */
 .nh-camera__badge {
   bottom: 6px;
 }
@@ -3265,8 +2930,6 @@ button {
   bottom: auto;
 }
 
-/* Transparent tap target over the picture: the video itself is not interactive, so this is
-   what carries the widget's on-tap action without stealing the pointer from edit mode. */
 .nh-camera__tap {
   position: absolute;
   inset: 0;
@@ -3276,7 +2939,6 @@ button {
   cursor: pointer;
 }
 
-/* Real fullscreen (grid cells are size containers, so a fixed overlay could never escape one). */
 .nh-camera:fullscreen {
   border-radius: 0;
   background: #000;
@@ -3286,7 +2948,6 @@ button {
   object-fit: contain;
 }
 
-/* Camera name field with its discovery accelerator */
 .nh-camerafield {
   display: flex;
   gap: 6px;
@@ -3329,7 +2990,6 @@ button {
   color: var(--nh-primary);
 }
 
-/* Rollershutter */
 .nh-roller {
   display: flex;
   flex-direction: column;
@@ -3340,8 +3000,6 @@ button {
   min-height: 0;
 }
 
-/* Three 44px buttons plus gaps need ~150px; an imported 2x2 cell can be shorter than that.
-   The buttons give way instead of overflowing (which used to paint them over the label). */
 .nh-roller__btn {
   flex: 0 1 44px;
   width: 56px;
@@ -3360,11 +3018,6 @@ button {
   font-size: 0.85em;
 }
 
-/* Player */
-/* The transport is three fixed circles, which is right until the tile has no room for them:
-   at 52 + 64 + 52 and two 12px gaps they want 192px, and a 153px cell gave them 135. Sized by
-   what the cell has, floored where a finger still lands on them - the same treatment the
-   rollershutter's buttons got for the same reason. */
 .nh-player {
   display: flex;
   align-items: center;
@@ -3373,10 +3026,6 @@ button {
   min-width: 0;
 }
 
-/* The coefficients are of the CELL and the row has to fit the BODY, which is 16px of padding and
-   2px of border narrower: three buttons at 22 + 27 + 22 with two 5cqw gaps come to 81cqw against
-   the 88 the body has. Below about a 95px cell the floors win and it overflows again, which is a
-   tile no transport is usable in anyway. */
 .nh-player__btn {
   flex: 0 1 auto;
   width: min(52px, 22cqw, 60cqh);
@@ -3401,13 +3050,6 @@ button {
   border-color: var(--nh-primary);
 }
 
-/* Stepper */
-/* One value with a step up and a step down, in six looks and five finishes. A finish is a set
-   of custom properties on the widget root that every part below consumes, so a look and a
-   finish combine without a rule per pair. `--st-accent` is the tile's own accent colour when
-   one is set (the universal Accent color setting puts it on the cell), else the theme's. The
-   plain finish is the theme's ordinary control, which is why the theme stylesheets restyle
-   `.nh-step--plain` alone: the other finishes keep their look in every theme on purpose. */
 .nh-step {
   --st-accent: var(--nh-cellaccent, var(--nh-primary));
   --st-ink: var(--nh-text);
@@ -3432,16 +3074,9 @@ button {
   height: 100%;
   min-height: 0;
   min-width: 0;
-  /* The root is a size container: `cqh` and `cqw` below are the body's content box, which is
-     the room a look actually has, whatever chrome a theme puts around it. The column looks
-     (stack, pair, range) size their bars, gaps and reading as shares of it, capped at their
-     full sizes, so a tile too short for the full sizes draws them smaller instead of drawing
-     the reading over the bars - which is what a 115px to 145px cell used to do. Queries about
-     the CELL from in here go by name: `@container nh-cell (...)`. */
   container-type: size;
 }
 
-/* The reading: light numerals with the unit set small and dim, like the value widget's. */
 .nh-step__value {
   display: flex;
   align-items: baseline;
@@ -3466,10 +3101,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* A list's reading is words: smaller and heavier, and free to wrap onto a second line. Three
-   classes deep so it outranks every look's numeric size below, which are two - at two, the
-   looks that came later in the file were drawing "Chromecast" at 2.5em and breaking it
-   mid-word in a two-column tile. */
 .nh-step__value--text {
   white-space: normal;
 }
@@ -3490,9 +3121,6 @@ button {
   text-align: center;
 }
 
-/* The two controls. Three kinds share this: a boxed button, a half of the spinner's split
-   button, and the carousel's bare edge. A button with nowhere to go is dimmed and inert rather
-   than `disabled`, which would swallow the pointer events the hold gesture on the cell needs. */
 .nh-step__btn {
   display: inline-flex;
   align-items: center;
@@ -3558,10 +3186,6 @@ button {
   display: none;
 }
 
-/* Stack: up bar, reading, down bar. Capped in a wide tile so the bars stay buttons, not slabs.
-   Two bars at 28% of the room, a reading at 34% and two gaps at 3% add up to 96%, so the
-   column fits any room down to the height where it lies down (the container query at the end
-   of the file); in a tall tile the em caps win and the middle takes the rest. */
 .nh-step__stack {
   display: flex;
   flex-direction: column;
@@ -3589,8 +3213,6 @@ button {
   font-size: min(2.3em, 34cqh);
 }
 
-/* Pair: the reading as the hero, both controls in one row beneath it. Shares: reading 44%,
-   gap 6%, buttons 36%. */
 .nh-step__pair {
   display: flex;
   flex-direction: column;
@@ -3619,7 +3241,6 @@ button {
   font-size: min(2.5em, 44cqh);
 }
 
-/* Spinner: the reading left, a tall split button right with up over down. */
 .nh-step__spin {
   display: flex;
   align-items: center;
@@ -3633,11 +3254,9 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  /* The reading sits in from the tile's edge rather than on it; a narrow cell gets less. */
   padding-left: clamp(0.25em, 9cqw, 1em);
 }
 
-/* The looks that put the reading beside their controls only need it to fit the room's height. */
 .nh-step--spinner .nh-step__num,
 .nh-step--carousel .nh-step__num {
   font-size: min(2.4em, 80cqh);
@@ -3681,10 +3300,6 @@ button {
   background: var(--st-bg-press);
 }
 
-/* Split: the tile as the control, the top half up and the bottom half down. Drawn inside the
-   body's padding as one bordered block, so it holds up under a theme's own tile insets; the
-   seam is the down zone's top edge, and the reading floats over it on a badge. A wide cell
-   turns it sideways - that rule lives with the container queries at the end of this file. */
 .nh-step__split {
   position: relative;
   display: flex;
@@ -3770,9 +3385,6 @@ button {
   font-size: min(1.9em, 50cqh);
 }
 
-/* Carousel: quiet chevrons at the edges, the reading across the width, dots for the position.
-   Each edge is a strip the full height of the tile, reaching half an em into the body's own
-   padding, with a glyph big enough to be seen as the target it is. */
 .nh-step__car {
   position: relative;
   display: flex;
@@ -3837,15 +3449,11 @@ button {
   box-shadow: var(--st-fill-shadow);
 }
 
-/* A caption is text somebody is meant to read, so it is set at the tile's own size. */
 .nh-step__count {
   color: var(--nh-text-dim);
   letter-spacing: 0.02em;
 }
 
-/* Range bar: the reading over a thin bar showing where it sits, a button at each end. Shares:
-   reading 34%, buttons 32%, two gaps of 6%, and the end labels at their own size, which fit
-   under that in any room over 4.5em; below it they go (the container query at the end). */
 .nh-step__range {
   display: flex;
   flex-direction: column;
@@ -3906,10 +3514,6 @@ button {
   box-shadow: var(--st-fill-shadow);
 }
 
-/* The two ends of the range, under the row's outer ends at the tile's own text size. Under the
-   bar's ends they would have to fit inside the bar, and in a 169px cell that is 60px, which
-   cannot hold "60.0" and "85.0" at a size a person can read. A label too long even for the
-   whole row is cut with an ellipsis rather than drawn over its neighbour. */
 .nh-step__bounds {
   display: flex;
   justify-content: space-between;
@@ -3925,10 +3529,6 @@ button {
   text-overflow: ellipsis;
 }
 
-/* Finishes. Each only redefines the properties the parts read, so every look takes it whole. */
-
-/* Glass: a frosted plate lit from above, mixed from the text colour so it reads as a darker
-   frost on a light theme rather than vanishing. */
 .nh-step--glass {
   --st-bg: linear-gradient(
     180deg,
@@ -3950,8 +3550,6 @@ button {
   --st-radius: 12px;
 }
 
-/* Glow: dark plates outlined in the accent and lit from within; the reading is the accent
-   itself, with a halo. */
 .nh-step--glow {
   --st-ink: var(--st-accent);
   --st-bg: color-mix(in srgb, var(--st-accent) 9%, var(--nh-surface));
@@ -3971,7 +3569,6 @@ button {
   color: color-mix(in srgb, var(--st-accent) 70%, var(--nh-text-dim));
 }
 
-/* Solid: the accent as plates, inked with whatever reads on it; the reading takes the accent. */
 .nh-step--solid {
   --st-ink: var(--nh-accent-ink, #fff);
   --st-bg: var(--st-accent);
@@ -3993,8 +3590,6 @@ button {
   border-top-color: color-mix(in srgb, var(--nh-accent-ink, #fff) 28%, transparent);
 }
 
-/* Sheen: a glossy plate, lit at one corner and darkening to the other, with the reading
-   brushed in the same light. */
 .nh-step--sheen {
   --st-ink: var(--nh-accent-ink, #fff);
   --st-bg: linear-gradient(
@@ -4033,20 +3628,9 @@ button {
   border-top-color: color-mix(in srgb, #fff 26%, transparent);
 }
 
-/* ============================================================================
-   Thermostat
-   ============================================================================ */
-
-/* The two colours a face is drawn in: the widget's own settings put an inline var over these,
-   and a theme can set them on `.nh-thermo`. Neutral - no mode item and nothing heating or
-   cooling - takes the tile's accent. The root is a size container so the row of mode buttons
-   can be shed by the room the tile leaves; queries about the CELL from in here go by name. */
 .nh-thermo {
   --th-heat: #f26a1b;
   --th-cool: #1f8cee;
-  /* The middle of the temperature ramp. Blended into the theme's own ink so it stays legible on
-     a light surface as well as a dark one: near-white ink gives a pale gold, near-black ink a
-     deep olive, and both read against the plate they are drawn on. */
   --th-mid: color-mix(in srgb, #f0b429 55%, var(--nh-text));
   --th-neutral: var(--nh-cellaccent, var(--nh-primary));
   --th-tone: var(--th-neutral);
@@ -4073,12 +3657,6 @@ button {
   --th-tone: var(--th-cool);
 }
 
-/* A neutral dial is drawn on the theme's raised surface, and its ink is the theme's. */
-/* A face with no mode item and nothing running takes the colour of the temperature it is SET to
-   (the widget sets --th-temp from the setpoint's place in the scale), so the arc's fill and the
-   ring's rim still say something rather than sitting in the theme's accent. Without a setpoint
-   to colour by there is no variable and the accent stands. The two dials keep their dark plate
-   and colour their tick ring per tick instead - see `ramped` in looks.tsx. */
 .nh-thermo--neutral {
   --th-tone: var(--th-temp, var(--th-neutral));
   --th-disc-ink: var(--nh-text);
@@ -4091,9 +3669,6 @@ button {
   text-align: center;
 }
 
-/* The face: a square as big as the room allows. The face is its own size container so the
-   square can be the smaller of its two sides, and the square is another so everything drawn
-   on it - text, buttons, gaps - sizes in `cqw` of the square itself. */
 .nh-thermo__face {
   flex: 1;
   min-height: 0;
@@ -4125,8 +3700,6 @@ button {
   cursor: grabbing;
 }
 
-/* What lies over the SVG lets the pointer through to it, so a drag round the ring works through
-   the readings, and a hold on the face reaches the cell. */
 .nh-thermo__center {
   position: absolute;
   inset: 0;
@@ -4140,7 +3713,6 @@ button {
   color: var(--th-ink);
 }
 
-/* A temperature: the whole part, the fraction set apart, the unit small beside it. */
 .nh-thermo__temp {
   display: inline-flex;
   align-items: baseline;
@@ -4165,7 +3737,6 @@ button {
   align-self: flex-start;
 }
 
-/* The tenths raised as a small digit, the way a thermostat's ring prints them. */
 .nh-thermo__sp--raised .nh-thermo__frac {
   font-size: 0.42em;
   vertical-align: top;
@@ -4183,13 +3754,7 @@ button {
   fill: currentColor;
 }
 
-/* The two setpoint buttons. A button with nowhere to go is dimmed and inert rather than
-   `disabled`, which would swallow the pointer events the hold gesture on the cell needs. */
-/* Sized on the BUTTON, not on the square it sits in: a container cannot query itself, so `cqw`
-   in a declaration on `.nh-thermo__sq` resolves against the face around it rather than the
-   square - which on a wide tile is a different number entirely, and which made an override for
-   small faces do nothing at all. Every part sized against the face's own width is declared on a
-   descendant of it for the same reason. */
+/* sized on the BUTTON, not the square it sits in - a container cannot query itself */
 .nh-thermo__btn {
   --th-btn: clamp(2em, 17cqw, 3.4em);
   position: absolute;
@@ -4235,8 +3800,6 @@ button {
   stroke-linecap: round;
 }
 
-/* Arc: the track round the face, its fill to the setpoint, the handle and the room's dot. The
-   two buttons sit in the gap the arc leaves at the bottom. */
 .nh-thermo__track {
   fill: none;
   stroke: color-mix(in srgb, var(--nh-text) 14%, transparent);
@@ -4265,9 +3828,6 @@ button {
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
 }
 
-/* The big readings size in `cqw` of the square with a floor at the tile's own text size, so a
-   square too small for the face's proportions draws the number at the size the tile reads at
-   rather than either clipping it or shrinking it past reading. */
 .nh-thermo--arc .nh-thermo__sp {
   font-size: max(1em, 22cqw);
 }
@@ -4304,8 +3864,6 @@ button {
   bottom: 1%;
 }
 
-/* The two dials: a solid disc in the tone, white ticks and figures on it, the buttons in the
-   ring's gap at the bottom as translucent plates of the disc's own ink. */
 .nh-thermo__disc {
   fill: var(--th-tone);
   transition: fill 0.3s;
@@ -4347,9 +3905,6 @@ button {
   font-size: 3.8px;
 }
 
-/* The big number starts a third of the way down the face, whatever hangs under it, so the rim's
-   figures - which sit at about two thirds of the radius and no lower than a fifth of the way
-   down - never land on it; the unit and the glyph take the room below, above the buttons. */
 .nh-thermo--dial .nh-thermo__center,
 .nh-thermo--disc .nh-thermo__center {
   color: var(--th-disc-ink);
@@ -4400,12 +3955,6 @@ button {
   background: color-mix(in srgb, var(--th-disc-ink) 28%, transparent);
 }
 
-/* The dials' buttons sit in the gap their ring leaves at the bottom, and both how BIG and how
-   far apart they are is decided by what else is down there: a setpoint at the bottom of the
-   scale puts its FIGURE beside the ring's first tick, which at the old 34% and 17cqw was
-   underneath the minus button (reported 2026-09-03). A figure at the end of the arc reaches
-   x=68 of the 100-unit face, so a 12-unit button centred at 59 clears it by three units - and
-   the suite measures exactly that, on a tile whose setpoint is at the end. */
 .nh-thermo--dial .nh-thermo__btn,
 .nh-thermo--disc .nh-thermo__btn {
   --th-btn: clamp(1.5em, 12cqw, 2.8em);
@@ -4421,8 +3970,6 @@ button {
   bottom: 4%;
 }
 
-/* Ring: a plate of the theme's raised surface bordered by a thick ring in the tone, the room's
-   temperature big under its caption, the setpoint and the mode in two cells under a hairline. */
 .nh-thermo__plate {
   fill: var(--nh-surface-2);
 }
@@ -4469,12 +4016,6 @@ button {
   color: var(--th-dim);
 }
 
-/* The SET cell holds a reading between two buttons and the MODE cell one glyph, so the row is
-   split three to two; an even split put the minus button out over the rim in a three-column
-   tile. The row sits just under the rule rather than centred in the space below it: the plate is
-   a CIRCLE, so every centimetre lower costs width, and at the old 60%-to-90% the two buttons ran
-   out under the rim (reported 2026-09-03). The suite measures every part of this look against
-   the rim's inner edge. */
 .nh-thermo__ringrow {
   position: absolute;
   left: 17%;
@@ -4526,17 +4067,12 @@ button {
   height: 1em;
 }
 
-/* The ring's plate is a circle and its SET row sits low on it, where a chord is short, so these
-   two are the smallest buttons in the widget: they have to fit beside a reading inside the rim.
-   The suite measures every part of this look against the rim's inner edge. */
 .nh-thermo__btn--mini {
   --th-btn: clamp(1.2em, 9cqw, 2.2em);
   position: static;
   flex: none;
 }
 
-/* The row of mode, fan and aux buttons under the face: pills, the two halves of a mode or a fan
-   pair joined, the one in force filled - a mode in its own colour, the rest in the accent. */
 .nh-thermo__bar {
   flex: none;
   display: flex;
@@ -4607,14 +4143,6 @@ button {
   background: var(--th-cool);
 }
 
-/* ============================================================================
-   Log widget, and the full-screen log view (#/log/:dashboard/:widget)
-   ============================================================================ */
-/* A console on the tile's own surface: monospace lines that follow the newest entry. The level
-   is what a glance is for, so a warning and an error carry their colour on the level tag and a
-   bar at the left edge, an error colours its message too, and a debug or trace line recedes;
-   INFO is the theme's ink. `--lg-warn` is the one colour the tokens do not carry, so a theme sets
-   it here. The lines are the only monospace part: notices and the empty text keep the app font. */
 .nh-log {
   --lg-warn: #e0a526;
   --lg-error: var(--nh-bad, #e5484d);
@@ -4678,8 +4206,6 @@ button {
   text-overflow: ellipsis;
 }
 
-/* Wrapped: the message takes as many rows as it needs and breaks anywhere, since a log message
-   has no spaces to break at where it matters (a URL, a JSON payload). */
 .nh-log__list--wrap .nh-log__line {
   white-space: normal;
 }
@@ -4713,10 +4239,6 @@ button {
   opacity: 0.7;
 }
 
-/* The page's anatomy: a logger column of 36 characters keeping the right-hand end of the name,
-   which is what openhab.log's own pattern prints (`b.core.io.websocket.log.LogWebSocket`), so
-   the messages line up in a column of their own; and a line free to wrap onto a second row for
-   the stack trace under an entry that carried one. */
 .nh-log__list--full .nh-log__line {
   flex-wrap: wrap;
 }
@@ -4726,10 +4248,6 @@ button {
   max-width: 36ch;
 }
 
-/* The line wraps its items so the stack trace can take a row of its own, which would also let a
-   long message jump to a row of its own instead of wrapping beside its logger. A zero basis
-   keeps the message on the logger's row wherever it has two fifths of the width to wrap in, and
-   drops it under the logger only where it has not - a phone. */
 .nh-log__list--full .nh-log__msg {
   flex: 1 1 0;
   min-width: 40%;
@@ -4772,8 +4290,6 @@ button {
   margin: 0;
 }
 
-/* Says that the newest line is out of view, and takes the reader back to it. Over the list's
-   bottom corner, out of the way of the text. */
 .nh-log__jump {
   position: absolute;
   right: 8px;
@@ -4789,21 +4305,12 @@ button {
   cursor: pointer;
 }
 
-/* Pause, at the right end of the tile's name row. In the header rather than over the console:
-   a control floating on the lines would cover the top one permanently, and this row is the one
-   piece of tile chrome that costs nothing to share. Quiet while the log runs - a glyph on the
-   tile's own surface, at the row's weight - and an accent plate carrying the word when it does
-   not, because a frozen log and a dead server look exactly alike otherwise.
-   The radius follows the theme's own so a square theme needs no rule of its own. */
 .nh-log__pause {
   position: relative;
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  /* The name row is set at 0.8em, so these are 0.8 of what they read: the word matches the
-     widget's name beside it, and the glyph is grown back to about the cell's own size so the
-     button is a real target rather than header decoration. */
   padding: 0.28em 0.45em;
   font: inherit;
   letter-spacing: inherit;
@@ -4815,10 +4322,6 @@ button {
   cursor: pointer;
 }
 
-/* A finger needs more than the 22px a name row has room to draw. The target grows into the row's
-   own padding instead of the button, so nothing moves - and deliberately barely downwards, since
-   the console under it is a scroller and a strip of it that cannot be dragged would be worse than
-   a small button. */
 .nh-log__pause::after {
   content: '';
   position: absolute;
@@ -4870,7 +4373,6 @@ button {
   gap: 6px;
 }
 
-/* Sized like the chart view's chips: a filter row, not a control. */
 .nh-logview .nh-chip {
   min-height: 30px;
   padding: 4px 10px;
@@ -4908,17 +4410,12 @@ button {
   font-size: 0.9rem;
 }
 
-/* The page is the viewport and no taller: the dashboard surface grows with its content and lets
-   the window scroll, which for a log would put the newest line, the one the list follows, at
-   the bottom of a page the reader has to scroll to. Capped here, the LIST is what scrolls, and
-   following works. */
 .nh-logview {
   max-height: 100vh;
   max-height: 100dvh;
   overflow: hidden;
 }
 
-/* The list takes every pixel left below the two bars - the point of a full-screen log. */
 .nh-logview__body {
   flex: 1;
   min-height: 0;
@@ -4927,9 +4424,6 @@ button {
   padding: 8px 12px 12px;
 }
 
-/* ============================================================================
-   Template placeholder, HABPanel import + report
-   ============================================================================ */
 .nh-template {
   display: flex;
   flex-direction: column;
@@ -4951,7 +4445,6 @@ button {
   border-radius: 999px;
 }
 
-/* live template rendering */
 .nh-template__host {
   flex: 1;
   min-height: 0;
@@ -4975,7 +4468,6 @@ button {
   min-height: 0;
 }
 
-/* palette section heading + custom widget manager */
 .nh-palette__section {
   margin: 16px 0 8px;
   font-size: 0.85rem;
@@ -5029,7 +4521,6 @@ button {
   border-radius: var(--nh-radius);
 }
 
-/* Opened from a list row, the editor sits directly under it - the list gap is spacing enough. */
 .nh-deflist .nh-defeditor {
   margin-top: 0;
 }
@@ -5147,11 +4638,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* ============================================================================
-   Transient notices. Above every other surface (sheets 50, pickers 60) and
-   clear of the phone home indicator. Auto-dismissing, so the close button is a
-   convenience rather than the only way out.
-   ============================================================================ */
 .nh-toasts {
   position: fixed;
   right: 0;
@@ -5163,7 +4649,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  pointer-events: none; /* the stack must never swallow taps meant for the dashboard */
+  pointer-events: none;
 }
 
 .nh-toast {
@@ -5207,9 +4693,6 @@ button {
   color: var(--nh-text);
 }
 
-/* Live-connection notice: a standing condition rather than a transient notice, so it sits in
-   its own corner and stays until the stream comes back. Below the toasts, and never
-   interactive - a wall panel showing stale values must say so without blocking anything. */
 .nh-live {
   position: fixed;
   bottom: calc(12px + env(safe-area-inset-bottom));
@@ -5230,9 +4713,6 @@ button {
   pointer-events: none;
 }
 
-/* The kiosk exit confirmation. Its own dialog rather than window.confirm, which the browsers this
-   mode runs in are routinely configured to suppress - and this is the one screen where a
-   suppressed dialog leaves nobody a way out. */
 .nh-kioskexit {
   position: fixed;
   inset: 0;
@@ -5260,9 +4740,6 @@ button {
   margin-top: 14px;
 }
 
-/* "Updated on the server, reload." Top-centre rather than beside the live-status pill: it is a
-   decision to make, not a status to glance at, and it has buttons - so unlike that pill it takes
-   pointer events. Above the sheets, since a chunk can fail while one is open. */
 .nh-update {
   position: fixed;
   top: calc(10px + env(safe-area-inset-top));
@@ -5282,25 +4759,20 @@ button {
   font-size: 0.9rem;
 }
 
-/* ============================================================================
-   Navigation sidebar
-   ============================================================================ */
 .nh-side {
   position: fixed;
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 65; /* above sheets (50) and pickers (60): it is top-level navigation */
+  z-index: 65;
   width: 260px;
   display: flex;
   flex-direction: column;
   background: var(--nh-surface);
   border-right: 1px solid var(--nh-border);
   transform: translateX(-100%);
-  visibility: hidden; /* also keeps a closed sidebar out of the tab order */
-  /* A transition holds `visibility` at visible for its whole duration, so while it slides away
-     the aside still covers the top-left corner - including the ☰ underneath it. Without this a
-     click aimed at ☰ during those 160ms lands on the departing sidebar and does nothing. */
+  visibility: hidden;
+  /* a transition holds visibility at visible for its whole duration, so a closing sidebar still swallows clicks */
   pointer-events: none;
   transition:
     transform 160ms ease,
@@ -5315,15 +4787,11 @@ button {
   pointer-events: auto;
 }
 
-/* Phones have no room to inset the dashboard beside it, so it slides over instead. */
 .nh-side--overlay {
   width: min(280px, 80vw);
   box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Catches the click that dismisses an unpinned sidebar so it cannot also press what is behind
-   it. Transparent while the sidebar pushes the content aside: the dashboard is fully visible
-   there, it is just not accepting clicks until the sidebar is out of the way. */
 .nh-side__scrim {
   position: fixed;
   inset: 0;
@@ -5331,7 +4799,6 @@ button {
   background: transparent;
 }
 
-/* Overlaying a phone: dim what the sidebar is covering. */
 .nh-side__scrim--dim {
   background: rgba(0, 0, 0, 0.45);
 }
@@ -5347,7 +4814,7 @@ button {
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 44px; /* touch target */
+  min-height: 44px;
   padding: 8px 10px;
   background: transparent;
   border: none;
@@ -5371,7 +4838,6 @@ button {
   font-weight: 600;
 }
 
-/* Fixed-width gutter so labels line up whether or not a dashboard has an icon. */
 .nh-side__glyph {
   display: inline-flex;
   align-items: center;
@@ -5426,15 +4892,12 @@ button {
   border-color: var(--nh-primary);
 }
 
-/* Home has no top bar to host the trigger, so it floats in the same top-left spot. */
 .nh-home__menu {
   position: absolute;
   top: 12px;
   left: 12px;
 }
 
-/* Kiosk screensaver: a black overlay above everything (sheets 50, pickers 60, toasts 70) -
-   the screen is "off", so nothing may shine through it. */
 .nh-saver {
   position: fixed;
   inset: 0;
@@ -5444,7 +4907,6 @@ button {
   user-select: none;
 }
 
-/* Dim clock that drifts to a new spot every minute so no OLED pixel holds a static image. */
 .nh-saver__clock {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -5468,11 +4930,8 @@ button {
   opacity: 0.7;
 }
 
-/* Background-image field (Settings + dashboard settings panel) */
 .nh-bgfield__row {
   display: flex;
-  /* This field is used in the 720px Settings form AND in the 391px widget settings panel, where
-     everything on one line crushes the URL box to a few characters. Let it take its own line. */
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
@@ -5498,8 +4957,6 @@ button {
   background-position: center;
 }
 
-/* Value widget icon: sits beside the readout, centered against the number's height, and is
-   the shrink victim in tight cells (the never-clip rule - the value itself must stay). */
 .nh-value__icon {
   align-self: center;
   flex: 0 1 auto;
@@ -5508,7 +4965,6 @@ button {
   margin-right: 4px;
 }
 
-/* Analog clock: the face fills the cell (square, centered), date below like the digital one */
 .nh-clock--analog {
   display: flex;
   flex-direction: column;
@@ -5526,7 +4982,6 @@ button {
   aspect-ratio: 1;
 }
 
-/* Voice input: live state on the mic button + the floating transcript while listening */
 .nh-iconbtn svg {
   display: block;
 }
@@ -5570,8 +5025,6 @@ button {
   }
 }
 
-/* Timeline: one labelled track per item, colored state bands, time axis below. The label
-   column is the same width on every row (and on the axis) so the tracks align. */
 .nh-tlwrap {
   display: flex;
   flex-direction: column;
@@ -5597,7 +5050,6 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* grows into tall widgets (capped - a two-row timeline should not become two slabs) */
   flex: 1 1 32px;
   max-height: 80px;
   min-height: 12px;
@@ -5652,9 +5104,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* ============================================================================
-   Dashboard generator (wizard sheet)
-   ============================================================================ */
 .nh-gen__list {
   display: flex;
   flex-direction: column;
@@ -5758,9 +5207,6 @@ button {
   letter-spacing: 0.04em;
 }
 
-/* Stuck to the bottom of the sheet's own scroller. The cluster list scrolls inside itself, so a
-   wheel over it never reached the sheet and Back/Review sat below the fold with no hint that they
-   were there - the primary action of the step, invisible. */
 .nh-gen__footer {
   position: sticky;
   bottom: 0;
@@ -5777,8 +5223,6 @@ button {
   color: var(--nh-text-dim);
   font-size: 0.85em;
 }
-
-/* ---------------------------- version history ---------------------------- */
 
 .nh-hist__num {
   display: flex;
@@ -5976,23 +5420,12 @@ button {
   text-decoration: line-through;
 }
 
-/* ============================================================================
-   Accent tiles. A widget promoted to a solid block of the theme accent color
-   (filled) or a muted wash of it (tinted) - the per-widget "Tile accent"
-   setting. Derived from tokens so every theme gets a sensible default; a theme
-   stylesheet can refine. Two classes deep, so it also outranks --bare frames:
-   accenting a label widget means wanting the tile back.
-   The per-widget "Accent color" setting puts --nh-cellaccent on the cell, so
-   one tile can take a color of its own; unset falls back to the theme accent.
-   ============================================================================ */
 .nh-acc-filled .nh-widget {
   background: var(--nh-cellaccent, var(--nh-primary));
   border-color: transparent;
   color: var(--nh-accent-ink, #fff);
 }
 
-/* The name and the unit step back from the reading without changing hue: mixing the ink with
-   transparent works whichever way round the ink went, where a fixed rgba() only ever suited one. */
 .nh-acc-filled .nh-widget__label {
   color: color-mix(in srgb, var(--nh-accent-ink, #fff) 62%, transparent);
 }
@@ -6003,31 +5436,21 @@ button {
   color: color-mix(in srgb, var(--nh-accent-ink, #fff) 80%, transparent);
 }
 
-/* Outlined: the tile keeps its own surface and takes a rule in the accent color - the frame
-   an operations board draws around the panel it is drilled into. */
 .nh-acc-outlined .nh-widget {
   border-color: var(--nh-cellaccent, var(--nh-primary));
 }
 
-/* Panel group: one rule around every widget that named the same group, drawn as a grid child
-   spanning their bounding rect. Inert to the pointer so it can never intercept a tap, a drag
-   or the start of a marquee. Run mode draws frames after the cells (an opaque tile would hide
-   the rule); the editor draws them first, so cells stay on top while dragging. */
 .nh-group {
   border: 1px solid var(--nh-cellaccent, var(--nh-primary));
   border-radius: var(--nh-radius);
   pointer-events: none;
 }
 
-/* explicit inks (label color, value icon tint) still win: these only recolor defaults */
 .nh-acc-tinted .nh-widget {
   background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 22%, var(--nh-surface));
   border-color: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 30%, var(--nh-border));
 }
 
-/* ============================================================================
-   Compass widget
-   ============================================================================ */
 .nh-compass {
   width: 100%;
   height: 100%;
@@ -6048,8 +5471,7 @@ button {
   dominant-baseline: central;
 }
 
-/* no fill here: the lit cardinal's color comes from its attribute (a stylesheet fill
-   would beat it); only the no-reading placeholder is class-colored */
+/* no fill here: the lit cardinal takes its colour from an attribute, which a stylesheet fill would beat */
 .nh-compass__cardinal {
   font-size: 30px;
   font-weight: 600;
@@ -6088,8 +5510,6 @@ button {
   font-size: 5.5px;
 }
 
-/* Center-item mode: a second reading (wind speed) leads the face, the cardinal drops
-   to a small line beneath it. */
 .nh-compass__value {
   font-size: 22px;
   font-weight: 600;
@@ -6109,12 +5529,6 @@ button {
   font-weight: 600;
 }
 
-/* ============================================================================
-   Stat widget. A headline reading with its unit set apart, an optional caption
-   naming it, and a footer pairing a trend arrow with a second, smaller figure.
-   Good/bad inks are their own tokens with sensible fallbacks, so a theme can
-   pin the greens and reds its palette wants without touching this.
-   ============================================================================ */
 .nh-stat {
   display: flex;
   flex-direction: column;
@@ -6218,15 +5632,7 @@ button {
   justify-content: flex-end;
 }
 
-/* ============================================================================
-   Tick-ring gauge. A fine instrument ring: radial marks hung inside a hairline
-   rim, the widget's name and reading in the open face, and an optional
-   sparkline under it. Lit marks, the sparkline and the tinted reading all take
-   their color from the element, so none of these rules may set stroke or fill
-   on them - a stylesheet declaration would beat the attribute.
-   ============================================================================ */
-/* no stroke here: the rim's color is an attribute pointing at a per-instance gradient (which
-   defaults to the border color), and any stylesheet stroke would beat it */
+/* no stroke here: the rim takes a gradient from an attribute, which a stylesheet stroke would beat */
 .nh-gauge__rim {
   fill: none;
   stroke-width: 0.6;
@@ -6241,7 +5647,6 @@ button {
   stroke-linecap: butt;
 }
 
-/* unlit only - see the note above */
 .nh-gauge__tkmark {
   stroke: var(--nh-text);
   opacity: 0.16;
@@ -6260,10 +5665,6 @@ button {
   opacity: 0.9;
 }
 
-/* ============================================================================
-   Label chips. The label widget set as a filled pill or box that hugs its text
-   - callouts and badges, rather than a tile of text.
-   ============================================================================ */
 .nh-label--chip {
   padding: 0.28em 0.85em;
   background: var(--nh-cellaccent, var(--nh-primary));
@@ -6275,7 +5676,6 @@ button {
   border-radius: 999px;
 }
 
-/* Alignment inside the tile: the span is centered by the frame, so it moves as a block. */
 .nh-label--left {
   align-self: flex-start;
   text-align: left;
@@ -6290,7 +5690,6 @@ button {
   border-radius: var(--nh-radius);
 }
 
-/* Selection as a dropdown: the current choice is the point, the list is on demand. */
 .nh-selection__select {
   width: 100%;
   min-height: 40px;
@@ -6302,27 +5701,16 @@ button {
   font: inherit;
 }
 
-/* A date-only clock: the date is the reading, so it is set like one - through the same cap the
-   widget computes, or this would hand back the fit the rule above just worked out. */
 .nh-clock__date--only {
   margin-top: 0;
 }
 
-/* ...but with a zone caption above it there IS a line to be spaced from, and the height budget
-   already reserved the gap (chromeFor counts one per pair). */
 .nh-clock__zone + .nh-clock__date--only {
   margin-top: 4px;
   font-size: var(--nh-clock-datefit, 1.1em);
   color: var(--nh-text);
 }
 
-/* ============================================================================
-   Reduced motion. Two animations here run indefinitely - the gauge alarm bloom
-   and the microphone's listening dot - and indefinite motion is exactly what
-   this preference exists to stop. Everything keeps its final appearance (a gauge
-   in alarm still glows, it just stops pulsing); only the movement goes.
-   `!important` is what makes this win, so its position in the file is immaterial.
-   ============================================================================ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -6335,10 +5723,6 @@ button {
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Theme editor: what a custom stylesheet gets wrong, listed as it is typed.
-   A warning, not a refusal - the CSS is applied either way.
-   --------------------------------------------------------------------------- */
 .nh-cssissues {
   margin: 6px 0 0;
   padding: 8px 10px;
@@ -6366,10 +5750,6 @@ button {
   line-height: 1.4;
 }
 
-/* ---------------------------------------------------------------------------
-   Floor plan: the plan image styled into the theme, glows blending additively
-   over it, markers as tap targets, preset chips, and the light popup.
-   --------------------------------------------------------------------------- */
 .nh-fplan {
   position: relative;
   flex: 1;
@@ -6387,9 +5767,6 @@ button {
   -webkit-user-select: none;
 }
 
-/* The styling pipeline: the upload supplies geometry, these make it sit in the theme.
-   Blueprint expects the usual dark-lines-on-light plan and re-inks it as light linework
-   for dark themes; ink keeps dark linework for light themes; plain shows it untouched. */
 .nh-fplan__img--blueprint {
   filter: grayscale(1) invert(1) contrast(1.06) brightness(1.02);
   opacity: 0.52;
@@ -6400,20 +5777,13 @@ button {
   opacity: 0.85;
 }
 
-/* The glow/marker layer covers exactly where the image paints (object-fit math),
-   so percent positions refer to the plan, never the letterboxing. */
 .nh-fplan__layer {
   position: absolute;
 }
 
-/* The box, its shape and its offset come from glowGeometry inline: a light throwing its glow
-   one way hangs a half-height box off that side, and the two must agree with the gradient
-   inside it about where the lamp is, so they are decided in one place. */
 .nh-fplan__glow {
   position: absolute;
   pointer-events: none;
-  /* Additive, the way overlapping real light behaves; on light themes screen has nothing
-     to brighten, so the glow reads softer - fine, lamps do too in daylight. */
   mix-blend-mode: screen;
 }
 
@@ -6430,7 +5800,6 @@ button {
 }
 
 .nh-fplan__marker::after {
-  /* the touch target, without growing the visible dot */
   content: '';
   position: absolute;
   inset: -14px;
@@ -6479,15 +5848,12 @@ button {
   border-style: dashed;
 }
 
-/* Sized up from the shared .nh-chip: on a plan these are the primary control, reached from
-   across a room, not a secondary filter row like the chart's period chips. */
 .nh-fplan__bar .nh-chip {
   min-height: 47px;
   padding: 8px 16px;
   font-size: 1.1rem;
 }
 
-/* the tap popup and the save dialog */
 .nh-fplan__scrim {
   position: absolute;
   inset: 0;
@@ -6589,11 +5955,6 @@ button {
   flex-shrink: 0;
 }
 
-/* ---------------------------------------------------------------------------
-   "Manage presets" (from the plan): a full-screen sheet, because a preset's
-   editor holds a colour picker per light and the plan itself may be a small
-   tile. Sits above the app's sheets, below the pickers' lists (60).
-   --------------------------------------------------------------------------- */
 .nh-pmgr {
   position: fixed;
   inset: 0;
@@ -6629,7 +5990,6 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* The reading width of a form; the sheet is full screen so it can hold a picker's popup. */
   width: min(620px, 100%);
   margin: 0 auto;
 }
@@ -6718,7 +6078,6 @@ button {
   font-weight: 600;
 }
 
-/* The colour picker is sized for a widget cell; here it has a whole sheet. */
 .nh-pmgr__light .nh-color {
   min-height: 120px;
 }
@@ -6746,10 +6105,6 @@ button {
   gap: 8px;
 }
 
-/* ---------------------------------------------------------------------------
-   Lighting presets manager (Settings): one card per scene, the wall-switch
-   link editor unfolding inside it.
-   --------------------------------------------------------------------------- */
 .nh-presetlist {
   display: flex;
   flex-direction: column;
@@ -6797,14 +6152,10 @@ button {
   gap: 8px;
 }
 
-/* ---------------------------------------------------------------------------
-   Floor plan light-placement sheet (edit mode): full-screen surface, the plan
-   at real size beside the light list.
-   --------------------------------------------------------------------------- */
 .nh-planedit {
   position: fixed;
   inset: 0;
-  z-index: 55; /* above the settings side panel (50), below the pickers' lists (60) */
+  z-index: 55;
   display: flex;
   flex-direction: column;
   background: var(--nh-bg);
@@ -6870,7 +6221,6 @@ button {
   flex: 1;
 }
 
-/* The picker takes the free space; Add keeps its own, whatever the panel is worth. */
 .nh-planedit__add > .nh-btn {
   flex-shrink: 0;
 }
@@ -6886,8 +6236,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* Two lines: the item and its remove button, then the label and the glow direction. One line
-   would leave the label box a few characters wide in the 320px panel. */
 .nh-planedit__row {
   display: flex;
   flex-direction: column;
@@ -6918,8 +6266,6 @@ button {
   font-size: 0.9rem;
 }
 
-/* An <input> is floored at its default width as a flex item, so it needs min-width to shrink;
-   the select takes what it needs of the rest. */
 .nh-planedit__label {
   flex: 1 1 90px;
   min-width: 0;
@@ -6944,19 +6290,11 @@ button {
   }
 }
 
-/* ============================================================================
-   Weather widget. Three looks share the same pieces: the current reading, the
-   labelled details row, and forecast strips of hour/day columns. Text sizes in
-   em so the grid's scaling drives it; the big drawing caps itself in container
-   units so it can never blow out a small cell.
-   ============================================================================ */
 .nh-weather {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  /* Bleeds into most of the body's 12px side padding. The readings are what the panel is for,
-     and on a smaller monitor those 24px are the difference between a details column and none. */
   margin-inline: -5px;
   width: calc(100% + 10px);
   height: 100%;
@@ -6977,15 +6315,11 @@ button {
   min-height: 0;
 }
 
-/* max-* beats the Icon component's inline width/height, whatever their origin */
 .nh-weather__bigicon {
   flex-shrink: 0;
   max-width: 34cqw;
   max-height: 44cqh;
   object-fit: contain;
-  /* The drawings carry 12.5 to 15 per cent transparent margin of their own (measured across the
-     set), so the cloud reads as sitting further from the tile edge than the readings on the
-     other side do. Pulled back by a fraction of that, in em so it tracks the rest of the text. */
   margin-left: -0.4em;
 }
 
@@ -7004,13 +6338,7 @@ button {
 }
 
 .nh-weather__temp {
-  /* the LCD theme's ghost-segment underlay anchors to this box */
   position: relative;
-  /* Capped against the cell, which is a size container: the big reading is what has the room
-     to give, so it shrinks rather than pushing the condition and the range out of the tile.
-     The em size comes first, so a cell with room renders exactly as it always did, and the
-     height cap is of the room LEFT after the tile's own 14px of border and padding - a flat
-     percentage would give a tall tile a smaller reading than it can hold. */
   font-size: min(2.6em, calc((100cqh - 14px) * 0.55), 26cqw);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -7035,9 +6363,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* The hero's top half: the reading, and the details beside it when the cell has the width for
-   them - one wrapping row, so the arrangement follows the space each part actually needs rather
-   than a width the widget has to guess at. Reading first when they wrap. */
 .nh-weather__heromain {
   display: flex;
   flex-wrap: wrap;
@@ -7047,10 +6372,6 @@ button {
 }
 
 .nh-weather--hero .nh-weather__now {
-  /* Sized to what it holds, so the space a tile has to spare goes to the readings rather than
-     opening a hole between the two: growing, it ran 97px wider than its own content on a
-     437px tile. The cap is what keeps a long condition wrapping inside the reading instead of
-     pushing the readings onto a line of their own. */
   flex: 0 1 auto;
   max-width: 62%;
   min-width: 0;
@@ -7061,21 +6382,12 @@ button {
   min-width: 0;
 }
 
-/* Auto-fitting columns: one narrow column beside the reading in a small cell, two or four
-   across when the details sit under it or the cell is wide. */
 .nh-weather__details {
   display: grid;
-  /* min(..., 100%), not the bare minimum: `minmax(6.5em, 1fr)` guarantees a column at least
-     that wide, so in a container narrower than one column the row hangs out over the tile
-     edge instead of shrinking. Measured on a real dashboard: a 148px column in a 119px block
-     put the readings 21px past the border, where the widget clipped them. */
+  /* min(..., 100%), not the bare minimum: minmax guarantees that width, so a narrower container overflows */
   grid-template-columns: repeat(auto-fit, minmax(min(6.5em, 100%), 1fr));
   gap: 3px 14px;
   min-width: 0;
-  /* An inline-size container, so a reading in a short tile can size itself to the column it
-     is in (see the short-cell rules below). Inline size only: the height queries that decide
-     what a short hero sheds keep resolving against the cell, since a container that cannot
-     answer a height question is skipped. Verified in the browser, not assumed. */
   container-type: inline-size;
 }
 
@@ -7095,7 +6407,6 @@ button {
   font-size: 0.95em;
 }
 
-/* Forecast columns. Wide content scrolls inside its own strip, never the page. */
 .nh-weather__strip {
   display: flex;
   gap: 4px;
@@ -7137,14 +6448,12 @@ button {
   margin-left: 4px;
 }
 
-/* white-space: pre keeps the blank placeholder's row height, so columns align */
 .nh-weather__colprob {
   font-size: 0.6em;
   color: var(--nh-text-dim);
   white-space: pre;
 }
 
-/* Compact row: one line, no sections. */
 .nh-weather--compact {
   flex-direction: row;
   align-items: center;
@@ -7162,7 +6471,6 @@ button {
   min-width: 0;
 }
 
-/* Forecast strip look: the columns are the widget, current conditions at the edge. */
 .nh-weather--striplook {
   flex-direction: row;
   align-items: center;
@@ -7190,7 +6498,6 @@ button {
   font-size: 0.85em;
 }
 
-/* The location editor field: search on top (camera-field chrome), coordinates beneath. */
 .nh-weatherloc__current {
   margin: 6px 0 0;
   font-size: 0.85em;
@@ -7221,26 +6528,11 @@ button {
   min-width: 0;
 }
 
-/* ============================================================================
-   Tight cells. Every grid cell is a size container; when the cell is short
-   (many-column dashboards, small windows) shed chrome so content stays readable
-   instead of clipping. Older browsers ignore @container and keep the defaults.
-   This section stays LAST in the file: the overrides share specificity with the
-   base widget rules above, so source order is what makes them win.
-   ============================================================================ */
 .nh-gcell,
 .nh-cell {
   container-type: size;
-  /* Named, so a widget that makes its own root a size container (the stepper does, to size its
-     parts to the room a tile leaves) can still ask about the CELL: `@container nh-cell (...)`.
-     An unnamed query from inside such a widget answers for the widget's own box. */
+  /* named, so a widget that makes its own root a size container can still ask about the cell */
   container-name: nh-cell;
-  /* Widget text tracks the cell size, the way icons do via --nh-iconscale: a dashboard is
-     one proportional unit at any width. Everything inside a cell sizes its text in em, so
-     this single declaration drives all of it. Editor chrome (the handle strip) deliberately
-     stays in rem - it is UI, not dashboard content, and must not shrink with the cell.
-     Three multipliers compose here: the automatic scale (incl. the dashboard's Text size),
-     the per-device scale set in Settings, and a widget's own Text size override. */
   font-size: calc(1rem * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1));
 }
 
@@ -7270,14 +6562,11 @@ button {
     gap: 4px;
   }
 
-  /* The headline alone still explains an empty plot; the advice needs a cell to be readable in. */
   .nh-histnotice__detail {
     display: none;
   }
 }
 
-/* "Part of your configuration needs a newer neohab." Deliberately calm rather than alarming:
-   nothing is broken and nothing is lost, so it reads as information, not an error. */
 .nh-incompat {
   border: 1px solid var(--nh-border);
   border-left: 3px solid var(--nh-primary);
@@ -7302,8 +6591,6 @@ button {
   opacity: 0.8;
 }
 
-/* About & diagnostics. A two-column definition list that becomes one column on a phone, and a
-   selectable report block. Placed before the @container block, which must stay last. */
 .nh-about {
   display: grid;
   grid-template-columns: minmax(0, 11em) minmax(0, 1fr);
@@ -7322,8 +6609,6 @@ button {
 }
 
 .nh-about__report {
-  /* Wraps rather than scrolls: a user agent string is long, and a report you have to scroll
-     sideways to read is one people paste half of. */
   white-space: pre-wrap;
   overflow-wrap: break-word;
   background: var(--nh-surface-2);
@@ -7347,22 +6632,12 @@ button {
   }
 }
 
-/* Widget detail sheet: what a hold or a right-click on a tile opens. A centred dialog on a
-   desktop, a bottom sheet on a phone. Placed before the @container block, which must stay last. */
 .nh-gcell {
-  /* Stops iOS raising its own callout on the hold. Deliberately NOT `user-select: none` here:
-     that would also stop text being selected inside a template widget, which is a real loss for
-     the dashboards that put readable content there. Selection is suppressed for the length of a
-     press instead - see `.nh-holding` below. */
+  /* deliberately NOT user-select: none - that would stop text being selected here at all */
   -webkit-touch-callout: none;
 }
 
-/* Set on the root for as long as a touch press we are handling lasts (components/useLongPress.ts).
-   The browser's own long press selects the word under the finger and raises Android's text
-   toolbar, and because it lands after our sheet has opened there, the word it selects is the
-   sheet's. `.nh-holding .nh-detail__body` is what beats that element's own `user-select: text`
-   whichever order the two end up in: it sits later in this file today, and at equal specificity
-   the later rule would win. */
+/* set while a touch press we handle lasts, so Android's own long press cannot select a word under the finger */
 .nh-holding,
 .nh-holding *,
 .nh-holding .nh-detail__body {
@@ -7373,7 +6648,7 @@ button {
 .nh-detail {
   position: fixed;
   inset: 0;
-  z-index: 55; /* over the sheets (50), under the pickers (60) and the toasts (70) */
+  z-index: 55;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7408,8 +6683,6 @@ button {
   overflow-wrap: break-word;
 }
 
-/* The item name under its label: what a rule or a link refers to, worth showing but not worth
-   the same weight as the name a person reads. */
 .nh-detail__sub {
   display: block;
   font-weight: 400;
@@ -7420,7 +6693,6 @@ button {
 .nh-detail__body {
   padding: 14px;
   overflow-y: auto;
-  /* The values here are worth copying, so selection stays on inside the sheet. */
   user-select: text;
 }
 
@@ -7428,17 +6700,12 @@ button {
   margin-bottom: 14px;
 }
 
-/* The shared button row of a popup control: on/off, a rollershutter's three, a player's
-   transport, an item's own command options. Wraps rather than squeezing, because a media player
-   has four and a phone sheet is 393px wide. */
 .nh-quickbtns {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-/* An equal basis, so a pair comes out as two equal halves the way on/off always did, and a
-   fourth button drops to the next line instead of shrinking the row to nothing. */
 .nh-quickbtns .nh-btn {
   flex: 1 1 84px;
 }
@@ -7474,8 +6741,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* A definite height: the chart measures its container, and an auto-height flex child would
-   give it nothing to measure. */
 .nh-detail__plot {
   height: 180px;
 }
@@ -7502,7 +6767,7 @@ button {
 
 .nh-detail__pickrow {
   width: 100%;
-  min-height: 44px; /* touch target */
+  min-height: 44px;
   text-align: left;
   padding: 8px 12px;
   background: var(--nh-surface-2);
@@ -7516,19 +6781,6 @@ button {
   border-color: var(--nh-primary);
 }
 
-/* ============================================================================
-   A widget's own detail view: the weather panel and the clock.
-   Both are the same shape - one reading on a tinted panel of its own, then the
-   supporting rows beneath it, centred. A tile is a summary read side-on; this
-   is the thing itself, on a surface with room, so the type is a size up and the
-   accent is allowed to show. Every colour is a token, so each theme inks its
-   own sheet (azure under LCD Console, red under Swiss Sheet).
-   Nothing in here is a size container, so the tiles' caps and sheds are all
-   inert and both views draw everything they hold.
-   ============================================================================ */
-
-/* The panel that carries a reading: a wash of the accent falling from the top
-   edge, over the raised surface, inside a border the accent tints. */
 .nh-clockdetail__hero,
 .nh-wdetail .nh-weather--hero {
   border: 1px solid color-mix(in srgb, var(--nh-primary) 22%, var(--nh-border));
@@ -7538,8 +6790,6 @@ button {
     var(--nh-surface-2);
 }
 
-/* Section eyebrow: what each block below the reading is. Accented and spaced,
-   so it reads as a heading at a size where bold alone would not. */
 .nh-clockdetail__head,
 .nh-wdetail__head {
   margin: 0 0 8px;
@@ -7551,14 +6801,7 @@ button {
   color: color-mix(in srgb, var(--nh-primary) 78%, var(--nh-text-dim));
 }
 
-/* ---- the weather sheet --------------------------------------------------- */
-
 .nh-wdetail {
-  /* The column width both forecast blocks share, so the twelve hours come out
-     exactly six sevenths as wide as the seven days and the two read as one
-     family. Capped by what a row of SEVEN can have, which is what keeps a
-     phone's day row inside the sheet: 6.4em where there is room, (the width
-     less its six gaps) / 7 where there is not. */
   --nh-wcol: min(6.4em, calc((100% - 36px) / 7));
   text-align: center;
 }
@@ -7569,12 +6812,8 @@ button {
   font-size: 0.95em;
 }
 
-/* The current conditions. Centred as one group rather than spread across the
-   panel: the strips below it are centred, and a left-hung reading over centred
-   rows reads as a mistake. */
 .nh-wdetail .nh-weather--hero {
   padding: 16px 14px;
-  /* the tile's bleed into the body padding, which this surface does not want */
   margin-inline: 0;
   width: 100%;
   gap: 12px;
@@ -7586,8 +6825,6 @@ button {
 }
 
 .nh-wdetail .nh-weather--hero .nh-weather__now {
-  /* Sized to its content here, not to a share of a tile: there is no header row
-     to push out, and no condition long enough to need capping. */
   flex: 0 0 auto;
   max-width: none;
   gap: 14px;
@@ -7595,11 +6832,6 @@ button {
 
 .nh-wdetail .nh-weather__temp {
   font-size: min(3.6em, 15vw);
-  /* Leading, which the tile's `line-height: 1` does not give it. At this size a face whose ink
-     runs past its em box puts the digits through the condition line underneath - measured in the
-     LCD Console (segment digits) and Operations (Montserrat) sheets, where "Mainly clear" was
-     drawn over the bottom of "83". A tile never shows it, because a tile never draws the reading
-     this big. */
   line-height: 1.25;
 }
 
@@ -7616,7 +6848,6 @@ button {
   font-size: 1em;
 }
 
-/* The four readings, in a row while there is room and two by two on a phone. */
 .nh-wdetail .nh-weather__details {
   display: flex;
   flex-wrap: wrap;
@@ -7642,12 +6873,6 @@ button {
   margin-top: 18px;
 }
 
-/* Both blocks are grids of that shared column, centred, and they FIT by
-   construction - a tile scrolls its strip sideways because a tile has width and
-   no height to spare, and a sheet is the other way round. Twelve hours flow
-   into two rows of six on their own. These carry `.nh-weather__strip` too, and
-   share its specificity exactly, so it is being LATER in this file that makes
-   the grid win over its flex row: keep them below it. */
 .nh-wdetail__hours,
 .nh-wdetail__days {
   display: grid;
@@ -7664,8 +6889,6 @@ button {
   grid-template-columns: repeat(7, var(--nh-wcol));
 }
 
-/* Each column is a chip here rather than bare text: twelve of them in two rows
-   need something to be twelve OF. */
 .nh-wdetail .nh-weather__col {
   min-width: 0;
   padding: 7px 2px;
@@ -7687,14 +6910,11 @@ button {
   margin-left: 5px;
 }
 
-/* The chance of rain, tinted: it is the one figure in a column that is not a
-   temperature, and it is the one people look for. */
 .nh-wdetail .nh-weather__colprob {
   font-size: 0.78em;
   color: color-mix(in srgb, var(--nh-primary) 65%, var(--nh-text-dim));
 }
 
-/* The day the week opens on. */
 .nh-wdetail__days .nh-weather__col:first-child {
   background: color-mix(in srgb, var(--nh-primary) 15%, var(--nh-surface-2));
   border-color: color-mix(in srgb, var(--nh-primary) 40%, var(--nh-border));
@@ -7704,15 +6924,10 @@ button {
   color: color-mix(in srgb, var(--nh-primary) 80%, var(--nh-text));
 }
 
-/* A forecast wants width the way a control does not: this holds twelve hours in
-   two rows of six and the week in one, with the reading above them at a size
-   worth reading. The phone rule below still takes the panel to the full width. */
 .nh-detail__panel:has(.nh-wdetail) {
   width: min(860px, 100%);
   max-height: min(88vh, 900px);
 }
-
-/* ---- the clock sheet ----------------------------------------------------- */
 
 .nh-clockdetail {
   text-align: center;
@@ -7723,8 +6938,6 @@ button {
   margin-bottom: 18px;
 }
 
-/* The reading, in the theme's accent: it is the answer the sheet exists to
-   give, and every theme that restyles a clock tile inks its digits this way. */
 .nh-clockdetail__time {
   font-size: 3.1em;
   font-weight: 300;
@@ -7738,9 +6951,6 @@ button {
   color: var(--nh-text-dim);
 }
 
-/* The facts as one centred two-column block, so the values line up in a column
-   of their own instead of each row centring on its own middle. The rows are
-   `display: contents` for that, which is also how the zone list below works. */
 .nh-clockdetail__facts {
   display: grid;
   grid-template-columns: auto auto;
@@ -7761,16 +6971,12 @@ button {
   text-align: left;
 }
 
-/* The IANA id under the zone's name: what a rule or a log line calls it. */
 .nh-clockdetail__zoneid {
   display: block;
   color: var(--nh-text-dim);
   font-size: 0.85em;
 }
 
-/* The other-zones list: name, the same instant there, and that zone's offset. A
-   grid rather than a table so the times line up in a column whatever the names
-   are, sized to its content and centred like everything else. */
 .nh-clockdetail__head {
   margin-top: 18px;
 }
@@ -7805,10 +7011,6 @@ button {
   text-align: right;
 }
 
-/* The gap between the two clocks: the one row that is a measurement rather than
-   a setting, so it is inked as one. Under a second is all one reading of the
-   `Date` header can resolve, which is why that reads as identical rather than as
-   a number - see model/servertime.ts. */
 .nh-clockdetail__diff {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -7828,7 +7030,6 @@ button {
 }
 
 @media (max-width: 560px) {
-  /* A bottom sheet on a phone, where a centred dialog wastes the reachable half of the screen. */
   .nh-detail {
     align-items: flex-end;
     padding: 0;
@@ -7841,11 +7042,6 @@ button {
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* A phone still gets seven days across, so the drawings have to come down with
-     the columns they sit in - a 46px icon in a 48px track leaves it no room for
-     anything else. `max-*` is what can do it: the size is set inline by the Icon
-     component (it has to be, to be able to GROW on a desktop), and only a
-     maximum beats an inline width. */
   .nh-wdetail .nh-weather__colicon {
     max-width: 30px;
     max-height: 30px;
@@ -7877,7 +7073,6 @@ button {
     padding: 5px 1px;
   }
 
-  /* Four readings two by two, rather than three and a stray. */
   .nh-wdetail .nh-weather__details {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7890,16 +7085,11 @@ button {
     gap: 6px 4px;
   }
 
-  /* Which changes the arithmetic the shared column is capped by: six gaps of 4. */
   .nh-wdetail {
     --nh-wcol: min(6.4em, calc((100% - 24px) / 7));
   }
 }
 
-/* The panel an AppBoundary draws when a screen throws. It renders in two very different places -
-   alone on the page when App itself failed, and inside <main> beside the sidebar when one route
-   failed - so it centres itself rather than relying on either. Placed before the @container
-   block, which must stay last. */
 .nh-appfail {
   display: flex;
   flex-direction: column;
@@ -7936,17 +7126,12 @@ button {
   justify-content: center;
 }
 
-/* The two navigations are links rather than buttons, so they need the button box drawn round
-   them: .nh-btn is written for a <button>, which is already a flex-ish box with no underline. */
 .nh-appfail__actions .nh-btn {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
 }
 
-/* Narrow cells: nested padding costs more than the text it frames. At 70px wide the
-   body + button insets alone used to eat half the cell, so labels ellipsised to "Gu…"
-   however small the font got. Width-keyed, because a tall 1-wide cell needs this too. */
 @container (max-width: 120px) {
   .nh-widget__label,
   .nh-labelbottom .nh-widget__label {
@@ -7965,14 +7150,12 @@ button {
   }
 }
 
-/* No room for the position readout under three buttons. */
 @container (max-height: 150px) {
   .nh-roller__pos {
     display: none;
   }
 }
 
-/* Short chart cells: the plot is the point; chips and legend go first. */
 @container (max-height: 170px) {
   .nh-chart__chips,
   .nh-chart__legend {
@@ -7980,26 +7163,12 @@ button {
   }
 }
 
-/* Too short for a label row at all: a hidden label beats an unreadable sliver. */
 @container (max-height: 72px) {
   .nh-widget__label {
     display: none;
   }
 }
 
-/* The swatch is whatever is left after the three sliders, so in a short tile it stops being tall
-   enough to hold the pair standing up. They stay standing anyway, and the room comes out of the
-   chrome around them instead: 6px of body inset rather than 12, and 4px between the swatch and the
-   sliders. Measured on a real 169px tile, that takes the swatch from 46px to 60px, and the pair is
-   50px of it.
-
-   `:has()` is what scopes the inset to a picker that has the buttons, so a plain colour tile and
-   every other widget keep the tile's usual insets. It also outranks the body padding a theme sets
-   (two classes against one), which would otherwise decide whether the pair fits.
-
-   The threshold is measured, and in em because the buttons are sized in em: a px one would be
-   right at 100% text and wrong at every other size a person can set. Above it the swatch is deep
-   enough that none of this is needed. */
 @container (max-height: calc(4em + 126px)) {
   .nh-widget__body:has(.nh-color--aside) {
     padding-top: 6px;
@@ -8015,8 +7184,6 @@ button {
     padding: 3px 6px;
   }
 
-  /* A slightly smaller face than a tall tile's, so the pair fits the swatch it now has - and
-     "Off" is three characters, which need not be padded out to the width of a longer word. */
   .nh-color--aside .nh-color__pbtn {
     min-width: 0;
     font-size: 0.83em;
@@ -8024,16 +7191,6 @@ button {
   }
 }
 
-/* Shorter still: the swatch cannot hold the pair even with the chrome given back, and stacking
-   them anyway would draw them over the top of the hue slider. This is where they finally leave it
-   and go beside the sliders, still one above the other, while the swatch stays on screen above
-   them.
-
-   Measured the same way, with the stack forced on at every height and the clearance read off each
-   one: it keeps at least 2px of swatch above and below it from a cell of 163px at a 16px font and
-   223px at 32px, which is this with a pixel to spare. A real 11-column dashboard on a 1920 screen
-   has 169px cells, so the margin either side of that is what decides whether resizing a window
-   moves the pair - hence a boundary read off the measurement rather than rounded up from it. */
 @container (max-height: calc(3.75em + 104px)) {
   .nh-color--aside .nh-color__aside {
     grid-row: 2;
@@ -8042,21 +7199,16 @@ button {
     gap: 6px;
   }
 
-  /* Now they ARE beside each other, so the sliders give up the column. */
   .nh-color--aside .nh-color__channels {
     grid-column: 1;
   }
 
-  /* Back to the full face and the full gap: the pair shrank to fit a swatch, and there is no
-     swatch under it here - the height it has is the slider stack's, which is 72px whatever the
-     tile does. The tightened body inset above stays, which only gives the sliders more room. */
   .nh-color--aside .nh-color__pbtn {
     font-size: 0.8em;
     padding: 0.45em 0.5em;
   }
 }
 
-/* Short color pickers: the sliders are the control, the swatch is garnish. */
 @container (max-height: 130px) {
   .nh-color {
     gap: 4px;
@@ -8071,8 +7223,6 @@ button {
   }
 }
 
-/* No swatch left to sit on, so row 1 has nothing to stretch for either - without this the empty
-   track would keep absorbing the height and push the sliders to the bottom of the tile. */
 @container (max-height: 130px) {
   .nh-color--aside {
     grid-template-rows: auto;
@@ -8089,16 +7239,6 @@ button {
   }
 }
 
-/* Beside the sliders AND too narrow for both: measured in a one-column tile, the button column
-   left the three sliders 43px of a 97px cell, which is not a control any more. So there they go
-   under the sliders as a row instead.
-
-   Bounded at both ends, and both bounds are measured. Above: a taller narrow tile has them on the
-   swatch, where the sliders span the full width and nothing is competing. Below: a tile that is
-   ALSO short cannot hold three sliders and a row of buttons at all - a 97x108 cell has 69px of
-   room for 84px of content, and the buttons hung 14px past its edge, where the tile clips them.
-   There they stay beside the sliders: cramped at 43px, which is poor, but every control is on
-   screen and reachable, which a clipped one is not. */
 @container (min-height: 131px) and (max-width: 130px) and (max-height: calc(3.75em + 104px)) {
   .nh-color--aside {
     grid-template-columns: minmax(0, 1fr);
@@ -8120,7 +7260,6 @@ button {
   }
 }
 
-/* Short timeline cells: the bands are the point; labels, axis and chips go first. */
 @container (max-height: 150px) {
   .nh-tl__name,
   .nh-tl__axis,
@@ -8133,7 +7272,6 @@ button {
   }
 }
 
-/* Shorter still: slim the tracks so all three channels stay visible. */
 @container (max-height: 104px) {
   .nh-color__track {
     height: 14px;
@@ -8160,9 +7298,7 @@ button {
   }
 }
 
-/* Short weather heroes shed back to front: the hourly strip first, then the daily one,
-   then the details row - the current reading is the point. The strip LOOK never sheds
-   its strip: there the columns are the widget. */
+/* short heroes shed back to front: the hourly strip, then the daily one, then the details */
 @container (max-height: 320px) {
   .nh-weather--hero .nh-weather__strip:not(.nh-weather__strip--days) {
     display: none;
@@ -8175,38 +7311,19 @@ button {
   }
 }
 
-/* The details go when there is no room for them either way: below ~130px there is barely room
-   for the reading itself, and a narrow cell has to put them underneath, where a short cell has
-   nowhere to put them.
-   The width is the MEASURED point at which the hero's row actually wraps, not a guess: with the
-   side padding reclaimed above, the reading and the details still sit side by side with nothing
-   clipped down to a 217px cell, and wrap at 203px. A 300px guess took the details off a tile on
-   a 1600px-wide monitor while there was room for them twice over. */
 @container (max-width: 210px) and (max-height: 175px) {
   .nh-weather__details {
     display: none;
   }
 }
 
-/* Below the width at which the details can sit BESIDE the reading, nothing is left to leave
-   room for: the 62% cap on the reading only exists to keep them side by side, and holding it
-   in a cell that has to stack them wastes almost 40 per cent of the row - which is what made
-   a 153px tile wrap "Clear sky" onto two lines and then clip it. */
 @container (max-width: 216px) {
   .nh-weather--hero .nh-weather__now {
     max-width: 100%;
   }
 }
 
-/* In a short cell each reading puts its label beside its value instead of above it: four of them
-   then cost four lines rather than eight, which is what lets them sit beside the reading at all
-   in a one-row tile. Values right-aligned, so a column of them lines up. */
 @container (max-height: 200px) {
-  /* The readings stay BESIDE the reading in a short tile, whatever the text size. Left free to
-     wrap, they went under it the moment the two no longer fit side by side, and a tile that
-     has room for four readings beside a temperature has none for them below it: measured at
-     125% widget text in a 289x140 tile, the readings sat under the temperature and drew 82px
-     past the tile's bottom. Beside it they shrink instead, which the rule below arranges. */
   .nh-weather__heromain {
     flex-wrap: nowrap;
   }
@@ -8216,11 +7333,6 @@ button {
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
-    /* Sized to the column, not only to the cell: a label beside its value is about 7.7em
-       wide for "Wind 10 mph SW", and a column narrower than that had the value hanging past
-       the tile edge (1.2px at 110% text in a 289px tile, 15px at 100% in a 249px one). 13cqi
-       is 1em at a 7.7em column, so a column that fits its readings is left exactly as it was,
-       and a narrower one draws them smaller rather than clipped, down to 0.7em. */
     font-size: max(0.7em, min(1em, 13cqi));
   }
 
@@ -8228,46 +7340,21 @@ button {
     white-space: nowrap;
   }
 
-  /* A label BESIDE its value needs a column wide enough for both - "Precipitation 4%" is about
-     10.5em, and "Wind 12 mph NNW" the same. With the 6.5em minimum the grid fits a third column
-     that the values then hang out of, which is what a wide short tile did. */
   .nh-weather__details {
     grid-template-columns: repeat(auto-fit, minmax(min(10.5em, 100%), 1fr));
   }
 
-  /* Set tighter here than the browser's default: four readings in one column is the tallest a
-     short hero gets, and 1.15 is what turns "fits by half a pixel" into "fits with room". */
   .nh-weather__detail {
     line-height: 1.15;
   }
 }
 
-/* Short AND too narrow to put them beside the reading. Height alone used to be enough, which
-   read as a bug on a phone: a full-width stacked row is 516x113, so the details were dropped
-   from a tile with 384px of empty width to its right. Beside the reading they cost no height,
-   so the width is what decides. 216px is the measured wrap point, as above. */
 @container (max-width: 216px) and (max-height: 130px) {
   .nh-weather__details {
     display: none;
   }
 }
 
-/* A hero too short for its stacked reading sheds back to front, like the strips above it.
-   The thresholds are in em of the CELL, so they track the text: the cell's font-size carries
-   the dashboard's scale, the per-device scale and the widget's own Text size, and a threshold
-   in px would shed the wrong things the moment somebody set 150%.
-
-   Each is the height at which a piece stops fitting. The reading column costs at most 2.6em of
-   temperature, 1.21em of condition and 1.14em of range (0.9 and 0.85em over a 1.34 line box),
-   with 2px between each; the tile's own border and padding cost 14px; and a header row, when
-   the widget draws one, costs another 1.05em plus 8px - which is why each shed has a
-   `--headed` twin. A container query measures the CELL, so `.nh-widget--headed` is the only way
-   to know the difference, and getting it wrong is what put 17px of a wide phone row outside its
-   own tile. The numbers are measured approximations with a margin, and e2e-weather's "nothing
-   is drawn outside the tile" is what holds them honest.
-
-   One line from here down for the condition too: a wrapped one costs a whole line the cell does
-   not have, and the full text is a hold away in the detail sheet. */
 @container (max-height: calc(4.95em + 18px)) {
   .nh-widget:not(.nh-widget--headed) .nh-weather--hero .nh-weather__range {
     display: none;
@@ -8300,9 +7387,6 @@ button {
   }
 }
 
-/* The readings are the tallest thing in a short hero: four of them in one column cost about
-   4.4em. They go when the tile cannot hold them beside the reading, which - unlike the width
-   rule above - is a question about height, and so has a `--headed` twin as well. */
 @container (max-height: calc(4.37em + 23px)) {
   .nh-widget:not(.nh-widget--headed) .nh-weather--hero .nh-weather__details {
     display: none;
@@ -8315,11 +7399,6 @@ button {
   }
 }
 
-/* The stepper's split tile turns sideways in a wide cell: the down zone on the left, up on the
-   right, and the glyph that points along that axis instead of the one that points up. Only a
-   container query knows the cell's shape, which is why each zone carries both glyphs. Asked of
-   the cell by name: the stepper's own root is a size container, so an unnamed query from inside
-   it would answer for the widget's box instead. */
 @container nh-cell (min-aspect-ratio: 4/3) {
   .nh-step__split {
     flex-direction: row;
@@ -8350,12 +7429,6 @@ button {
   }
 }
 
-/* A short room, measured on the stepper's own box. Under 4.5em of it a column cannot hold two
-   controls a finger can find with a reading between them at any size worth drawing, so the
-   three column looks lie down - the stack as down, reading, up; the pair and the range bar as
-   the reading beside the row - and the captions that need a row of their own go. At a 16px
-   cell font that is a headed cell under about 123px and a headless one under 98px; at the 0.8
-   floor, 105px and 84px. Above it the shares in the base rules shrink the parts on their own. */
 @container (max-height: 4.5em) {
   .nh-step__stack {
     flex-direction: row;
@@ -8433,8 +7506,6 @@ button {
   }
 }
 
-/* A one-column cell keeps 4px of body padding, so the carousel's edge strips pull back to it
-   and their glyphs shrink, and the range bar's two end labels, which have nowhere to fit, go. */
 @container nh-cell (max-width: 120px) {
   .nh-step__edge {
     width: 2em;
@@ -8462,12 +7533,6 @@ button {
   }
 }
 
-/* The thermostat's face sheds what a small square cannot hold - the status line, the room's
-   temperature under the setpoint, the ring's figures and captions - and keeps the setpoint and
-   its buttons. Measured on the square itself, since that is what the parts are sized by, and at
-   11em rather than 9 because the figures on the rim are the first thing a shrinking face has no
-   room for: below that the buttons stop shrinking (their em floor) while the figures keep
-   coming in, and the two meet. */
 @container nh-thermo-sq (max-width: 11em) {
   .nh-thermo__status,
   .nh-thermo__curline,
@@ -8478,8 +7543,6 @@ button {
     display: none;
   }
 
-  /* ...and with the figures gone there is nothing for a dial's buttons to be under, so they
-     take that room back instead of shrinking with the ring. */
   .nh-thermo--dial .nh-thermo__btn,
   .nh-thermo--disc .nh-thermo__btn {
     --th-btn: clamp(1.8em, 20cqw, 2.8em);
@@ -8491,8 +7554,6 @@ button {
   }
 }
 
-/* A square too small for finger-sized buttons beside the number - a landscape phone's row -
-   keeps the number alone; the buttons are in the detail sheet either way. */
 @container nh-thermo-sq (max-width: 7.5em) {
   .nh-thermo__btn,
   .nh-thermo__ringrow {
@@ -8512,9 +7573,6 @@ button {
   }
 }
 
-/* The row of mode buttons goes when the tile is too short to hold it under a face worth
-   drawing, and when it is too narrow for even the glyphs; the detail sheet still offers every
-   one of them. In between, a narrow tile keeps the glyphs and drops the words. */
 @container nh-thermo (max-height: 7.5em) {
   .nh-thermo__bar {
     display: none;
@@ -8537,9 +7595,6 @@ button {
   }
 }
 
-/* The log tile sheds its columns as width runs out, so the message keeps its room: the logger
-   first, then the time. The level stays, since it is what a glance at a log is for. Measured on
-   the cell, because the tile's own width is what the columns are competing for. */
 @container nh-cell (max-width: 480px) {
   .nh-log__logger {
     display: none;
@@ -8552,11 +7607,6 @@ button {
   }
 }
 
-/* The paused button keeps its word for as long as the name beside it has at least as much room
-   as the button takes; below that the accent plate says it on its own. Measured: the button with
-   its word is 4.75em of the cell and the row's own padding 1.9em, so the two are even at about
-   11em. In em rather than px because both the word and the name are set in the cell's font, and
-   a px threshold would shed at the wrong place the moment somebody sets a text size. */
 @container nh-cell (max-width: 11em) {
   .nh-log__pausetext {
     display: none;

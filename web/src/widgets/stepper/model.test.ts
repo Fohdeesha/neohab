@@ -31,7 +31,6 @@ describe('reading a stored configuration', () => {
   it('lands anything it does not recognise on the default', () => {
     expect(lookOf('stack')).toBe('stack')
     expect(lookOf('carousel')).toBe('carousel')
-    // The prototype-chain key that has bitten five other tables in this project.
     expect(lookOf('constructor')).toBe('spinner')
     expect(lookOf('toString')).toBe('spinner')
     expect(lookOf(42)).toBe('spinner')
@@ -45,8 +44,6 @@ describe('reading a stored configuration', () => {
   })
 
   it('falls back to the same look, finish, arrows and value kind a new widget starts with', () => {
-    // A stored value nobody can read must draw the widget a new one draws, so the readers'
-    // fallbacks and `defaultConfig` are one answer, not two that can drift apart.
     const d = stepperWidget.defaultConfig()
     expect(lookOf(undefined)).toBe(d.look)
     expect(finishOf(undefined)).toBe(d.finish)
@@ -66,7 +63,6 @@ describe('reading a stored configuration', () => {
       expect(LOOK_FLOOR[look]).toBeGreaterThan(0)
       expect(['vertical', 'horizontal']).toContain(LOOK_AXIS[look])
     }
-    // Two bars around a reading need the most room in a phone row.
     expect(LOOK_FLOOR.stack).toBeGreaterThan(LOOK_FLOOR.spinner)
   })
 })
@@ -74,7 +70,6 @@ describe('reading a stored configuration', () => {
 describe('stepping a number', () => {
   it('moves one step and snaps to the digits the step resolves', () => {
     expect(stepNumber(72.1, 1, numericScale(0, 100, 0.2))).toBe(72.3)
-    // 0.1 + 0.2 is 0.30000000000000004 in floating point; the reading must not be.
     expect(stepNumber(0.1, 1, numericScale(0, 1, 0.2))).toBe(0.3)
     expect(stepNumber(50, -1, pct)).toBe(49)
     expect(stepNumber(21.5, 1, temp)).toBe(22)
@@ -84,7 +79,6 @@ describe('stepping a number', () => {
     expect(stepNumber(99.5, 1, pct)).toBe(100)
     expect(stepNumber(100, 1, pct)).toBe(100)
     expect(stepNumber(0.5, -1, pct)).toBe(0)
-    // A value that is already outside the range is brought back to it, whichever way it goes.
     expect(stepNumber(150, -1, pct)).toBe(100)
   })
 
@@ -100,7 +94,6 @@ describe('stepping a number', () => {
     expect(atLimit(50, 1, pct)).toBe(false)
     expect(atLimit(50, -1, pct)).toBe(false)
     expect(atLimit(150, 1, pct)).toBe(true)
-    // Nothing known yet: both buttons stay live so the first press can start the value.
     expect(atLimit(undefined, 1, pct)).toBe(false)
     expect(atLimit(undefined, -1, pct)).toBe(false)
   })
@@ -221,7 +214,6 @@ describe('the glyph on a button', () => {
     expect(glyphFor('triangle', 'number', 'vertical', -1)).toEqual({ shape: 'triangle', dir: 'down' })
     expect(glyphFor('arrow', 'list', 'horizontal', 1)).toEqual({ shape: 'arrow', dir: 'right' })
     expect(glyphFor('chevron', 'number', 'horizontal', -1)).toEqual({ shape: 'chevron', dir: 'left' })
-    // Plus and minus are the same whichever way the buttons sit.
     expect(glyphFor('plusminus', 'list', 'horizontal', 1)).toEqual({ shape: 'plusminus', dir: 'plus' })
   })
 })
@@ -232,7 +224,6 @@ describe('what counts as the device confirming a value', () => {
     expect(closeEnough('66', '70', 'number', 1)).toBe(false)
     expect(closeEnough('72.5', '72.5', 'number', 0.5)).toBe(true)
     expect(closeEnough('71.5', '72.5', 'number', 0.5)).toBe(false)
-    // A finer step than half a unit still tolerates the half unit a device rounds to.
     expect(closeEnough('72.4', '72.1', 'number', 0.1)).toBe(true)
   })
 

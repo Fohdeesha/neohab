@@ -14,23 +14,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <!--
-      Say so on a browser too old to run this, before the bundle is even asked for.
-
-      Wall panels are frequently old tablets whose browser is frozen at whatever shipped with them
-      - a Fire HD's Silk, an Android 8 WebView - and every modern feature the app leans on
-      degrades quietly on its own: :has() stops matching, color-mix() drops the declaration, a
-      container query never fires. What arrives is a half-styled mess with nothing anywhere saying
-      why, which is a bug report nobody can answer.
-
-      Two probes, chosen because they are the oldest of the hard requirements: a browser with both
-      has the rest (container queries, zoom, structuredClone). Written as plain ES5, with no arrow
-      functions or template literals, because it has to run on the browser it is refusing.
-
-      The notice is its own fixed layer over #root rather than inside it: the module below may
-      still load and render something underneath, and on a browser this old that something is
-      exactly the broken page the notice exists to explain.
-    -->
+    <!-- Say so on a browser too old to run this, before the bundle is even asked for. Plain ES5:
+         it has to run on the browser it is refusing. -->
     <script>
       (function () {
         if (

@@ -1,8 +1,3 @@
-/**
- * Widget settings panel, generated from the widget definition's declarative `settings[]`
- * schema. Edits apply to the draft immediately (live preview on the dashboard); same-field
- * changes coalesce into one undo entry.
- */
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { ItemPicker } from '../components/ItemPicker'
@@ -26,12 +21,6 @@ import { NumberSetting } from '../components/NumberSetting'
 import { mixedContent } from '../model/url'
 import { parseColor } from '../themes/contrast'
 
-/**
- * Universal fields, not declared per definition: instance-level presentation (like layout)
- * that the grids read for any widget type. Text size is offered everywhere; the Name
- * alignment/position pair only on widgets whose definition says the Name renders as the
- * shared frame's header row (`hasHeader`).
- */
 const HIDE_ON_FIELD: SettingField = {
   key: 'hideOn',
   type: 'hideon',
@@ -44,8 +33,6 @@ const ACCENT_FIELD: SettingField = {
   type: 'select',
   label: 'Tile accent',
   options: [
-    // An empty value, so choosing it clears the key: the select's own handler writes undefined
-    // for '', and `widgetAccent` reads anything it does not recognise as no accent either way.
     { value: '', label: 'None' },
     { value: 'filled', label: 'Filled' },
     { value: 'tinted', label: 'Tinted' },
@@ -78,12 +65,6 @@ const TEXT_SIZE_FIELD: SettingField = {
   hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.'
 }
 
-/**
- * Whether the name is drawn at all, offered by every widget that has a header row - a widget
- * whose name is obvious from what it draws (a weather panel, a camera) should not be forced to
- * carry a title. A widget may add choices of its own between these two (`labelModes`); the
- * camera's "Over the picture" is the only one. Only shown once there is a name to show.
- */
 function labelModeField(def: { labelModes?: { options: { value: string; label: string }[]; hint?: string } }): SettingField {
   return {
     key: 'labelMode',
@@ -94,14 +75,8 @@ function labelModeField(def: { labelModes?: { options: { value: string; label: s
   }
 }
 
-/**
- * Name alignment and position both offer an explicit "theme default".
- *
- * Several themes set the alignment they want for every widget, and a widget only follows that
- * while it has made no choice of its own. Showing "Left" for a widget that is actually inheriting
- * a theme's centred default was wrong twice over: it described the widget incorrectly, and
- * touching the field to see what it did silently pinned Left with no way back.
- */
+// "theme default" is a real choice: several themes centre every name, and touching this field used to pin Left
+// with no way back
 const LABEL_ALIGN_FIELD: SettingField = {
   key: 'labelAlign',
   type: 'select',
@@ -130,8 +105,6 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const def = getWidgetDefinition(widget.type)
   if (!def) return null
 
-  // Same defaults-under-config merge the runtime uses, so the form shows effective values
-  // (an imported button without an explicit `action` key still shows "Send command").
   const effective = { ...def.defaultConfig(), ...widget.config }
   const customwidget = widget.type === 'template' ? (effective.customwidget as string | undefined) : undefined
 
@@ -139,9 +112,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
     <Sheet side title={t('{{name}} settings', { name: t(def.name) })} onClose={() => selectWidget(null)}>
       <div className="nh-form">
         {def.settings
-          // an instance driven by a custom widget definition ignores its inline template
           .filter((f) => !(customwidget && f.key === 'template'))
-          // fields another setting has made irrelevant (navigate targets on a command button)
           .filter((f) => !f.showIf || f.showIf(effective))
           .map((field) => (
             <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
@@ -178,11 +149,6 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   )
 }
 
-/**
- * Per-surface visibility. Three toggles rather than three boolean settings: it is one decision
- * ("where does this not belong?"), and three separate rows of chrome in every widget's settings
- * would drown the fields that matter.
- */
 function HideOnField({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
   const current = (Array.isArray(value) ? value : typeof value === 'string' ? [value] : []).filter(
@@ -190,8 +156,6 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
   )
   const toggle = (surface: Surface) => {
     const next = current.includes(surface) ? current.filter((s) => s !== surface) : [...current, surface]
-    // Absent rather than an empty array for the common case, so a widget that is never hidden
-    // carries no key at all.
     updateWidgetConfig(widget.id, field.key, next.length > 0 ? next : undefined)
   }
   const labels: [Surface, string][] = [
@@ -218,15 +182,6 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
   )
 }
 
-/**
- * Any number of the options, as toggle chips - the same control as the hide-on row above, which
- * asks the same kind of question.
- *
- * With nothing stored the field shows the widget's own default set, because an empty row beside a
- * chart already drawing eight chips reads as a bug. The first toggle writes a real list (empty
- * included, which is a deliberate "none"), so a later change to the built-in default cannot move
- * a chart somebody has already tuned.
- */
 function MultiSelectField({
   field,
   widget,
@@ -241,7 +196,6 @@ function MultiSelectField({
   const toggle = (option: string) => {
     const picked = new Set(current)
     if (!picked.delete(option)) picked.add(option)
-    // Stored in the schema's own order, so the value reads the way the row does.
     updateWidgetConfig(
       widget.id,
       field.key,
@@ -267,7 +221,6 @@ function MultiSelectField({
   )
 }
 
-/** Settings declared by a custom widget definition, writing into the instance's config map. */
 function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: string }) {
   const { t } = useTranslation()
   const def = useConfigStore((s) => s.widgetDefs.find((d) => d.id === defId))
@@ -292,11 +245,6 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
   )
 }
 
-/**
- * Value for a number input. Imported and hand-edited configs store numbers as strings, and a
- * field that silently renders blank looks like an unset setting the user is about to lose.
- */
-/** A colour a `<input type="color">` can show, or null when it cannot be read at all. */
 function toHex(value: string): string | null {
   const rgb = parseColor(value)
   if (!rgb) return null
@@ -368,11 +316,8 @@ function CustomField({ setting, value, onChange }: { setting: WidgetDefSetting; 
 
 function Field(props: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
-  // An address this page will LOAD, typed as http:// while the page itself is https. The browser
-  // blocks that outright and says nothing a person can act on, so the widget draws an empty frame
-  // or a dead stream. Saying it here means it is answered while the address is being typed rather
-  // than puzzled over afterwards. `subresource` is declared per field: a navigate target opens in
-  // a new tab, which is allowed, and warning about it would be wrong.
+  // an http:// address in an https page is blocked silently, so say so while it is typed; only fields that LOAD
+  // the address are flagged
   const mixed = props.field.type === 'text' && props.field.subresource === true && mixedContent(String(props.value ?? ''))
   return (
     <>
@@ -387,11 +332,7 @@ function Field(props: { field: SettingField; widget: WidgetInstance; value: unkn
   )
 }
 
-/**
- * Schema labels, hints, option labels and placeholders are authored in English in each
- * widget's `settings[]` and translated here at render time, so definitions stay plain data
- * and adding a widget needs no i18n plumbing.
- */
+// schema labels are authored in English and translated at render, so a new widget needs no i18n plumbing
 function FieldInput({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
   const set = (v: unknown) => updateWidgetConfig(widget.id, field.key, v)
@@ -406,12 +347,6 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
         </label>
       )
     case 'number':
-      // Through NumberSetting, like every other numeric field in the app. Written directly, this
-      // one committed on each keystroke: typing 150 into the min-50 text size stored 1, then 15,
-      // then 150, and clicking away halfway left 1 behind. Every reader clamps, so it rendered
-      // correctly - but an out-of-range value in storage is one every reader then has to guard,
-      // and the live preview jumped about while it was being typed. `live` because this edits the
-      // local draft, where previewing is the point and costs no write.
       return (
         <NumberSetting
           id={id}
@@ -428,8 +363,6 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       )
     case 'select': {
       const current = typeof value === 'string' ? value : ''
-      // Ungrouped options first, in their declared order, then one <optgroup> per group in the
-      // order the groups first appear. A 419-entry list is unusable without them.
       const loose = field.options.filter((o) => !o.group)
       const groups: string[] = []
       for (const o of field.options) if (o.group && !groups.includes(o.group)) groups.push(o.group)
@@ -449,7 +382,6 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
                 {field.options
                   .filter((o) => o.group === g)
                   .map((o) => (
-                    /* Not translated: see SettingField. These are environment names, not UI copy. */
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -577,19 +509,6 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
   }
 }
 
-/**
- * Bind an item, and name the widget after it when it has no name yet.
- *
- * A widget added from the palette carries no Name, so a switch bound to `kitchen_lights` and
- * saved reads as a bare "OFF" on the dashboard - the first tile most people make, and it says
- * nothing about what it controls. The item's own label is what the person just picked out of a
- * list, so it is the name they meant; typing over it afterwards is one edit either way.
- *
- * Deliberately narrow. Only the conventional primary key ('item'), never a widget's second or
- * third item (a thermostat's fan is not what the tile is called), only when the widget really has
- * a Name field, and only while that field is empty - so it never overwrites a name, and clearing
- * the item leaves the name alone. Both keys land in one change, so one undo puts both back.
- */
 function bindItem(widget: WidgetInstance, key: string, itemName: string): void {
   const def = getWidgetDefinition(widget.type)
   const named = def?.settings.some((f) => f.key === 'label' && f.type === 'text')
@@ -609,10 +528,6 @@ function bindItem(widget: WidgetInstance, key: string, itemName: string): void {
   updateWidgetConfigs(widget.id, { [key]: itemName, label })
 }
 
-/**
- * Dashboard picker: a select over the dashboards that actually exist. A stored id that no
- * longer resolves stays visible as its raw id rather than being silently dropped.
- */
 function DashboardField({
   field,
   widget,
@@ -642,10 +557,6 @@ function DashboardField({
   )
 }
 
-/**
- * Schema placeholders that are syntax examples (template snippets with {{ }}, command lists)
- * must not go through i18next - it would treat the braces as interpolation and eat them.
- */
 function translatablePlaceholder(placeholder: string | undefined, t: (k: string) => string): string | undefined {
   if (!placeholder) return undefined
   if (placeholder.includes('{{') || placeholder.includes('=')) return placeholder

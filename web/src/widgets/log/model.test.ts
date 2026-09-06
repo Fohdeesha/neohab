@@ -102,7 +102,6 @@ describe('a log entry off the wire', () => {
     expect(levelOf('AUDIT')).toBe('INFO')
     expect(levelOf(undefined)).toBe('INFO')
     expect(levelOf(3)).toBe('INFO')
-    // The prototype's own names are just unknown levels, as everything else is.
     expect(levelOf('constructor')).toBe('INFO')
   })
 })
@@ -155,13 +154,11 @@ describe('the widget filter', () => {
     const under = loggerMatcher('org.openhab.binding.mqtt')
     expect(under?.('org.openhab.binding.mqtt')).toBe(true)
     expect(under?.('org.openhab.binding.mqtt.internal.MqttBrokerHandler')).toBe(true)
-    // Not a prefix match on the characters: `mqttx` is a different logger.
     expect(under?.('org.openhab.binding.mqttx.Handler')).toBe(false)
     const glob = loggerMatcher('*.mqtt.*\nopenhab.event.Item*Event')
     expect(glob?.('org.openhab.binding.mqtt.internal.Handler')).toBe(true)
     expect(glob?.('openhab.event.ItemCommandEvent')).toBe(true)
     expect(glob?.('openhab.event.ThingStatusInfoChangedEvent')).toBe(false)
-    // A dot in a pattern is a dot, not "any character".
     expect(loggerMatcher('a.b*')?.('axb')).toBe(false)
     expect(loggerMatcher('a.b*')?.('a.bc')).toBe(true)
   })
@@ -240,9 +237,6 @@ describe('the wire', () => {
   })
 
   it('keeps the socket alive with something each server accepts silently', () => {
-    // openHAB 4.3 logs a WARNING for anything it cannot parse as a list - a `{}` there would
-    // write into the log being watched every eight seconds. openHAB 5 treats `{}` as the
-    // keepalive and a list as an unparseable filter.
     expect(keepaliveMessage('list')).toBe('[]')
     expect(keepaliveMessage('object')).toBe('{}')
   })
@@ -252,7 +246,6 @@ describe('the wire', () => {
     expect(logSocketUrl('https://home.example/neohab/index.html', '/ws/logs', 'oh.tok')).toBe(
       'wss://home.example/ws/logs?accessToken=oh.tok'
     )
-    // Behind a sub-path proxy the prefix comes with the path, as every other API path does.
     expect(logSocketUrl('https://home.example/openhab/neohab/index.html', '/openhab/ws/logs', 'a b')).toBe(
       'wss://home.example/openhab/ws/logs?accessToken=a+b'
     )
@@ -267,8 +260,6 @@ describe('presentation', () => {
   })
 
   it('prints a logger the way openhab.log does: the last 36 characters', () => {
-    // The stock log4j2.xml pattern is `%-36.36c`, and the file really reads
-    // `[b.core.io.websocket.log.LogWebSocket]` for this logger.
     expect(loggerColumn('org.openhab.core.io.websocket.log.LogWebSocket')).toBe('b.core.io.websocket.log.LogWebSocket')
     expect(loggerColumn('openhab.event.ItemStateChangedEvent')).toBe('openhab.event.ItemStateChangedEvent')
     expect(loggerColumn('x'.repeat(36))).toBe('x'.repeat(36))
@@ -276,13 +267,11 @@ describe('presentation', () => {
   })
 
   it('prints the time on a 24-hour clock, with milliseconds where asked', () => {
-    // 2026-01-05 14:07:09.250 UTC, read in whatever zone the test runs in.
     const ms = Date.UTC(2026, 0, 5, 14, 7, 9, 250)
     const plain = formatTime(ms, 'en')
     expect(plain).toMatch(/^\d{2}:\d{2}:09$/)
     expect(formatTime(ms, 'en', true)).toMatch(/^\d{2}:\d{2}:09[.,]250$/)
     expect(formatTime(ms, 'de')).toMatch(/^\d{2}:\d{2}:09$/)
-    // An unknown language falls back rather than throwing.
     expect(formatTime(ms, 'zz-ZZ-not-a-language')).toMatch(/:09$/)
   })
 

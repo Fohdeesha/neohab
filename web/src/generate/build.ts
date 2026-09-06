@@ -1,10 +1,3 @@
-/**
- * Turning clusters into dashboards.
- *
- * Two stages on purpose. `buildPlan` decides what each item would become and is what the
- * preview shows and edits; `buildDashboards` lays the approved plan out on the grid. Nothing
- * here touches the server or the store, so a plan can be inspected, changed and rebuilt freely.
- */
 import type { Item } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
@@ -12,15 +5,12 @@ import { configFor, isReadOnlyPoint, prettyLabel, sizeFor, suggestWidget, widget
 import { classify, type TagIndex } from './semantics'
 import { clusterPrefix, type Cluster, type SourceKind } from './sources'
 
-/** Columns for a generated dashboard; the model's own default, and what the sizes assume. */
 export const GENERATED_COLUMNS = 12
 
 export interface PlanWidget {
-  /** Stable key for React lists and for toggling this row in the preview. */
   key: string
   item: Item
   label: string
-  /** The widget type, which the preview may override. */
   type: string
   suggested: string
   choices: string[]
@@ -43,7 +33,6 @@ export interface PlanCluster {
   include: boolean
 }
 
-/** An item that cannot become a widget at all, and why - reported rather than dropped silently. */
 export interface PlanSkip {
   item: string
   reason: 'container' | 'image'
@@ -83,8 +72,6 @@ export function buildPlan(clusters: Cluster[], items: Item[], index: TagIndex, s
           choices: widgetChoices(item, suggestion.type),
           note: suggestion.note,
           icon: suggestion.config.icon as string | undefined,
-          // Carried separately from the suggestion so an override to a dial still knows the model
-          // called this point read-only, and renders a gauge rather than a control.
           readOnly: isReadOnlyPoint(item, sem),
           include: true
         })
@@ -96,12 +83,10 @@ export function buildPlan(clusters: Cluster[], items: Item[], index: TagIndex, s
   return { clusters: planned, skipped }
 }
 
-/** The config a plan row currently implies, rebuilt whenever its type is overridden. */
 export function configForPlanWidget(widget: PlanWidget): Record<string, unknown> {
   return configFor(widget.type, widget.item, { label: widget.label, icon: widget.icon, readOnly: widget.readOnly })
 }
 
-/** How many widgets the plan would create right now. */
 export function countPlanned(plan: GeneratePlan): number {
   return plan.clusters
     .filter((c) => c.include)
@@ -112,24 +97,14 @@ export type OutputMode = 'each' | 'single'
 
 export interface BuildOptions {
   mode: OutputMode
-  /** Dashboard name in `single` mode; ignored in `each`, where clusters name themselves. */
   name: string
-  /** Dashboard ids already taken, so generated ids never collide with existing ones. */
   existingIds: Set<string>
   columns?: number
 }
 
 const overlaps = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
-/**
- * Pack one section's widgets into the grid, first free spot wins, scanning top to bottom and
- * left to right from `startY`.
- *
- * First-fit rather than a plain shelf: widget heights differ, and a shelf leaves dead space under
- * every short widget sharing a row with a tall one. Never looking above `startY` is what keeps a
- * section's widgets together instead of scattering them into earlier gaps. Returns the row below
- * everything placed, so the next section starts clear of this one.
- */
+// first fit, never scanning above startY, so a section's widgets stay together instead of filling earlier gaps
 function packSection(sizes: { w: number; h: number }[], columns: number, startY: number): { rects: Rect[]; bottom: number } {
   const rects: Rect[] = []
   let bottom = startY
@@ -161,7 +136,6 @@ function headerWidget(text: string, columns: number, y: number, fontSize: number
   }
 }
 
-/** Build the dashboards a plan describes. Only included clusters and widgets are laid out. */
 export function buildDashboards(plan: GeneratePlan, opts: BuildOptions): Dashboard[] {
   const columns = opts.columns ?? GENERATED_COLUMNS
   const taken = new Set(opts.existingIds)
@@ -181,8 +155,6 @@ export function buildDashboards(plan: GeneratePlan, opts: BuildOptions): Dashboa
         dashboard.widgets.push(headerWidget(section.name, columns, y, 18))
         y += 1
       }
-      // Tallest first, keeping the order of equal-height widgets: big controls anchor the top of
-      // the section and the shorter ones fill in around them.
       const ordered = widgets
         .map((widget, i) => ({ widget, i }))
         .sort((a, b) => sizeFor(b.widget.type).h - sizeFor(a.widget.type).h || a.i - b.i)
@@ -211,7 +183,6 @@ export function buildDashboards(plan: GeneratePlan, opts: BuildOptions): Dashboa
     taken.add(id)
     const dashboard: Dashboard = { version: MODEL_VERSION, id, name, columns, rowHeight: 'match', widgets: [] }
     let y = 0
-    // Cluster headers only earn their row when there is more than one cluster to tell apart.
     const withHeaders = clusters.length > 1
     for (const cluster of clusters) y = emit(dashboard, cluster, y, withHeaders)
     return [dashboard]

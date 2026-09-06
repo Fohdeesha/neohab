@@ -38,11 +38,6 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
   const customThemes = useConfigStore((s) => s.customThemes)
   const [ohVersion, setOhVersion] = useState<string>()
 
-  // Apply (and cache) the active theme whenever the choice or a custom theme changes. The cache
-  // stores whatever was applied, so the pre-paint path is correct either way.
-  //
-  // A theme forced by `?theme=` is applied but deliberately NOT cached: it is meant to last for
-  // this page load only, and caching it would make the escape hatch stick to the device.
   useEffect(() => {
     if (!loaded) return
     const forced = urlThemeOverride()
@@ -55,16 +50,8 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
     let cancelled = false
 
     async function boot() {
-      // Any reverse-proxy credentials the browser already had, before the first request goes out.
-      // Resolves immediately when there are none to find.
       await credentialsReady
 
-      // Finish an in-progress login redirect, then clean the code from the URL.
-      //
-      // A failure here used to go to the console alone: the person had just typed their openHAB
-      // password, come back, and been shown a signed-out app with `?code=…` still in the address
-      // and nothing saying why. The code is single-use and already spent either way, so it is
-      // stripped on both paths - leaving it invites a reload that fails again for a new reason.
       try {
         if (await completeLogin()) {
           history.replaceState(null, '', window.location.pathname + window.location.hash)
@@ -82,7 +69,7 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
         const info = await getRootInfo()
         if (!cancelled) setOhVersion(info.runtimeInfo?.version)
       } catch {
-        /* status stays "connecting" - the dashboard still works for cached/relative calls */
+        // no version to show; the dashboard works either way
       }
     }
 
@@ -90,8 +77,6 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
     return () => {
       cancelled = true
     }
-    // Boot runs once; `credentialsReady` is created before the first render and never changes,
-    // and `t` is only used for a notice raised during that one run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

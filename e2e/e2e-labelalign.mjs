@@ -1,20 +1,6 @@
-/**
- * Name alignment/position + custom-widget-editor placement e2e.
- *
- * Covers: per-widget "Name alignment" (left default / center / right) and "Name position"
- * (top default / bottom) on the wide grid, the phone stack, and both edit surfaces; the
- * chart's header chips (aside) coexisting with alignment; garbage values falling back to
- * left; tight-cell padding sheds keeping their bottom-label variants; the ≤72px label hide
- * still winning over a bottom label; settings-panel selects defaulting to Left/Top (never
- * blank), live preview, one-step undo, persistence; headerless widgets (label) not offering
- * the fields; and the Settings > Custom widgets editor opening directly under the clicked
- * row (moving between rows, new-widget editor staying below the New buttons).
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-lblalign plus
- * widgetdef:nh-e2e-defa / widgetdef:nh-e2e-defb, deletes exactly those in cleanup.
- * Commands NOTHING (sliders/values bound to no item; the chart reads the temperature item history
- * via GET only; def rows are only opened and closed, never saved).
- */
+// Name alignment/position + custom-widget-editor placement e2e.
+// SAFE with a live config: creates only dashboard:nh-e2e-lblalign plus widgetdef:nh-e2e-defa /
+// widgetdef:nh-e2e-defb, deletes exactly those in cleanup.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -42,12 +28,9 @@ page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
-  // Pin the default theme: a theme may set its own default Name alignment (Ember centers),
-  // and this suite asserts the app's own defaults - it must not inherit the server's theme.
   try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
 }, TOKEN)
 
-/** Geometry of the label parts inside the cell containing `text`. */
 const labelGeo = (pg, scope, text) =>
   pg.evaluate(({ scope, text }) => {
     const cells = [...document.querySelectorAll(scope)]
@@ -75,7 +58,6 @@ const labelGeo = (pg, scope, text) =>
 const near = (a, b, tol = 2.5) => Math.abs(a - b) <= tol
 
 try {
-  // ---------- seed ----------
   const widgets = [
     { id: 'w-left', type: 'slider', config: { label: 'Studio Trim' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
     { id: 'w-center', type: 'slider', config: { label: 'Centered', labelAlign: 'center' }, layout: { lg: { x: 4, y: 0, w: 4, h: 3 } } },
@@ -114,7 +96,6 @@ try {
     ok('seed ' + uid, r.ok, String(r.status))
   }
 
-  // ---------- run mode, wide grid ----------
   await page.goto(APP + '#/d/nh-e2e-lblalign', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-gcell', { timeout: 20000 })
   await page.waitForSelector('.nh-chart__chips', { timeout: 20000 })
@@ -139,7 +120,6 @@ try {
   g = await labelGeo(page, '.nh-gcell', 'CenterBottom')
   ok('center+bottom compose', g.found && g.row.t > g.body.t && near((g.txt.l + g.txt.r) / 2, (g.main.l + g.main.r) / 2))
 
-  // chart: centered name shares the header with the period chips, no overlap
   g = await labelGeo(page, '.nh-gcell', 'Chips Chart')
   ok('chart aside (chips) still at the right end', g.found && !!g.aside && near(g.aside.r, g.row.r, 14), JSON.stringify({ a: g.aside?.r, row: g.row?.r }))
   ok('chart name centered before the aside, no overlap',
@@ -148,20 +128,17 @@ try {
   g = await labelGeo(page, '.nh-gcell', 'Tpl Name')
   ok('template widget honors right alignment', g.found && near(g.txt.r, g.main.r))
 
-  // tight cells: 100px rows shed padding, keeping the top/bottom variants distinct
   g = await labelGeo(page, '.nh-gcell', 'Shed Top')
   ok('short cell keeps top-label shed padding', g.found && g.row.padding === '4px 8px 0px', g.row?.padding)
   g = await labelGeo(page, '.nh-gcell', 'Shed Bottom')
   ok('short cell bottom-label pads the bottom instead', g.found && g.row.padding === '0px 8px 4px', g.row?.padding)
   ok('short-cell bottom label still under the body', g.found && g.row.t > g.body.t)
 
-  // 48px rows: label hidden regardless of position
   g = await labelGeo(page, '.nh-gcell', 'TinyTop')
   ok('too-short cell hides a top label', g.found && g.row.display === 'none', g.row?.display)
   g = await labelGeo(page, '.nh-gcell', 'TinyBottom')
   ok('too-short cell hides a bottom label too', g.found && g.row.display === 'none', g.row?.display)
 
-  // ---------- settings panel: defaults, live preview, undo, persistence ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
@@ -171,10 +148,6 @@ try {
   const alignSel = page.locator('#f-w-left-labelAlign')
   const posSel = page.locator('#f-w-left-labelPosition')
   ok('Name alignment select offered', (await alignSel.count()) === 1)
-  // "Theme default" is a real choice and has to be selectable: several themes set the
-  // alignment they want for every widget, and a widget follows that only while it has made no
-  // choice of its own. Showing "Left" for a widget inheriting a centred theme default described
-  // it wrongly AND pinned Left the moment anyone touched the field.
   ok('alignment defaults to "Theme default", never blank',
     (await alignSel.inputValue()) === '' && (await alignSel.locator('option').count()) === 4,
     JSON.stringify(await alignSel.inputValue()))
@@ -184,16 +157,9 @@ try {
   ok('Name position defaults to "Theme default"',
     (await posSel.inputValue()) === '' && (await posSel.locator('option').count()) === 3)
 
-  // ---------- "Show the name": every widget with a header row can be told not to draw one ----
-  // Reported as an inconsistency: a weather panel is obviously weather, and there was no way to
-  // drop the "WEATHER" title above it - while a button had "Icon only" and a camera had three
-  // choices of its own. One field, offered wherever there is a name, and the camera's "Over the
-  // picture" is an extra choice on the same field rather than a second setting.
   const modeSel = page.locator('#f-w-left-labelMode')
   const hasMode = (await modeSel.count()) === 1
   ok('"Show the name" is offered on a widget with a header row', hasMode)
-  // read through the count: a build without the field must fail the checks below rather than
-  // time out on the first read and take the rest of the suite with it
   const modeValue = hasMode ? await modeSel.inputValue() : null
   const modeOpts = hasMode ? await modeSel.locator('option').allTextContents() : []
   ok('it defaults to the title bar, never blank',
@@ -212,7 +178,6 @@ try {
   await sleep(300)
   ok('undo brings the name back in one step', hasMode && (await modeSel.inputValue()) === 'header' && (await named()) === 1)
 
-  // no name, nothing to show: the field goes rather than offering a choice about nothing
   const nameField = page.locator('#f-w-left-label')
   const typed = await nameField.inputValue()
   await nameField.fill('')
@@ -221,8 +186,6 @@ try {
   await nameField.fill(typed)
   await sleep(350)
   ok('typing a name brings the choice back', hasMode && (await page.locator('#f-w-left-labelMode').count()) === 1)
-  // leave the text field: the editor ignores Ctrl+Z while the focus is in one, and the checks
-  // below drive undo
   await nameField.blur()
   await sleep(150)
 
@@ -237,7 +200,6 @@ try {
   ok('undo restores left in one step', g.found && near(g.txt.l, g.main.l))
   ok('undo reflected in the select', (await alignSel.inputValue()) === '')
 
-  // Going back to the theme default has to be possible, and has to actually take effect.
   await alignSel.selectOption('right')
   await sleep(250)
   const rightGeo = await labelGeo(page, '.nh-cell', 'Studio Trim')
@@ -255,7 +217,6 @@ try {
   g = await labelGeo(page, '.nh-cell', 'Studio Trim')
   ok('live preview: bottom applies in edit mode', g.found && g.row.t > g.body.t)
 
-  // headerless widget offers no Name fields but keeps Text size
   await page.locator('.nh-cell:has-text("Plain text") .nh-cell__overlay').click()
   await page.waitForSelector('.nh-sheet--side:has-text("Label settings")')
   ok('label widget: no Name alignment/position fields',
@@ -274,13 +235,11 @@ try {
   g = await labelGeo(page, '.nh-gcell', 'Studio Trim')
   ok('run mode shows the saved center+bottom', g.found && g.row.t > g.body.t && near((g.txt.l + g.txt.r) / 2, (g.main.l + g.main.r) / 2))
 
-  // ---------- phone: stacked view + stacked edit surface ----------
   const phone = await browser.newPage({ viewport: { width: 393, height: 851 } })
   phone.on('pageerror', (e) => errs.push(String(e.message)))
   phone.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
   phone.on('dialog', (d) => d.accept())
   await phone.addInitScript((t) => {
-    // same default-theme pin as the main page - this suite asserts the app's own defaults
     try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
   }, TOKEN)
   await phone.goto(APP + '#/d/nh-e2e-lblalign', { waitUntil: 'domcontentloaded' })
@@ -301,7 +260,6 @@ try {
   await phone.click('button:has-text("Exit")')
   await phone.close()
 
-  // ---------- Settings > Custom widgets: editor opens under the clicked row ----------
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-deflist__row', { timeout: 15000 })
 
@@ -352,7 +310,6 @@ try {
   await page.locator('.nh-defeditor button:has-text("Close")').click()
   ok('new-widget editor closes without saving', (await page.locator('.nh-defeditor').count()) === 0)
 
-  // ---------- console health ----------
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (err) {
   ok('run completed', false, String(err))

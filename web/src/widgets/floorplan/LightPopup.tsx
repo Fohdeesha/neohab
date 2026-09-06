@@ -1,8 +1,3 @@
-/**
- * Tap-a-light popup: the control for one light, over the plan. A Color item gets the exact
- * same picker as the color widget; dimmers a slider; switches two plain buttons. The room
- * follows live - this IS controlling the light, the same as any widget would.
- */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
@@ -13,9 +8,6 @@ import { stateKind, type FloorplanLight } from './model'
 
 export function LightPopup({ light, ctx: outer, onClose }: { light: FloorplanLight; ctx: WidgetContext; onClose: () => void }) {
   const { t } = useTranslation()
-  // Every command from this popup feeds the settling layer, so the room under it follows the
-  // control instead of the device's pre-fade echo. Wrapped here rather than inside the controls
-  // themselves: ColorControl belongs to the color widget too, and only the plan reads this.
   const ctx = useMemo<WidgetContext>(
     () => ({
       ...outer,
@@ -33,8 +25,6 @@ export function LightPopup({ light, ctx: outer, onClose }: { light: FloorplanLig
   const kind = stateKind(state?.state)
 
   return (
-    // The scrim closes on click, not pointerdown, so it stays under the pointer for the whole
-    // gesture and nothing beneath it sees any part of the dismissing tap.
     <div className="nh-fplan__scrim" onClick={onClose}>
       <div className="nh-fplan__popup" role="dialog" aria-label={light.label ?? light.item} onClick={(e) => e.stopPropagation()}>
         <div className="nh-fplan__popuphead">

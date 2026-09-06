@@ -1,8 +1,3 @@
-/**
- * The AngularJS-style filters HABPanel templates use ({{ expr | filter:arg }}).
- * Unknown filters pass the value through unchanged so a template never breaks outright.
- */
-
 type FilterFn = (value: unknown, ...args: unknown[]) => unknown
 
 export const FILTERS: Record<string, FilterFn> = {
@@ -21,11 +16,9 @@ export const FILTERS: Record<string, FilterFn> = {
     if (Array.isArray(v)) return limit >= 0 ? v.slice(0, limit) : v.slice(limit)
     return v
   },
-  // angular-sprintf style: {{ '%.1f' | sprintf:value }} - the format string is the piped value.
   sprintf: (fmt, ...args) => sprintf(String(fmt ?? ''), args)
 }
 
-/** Minimal printf: %s %d %i %f (with %.Nf precision), %% - covers HABPanel community usage. */
 function sprintf(fmt: string, args: unknown[]): string {
   let i = 0
   return fmt.replace(/%(?:%|(?:\.(\d+))?([sdif]))/g, (match, precision: string | undefined, kind: string | undefined) => {
@@ -50,11 +43,6 @@ function sprintf(fmt: string, args: unknown[]): string {
   })
 }
 
-/**
- * Split a string on a top-level delimiter, ignoring occurrences inside quotes or brackets.
- * Used to peel `expr | filter:arg` pipes and `a; b` statement lists before jsep parsing
- * (`|` alone would parse as bitwise-or, and `:` inside filter args isn't expression syntax).
- */
 export function splitTopLevel(src: string, delimiter: string): string[] {
   const parts: string[] = []
   let depth = 0

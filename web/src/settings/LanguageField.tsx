@@ -1,10 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { LANGUAGES, setLanguage, storedLanguage } from '../i18n'
 
-/**
- * Per-device language choice. 'auto' follows the browser; a concrete pick is stored in
- * localStorage, like the text size - a wall panel and a phone can disagree.
- */
 export function LanguageField() {
   const { t, i18n } = useTranslation()
   const value = storedLanguage() ?? 'auto'

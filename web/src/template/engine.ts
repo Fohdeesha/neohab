@@ -1,19 +1,3 @@
-/**
- * Tier-1 template widget engine: HABPanel-compatible declarative templates, safely.
- *
- * Pipeline: raw template string -> DOMPurify sanitize (once, cached) -> per-render clone ->
- * directive pass (interpolation, conditionals, repeats, event wiring) -> DocumentFragment the
- * widget mounts into a shadow root (so template <style> blocks can't leak into the app).
- *
- * Supported syntax (x-* is the native spelling, ng-* kept as aliases so HABPanel templates
- * run unmodified): {{ expr | filter }}, x-if/ng-if, x-for/ng-repeat ("item in expr"),
- * x-class/ng-class, x-style/ng-style, x-on:tap/ng-click, x-init/ng-init, ng-show/ng-hide,
- * ng-bind, ng-src/ng-href, and HABPanel's <widget-icon> (mapped to the openHAB icon servlet).
- *
- * Scripts, event-handler attributes and javascript: URLs never survive sanitization; all
- * expressions run in the guarded evaluator (see evaluator.ts). Same-origin iframes are
- * sandboxed without allow-same-origin so an embedded page can't reach the app or its tokens.
- */
 import DOMPurify from 'dompurify'
 import { ohUrl } from '../api/base'
 import { safeUrl } from '../model/url'
@@ -63,7 +47,6 @@ const SANITIZE_CONFIG = {
 
 const compileCache = new Map<string, HTMLTemplateElement>()
 
-/** Sanitize and parse a template once; renders clone from the cached result. */
 export function compileTemplate(raw: string): HTMLTemplateElement {
   let tpl = compileCache.get(raw)
   if (!tpl) {
@@ -75,14 +58,12 @@ export function compileTemplate(raw: string): HTMLTemplateElement {
   return tpl
 }
 
-/** Evaluate `expr | filter:arg | ...` - filters applied left to right. */
 export function evalWithFilters(src: string, scope: Scope): unknown {
   const segments = splitTopLevel(src, '|')
   let value = evaluate(segments[0], scope)
   for (let i = 1; i < segments.length; i++) {
     const [name, ...argSrcs] = splitTopLevel(segments[i], ':')
-    // Through `lookup` because the name is written by whoever authored the template, which for
-    // an imported or gallery widget is not the person running the dashboard.
+    // through lookup: the filter name comes from whoever wrote the template, not from us
     const filter = lookup(FILTERS, name.trim())
     if (!filter) continue
     value = filter(value, ...argSrcs.map((a) => evaluate(a, scope)))
@@ -101,14 +82,7 @@ function interpolate(text: string, scope: Scope): string {
 
 const URL_ATTRS = new Set(['src', 'href', 'action', 'formaction', 'xlink:href'])
 
-/**
- * A URL that came out of an expression, or an empty attribute.
- *
- * Interpolated attribute values are written AFTER the sanitizer has run, so DOMPurify's own URI
- * policy never sees them - the allow-list in model/url.ts is the only thing standing in for it.
- * Shared with the widgets that put a stored URL into an iframe or a new tab, which have exactly
- * the same problem for exactly the same reason.
- */
+// interpolated attributes are written AFTER the sanitizer runs, so URLs get checked here
 function attrUrl(value: string): string {
   return safeUrl(value) ?? ''
 }
@@ -121,7 +95,6 @@ function attr(el: Element, ...names: string[]): string | null {
   return null
 }
 
-/** Render one pass of a compiled template against a scope. */
 export function renderTemplate(compiled: HTMLTemplateElement, scope: Scope): DocumentFragment {
   const frag = compiled.content.cloneNode(true) as DocumentFragment
   for (const child of [...frag.children]) processElement(child, scope)
@@ -131,7 +104,6 @@ export function renderTemplate(compiled: HTMLTemplateElement, scope: Scope): Doc
 }
 
 function processElement(el: Element, scope: Scope): void {
-  // template-local variables first, so the rest of the element can use them
   const init = attr(el, 'x-init', 'ng-init')
   if (init !== null) {
     for (const stmt of splitTopLevel(init, ';')) {
@@ -139,10 +111,6 @@ function processElement(el: Element, scope: Scope): void {
     }
   }
 
-  // Repeats expand before conditionals, as in AngularJS (ng-repeat outranks ng-if). On the same
-  // element the condition belongs to each item: judging it here, against a scope where the loop
-  // variable does not exist yet, would drop the whole list. Each clone re-enters with the item
-  // scope and applies the condition there.
   const forExpr = attr(el, 'x-for', 'ng-repeat')
   if (forExpr !== null) {
     expandRepeat(el, forExpr, scope)
@@ -177,13 +145,11 @@ function processElement(el: Element, scope: Scope): void {
   const styleExpr = attr(el, 'x-style', 'ng-style')
   if (styleExpr !== null) applyStyle(el as HTMLElement, evalWithFilters(styleExpr, scope))
 
-  // ng-src/ng-href values are interpolated strings, like in AngularJS
   const src = el.getAttribute('ng-src')
   if (src !== null) el.setAttribute('src', attrUrl(interpolate(src, scope)))
   const href = el.getAttribute('ng-href')
   if (href !== null) el.setAttribute('href', attrUrl(interpolate(href, scope)))
 
-  // {{ }} inside ordinary attribute values
   for (const a of [...el.attributes]) {
     if (a.value.includes('{{')) {
       const v = interpolate(a.value, scope)
@@ -202,7 +168,6 @@ function processElement(el: Element, scope: Scope): void {
     ;(el as HTMLElement).style.cursor ||= 'pointer'
   }
 
-  // a same-origin iframe would run scripts with access to the app; force an opaque origin
   if (el.tagName === 'IFRAME') {
     const frameSrc = el.getAttribute('src') ?? ''
     try {
@@ -219,7 +184,6 @@ function processElement(el: Element, scope: Scope): void {
 
 const REPEAT_RE = /^\s*([$\w]+)\s+in\s+(.+?)(?:\s+track\s+by\s+.+)?\s*$/
 
-/** Names a loop variable may not take; the evaluator refuses the same three when assigning. */
 const FORBIDDEN_SCOPE_NAMES = new Set(['__proto__', 'prototype', 'constructor'])
 
 function expandRepeat(el: Element, expr: string, scope: Scope): void {
@@ -237,11 +201,6 @@ function expandRepeat(el: Element, expr: string, scope: Scope): void {
   el.removeAttribute('ng-repeat')
   list.forEach((item, index) => {
     const child: Scope = Object.create(scope)
-    // The one write into a scope that did not go through the evaluator's guard: `varName` comes
-    // out of the template, so `ng-repeat="__proto__ in list"` re-pointed the child scope's
-    // prototype at whatever the list held. Nothing reachable from there is dangerous - reads of
-    // __proto__ and constructor are blocked - but a loop variable that quietly replaces the scope
-    // chain is not something to leave to that.
     if (!FORBIDDEN_SCOPE_NAMES.has(varName)) child[varName] = item
     child.$index = index
     child.$first = index === 0
@@ -249,17 +208,12 @@ function expandRepeat(el: Element, expr: string, scope: Scope): void {
     const clone = el.cloneNode(true) as Element
     parent.insertBefore(clone, el)
     processElement(clone, child)
-    // Interpolated here with the item scope, and marked so the fragment-wide pass below leaves
-    // the result alone. Without the mark a value that itself contains {{ }} - an item state,
-    // say - was evaluated a second time against the OUTER scope, which nothing outside a repeat
-    // ever was.
     interpolateTextNodes(clone, child)
     markInterpolated(clone)
   })
   el.remove()
 }
 
-/** HABPanel's <widget-icon iconset="'x'" icon="'y'" state="expr" size="n"> -> openHAB icon img. */
 function replaceWidgetIcon(el: Element, scope: Scope): void {
   const iconset = String(evaluate(el.getAttribute('iconset') ?? "'classic'", scope) ?? 'classic')
   const icon = String(evaluate(el.getAttribute('icon') ?? "''", scope) ?? '')
@@ -298,7 +252,6 @@ function applyStyle(el: HTMLElement, value: unknown): void {
   }
 }
 
-/** Marks a subtree as already interpolated, so a later pass over its parent skips it. */
 const DONE_ATTR = 'data-nh-interpolated'
 
 function markInterpolated(el: Element): void {
@@ -312,15 +265,12 @@ function interpolateTextNodes(root: Node, scope: Scope): void {
     if ((n as Text).data.includes('{{')) texts.push(n as Text)
   }
   for (const t of texts) {
-    // skip nodes inside <style>/<script> (script can't exist post-sanitize, style is literal)
     if (t.parentElement?.closest('style')) continue
-    // ...and anything a repeat already rendered with its own item scope
     if (t.parentElement?.closest(`[${DONE_ATTR}]`)) continue
     t.data = interpolate(t.data, scope)
   }
 }
 
-/** Base stylesheet injected into each template shadow root. */
 export const TEMPLATE_BASE_CSS = `
 :host { display: block; height: 100%; position: relative; overflow: hidden; color: inherit; }
 *, *::before, *::after { box-sizing: border-box; }

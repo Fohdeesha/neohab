@@ -1,24 +1,7 @@
-/**
- * Background images e2e.
- *
- * Covers: a global background URL set in Settings paints the Home screen and any dashboard
- * without one of its own; a per-dashboard background overrides the global one; uploading an
- * image creates a background:<id> component (in backups by construction) and the field then
- * references it as bg:<id>; replacing the upload garbage-collects the orphaned component; the
- * dashboard-settings panel edits the per-dashboard background with live preview and persists
- * on Save; the HABPanel importer maps settings.background_image to the global background.
- *
- * Also: uploads are stored losslessly as PNG; the export puts base64 blobs (icons, then
- * backgrounds) at the end of the file and the Backup section can exclude backgrounds
- * entirely for a small, readable export.
- *
- * And the converse of collection: an upload referenced only from inside a WIDGET's config must
- * survive, whichever widget and whichever key hold the reference.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2/-bg3 (+ dashboard:synthbg via
- * the import check) and its own background:* uploads; the `settings` component is snapshotted and
- * restored VERBATIM; exact-uid cleanup; commands NOTHING (clock/label widgets only).
- */
+// Background images e2e. Covers: a global background URL set in Settings paints the Home screen and any
+// dashboard without one of its own.
+// SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2/-bg3 (+ dashboard:synthbg via the import
+// check) and its own background:* uploads; the `settings`.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
@@ -39,11 +22,9 @@ async function launch() {
 
 const GLOBAL_URL = 'https://example.invalid/global-bg.png'
 const DASH_URL = 'https://example.invalid/dash-bg.png'
-// an upload held only by a reference inside a widget's config
 const HELD_ID = 'nh-e2e-held'
 const HELD_BG = 'background:' + HELD_ID
 const HELD_DASH = 'dashboard:nh-e2e-bg3'
-// a 2x2 red PNG - tiny but real, so the upload pipeline decodes and re-encodes it
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEJMDGgAgBLcAEPtvE4TQAAAABJRU5ErkJggg==',
   'base64'
@@ -87,7 +68,6 @@ try {
   ok('seed bg1 (no own background)', await seed('nh-e2e-bg1', 'E2E BG One'))
   ok('seed bg2 (own background)', await seed('nh-e2e-bg2', 'E2E BG Two', { background: DASH_URL }))
 
-  /* ---------------- global URL via Settings ---------------- */
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL)
@@ -107,7 +87,6 @@ try {
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   ok('per-dashboard background overrides the global one', (await bgOf(page, '.nh-dash')).includes('dash-bg.png'))
 
-  /* ---------------- upload path + garbage collection ---------------- */
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page
@@ -117,10 +96,6 @@ try {
     const inp = document.querySelector('#nh-set-bg')
     return inp && inp.placeholder.includes('KB')
   }, { timeout: 15000 })
-  // The field shows the uploaded size as soon as the image has been processed in the browser, but
-  // storing the component and writing the settings are two round trips behind that. Sampled once,
-  // this reads the value the upload is in the middle of replacing - which it did, mid-battery,
-  // while every check after it passed. Polled, so a value that never arrives still fails.
   let afterUpload = await getSettings()
   for (let i = 0; i < 40 && !/^bg:/.test(afterUpload.config?.background ?? ''); i++) {
     await sleep(250)
@@ -138,7 +113,6 @@ try {
   await page.waitForSelector('.nh-tile', { timeout: 20000 })
   ok('Home paints the uploaded image (data URI)', (await bgOf(page, '.nh-home')).includes('data:image/png'))
 
-  /* ---------------- export: blobs last, and the include toggle ---------------- */
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-export-bg', { timeout: 20000 })
   ok('export toggle appears once a background exists, default on', await page.isChecked('#nh-export-bg'))
@@ -168,7 +142,6 @@ try {
   ok('toggle off: everything else still exported', slimUids.length === uidsInOrder.length - uidsInOrder.filter((u) => u.startsWith('background:')).length, `${slimUids.length} vs ${uidsInOrder.length}`)
   await page.check('#nh-export-bg')
 
-  // replacing the upload with a URL must garbage-collect the orphaned component
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL)
@@ -180,13 +153,6 @@ try {
   }
   ok('orphaned upload garbage-collected', gcLeft.length === bgUidsBefore.length, gcLeft.join(','))
 
-  /* -------- an image referenced from inside a widget's config is NOT collected -------- */
-  // The collector deletes uploads nothing points at, and "points at" used to mean the global
-  // setting or a dashboard's own background field. A floor plan keeps its plan image inside the
-  // WIDGET's config, so it counted as unreferenced and was deleted on the next save of any
-  // dashboard. Checked here on the mechanism rather than on one widget: the key below is one no
-  // widget owns, because the collector must not care which widget or which key holds the
-  // reference.
   await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -212,7 +178,6 @@ try {
       },
     }),
   })
-  // load the app fresh so its store knows about both, then trigger a collection
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL + '?2')
@@ -220,7 +185,6 @@ try {
   const heldStatus = (await fetch(NS + '/' + encodeURIComponent(HELD_BG), { headers: AUTH })).status
   ok('an image referenced only from a widget config survives a collection', heldStatus === 200, 'status ' + heldStatus)
 
-  /* ---------------- per-dashboard background via the editor ---------------- */
   await page.goto(APP + '#/d/nh-e2e-bg1')
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   await page.click('[aria-label="Edit dashboard"]')
@@ -235,7 +199,6 @@ try {
   const savedDash = await (await fetch(NS + '/dashboard:nh-e2e-bg1', { headers: AUTH })).json()
   ok('per-dashboard background persisted on Save', savedDash.config.background === DASH_URL, String(savedDash.config.background))
 
-  /* ---------------- importer maps settings.background_image ---------------- */
   const synthetic = {
     dashboards: [{ id: 'synthbg', name: 'Synth BG', widgets: [] }],
     settings: { background_image: 'https://example.invalid/habpanel-bg.jpg' },
@@ -251,7 +214,6 @@ try {
   ok('importer set the global background', importedSettings.config.background === 'https://example.invalid/habpanel-bg.jpg', String(importedSettings.config.background))
   ok('import report mentions the background', (await page.locator('.nh-report__item:has-text("background")').count()) >= 1)
 
-  // the example.invalid test URLs legitimately fail to resolve - that noise is this suite's own
   const realErrs = errs.filter((e) => !/ERR_NAME_NOT_RESOLVED/.test(e))
   ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } finally {
@@ -260,7 +222,6 @@ try {
   for (const uid of ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', HELD_DASH, 'dashboard:synthbg']) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  // any background component this suite created (uid diff against the pre-suite listing)
   for (const uid of await bgUids()) {
     if (!bgUidsBefore.includes(uid)) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
   }

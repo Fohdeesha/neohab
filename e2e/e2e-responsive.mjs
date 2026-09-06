@@ -1,9 +1,7 @@
-/**
- * Responsive / mobile e2e: multi-viewport layout invariants, dynamic icon scaling, color-picker
- * optimistic hold, and the dark-scheme iframe fix. SAFE with a live config: creates only
- * dashboard:nh-e2e-resp (deleted afterwards, cleanup guarded), reads the server's own dashboards
- * strictly read-only (zero clicks there), restores approved item states.
- */
+// Responsive / mobile e2e: multi-viewport layout invariants, dynamic icon scaling, color-picker optimistic
+// hold, and the dark-scheme iframe fix.
+// SAFE with a live config: creates only dashboard:nh-e2e-resp (deleted afterwards, cleanup guarded), reads
+// the server's own dashboards strictly read-only (zero clicks.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS, UNREACHABLE } from './lib/target.mjs'
 
@@ -26,10 +24,7 @@ const initial = {
   color: await getState(COLOR_ITEM),
 }
 
-// a LAN-served time page (white courier text, no background - the HABPanel classic)
 const TIME_HTML = `<html><head><style>body{overflow:hidden}</style></head><body><center><font color="white" face="Courier"><div style="font-size:33px" id="clockbox">July 14 <br> Tuesday 2026 <br> 5:59 AM</div></font></center></body></html>`
-
-/* ------------------------- seed the suite's own dashboard ------------------------- */
 
 const DASH = {
   uid: 'dashboard:nh-e2e-resp',
@@ -43,7 +38,6 @@ const DASH = {
     rowHeight: 'match',
     gap: 4,
     widgets: [
-      // 1x1 buttons with icons - the classic dense lighting-board shape
       { id: 'r-btn1', type: 'button', config: { label: 'Main Room Lights', icon: 'oh:slider', iconSize: 60, item: SWITCH_ITEM, command: 'ON', commandAlt: 'OFF', toggle: true }, layout: { lg: { x: 0, y: 0, w: 1, h: 1 } } },
       { id: 'r-btn2', type: 'button', config: { label: 'A Fairly Long Button Label Indeed', icon: 'mdi:lightbulb-group', iconSize: 120, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
       { id: 'r-btn3', type: 'button', config: { label: 'No Icon Button', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
@@ -61,9 +55,6 @@ const DASH = {
   ok('seed dashboard created', r.ok, String(r.status))
 }
 
-/* -------------------------------- helpers (in-page) -------------------------------- */
-
-// cellMetrics/iconScale mirrored from model/layout.ts
 const cellRowHeight = (columns, gap, rowHeight, containerWidth) => {
   const colWidth = (containerWidth - gap * (columns - 1)) / columns
   return rowHeight === 'match' ? Math.max(8, colWidth) : rowHeight
@@ -124,8 +115,6 @@ const iframeDarkCheck = async (page, hostSel) => {
   }, buf.toString('base64'))
 }
 
-/* ------------------------------------ run ------------------------------------ */
-
 const browser = await launchBrowser()
 try {
   const VIEWPORTS = [
@@ -142,8 +131,6 @@ try {
   const iconHeights = {}
   for (const vp of VIEWPORTS) {
     const ctx = await browser.newContext(vp.name.startsWith('phone') || vp.name.startsWith('tablet') ? vp : { viewport: vp.viewport })
-    // pin the default theme: this suite asserts default geometry, and the server's
-    // global theme belongs to the user (it was 'assembly' when this line was added)
     await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
     await ctx.route('**://widget-host.invalid/**', (route) =>
       route.fulfill({ status: 200, contentType: 'text/html', body: TIME_HTML })
@@ -160,7 +147,6 @@ try {
     const problems = await page.evaluate(LAYOUT_CHECKS)
     ok(`${vp.name}: layout invariants (no clipping/overflow)`, problems.length === 0, problems.slice(0, 4).join(' | '))
 
-    // icon scaling: measure the oh:slider icon on r-btn1 (iconSize 60)
     const stacked = await page.evaluate(`!!document.querySelector('.nh-grid--stacked')`)
     const gridW = await page.evaluate(`document.querySelector('.nh-grid').clientWidth`)
     const rowH = stacked ? cellRowHeight(11, 4, 'match', 1280) : cellRowHeight(11, 4, 'match', gridW)
@@ -169,7 +155,6 @@ try {
     iconHeights[vp.name] = iconH
     ok(`${vp.name}: icon scales with cells (want ~${expected.toFixed(1)}px)`, Math.abs(iconH - expected) < 2.5 || (iconH < expected && iconH > 12), `got ${iconH.toFixed(1)}`)
 
-    // oversized icon (120px) must shrink instead of clipping its label
     const big = await page.evaluate(`(() => {
       const btns = [...document.querySelectorAll('.nh-button')]
       const b = btns.find((x) => x.textContent.includes('Fairly Long'))
@@ -180,7 +165,6 @@ try {
     })()`)
     ok(`${vp.name}: oversized icon yields to label`, big && big.labelInside && big.labelH >= 15, JSON.stringify(big))
 
-    // the unstyled dark-page iframe must not be a white slab
     const px = await iframeDarkCheck(page, '.nh-template__host')
     ok(`${vp.name}: template iframe not white (dark bg + light text)`, px.darkPct > 55 && px.brightPct > 0.15 && px.brightPct < 30, `dark=${px.darkPct.toFixed(0)}% bright=${px.brightPct.toFixed(1)}%`)
 
@@ -189,7 +173,6 @@ try {
     await ctx.close()
   }
 
-  // (widths where the label wraps make the icon yield, so only compare unconstrained sizes)
   ok(
     'icons grow with viewport (stacked < 1920 < 2560)',
     iconHeights['phone-393'] < iconHeights['desktop-1920'] &&
@@ -197,10 +180,6 @@ try {
     JSON.stringify(iconHeights)
   )
 
-  /* ---------------- the server's real dashboards, READ-ONLY (no clicks, ever) ---------------- */
-
-  // Derived from the live namespace, never hardcoded: the three largest dashboards get a phone
-  // pass, the largest also a desktop pass.
   const liveResp = (await (await fetch(NS)).json())
     .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-'))
     .sort((a, b) => (b.config.widgets?.length ?? 0) - (a.config.widgets?.length ?? 0))
@@ -216,8 +195,6 @@ try {
   }
   for (const [name, hash, vp] of livePairs) {
     const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2, ...(vp.width < 800 ? { isMobile: true, hasTouch: true } : {}) })
-    // pin the default theme: this suite asserts default geometry, and the server's
-    // global theme belongs to the user (it was 'assembly' when this line was added)
     await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
     await ctx.route('**://widget-host.invalid/**', (route) =>
       route.request().url().endsWith('time.html')
@@ -233,12 +210,8 @@ try {
     await ctx.close()
   }
 
-  /* -------- color cross-talk + slider optimistic hold (approved items only) -------- */
-
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } })
   const page = await ctx.newPage()
-    // pin the default theme: this suite asserts default geometry, and the server's
-    // global theme belongs to the user (it was 'assembly' when this line was added)
     await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
   const posts = []
   await page.route('**/rest/items/' + COLOR_ITEM, (route) => {
@@ -253,9 +226,6 @@ try {
     page.evaluate(`[...document.querySelectorAll('.nh-color__track')].map((t) => Number(t.value))`)
   const before = await readHsb()
 
-  // Step saturation 20 with the keyboard (coalesces to ONE command after 500ms). Step away
-  // from whichever end the live item sits near, or the range input clamps and the assertion
-  // becomes unreachable (saturation is the device's, not ours to choose).
   const STEPS = 20
   const down = before[1] >= STEPS
   const wantS = before[1] + (down ? -STEPS : STEPS)
@@ -270,7 +240,6 @@ try {
   ok('color: hue pinned right after commit', justAfter[0] === before[0], `${before[0]} -> ${justAfter[0]}`)
   ok('color: brightness pinned right after commit', justAfter[2] === before[2], `${before[2]} -> ${justAfter[2]}`)
 
-  // the device echoes/fades for a while - sliders must hold through it
   let held = true
   let worst = ''
   for (let t = 0; t < 12; t++) {
@@ -283,7 +252,6 @@ try {
   }
   ok('color: sliders hold steady through device echo (3.6s watch)', held, worst || 'stable')
 
-  // slider widget: drag-free keyboard commit, must not snap back
   const posts2 = []
   await page.route('**/rest/items/' + SLIDER_ITEM, (route) => {
     posts2.push(route.request().postData())
@@ -308,11 +276,8 @@ try {
   await browser.close()
 }
 
-/* ------------------------------------ cleanup ------------------------------------ */
-
 await fetch(NS + '/dashboard:nh-e2e-resp', { method: 'DELETE', headers: AUTH })
 
-// restore approved items exactly (color items sometimes need a resend to land precisely)
 const restore = (item, val) =>
   val && val !== 'NULL' && val !== 'UNDEF' ? sendCmd(item, val) : Promise.resolve()
 await restore(SWITCH_ITEM, initial.switch)

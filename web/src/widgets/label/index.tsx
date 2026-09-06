@@ -7,15 +7,8 @@ interface LabelConfig {
   text: string
   fontSize?: number
   color?: string
-  /**
-   * How the text is set on the tile: as plain text, or as a chip that hugs it - a rounded
-   * pill or a square box. A chip is what a callout ("809 Drop Offs") looks like, and it wants
-   * its own fill rather than the tile's.
-   */
   shape?: 'plain' | 'pill' | 'box'
-  /** Chip fill; empty follows the theme accent. */
   fill?: string
-  /** Where the text sits in its tile. Centered by default, as a caption normally is. */
   align?: 'left' | 'center' | 'right'
 }
 
@@ -28,15 +21,11 @@ function LabelWidget({ config }: WidgetProps<LabelConfig>) {
         className={'nh-label' + (chip ? ' nh-label--chip nh-label--' + config.shape : '') + (align ? ' nh-label--' + align : '')}
         style={
           {
-            // Authored against a desktop-width dashboard, like iconSize: scale it with the cell
-            // so a label tracks the rest of the widget text instead of staying fixed.
             fontSize: config.fontSize
               ? `calc(${config.fontSize}px * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1))`
               : undefined,
             color: config.color,
             background: chip ? config.fill : undefined,
-            // A chip with a fill of its own needs ink that can be read on THAT colour, not on the
-            // theme accent the stylesheet assumed. An explicit Color setting still wins above.
             '--nh-accent-ink': chip && config.fill ? (readableInk(config.fill) ?? undefined) : undefined
           } as CSSProperties
         }>

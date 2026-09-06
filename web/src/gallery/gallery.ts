@@ -1,25 +1,7 @@
-/**
- * Widget gallery: ready-made custom widgets you can install with one tap.
- *
- * The catalogue ships **inside the add-on** (`web/public/gallery/`), which is deliberate: it works
- * on a wall panel with no internet, needs no cross-origin permission, and does not depend on any
- * repository being reachable or public. An optional remote catalogue can be fetched on request -
- * only when the user asks, so an unreachable one is an answer rather than console noise.
- *
- * Why not the community forum directly: community.openhab.org answers browsers with
- * `Access-Control-Allow-Origin: https://www.openhab.org`, so a page served by openHAB cannot read
- * it at all (this is exactly why HABPanel needed a server-side proxy). Forum widgets are therefore
- * linked, never redistributed - their posts carry no licence we could honour.
- */
 import type { CustomWidgetDef } from '../model/widgetdef'
 
-/** Where the bundled catalogue lives, relative to the app (so it works under /neohab/ and in dev). */
 const BUNDLED_INDEX = 'gallery/index.json'
 
-/**
- * The published catalogue, used only when the user asks for it. Reachable once the repository is
- * public; until then this simply reports that it could not be loaded.
- */
 export const REMOTE_INDEX = 'https://raw.githubusercontent.com/Fohdeesha/neohab/main/web/public/gallery/index.json'
 
 export interface GalleryEntry {
@@ -29,9 +11,7 @@ export interface GalleryEntry {
   author?: string
   license?: string
   kind?: 'template' | 'js'
-  /** Widget file, relative to the catalogue's own URL. */
   file: string
-  /** Set for entries that came from a remote catalogue, so the UI can say where they are from. */
   remote?: boolean
 }
 
@@ -57,27 +37,19 @@ async function fetchIndex(url: string): Promise<GalleryIndex> {
   return index
 }
 
-/** The catalogue that ships with this add-on. */
 export function loadBundledGallery(): Promise<GalleryIndex> {
   return fetchIndex(BUNDLED_INDEX)
 }
 
-/** A remote catalogue, its entries marked so the UI can distinguish them. */
 export async function loadRemoteGallery(url: string = REMOTE_INDEX): Promise<GalleryIndex> {
   const index = await fetchIndex(url)
   return { ...index, widgets: index.widgets.map((w) => ({ ...w, remote: true })) }
 }
 
-/** Resolve an entry's `file` against the catalogue it came from. */
 export function entryUrl(entry: GalleryEntry, indexUrl: string): string {
   return new URL(entry.file, new URL(indexUrl, window.location.href)).toString()
 }
 
-/**
- * Fetch and validate one gallery widget. The result is a widget definition ready to store; the id
- * always comes from the catalogue entry rather than the file, so a file cannot install itself
- * under a name the user did not see.
- */
 export async function loadGalleryWidget(entry: GalleryEntry, indexUrl: string): Promise<CustomWidgetDef> {
   const res = await fetch(entryUrl(entry, indexUrl), { cache: 'no-cache' })
   if (!res.ok) throw new Error(`${res.status}`)

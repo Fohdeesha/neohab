@@ -1,8 +1,3 @@
-/**
- * Floor plan model: stored-config guards, the object-fit math the glow layer is anchored to,
- * and what each item state glows as. Stored lights come from imports and hand edits, so the
- * hostile shapes are the point.
- */
 import { describe, expect, it } from 'vitest'
 import {
   containRect,
@@ -40,7 +35,6 @@ describe('lightsOf', () => {
     const lights = lightsOf(cfg)
     expect(lights).toHaveLength(1)
     expect(lights[0].item).toBe('OK')
-    // missing position centers rather than NaNs
     expect(lights[0].x).toBe(50)
     expect(lights[0].y).toBe(50)
   })
@@ -110,8 +104,6 @@ describe('containRect', () => {
 
 describe('stateKind', () => {
   it('decides from the state shape, never from a type name', () => {
-    // the SSE tracker's `type` is the STATE class (HSB/Percent/OnOff), which is why the
-    // popup must not dispatch on item-type names - the shape is what is actually there
     expect(stateKind('120,50,80')).toBe('color')
     expect(stateKind('64')).toBe('level')
     expect(stateKind('64.5')).toBe('level')
@@ -130,7 +122,6 @@ describe('glowFor', () => {
     const g = glowFor('120,100,50')
     expect(g).not.toBeNull()
     expect(g?.intensity).toBe(0.5)
-    // green-ish regardless of the dim state (identity comes from hue at boosted brightness)
     expect(g && g.rgb[1]).toBeGreaterThan(g!.rgb[0])
   })
 
@@ -173,12 +164,10 @@ describe('glowCss', () => {
 
   it('a directional glow radiates from the edge its lamp sits on', () => {
     const lit = { rgb: [255, 0, 0] as [number, number, number], intensity: 1 }
-    // the lamp is at the BOTTOM of a box that reaches up, and vice versa
     expect(glowCss(lit, 'up')).toContain('at 50% 100%')
     expect(glowCss(lit, 'down')).toContain('at 50% 0%')
     expect(glowCss(lit, 'left')).toContain('at 100% 50%')
     expect(glowCss(lit, 'right')).toContain('at 0% 50%')
-    // same radius as the omnidirectional glow: pointing a light does not change its reach
     expect(glowCss(lit, 'up')).toContain('circle farthest-side')
   })
 
@@ -216,12 +205,9 @@ describe('glow direction', () => {
   })
 
   it('a half disc is half the box, hung off the side the light throws towards', () => {
-    // omnidirectional: a square centred on the lamp
     expect(glowGeometry('all', 20)).toEqual({ width: 20, aspectRatio: '1 / 1', transform: 'translate(-50%, -50%)' })
-    // up: full width, half height, and the box sits ENTIRELY above the lamp
     expect(glowGeometry('up', 20)).toEqual({ width: 20, aspectRatio: '1 / 0.5', transform: 'translate(-50%, -100%)' })
     expect(glowGeometry('down', 20)).toEqual({ width: 20, aspectRatio: '1 / 0.5', transform: 'translate(-50%, 0)' })
-    // left/right: half width, full height, hung off the side
     expect(glowGeometry('left', 20)).toEqual({ width: 10, aspectRatio: '0.5 / 1', transform: 'translate(-100%, -50%)' })
     expect(glowGeometry('right', 20)).toEqual({ width: 10, aspectRatio: '0.5 / 1', transform: 'translate(0, -50%)' })
   })

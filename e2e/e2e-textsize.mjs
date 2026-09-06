@@ -1,18 +1,7 @@
-/**
- * Text sizing e2e: per-dashboard Text size (settings panel + persistence + stacked view),
- * per-device Text size (Settings, localStorage, composition), per-widget Text size
- * (universal settings field, cell-scoped), HABPanel font_scale import mapping, and the
- * edit-mode handle-strip padding (widget content + chart period chips never covered).
- *
- * It also checks that a widget's reading is sized to the tile it is in rather than clipped by
- * it: a clock told to show seconds and the full date used to wrap after the seconds in a
- * landscape phone's 153x75 tile, and then have both lines cut off.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-textsize, dashboard:nh-e2e-clockfit and
- * (via the import flow) dashboard:nh-tsimport; deletes exactly those in cleanup. Commands NOTHING
- * (label/clock widgets; the chart reads the temperature item history via GET only). Browser profile is throwaway,
- * so the device-scale localStorage key cannot leak into a real browser profile.
- */
+// Text sizing e2e: per-dashboard Text size (settings panel + persistence + stacked view), per-device Text
+// size (Settings, localStorage, composition).
+// SAFE with a live config: creates only dashboard:nh-e2e-textsize, dashboard:nh-e2e-clockfit and (via the
+// import flow) dashboard:nh-tsimport; deletes exactly those in.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -41,9 +30,6 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
   try {
     localStorage.setItem('neohab:apiToken', t)
-    // Pinned, because this suite measures geometry and the themes bundle fonts of their own:
-    // a narrower face fits a string the default one wraps, so the server owner's theme would
-    // decide whether a check has any power at all.
     localStorage.setItem('neohab:themeOverride', 'dark')
   } catch {}
 }, TOKEN)
@@ -51,7 +37,6 @@ await page.addInitScript((t) => {
 const cellFont = (sel) => page.$eval(sel, (el) => parseFloat(getComputedStyle(el).fontSize))
 
 try {
-  // ---------- seed ----------
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -85,7 +70,6 @@ try {
   const baseFont = await cellFont('.nh-gcell')
   ok('baseline cell font sane (10..20px)', baseFont > 10 && baseFont < 20, String(baseFont))
 
-  // ---------- per-dashboard text size ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
@@ -97,7 +81,6 @@ try {
   const editFont = await cellFont('.nh-cell')
   ok('150% live-previews in edit cells', Math.abs(editFont / baseFont - 1.5) < 0.02, `${baseFont} -> ${editFont}`)
 
-  // one undo entry via coalescing: undo restores 100%
   await page.keyboard.press('Control+z')
   await sleep(300)
   const undone = await cellFont('.nh-cell')
@@ -113,16 +96,13 @@ try {
   const comp = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
   ok('textSize 150 persisted', Number(comp?.config?.textSize) === 150, String(comp?.config?.textSize))
 
-  // ---------- stacked (phone) view multiplied too ----------
   const phone = await browser.newPage({ viewport: { width: 393, height: 851 } })
   await phone.goto(APP + '#/d/nh-e2e-textsize', { waitUntil: 'domcontentloaded' })
   await phone.waitForSelector('.nh-grid--stacked .nh-gcell', { timeout: 20000 })
   const phoneFont = await phone.$eval('.nh-grid--stacked .nh-gcell', (el) => parseFloat(getComputedStyle(el).fontSize))
-  // these rows are tall enough for full-size text, so 16px * 1.5
   ok('stacked rows at 1.5x (24px)', Math.abs(phoneFont - 24) < 0.5, String(phoneFont))
   await phone.close()
 
-  // ---------- per-device text size ----------
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#nh-set-textsize', { timeout: 10000 })
   await page.fill('#nh-set-textsize', '200')
@@ -141,7 +121,6 @@ try {
   await sleep(200)
   ok('setting 100 clears the stored key', (await page.evaluate(() => localStorage.getItem('neohab:textSize'))) === null)
 
-  // ---------- per-widget text size ----------
   await page.goto(APP + '#/d/nh-e2e-textsize')
   await page.waitForSelector('.nh-gcell')
   await page.click('[aria-label="Edit dashboard"]')
@@ -161,12 +140,6 @@ try {
   const cellA2 = await cellFont('.nh-cell:nth-child(1)')
   ok('clearing the field restores normal', Math.abs(cellA2 / cellB - 1) < 0.05, String(cellA2))
 
-  // ---------- edit mode: the widget is drawn where a save will draw it ----------
-  // The handle strip used to reserve a 26px band above every widget, so an editing dashboard drew
-  // each one 26px shorter than the saved dashboard - enough to make a widget shed content the
-  // finished one shows (a weather panel lost its readings that way). The strip overlays the
-  // widget's own top edge now, and is only DRAWN on the cell being pointed at.
-  // nothing selected and the pointer away, so what is measured is a cell at rest
   await page.click('.nh-sheet--side .nh-sheet__close')
   await page.mouse.move(5, 5)
   await sleep(300)
@@ -207,12 +180,6 @@ try {
   await page.click('button:has-text("Exit")')
   await sleep(500)
 
-  // ---------- a number field can actually be typed into ----------
-  // Every check above sets these fields with fill(), which delivers the whole value in one
-  // event - and that is exactly the case that always worked. Typed a digit at a time, the field
-  // rejected anything outside its range on every keystroke while being driven by the stored
-  // value, so the leading digit of "150" was refused and the input snapped back. Row height
-  // (minimum 8) and text size (minimum 50) had no reachable values below their own first digit.
   await page.goto(APP + '#/d/nh-e2e-textsize')
   await page.waitForSelector('.nh-gcell')
   await page.click('[aria-label="Edit dashboard"]')
@@ -229,19 +196,15 @@ try {
   }
 
   ok('text size can be typed digit by digit', (await typeInto('#nh-dash-textsize', '175')) === '175')
-  // Switch to a fixed row height, whose minimum of 8 made "12" and "20" unreachable entirely.
   await page.selectOption('#nh-dash-rowmode', 'fixed')
   await page.waitForSelector('#nh-dash-rowpx', { timeout: 5000 })
   ok('a row height below its own first digit can be typed', (await typeInto('#nh-dash-rowpx', '12')) === '12')
 
-  // Leaving the field with something out of range clamps it, rather than storing a value every
-  // reader then has to guard: the min/max attributes only advise the browser.
   await typeInto('#nh-dash-rowpx', '2')
   await page.click('#nh-dash-name')
   await sleep(250)
   ok('an out-of-range value is clamped on leaving the field', (await page.inputValue('#nh-dash-rowpx')) === '8', await page.inputValue('#nh-dash-rowpx'))
 
-  // An emptied field is not a zero: it leaves the setting alone and snaps back to it.
   await page.click('#nh-dash-rowpx')
   await page.keyboard.press('Control+a')
   await page.keyboard.press('Delete')
@@ -252,12 +215,7 @@ try {
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('.nh-grid--edit', { state: 'detached', timeout: 10000 })
 
-  // ---------- importer maps font_scale ----------
   await page.goto(APP + '#/settings')
-  // Anchor on the section's own heading, not on the "found on this server" row: that row only
-  // renders when the server happens to have a HABPanel configuration, and this check imports a
-  // FILE, which needs no such thing. Keyed on the row it could only ever run on a server that
-  // had HABPanel installed.
   const hpSection = page.locator('section:has(h2:text-is("Migrate from HABPanel"))')
   await hpSection.waitFor({ timeout: 15000 })
   const synthetic = {
@@ -277,14 +235,6 @@ try {
   const imported = await (await fetch(NS + '/' + encodeURIComponent(IMPORT_UID), { headers: AUTH })).json()
   ok('font_scale 1.5 imports as textSize 150', Number(imported?.config?.textSize) === 150, String(imported?.config?.textSize))
 
-  // ---------- a clock sizes itself to the tile it is in ----------
-  // Reported from a phone in landscape: the clock was "terribly cropped instead of shrank". Its
-  // reading kept its full em size in a 153x75 tile, wrapped "08:25:54 AM" after the seconds, and
-  // `overflow: hidden` then cut both lines off - the time started 24px above the tile.
-  //
-  // The worst case is a clock told to show seconds AND the full date, which is what the reported
-  // one was set to; the caps are worked out from the strings themselves, so that is the shape to
-  // drive. Several cell sizes, because a threshold that happens to suit one is not a rule.
   {
     const CLOCK_UID = 'dashboard:nh-e2e-clockfit'
     await fetch(NS + '/' + encodeURIComponent(CLOCK_UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
@@ -302,16 +252,11 @@ try {
           rowHeight: 'match',
           gap: 4,
           widgets: [
-            // the reported widget: seconds, the full date, and 135% text in a two-column row
             { id: 'c-report', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full', hour12: true, textSize: 135 }, layout: { lg: { x: 0, y: 0, w: 2, h: 1 } } },
-            // one column wide: nothing like enough room for any of it
             { id: 'c-tiny', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
-            // wide and one row tall: room across, none down
             { id: 'c-wide', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 3, y: 0, w: 6, h: 1 } } },
-            // the date on its own, and the time on its own: each gets the whole tile
             { id: 'c-dateonly', type: 'clock', config: { hideTime: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 0, y: 1, w: 2, h: 1 } } },
             { id: 'c-timeonly', type: 'clock', config: { showSeconds: true, showDate: false }, layout: { lg: { x: 2, y: 1, w: 2, h: 1 } } },
-            // roomy: the caps must be inert here, or every normal clock just got smaller
             { id: 'c-roomy', type: 'clock', config: { showSeconds: true, showDate: true, dateFormat: 'full' }, layout: { lg: { x: 4, y: 1, w: 4, h: 4 } } },
           ],
         },
@@ -319,7 +264,6 @@ try {
     })
     ok('clock-fit dashboard created', made.ok, String(made.status))
 
-    /** Every clock on screen: what it drew, and whether any of it fell outside its tile. */
     const readClocks = () =>
       [...document.querySelectorAll('.nh-clock')].map((c) => {
         const cell = c.closest('.nh-gcell, .nh-cell')
@@ -327,8 +271,6 @@ try {
         const br = body.getBoundingClientRect()
         const time = c.querySelector('.nh-clock__time')
         const date = c.querySelector('.nh-clock__date')
-        // A Range over the CONTENTS, not the element: getClientRects() on a block element is one
-        // rect for its border box however many lines it holds, so counting those counts nothing.
         const lines = (el) => {
           if (!el) return 0
           const r = document.createRange()
@@ -346,7 +288,6 @@ try {
           datePx: date ? Math.round(parseFloat(getComputedStyle(date).fontSize) * 10) / 10 : 0,
           timeLines: lines(time),
           dateLines: lines(date),
-          // a date capped to fit needs no ellipsis; one appearing means the cap was too generous
           dateClipped: date ? date.scrollWidth > date.clientWidth + 1 : false,
           overV: body.scrollHeight - body.clientHeight,
           overH: body.scrollWidth - body.clientWidth,
@@ -359,9 +300,6 @@ try {
       ['a laptop', 1500, 1000],
     ]) {
       await page.setViewportSize({ width: w, height: h })
-      // Reloaded, not just navigated: a goto that changes only the HASH is a same-document
-      // navigation, so the app would keep the configuration it loaded before this dashboard
-      // was created and there would be nothing here to measure.
       await page.goto(APP + '#/d/nh-e2e-clockfit', { waitUntil: 'domcontentloaded' })
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.waitForSelector('.nh-clock', { timeout: 20000 })
@@ -388,7 +326,6 @@ try {
       )
     }
 
-    // The caps must do nothing where there is room, or every clock on every desktop just shrank.
     await page.setViewportSize({ width: 1500, height: 1000 })
     await page.goto(APP + '#/d/nh-e2e-clockfit', { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -401,7 +338,6 @@ try {
       roomy !== undefined && Math.abs(roomy.timePx - 2 * roomy.em) < 0.6,
       roomy ? `${roomy.timePx}px vs 2em = ${(2 * roomy.em).toFixed(1)}px in a ${roomy.cell.w}x${roomy.cell.h} tile` : '(no roomy clock)'
     )
-    // ...and something DID have to give in the small one, or the check above proves nothing.
     const reported = all.slice().sort((a, b) => a.cell.w - b.cell.w)[0]
     ok(
       'and a clock with none renders smaller',
@@ -413,7 +349,6 @@ try {
     ok('cleanup: ' + CLOCK_UID + ' deleted', delClock.ok || delClock.status === 404, 'del=' + delClock.status)
   }
 
-  // ---------- console health ----------
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (err) {
   ok('run completed', false, String(err))

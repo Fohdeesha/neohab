@@ -1,14 +1,3 @@
-/**
- * Preset chips over the floor plan: one per scene on the server, tap to activate, the active
- * one highlighted. Administrators also get "Save preset" - capture the lights as they are now
- * into a new or existing scene, which is exactly the manual workflow (set the room right,
- * then keep it) without ever typing a value.
- *
- * Highlight sources, in order of trust: a preset with a status item follows that item's live
- * state (works signed-out - the summary carries it); otherwise, on administrator devices, the
- * stored values are matched against the live states. A signed-out panel cannot read values,
- * so status-item-less presets simply do not highlight there.
- */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
@@ -22,7 +11,6 @@ import { PresetSaveDialog } from './PresetSave'
 import { PresetManageDialog } from './PresetManage'
 import type { FloorplanLight } from './model'
 
-/** First-paint guess, before the bar has been measured: `.nh-fplan__bar .nh-chip` in app.css. */
 const ONE_CHIP_ROW = 55
 
 export function PresetBar({
@@ -33,9 +21,7 @@ export function PresetBar({
 }: {
   ctx: WidgetContext
   lights: FloorplanLight[]
-  /** Room between the bottom of the plan image and the bottom of the widget, in pixels. */
   spaceBelow?: number
-  /** Tapping the highlighted preset switches its lights off instead of running it again. */
   toggleOff?: boolean
 }) {
   const { t } = useTranslation()
@@ -44,20 +30,14 @@ export function PresetBar({
   const [saving, setSaving] = useState(false)
   const [managing, setManaging] = useState(false)
 
-  // The bar hangs just under the plan, and it is measured rather than assumed to be one row
-  // high: a house with several presets wraps the chips onto two or three rows on a phone, and a
-  // guessed height puts all of them over the plan, hiding the very lights they control.
   const barRef = useRef<HTMLDivElement>(null)
   const { height: barHeight } = useBoxSize(barRef)
   const bottom = Math.max(8, Math.round(spaceBelow - (barHeight || ONE_CHIP_ROW)))
 
-  // Admin status changes what a load returns (the full values), so it re-runs on the flip.
   useEffect(() => {
     void loadPresets()
   }, [admin])
 
-  // The chips need the status items' live states; the plan's own lights are already tracked
-  // through the widget's itemKeys. Ref-counted, so overlap costs nothing.
   const statusItems = useMemo(() => [...new Set(summaries.map((s) => s.statusItem).filter((i): i is string => !!i))], [summaries])
   useEffect(() => subscribeItems(statusItems), [statusItems])
   const states = useItemsStore((s) => s.states)
@@ -65,9 +45,6 @@ export function PresetBar({
 
   if (!loaded || (summaries.length === 0 && !admin)) return null
 
-  // Through the settling layer, so activating a preset lights its chip at once and leaves it
-  // lit: matched against the raw states, a chip blinks off again the moment a device echoes
-  // the value it is fading away from.
   const stateOf = (item: string) => settled(item, states[item]?.state)
 
   const isActive = (p: PresetSummary): boolean => {
@@ -76,8 +53,6 @@ export function PresetBar({
     return fullPreset ? presetActive(fullPreset.lights, stateOf) : false
   }
 
-  /** Tapping the highlighted preset switches it off, when the plan asks for that; otherwise,
-   *  and whenever the values cannot be read to switch off with, the tap runs the preset. */
   const tap = async (p: PresetSummary) => {
     if (toggleOff && isActive(p) && (await deactivatePreset(p))) return
     await activatePreset(p)

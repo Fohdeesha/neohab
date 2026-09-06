@@ -1,20 +1,9 @@
-/**
- * The theming contract, checked across every built-in theme.
- *
- * These are the mistakes that kept recurring, each caught by eye after the fact. They are all
- * mechanically checkable from the stylesheet text in milliseconds, which is what `cssRules.ts`
- * is for: a new theme either follows the rules or this suite says which one it broke. The theme
- * editor runs the same checks against a custom theme as it is written.
- *
- * The rules themselves are documented for theme authors in `docs/theming.md`.
- */
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_THEME_IDS, BUILTIN_THEMES, listThemes, resolveTheme, themeCss, type Theme } from './themes'
 import { checkThemeCss, describeIssue, parseRules, type RuleId } from './cssRules'
 import { TOKEN_SPECS, isUsableTokenValue } from './tokens'
 import { THEME_MAP } from '../importer/habpanel'
 
-/** Every theme that carries a stylesheet, with it resolved. */
 async function styledThemes(): Promise<{ theme: Theme; css: string }[]> {
   const out: { theme: Theme; css: string }[] = []
   for (const theme of BUILTIN_THEMES) {
@@ -24,10 +13,6 @@ async function styledThemes(): Promise<{ theme: Theme; css: string }[]> {
   return out
 }
 
-/**
- * Assert that no built-in breaks one particular rule. Checked one rule at a time so a failure
- * names the rule that broke, rather than a single test that fails for six different reasons.
- */
 async function expectNoneBreak(rule: RuleId): Promise<void> {
   for (const { theme, css } of await styledThemes()) {
     const broken = checkThemeCss(css, { radius: theme.tokens.radius ?? '12px' }).filter((i) => i.rule === rule)
@@ -69,30 +54,20 @@ describe('the built-in themes', () => {
 })
 
 describe('the built-in stylesheets follow the rules', () => {
-  /** The paint of these elements is an attribute the widget computes; a stylesheet beats it. */
   it('never set fill or stroke on an attribute-painted element', () => expectNoneBreak('attributePaint'))
 
-  /** app.css sheds padding in small cells; a theme loads later and would undo that. */
   it('gate every padding override on cell size', () => expectNoneBreak('ungatedPadding'))
 
-  /** A BEM modifier shares specificity with its base class. */
   it('restyle the active state of any control they restyle', () => expectNoneBreak('activeState'))
 
-  /** A border gradient squares off rounded corners. */
   it('only use border-image when their radius is 0', () => expectNoneBreak('borderImageRadius'))
 
-  /** A blanket tile rule catches the two tiles that asked not to be one. */
   it('put back the bare widget after a blanket tile rule', () => expectNoneBreak('bareWidget'))
   it('put back the new-dashboard tile after a blanket tile rule', () => expectNoneBreak('newTile'))
 
-  /** An asset a theme names has to be one the add-on ships. */
   it('only reference bundled assets', () => expectNoneBreak('externalAsset'))
 })
 
-/**
- * The checker itself. It is what tells a person writing a theme what they got wrong, so it has
- * to catch each mistake and - just as important - stay quiet about correct CSS.
- */
 describe('the stylesheet checker', () => {
   const check = (css: string, radius = '12px') => checkThemeCss(css, { radius }).map((i) => i.rule)
 
@@ -123,18 +98,14 @@ describe('the stylesheet checker', () => {
     expect(check('.nh-widget__body { padding: 8px }')).toEqual(['ungatedPadding'])
     expect(check('.nh-widget__label { padding-top: 8px }')).toEqual(['ungatedPadding'])
     expect(check('@container (min-height: 105px) { .nh-widget__body { padding: 8px } }')).toEqual([])
-    // A media query is not a cell-size gate: the shed is keyed on the cell, not the viewport.
     expect(check('@media (min-width: 900px) { .nh-widget__body { padding: 8px } }')).toEqual(['ungatedPadding'])
-    // Padding on something that is not a widget box is nobody's business but the theme's.
     expect(check('.nh-settings { padding: 8px }')).toEqual([])
   })
 
   it('catches a base control styled without its active state', () => {
     expect(check('.nh-button { background: red }')).toEqual(['activeState'])
     expect(check('.nh-button { background: red } .nh-button--active { background: blue }')).toEqual([])
-    // The modifier alone is fine - it does not flatten anything.
     expect(check('.nh-button--active { background: blue }')).toEqual([])
-    // A different class that merely starts with the same text must not count as styling it.
     expect(check('.nh-button__icon { width: 10px }')).toEqual([])
   })
 
@@ -148,7 +119,6 @@ describe('the stylesheet checker', () => {
     const blanket = '.nh-widget, .nh-tile { background: red }'
     expect(check(blanket)).toEqual(['bareWidget', 'newTile'])
     expect(check(`${blanket} .nh-widget--bare { background: none } .nh-tile--new { border: 1px dashed red }`)).toEqual([])
-    // Panelling the bare widgets is allowed when the stylesheet says it is on purpose.
     expect(check(`${blanket} .nh-tile--new { border: 1px dashed red } /* nh-theme-allow: bare-panelled */`)).toEqual([])
   })
 
@@ -184,10 +154,6 @@ describe('the stylesheet checker', () => {
   })
 })
 
-/**
- * The escape hatch resolves against the built-ins only. The parsing itself is covered in
- * `urlTheme.test.ts`; this is the half that decides which theme you actually land on.
- */
 describe('the ?theme= escape hatch', () => {
   const resolveParam = (id: string | null): Theme | null =>
     id === null ? null : (BUILTIN_THEMES.find((t) => t.id === id) ?? BUILTIN_THEMES[0])
@@ -207,9 +173,6 @@ describe('the ?theme= escape hatch', () => {
   })
 
   it('never resolves to a custom theme, which is the whole point', () => {
-    // A custom theme lives in the server configuration, which has not loaded when the pre-paint
-    // path asks - and if a custom theme is what broke the app, honouring one here would hand the
-    // person straight back to it.
     expect(resolveParam('custom-abc123')?.id).toBe('dark')
   })
 
@@ -219,11 +182,6 @@ describe('the ?theme= escape hatch', () => {
 })
 
 describe('the HABPanel themes', () => {
-  /**
-   * Every theme HABPanel shipped has a port here, so an imported dashboard arrives looking like
-   * it did. A mapping that points at a theme which does not exist resolves to the default
-   * silently, which is what used to happen to five of the seven.
-   */
   it('each map to a theme that exists', () => {
     for (const [habpanel, id] of Object.entries(THEME_MAP)) {
       expect(BUILTIN_THEME_IDS.has(id), `HABPanel "${habpanel}" maps to "${id}", which is not a theme`).toBe(true)
@@ -245,7 +203,6 @@ describe('theme resolution', () => {
   const custom = (id: string): Theme => ({ id, name: 'Mine', scheme: 'dark', tokens: {} })
 
   it('never lets a custom theme shadow a built-in', () => {
-    // An imported theme file can carry any id it likes, including one of ours.
     const themes = [custom('dark'), custom('mine')]
     expect(resolveTheme('dark', themes).name).toBe('neohab Dark')
     expect(resolveTheme('mine', themes).name).toBe('Mine')
@@ -304,11 +261,6 @@ describe('themeCss', () => {
     expect(await themeCss({ id: 't', name: 'T', scheme: 'dark', tokens: {}, css: 'body{}' })).toBe('body{}')
   })
 
-  /*
-   * `cssModule` comes off a stored theme component, so the key is not one this code chose. A bare
-   * index answers with an `Object.prototype` member, the `if (!load)` guard does not fire for a
-   * function, and `await load()` then calls `Object(...)` and hands back `{}` to be used as CSS.
-   */
   it('has no stylesheet for a module named after an Object.prototype member', async () => {
     for (const key of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
       const css = await themeCss({

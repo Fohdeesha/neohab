@@ -1,28 +1,9 @@
-/**
- * The HABPanel importer: the first thing a migrating user touches, and the one path where being
- * wrong costs somebody their whole panel.
- *
- * `fixtures/habpanel-config.json` is read from disk and parsed exactly as an uploaded file is, so
- * these run the real entry point rather than a hand-built object. It exercises every widget type
- * the converter table knows, plus the shapes that only turn up in other people's exports: a
- * dashboard whose id has spaces, a series with no item, a colour map with an empty state, an
- * unknown widget type, and settings that map to four different places.
- *
- * The hostile cases are here for a reason - a HABPanel export is untrusted input, and this file
- * has already shipped one prototype-chain bug (a widget typed `constructor` used to find
- * `Object.prototype.constructor`, get called as a converter and take the whole import down).
- */
 import { describe, expect, it } from 'vitest'
 import type { UIComponent } from '../api/types'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
 import { convertHabpanel, panelConfigFromComponent, parseHabpanelFile, PERIOD_MAP, THEME_MAP, type HPPanelConfig } from './habpanel'
 import fixture from './fixtures/habpanel-config.json'
 
-/**
- * The fixture, taken through the real upload path every time so no test can mutate another's.
- * It is a genuine `habpanel-config.json` on disk, so it can be swapped for a real community
- * export, and the round trip through JSON is what stops one test's edits reaching the next.
- */
 const loadFixture = (): HPPanelConfig => parseHabpanelFile(JSON.parse(JSON.stringify(fixture)))
 
 const importFixture = (existing: string[] = []) => convertHabpanel(loadFixture(), existing)
@@ -33,7 +14,6 @@ const widget = (d: Dashboard, type: string): WidgetInstance => {
   return found[0]
 }
 
-/** A minimal panel config carrying one widget, for per-converter cases. */
 const oneWidget = (w: Record<string, unknown>): HPPanelConfig => ({
   dashboards: [{ id: 'd', name: 'D', widgets: [{ type: String(w.type), ...w }] }],
   settings: {},
@@ -44,8 +24,6 @@ const convertOne = (w: Record<string, unknown>) => {
   const res = convertHabpanel(oneWidget(w), [])
   return { widget: res.dashboards[0].widgets[0], notes: res.notes, dashboard: res.dashboards[0] }
 }
-
-/* ------------------------------- parsing ------------------------------- */
 
 describe('parsing an export file', () => {
   it('reads the current object format', () => {
@@ -67,8 +45,6 @@ describe('parsing an export file', () => {
     expect(cfg.dashboards[0].widgets).toEqual([])
   })
 
-  // Each of these produced something importable at some point, which is worse than refusing:
-  // an empty confirmation dialog, a junk dashboard, or a restore point recording nothing.
   it.each([
     ['null', null],
     ['a number', 42],
@@ -113,7 +89,6 @@ describe('reading a live habpanel:panelconfig component', () => {
     const cfg = panelConfigFromComponent(component)
     expect(cfg.settings.theme).toBe('paleblue')
     expect(cfg.dashboards[0]).toMatchObject({ id: 'kitchen', name: 'Kitchen', columns: 10 })
-    // the widget's HABPanel type comes from the slot component name, not a config field
     expect(cfg.dashboards[0].widgets[0]).toMatchObject({ type: 'switch', item: 'K_Light' })
     expect(cfg.customwidgets.gauge.settings).toEqual([{ type: 'item', id: 'item', label: 'Item' }])
   })
@@ -134,14 +109,11 @@ describe('reading a live habpanel:panelconfig component', () => {
   })
 })
 
-/* ------------------------------- widget mapping ------------------------------- */
-
 describe('widget conversion', () => {
   it('maps every type in the fixture to its neohab counterpart', () => {
     const { dashboards, widgetCount } = importFixture()
     const types = dashboards.flatMap((d) => d.widgets.map((w) => w.type))
     expect(types).toEqual([
-      // Ground Floor
       'switch',
       'slider',
       'color',
@@ -151,7 +123,6 @@ describe('widget conversion', () => {
       'button',
       'button',
       'selection',
-      // First Floor - the unknown `rollershutter` type is skipped, so 7 of 8 survive
       'image',
       'frame',
       'clock',
@@ -168,8 +139,6 @@ describe('widget conversion', () => {
     expect(widget(dashboards[0], 'switch').config).toEqual({
       item: 'Hall_Light',
       label: 'Hall Light',
-      // eclipse-smarthome-classic is HABPanel's id for the set servers call "classic"; sending
-      // it verbatim 404s on every icon request.
       icon: 'oh:light',
       iconSize: 48
     })
@@ -196,8 +165,6 @@ describe('widget conversion', () => {
       step: 5,
       unit: '%'
     })
-    // The fixture's slider is vertical and not inverted, and vertical is reproduced now, so there
-    // is nothing to report about it.
     expect(notes.some((n) => n.message.includes('inverted'))).toBe(false)
   })
 
@@ -279,7 +246,6 @@ describe('widget conversion', () => {
     const clocks = dashboards[1].widgets.filter((w) => w.type === 'clock')
     expect(clocks[0].config).toMatchObject({ mode: 'analog' })
     expect(clocks[0].config.showSeconds).toBeUndefined()
-    // digital: seconds are inferred from the format string
     expect(clocks[1].config.mode).toBeUndefined()
     expect(clocks[1].config.showSeconds).toBe(true)
   })
@@ -288,12 +254,10 @@ describe('widget conversion', () => {
     const { dashboards } = importFixture()
     const chart = widget(dashboards[1], 'chart')
     expect(chart.config.series).toEqual([
-      // display_area:false becomes fill 0; the defaults are omitted rather than written out
       { item: 'Outside_Temp', label: 'Outside', color: '#3fa9f5', fill: 0 },
       { item: 'Indoor_Temp', label: 'Indoor', axis: 'y2', points: true }
     ])
     expect(chart.config).toMatchObject({ period: '7d', service: 'rrd4j', legend: false, yMin: -10, yMax: 40 })
-    // y2 had includezero rather than an explicit minimum
     expect(chart.config.y2Min).toBe(0)
   })
 
@@ -342,10 +306,7 @@ describe('widget conversion', () => {
   })
 })
 
-/* ------------------------------- untrusted input ------------------------------- */
-
 describe('a hostile or damaged export', () => {
-  // The fixed bug: `CONVERTERS[w.type]` found Object.prototype members and called them.
   it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf'])(
     'reports a widget typed %s as unknown rather than calling a prototype member',
     (type) => {
@@ -355,7 +316,6 @@ describe('a hostile or damaged export', () => {
     }
   )
 
-  // Same class, one table over: a chart period is also looked up in a plain object literal.
   it.each(['constructor', 'toString', 'valueOf'])('falls back to a real period when the stored one is %s', (period) => {
     const { widget: w } = convertOne({ type: 'chart', item: 'T', period })
     expect(typeof w.config.period).toBe('string')
@@ -364,7 +324,6 @@ describe('a hostile or damaged export', () => {
 
   it.each(['constructor', 'toString'])('never adopts %s as a theme id', (theme) => {
     const res = convertHabpanel({ dashboards: [{ id: 'd', widgets: [] }], settings: { theme }, customwidgets: {} }, [])
-    // whatever it decides, it must be a real theme id or nothing at all - never a function
     expect(['string', 'undefined']).toContain(typeof res.settingsPatch.theme)
     expect(res.notes.some((n) => n.level === 'warn' && n.message.includes('not one neohab knows'))).toBe(true)
   })
@@ -431,8 +390,6 @@ describe('a hostile or damaged export', () => {
   })
 })
 
-/* ------------------------------- dashboard settings ------------------------------- */
-
 describe('dashboard geometry and metadata', () => {
   it('defaults row height to match (square cells), which is HABPanel’s own default', () => {
     const { dashboards } = importFixture()
@@ -472,7 +429,6 @@ describe('dashboard ids', () => {
   it('turns a free-text HABPanel id into the same slug a new dashboard would get', () => {
     const { dashboards, notes } = importFixture()
     expect(dashboards.map((d) => d.id)).toEqual(['ground-floor', 'first-floor'])
-    // the display names are kept as they were
     expect(dashboards.map((d) => d.name)).toEqual(['Ground Floor', 'First Floor'])
     expect(notes.some((n) => n.message.includes('turned into web addresses'))).toBe(true)
   })
@@ -511,16 +467,6 @@ describe('dashboard ids', () => {
     }
   })
 
-  /*
-   * Widget ids are keys for per-instance UI state that lives OUTSIDE the dashboard: the chart and
-   * the timeline both remember their chosen period in a module-level Map keyed by widget id. Two
-   * widgets sharing an id would share a remembered period across dashboards.
-   *
-   * The ids were built from the ORIGINAL HABPanel dashboard id with a counter that restarts per
-   * dashboard, so two dashboards whose ids slug the same way - "Living Room" and "living room",
-   * or "Kitchen" and "Kitchen!" - produced identical widget ids. `model/partial.ts` documents
-   * exactly this hazard for copied dashboards.
-   */
   it('gives every widget a unique id across the whole import, not just within one dashboard', () => {
     const res = convertHabpanel(
       {
@@ -540,8 +486,6 @@ describe('dashboard ids', () => {
   })
 })
 
-/* ------------------------------- panel settings ------------------------------- */
-
 describe('panel settings', () => {
   it('maps the theme, background, speech item and Speak button', () => {
     const { settingsPatch } = importFixture()
@@ -556,8 +500,6 @@ describe('panel settings', () => {
   it('says plainly that an extra stylesheet was NOT imported, and where it goes', () => {
     const { notes } = importFixture()
     const note = notes.find((n) => n.message.includes('extra stylesheet'))
-    // "replaced by neohab themes" read as an equivalence and a user's whole stylesheet went
-    // quietly missing; it has to be a warning that names the file.
     expect(note?.level).toBe('warn')
     expect(note?.params).toEqual({ url: '/static/mystyles.css' })
   })
@@ -565,7 +507,6 @@ describe('panel settings', () => {
   it('has a port for every one of HABPanel’s seven themes', () => {
     const hpThemes = ['default', 'material', 'material-dark', 'paleblue', 'translucent', 'madras', 'orange-tree']
     for (const t of hpThemes) expect(THEME_MAP[t]).toBeTruthy()
-    // and they must not all collapse onto one theme, which is what made the note a lie before
     expect(new Set(Object.values(THEME_MAP)).size).toBe(hpThemes.length)
   })
 
@@ -589,8 +530,6 @@ describe('panel settings', () => {
   })
 })
 
-/* ------------------------------- custom widgets ------------------------------- */
-
 describe('custom widgets', () => {
   it('preserves the AngularJS template and settings schema in a widgetdef component', () => {
     const { widgetDefs } = importFixture()
@@ -606,8 +545,6 @@ describe('custom widgets', () => {
     expect(importFixture().notes.some((n) => n.message.includes('widget palette'))).toBe(true)
   })
 })
-
-/* ------------------------------- the report ------------------------------- */
 
 describe('the import report', () => {
   it('counts repeats instead of listing the same note once per widget', () => {
@@ -644,7 +581,6 @@ describe('the import report', () => {
 
   it('keeps a note’s dynamic parts in params so the text stays translatable', () => {
     for (const note of importFixture().notes) {
-      // a message carrying an interpolation must supply the value for it
       const placeholders = [...note.message.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1])
       for (const p of placeholders) expect(note.params?.[p]).toBeDefined()
     }

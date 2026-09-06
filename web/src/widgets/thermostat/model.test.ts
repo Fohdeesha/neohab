@@ -45,7 +45,6 @@ describe('reading a stored configuration', () => {
   it('lands anything it does not recognise on the default look', () => {
     expect(lookOf('dial')).toBe('dial')
     expect(lookOf('ring')).toBe('ring')
-    // The prototype-chain keys that have bitten other tables in this project.
     expect(lookOf('constructor')).toBe('arc')
     expect(lookOf('toString')).toBe('arc')
     expect(lookOf(42)).toBe('arc')
@@ -53,9 +52,6 @@ describe('reading a stored configuration', () => {
   })
 
   it('falls back to the look a new widget starts with', () => {
-    // One answer, not two that can drift apart: a stored value nobody can read must draw the
-    // widget a new one draws. The definition side of this (that `defaultConfig` really reads
-    // DEFAULT_LOOK) is checked over the registry in ../settings.test.ts.
     expect(lookOf(undefined)).toBe(DEFAULT_LOOK)
     expect(DEFAULT_LOOK).toBe('arc')
   })
@@ -64,15 +60,12 @@ describe('reading a stored configuration', () => {
     for (const look of ['arc', 'dial', 'disc', 'ring'] as const) {
       expect(LOOK_FLOOR[look]).toBeGreaterThan(0)
       expect(LOOK_ARC[look].sweep).toBeGreaterThan(0)
-      // Every scale leaves a gap at the bottom, wide enough for the two buttons AND for the
-      // figure a value at either end of the scale puts at the ring's last tick.
       expect(LOOK_ARC[look].sweep).toBeLessThanOrEqual(280)
       const gap = 360 - LOOK_ARC[look].sweep
       expect(LOOK_ARC[look].start + LOOK_ARC[look].sweep + gap / 2).toBeCloseTo(450, 6)
     }
     expect(draggable('arc')).toBe(true)
     expect(draggable('dial')).toBe(true)
-    // The ring look has no scale round it, so there is nothing to drag.
     expect(draggable('ring')).toBe(false)
   })
 
@@ -82,7 +75,6 @@ describe('reading a stored configuration', () => {
     expect(floorOf({ currentItem: 'a', setpointItem: 'b', modeItem: 'm' })).toBe(bare + BAR_FLOOR)
     expect(floorOf({ currentItem: 'a', setpointItem: 'b', auxItem: 'x' })).toBe(bare + BAR_FLOOR)
     expect(floorOf({ look: 'ring', fanItem: 'f' })).toBe(LOOK_FLOOR.ring + BAR_FLOOR)
-    // An empty string is no item, and asks for no room.
     expect(floorOf({ currentItem: 'a', setpointItem: 'b', modeItem: '' })).toBe(bare)
   })
 
@@ -107,13 +99,11 @@ describe('temperatures', () => {
       unit: '°F',
       text: '68'
     })
-    // No unit field: the unit comes off the formatted text.
     expect(readTemp(state({ state: '21.5', displayState: '21.5 °C', numericState: 21.5 }))).toEqual({
       value: 21.5,
       unit: '°C',
       text: '21.5'
     })
-    // A plain number with no pattern has no server text to prefer.
     expect(readTemp(state({ state: '72', numericState: 72 }))).toEqual({ value: 72, unit: undefined, text: '72' })
     expect(readTemp(state({ state: 'NULL' }))).toEqual({ value: undefined, unit: undefined, text: undefined })
     expect(readTemp(undefined)).toEqual({ value: undefined, unit: undefined, text: undefined })
@@ -139,10 +129,6 @@ describe('temperatures', () => {
     expect(formatSetpoint(72, 1)).toBe('72')
     expect(formatSetpoint(undefined, 1)).toBe('-')
     expect(formatSetpoint(NaN, 1)).toBe('-')
-    // The room reads at the setpoint's precision. The server's text is kept where it resolves
-    // at least that much (a `%.2f` pattern is the user asking for it) and overruled where it
-    // rounded away what the step resolves: a plain Number item carries a default `%.0f`, so
-    // 19.5 came back as "20" beside a setpoint stepping by 0.5.
     expect(formatCurrent({ value: 68.34, text: '68' }, 1)).toBe('68')
     expect(formatCurrent({ value: 68.34, text: '68.3' }, 1)).toBe('68.3')
     expect(formatCurrent({ value: 19.5, text: '20' }, 0.5)).toBe('19.5')
@@ -150,7 +136,6 @@ describe('temperatures', () => {
     expect(formatCurrent({ value: 68.34 }, 1)).toBe('68')
     expect(formatCurrent({ value: 68.34 }, 0.5)).toBe('68.3')
     expect(formatCurrent({ value: 68 }, 0.1)).toBe('68.0')
-    // Text that is not a number (a MAP transformation) is shown as the server wrote it.
     expect(formatCurrent({ value: 68.3, text: 'warm' }, 1)).toBe('warm')
     expect(formatCurrent({}, 1)).toBe('-')
     expect(formatCurrent({ text: '68' }, 1)).toBe('-')
@@ -182,14 +167,11 @@ describe('the setpoint scale', () => {
     expect(scaleOf({}, undefined, '°C')).toEqual({ min: 10, max: 30, step: 0.5 })
     expect(scaleOf({}, undefined, '°F')).toEqual({ min: 50, max: 90, step: 1 })
     expect(scaleOf({}, undefined, undefined)).toEqual({ min: 10, max: 30, step: 0.5 })
-    // Each field falls through on its own.
     expect(scaleOf({ step: 1 }, declared, '°C')).toEqual({ min: 7, max: 35, step: 1 })
     expect(scaleOf({ min: 15 }, undefined, '°F')).toEqual({ min: 15, max: 90, step: 1 })
   })
 
   it('guards the numbers like every scale', () => {
-    // A cleared field is not a zero, a maximum under the minimum leaves no range, and a step of
-    // zero makes nothing move.
     expect(scaleOf({ min: '', max: 'abc', step: 0 }, undefined, '°C')).toEqual({ min: 10, max: 30, step: 0.5 })
     expect(scaleOf({ min: 25, max: 20 }, undefined, '°C')).toEqual({ min: 25, max: 45, step: 0.5 })
     expect(scaleOf({ step: -1 }, undefined, '°F')).toEqual({ min: 50, max: 90, step: 1 })
@@ -224,16 +206,13 @@ describe('the ring', () => {
     expect(valueAtAngle(135, arc, c)).toBe(10)
     expect(valueAtAngle(270, arc, c)).toBe(20)
     expect(valueAtAngle(45, arc, c)).toBe(30)
-    // A little past the middle rounds onto the step's own digits.
     expect(valueAtAngle(272, arc, c)).toBe(20)
     expect(valueAtAngle(277, arc, c)).toBe(20.5)
-    // Negative angles are the same directions.
     expect(valueAtAngle(-90, arc, c)).toBe(20)
     expect(valueAtAngle(-135, arc, c)).toBe(valueAtAngle(225, arc, c))
   })
 
   it('snaps a press in the gap to the nearer end', () => {
-    // The gap runs from 45 through 90 to 135 degrees; 60 is nearer the top of the scale, 120 the bottom.
     expect(valueAtAngle(60, arc, c)).toBe(30)
     expect(valueAtAngle(120, arc, c)).toBe(10)
     expect(valueAtAngle(89, arc, c)).toBe(30)
@@ -251,23 +230,17 @@ describe('the ring', () => {
   })
 
   it('does not take a press in the gap, where the buttons are', () => {
-    // The arc's gap runs from 45 through 90 to 135 degrees; a dimmed button there lets the
-    // pointer through to the ring, and that press must not send the setpoint to an end.
     expect(onRing(0.9, 90, 'arc')).toBe(false)
     expect(onRing(0.9, 60, 'arc')).toBe(false)
     expect(onRing(0.9, 125, 'arc')).toBe(false)
     expect(onRing(0.9, 140, 'arc')).toBe(true)
     expect(onRing(0.9, 40, 'arc')).toBe(true)
-    // The handle sits on the end angle itself, and a press on it may fall a few degrees into
-    // the gap: that is still the handle.
     expect(onRing(0.9, 45, 'arc')).toBe(true)
     expect(onRing(0.9, 49, 'arc')).toBe(true)
     expect(onRing(0.9, 131, 'arc')).toBe(true)
-    // Every look leaves the same gap, so the dials answer exactly as the arc does.
     expect(onRing(0.9, 90, 'dial')).toBe(false)
     expect(onRing(0.9, 60, 'dial')).toBe(false)
     expect(onRing(0.9, 140, 'dial')).toBe(true)
-    // Negative angles are the same directions: -90 is the top of the ring, -270 the gap.
     expect(onRing(0.9, -90, 'arc')).toBe(true)
     expect(onRing(0.9, -270, 'arc')).toBe(false)
   })
@@ -284,18 +257,13 @@ describe('the ring', () => {
   })
 
   it('colours a temperature by where it sits in the scale', () => {
-    // A mix of the colour VARIABLES rather than a computed value, so the widget's own settings
-    // and a theme's overrides of them both reach it - and through a warm middle, because an
-    // even mix of the two ends is a muddy mauve.
     expect(rampColor(0)).toBe('color-mix(in srgb, var(--th-mid) 0%, var(--th-cool))')
     expect(rampColor(0.25)).toBe('color-mix(in srgb, var(--th-mid) 50%, var(--th-cool))')
     expect(rampColor(0.5)).toBe('color-mix(in srgb, var(--th-mid) 100%, var(--th-cool))')
     expect(rampColor(0.75)).toBe('color-mix(in srgb, var(--th-heat) 50%, var(--th-mid))')
     expect(rampColor(1)).toBe('color-mix(in srgb, var(--th-heat) 100%, var(--th-mid))')
-    // The two halves meet: at the middle both expressions resolve to the midpoint itself.
     expect(rampColor(0.5)).toContain('var(--th-mid) 100%')
     expect(rampColor(0.500001)).toContain('var(--th-heat) 0%')
-    // Anything outside the scale, or not a number at all, lands on an end rather than on NaN%.
     expect(rampColor(-2)).toBe(rampColor(0))
     expect(rampColor(9)).toBe(rampColor(1))
     expect(rampColor(NaN)).toBe(rampColor(0))
@@ -341,7 +309,6 @@ describe('mode, fan, aux and status', () => {
     expect(modeFrom('OFF', {})).toBe('other')
     expect(modeFrom('NULL', {})).toBe('unknown')
     expect(modeFrom(undefined, {})).toBe('unknown')
-    // A Z-Wave thermostat says 1 and 2.
     expect(modeFrom('1.0', { heatCommand: '1', coolCommand: '2' })).toBe('heat')
     expect(modeFrom('2', { heatCommand: '1', coolCommand: '2' })).toBe('cool')
   })

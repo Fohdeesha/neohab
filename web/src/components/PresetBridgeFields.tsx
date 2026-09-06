@@ -1,12 +1,3 @@
-/**
- * The status-item link for a lighting preset: the item whose state mirrors "this preset is
- * active", which state means active, and whether neohab should add the rule that lets the item
- * trigger the preset.
- *
- * Controlled and save-less, because its two callers commit differently: the Settings manager
- * saves the link on its own, the floor plan's preset editor saves it with everything else. The
- * fields and their wording live here so the two cannot drift apart.
- */
 import { useTranslation } from 'react-i18next'
 import { ItemPicker } from './ItemPicker'
 import type { StatusState } from '../model/presets'
@@ -20,7 +11,6 @@ export function PresetBridgeFields({
   onState,
   onBridge
 }: {
-  /** Unique per preset: several of these can be on screen at once. */
   idPrefix: string
   item: string
   state: StatusState

@@ -1,21 +1,6 @@
-/**
- * Partial export / import e2e: one dashboard, custom widget or theme as a file.
- *
- * Covers: exporting a dashboard from the editor's dashboard-settings panel brings the custom
- * widget definition, the uploaded icon and the uploaded background it references (and nothing
- * else); exporting a widget definition and a theme; the file is refused by version; importing
- * offers a copy or an overwrite, and a copy never touches what is already there (renaming the
- * dashboard, its definition and the references between them, with fresh widget instance ids);
- * unchanged dependencies are reused rather than duplicated; importing onto a clean server
- * restores the original ids; overwrite puts the file's content back; a second identical import
- * is a no-op; a whole-configuration backup still goes down the merge/replace path.
- *
- * SAFE with a live config: creates only uids starting `dashboard:nh-e2e-pd`, `widgetdef:nh-e2e-p`,
- * `icon:nh-e2e-p`, `background:nh-e2e-p`, `theme:nh-e2e-p` (plus the `-2` copies the import
- * makes), and deletes exactly those. Commands NOTHING (clock + template widgets only). The
- * version-history namespaces are snapshotted and restored, since importing legitimately writes
- * a restore point.
- */
+// Partial export / import e2e: one dashboard, custom widget or theme as a file.
+// SAFE with a live config: creates only uids starting `dashboard:nh-e2e-pd`, `widgetdef:nh-e2e-p`,
+// `icon:nh-e2e-p`, `background:nh-e2e-p`, `theme:nh-e2e-p` (plus the `-2`.
 import { readFileSync } from 'node:fs'
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, HISTORY_NS, HISTORY_DATA_NS } from './lib/target.mjs'
@@ -61,8 +46,6 @@ const put = async (component) => {
 }
 const norm = (c) => JSON.stringify({ component: c?.component, config: c?.config })
 
-/* the components this suite plants: a dashboard using a template widget (a custom definition),
-   a custom icon on a button, and an uploaded background */
 const dashComponent = (id = DASH, name = 'E2E Partial') => ({
   uid: uid('dashboard', id),
   component: 'neohab:dashboard',
@@ -91,7 +74,6 @@ const themeComponent = {
   config: { id: THEME, name: 'E2E Partial Theme', scheme: 'dark', tokens: { bg: '#101010', surface: '#202020', 'surface-2': '#303030', border: '#404040', text: '#f0f0f0', 'text-dim': '#a0a0a0', primary: '#ee4400', brand: '#ee4400', radius: '4px' } },
 }
 
-/** A dashboard pointing at a definition that does not exist, for the missing-reference report. */
 const brokenComponent = {
   uid: uid('dashboard', BROKEN),
   component: 'neohab:dashboard',
@@ -116,13 +98,11 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => { dialogs.push(d.message()); void d.accept() })
 await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-/** Click something that downloads a file and return the parsed JSON. */
 const grab = async (clicker) => {
   const [download] = await Promise.all([page.waitForEvent('download'), clicker()])
   return { name: download.suggestedFilename(), json: JSON.parse(readFileSync(await download.path(), 'utf8')) }
 }
 
-/** Feed a JSON object to the Backup section's import input. */
 const importFile = async (obj, fileName = 'partial.json') => {
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('section:has(h2:text-is("Backup"))', { timeout: 20000 })
@@ -140,7 +120,6 @@ try {
   ok('seed: dashboard with a dead reference', await put(brokenComponent))
   const dashBefore = await get(uid('dashboard', DASH))
 
-  /* ------------------- export a dashboard from the editor ------------------- */
   await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   await page.click('[aria-label="Edit dashboard"]')
@@ -165,7 +144,6 @@ try {
   ok('file: exactly the 4 expected components', fileUids.length === 4, String(fileUids.length))
   ok('file: base64 blobs last', fileUids.indexOf(uid('widgetdef', DEF)) < fileUids.indexOf(uid('icon', ICON)), fileUids.join(','))
 
-  // exporting the draft, not the saved version
   await page.fill('#nh-dash-name', 'E2E Partial Draft')
   await sleep(300)
   const draftExport = await grab(() => page.click('button:has-text("Export this dashboard")'))
@@ -175,7 +153,6 @@ try {
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
 
-  /* ------------------- export a widget definition and a theme ------------------- */
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-deflist', { timeout: 20000 })
   const defRow = page.locator('.nh-deflist__row', { hasText: 'E2E Partial Def' })
@@ -189,21 +166,12 @@ try {
   ok('theme export holds just the theme', themeExport.json.components.map((c) => c.uid).join(',') === uid('theme', THEME))
   ok('theme export: kind theme', themeExport.json.manifest.kind === 'theme')
 
-  /* ------------------- a file from the future is refused ------------------- */
   await importFile({ ...dashFile, manifest: { ...dashFile.manifest, formatVersion: 3 } })
   await page.waitForSelector('.nh-settings__notice', { timeout: 10000 })
   const versionNotice = await page.textContent('.nh-settings__notice')
   ok('unknown file version is refused', /Unsupported file version/.test(versionNotice ?? ''), String(versionNotice))
   ok('refusing a file offers no import buttons', (await page.locator('button:has-text("Import as a copy")').count()) === 0)
 
-  /* ------------------- a file may only carry the kinds it is allowed to -------------------
-   * A partial file is offered as a copy that "touches nothing of yours", but the copy path derives
-   * a free id from the uid's prefix - so a prefix-less uid like `settings` resolves back to itself
-   * and would be written straight over the global settings. Nothing neohab exports contains one;
-   * a hand-made or mis-generated file can. */
-  // The waits below tolerate a notice that never comes: a build that ACCEPTS the file shows the
-  // import card instead, and the real check has to be the one that fails - not a timeout that
-  // takes every later check in this suite with it.
   const noticeOrCard = async () => {
     await page
       .waitForSelector('.nh-settings__notice, .nh-settings__importchoice', { timeout: 10000 })
@@ -233,7 +201,6 @@ try {
   const kindNotice = await noticeOrCard()
   ok('a file whose kind and primary disagree is refused', /but describes/.test(kindNotice), String(kindNotice))
 
-  /* ------------------- the file matches what is stored: nothing to do ------------------- */
   await importFile(dashFile)
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 15000 })
   const sameCard = await page.textContent('.nh-settings__importchoice')
@@ -245,8 +212,6 @@ try {
   await page.click('.nh-settings__importchoice button:has-text("Close")')
   ok('closing dismisses the card', (await page.locator('.nh-settings__importchoice').count()) === 0)
 
-  /* ------------------- import as a copy (a real collision) ------------------- */
-  // the stored dashboard now differs from the file, which is what makes it a conflict
   await put({ ...dashComponent(), config: { ...dashComponent().config, name: 'Renamed by hand' } })
   await importFile(dashFile)
   await page.waitForSelector('button:has-text("Import as a copy")', { timeout: 15000 })
@@ -277,7 +242,6 @@ try {
   await put(dashComponent())
   ok('restored the seeded dashboard', norm(await get(uid('dashboard', DASH))) === norm(dashBefore))
 
-  /* --------- import as a copy when a dependency differs: the copy must be self-consistent --------- */
   await put({ ...defComponent, config: { ...defComponent.config, template: '<div>MINE, not the file’s</div>' } })
   await importFile(dashFile)
   await page.waitForSelector('button:has-text("Import as a copy")', { timeout: 15000 })
@@ -292,10 +256,8 @@ try {
   ok('the copied dashboard points at the copied definition', tpl2?.config.customwidget === DEF + '-2', String(tpl2?.config.customwidget))
   ok('copied definition name is suffixed', copiedDef?.config.name === 'E2E Partial Def (2)', String(copiedDef?.config.name))
 
-  // it must actually render: the copy resolves its definition rather than showing "not found"
   await page.goto(APP + `#/d/${DASH}-2`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
-  // the template engine is a lazy chunk, and the rendered output lives in the host's shadow root
   await page.waitForSelector('.nh-template__host', { timeout: 20000 })
   const rendered = await page.evaluate(async () => {
     const host = document.querySelector('.nh-template__host')
@@ -311,7 +273,6 @@ try {
   await del(uid('widgetdef', DEF + '-2'))
   await put(defComponent)
 
-  /* ------------------- overwrite ------------------- */
   await put({ ...dashComponent(), config: { ...dashComponent().config, name: 'Renamed by hand' } })
   await importFile(dashFile)
   await page.waitForSelector('button:has-text("Overwrite existing")', { timeout: 15000 })
@@ -324,7 +285,6 @@ try {
   ok('overwrite kept the original widget ids', overwritten?.config.widgets.map((w) => w.id).join(',') === 'w-one,w-two,w-three', overwritten?.config.widgets.map((w) => w.id).join(','))
   ok('overwrite made no copy', (await get(uid('dashboard', DASH + '-2'))) === null)
 
-  /* ---------- after an overwrite the stored state IS the file, byte for byte ---------- */
   await importFile(dashFile)
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 15000 })
   const afterOverwriteCard = await page.textContent('.nh-settings__importchoice')
@@ -332,7 +292,6 @@ try {
   ok('and so offers no copy', (await page.locator('button:has-text("Import as a copy")').count()) === 0)
   await page.click('.nh-settings__importchoice button:has-text("Close")')
 
-  /* ------------------- clean server: original ids come back ------------------- */
   for (const u of [uid('dashboard', DASH), uid('widgetdef', DEF), uid('icon', ICON), uid('background', BG)]) await del(u)
   await importFile(dashFile)
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 15000 })
@@ -349,7 +308,6 @@ try {
   ok('icon restored under its own id', (await get(uid('icon', ICON))) !== null)
   ok('background restored under its own id', (await get(uid('background', BG))) !== null)
 
-  /* ------------------- missing references are reported, not hidden ------------------- */
   await page.goto(APP + `#/d/${BROKEN}`, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
@@ -364,7 +322,6 @@ try {
   ok('the dead reference is reported', /no longer exist/.test(toast ?? '') && /nh-e2e-pgone/.test(toast ?? ''), String(toast))
   await page.click('button:has-text("Exit")')
 
-  /* ------------------- a full backup still uses merge / replace ------------------- */
   await importFile({ manifest: { app: 'neohab', formatVersion: 1, exportedAt: 'x' }, components: [dashComponent('nh-e2e-pdfull', 'E2E Partial Full')] }, 'neohab-config.json')
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 15000 })
   ok('a whole-configuration backup offers merge', (await page.locator('button:has-text("Merge into current")').count()) === 1)
@@ -380,12 +337,9 @@ try {
   for (const c of await list()) {
     if (MINE.test(c.uid)) await del(c.uid)
   }
-  // Scoped to what THIS suite made (MINE): asserting on every `nh-e2e` component made one
-  // suite's stray leftover fail three unrelated suites in the same battery run.
   const left = (await list()).map((c) => c.uid).filter((u) => MINE.test(u))
   ok('cleanup: no leftovers', left.length === 0, left.join(','))
 
-  // importing writes a restore point; put the history namespaces back exactly as they were
   for (const [ns, before] of [[HISTORY_NS, historyBefore], [HISTORY_DATA_NS, historyDataBefore]]) {
     for (const c of await list(ns)) await del(c.uid, ns)
     for (const c of before) {

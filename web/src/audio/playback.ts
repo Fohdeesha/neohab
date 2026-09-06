@@ -1,10 +1,5 @@
-/**
- * Playback for web-audio sink events: one shared <audio> element playing served streams.
- *
- * The stream is fetched explicitly (rather than assigned as the element's src) so the access
- * token rides along on servers that require one - an <audio> element cannot send auth headers.
- * An empty URL is the server's "stop playing" signal (the sink was asked to play nothing).
- */
+// the stream is fetched rather than assigned as src, so the token can ride along - an <audio> element sends no
+// headers
 import { applyAuthHeader, applyProxyAuth, getAccessToken } from '../api/auth'
 import { setAudioBlocked } from '../store/audio'
 
@@ -35,14 +30,11 @@ export function stopAudio(): void {
   releaseUrl()
 }
 
-/** Handle one playurl event: play the served stream, or stop on the empty-URL signal. */
 export async function playAudioUrl(url: string): Promise<void> {
   if (!url) {
     stopAudio()
     return
   }
-  // The same served-stream URL delivered twice (SSE reconnect replay) must not replay the
-  // sound; every real play is served under a fresh unique URL.
   if (url === lastUrl) return
   lastUrl = url
 
@@ -63,8 +55,6 @@ export async function playAudioUrl(url: string): Promise<void> {
     await audio.play()
     setAudioBlocked(false)
   } catch (err) {
-    // Autoplay policy: the browser wants a user gesture first. Remembered for the Settings
-    // status line rather than toasted - a wall panel would otherwise stack notices.
     if (err instanceof DOMException && err.name === 'NotAllowedError') setAudioBlocked(true)
     releaseUrl()
   }

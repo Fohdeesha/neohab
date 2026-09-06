@@ -12,7 +12,6 @@ describe('jwtRoles', () => {
   })
 
   it('accepts a payload whose base64url needs re-padding', () => {
-    // A 2-char-mod-4 payload: {"role":["user"]} happens to produce one; assert on behavior, not luck.
     const token = jwt({ role: ['user'] })
     expect(jwtRoles(token)).toEqual(['user'])
   })
@@ -40,7 +39,6 @@ describe('editingAllowed', () => {
     return editingAllowed()
   }
 
-  /** A device holding an API token. Node has no localStorage, so it is stood in for. */
   const withStoredToken = (fn: () => void) => {
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => (k === 'neohab:apiToken' ? 'oh.test' : null),
@@ -61,15 +59,9 @@ describe('editingAllowed', () => {
     expect(withState('unknown', {})).toBe(false)
   })
 
-  /**
-   * 'unknown' is the probe not having answered, or having failed for a reason that says nothing
-   * about the account. A device with credentials keeps its affordances through that rather than
-   * being locked out of its own panel by a hiccup; a device with none is offered nothing.
-   */
   it('keeps a credentialed device editing while the probe has not answered', () => {
     withStoredToken(() => {
       expect(withState('unknown', {})).toBe(true)
-      // Still not enough on its own: a probe that came back "not an administrator" is an answer.
       expect(withState('user', {})).toBe(false)
       expect(withState('anonymous', {})).toBe(false)
     })

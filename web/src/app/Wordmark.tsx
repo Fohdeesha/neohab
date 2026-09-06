@@ -1,19 +1,6 @@
-/**
- * The neohab wordmark, drawn rather than typeset so it is the same on every screen.
- *
- * The letters are Poppins SemiBold outlines (the face the add-on already bundles; OFL), cut to
- * paths so no font has to load before the home screen has its name. The first n is built from
- * cells: a flattened arch that comes down over the two legs and ends in a round cap on each,
- * with a gap of ground between the pieces. The arch and the closed counters of e, o and b take
- * the brand colour, and the a carries a smaller lit orb tucked into the bottom left of its bowl.
- *
- * Fills come from the theme tokens, so the mark follows every theme like the rest of the chrome;
- * the class names are kept for a stylesheet that wants to restyle a part. Units are thousandths
- * of an em with the baseline at y=0, so the drawing scales with its box.
- */
+// Poppins SemiBold outlines cut to paths, so nothing has to load before the home screen has its name
 const VIEWBOX = '0 -770 3976 800'
 
-// The lit windows: the e's eye, the o and the b edge to edge, the a's orb.
 const PANES = [
   { cx: 982.5, cy: -369.6, rx: 170, ry: 130 },
   { cx: 1610, cy: -280, rx: 180, ry: 230 },
@@ -21,7 +8,6 @@ const PANES = [
   { cx: 3636.5, cy: -280, rx: 210, ry: 240 }
 ]
 
-// Poppins SemiBold e, o, h, a, b at their advance positions after the drawn n.
 const LETTERS = [
   {
     x: 674,

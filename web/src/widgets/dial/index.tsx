@@ -1,11 +1,3 @@
-/**
- * The dial widget: a circular control that can be drawn six ways.
- *
- * The two renderers live beside this file - `ClassicDial` is the original arc slider, `RingGauge`
- * the instrument family (LED beads, tick ring, solid arc, blocks, clay 3D). This module is the
- * definition: which renderer to use, and the settings schema that drives both. The pure model
- * they share is in `gauge.ts`, and the geometry in `geometry.ts`.
- */
 import { rangeControl } from '../common/itemControl'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { ClassicDial } from './ClassicDial'
@@ -19,7 +11,6 @@ function DialWidget(props: WidgetProps<DialConfig>) {
 
 const RING_STYLES = ['led', 'ticks', 'arc', 'blocks', '3d']
 const ring = (c: Record<string, unknown>) => RING_STYLES.includes(c.style as string)
-/** The arc style has no discrete segments, so segment-only fields hide there. */
 const segmented = (c: Record<string, unknown>) => ring(c) && c.style !== 'arc'
 const ringTicks = (c: Record<string, unknown>) => ring(c) && c.showTicks === true
 const ringAlarm = (c: Record<string, unknown>) => ring(c) && c.alarm === true
@@ -192,11 +183,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     ...(typeof c.item2 === 'string' && c.item2 !== '' ? [c.item2] : []),
     ...(Array.isArray(c.markers) ? c.markers : []).map((m) => m?.item).filter((s): s is string => typeof s === 'string' && s !== '')
   ],
-  // "Read-only gauge" is the author saying this tile is an instrument, not a control - so the
-  // detail sheet must not hand out the slider the tile itself refuses to be.
   canCommand: (c) => c.readOnly !== true,
-  // Each ring on its own scale, and nothing at all for a marker: a marker follows an item to draw
-  // a line on the face, and this dial never writes to it.
   controlFor: (c, item) => {
     if (c.readOnly === true) return undefined
     if (item === c.item) return rangeControl(scaleOf(c), c.unit)

@@ -1,16 +1,3 @@
-/**
- * The bundled SHA-256, which is what makes PKCE sign-in work at all on a plain-HTTP LAN openHAB.
- *
- * Browsers expose `crypto.subtle` only to secure contexts, so on the deployment this project
- * actually targets it is simply absent - and when that went unhandled, `authorize()` threw before
- * the redirect and the sign-in button did nothing at all, silently, on every device (fixed
- * 2026-07-22). A wrong digest here would be worse than a missing one: the login page would load
- * and the token exchange would then fail with an opaque error.
- *
- * So it is checked two ways: against the published FIPS 180-4 vectors, and against
- * `crypto.subtle` itself - the implementation it stands in for - over every length across a
- * padding-block boundary.
- */
 import { describe, expect, it } from 'vitest'
 import { sha256 } from './sha256'
 
@@ -20,7 +7,6 @@ const utf8 = (s: string): Uint8Array => new TextEncoder().encode(s)
 
 const digest = (s: string | Uint8Array): string => hex(sha256(typeof s === 'string' ? utf8(s) : s))
 
-/** The platform's own SHA-256, which is what this module exists to replace. */
 const reference = async (data: Uint8Array): Promise<string> =>
   hex(new Uint8Array(await crypto.subtle.digest('SHA-256', data as BufferSource)))
 
@@ -46,8 +32,6 @@ describe('the published FIPS 180-4 vectors', () => {
 
 describe('agreement with the platform implementation it replaces', () => {
   it('matches for every length across a padding block boundary', async () => {
-    // 55/56 and 119/120 are where the 64-bit length field stops fitting and a whole extra block
-    // appears - the classic place a hand-written padding routine is wrong.
     for (let len = 0; len <= 130; len++) {
       const input = randomBytes(len)
       expect(hex(sha256(input)), `length ${len}`).toBe(await reference(input))
@@ -80,8 +64,6 @@ describe('the shape PKCE actually needs', () => {
   })
 
   it('digests a real verifier to the challenge the token endpoint will recompute', () => {
-    // The worked example from RFC 7636 appendix B, which is what proves the whole chain agrees
-    // with the spec rather than merely being self-consistent.
     const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
     const base64url = (bytes: Uint8Array) =>
       btoa(String.fromCharCode(...bytes))

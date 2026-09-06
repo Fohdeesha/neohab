@@ -1,15 +1,3 @@
-/**
- * Live item-state store. Components read individual item states and re-render only when their
- * item changes.
- *
- * One tab per browser (the {@link TabLink} leader) owns the SSE connection; the rest are
- * followers that open no connection at all. Followers publish the items they need, the leader
- * tracks the union of everyone's items and relays every state it receives. Widgets are unaware
- * of any of this: subscribeItems/useItemState behave the same either way.
- *
- * See api/tabLink.ts for why: event streams are permanent connections, and a browser only has
- * six per origin for all its tabs put together.
- */
 import { create } from 'zustand'
 import { StatesTracker, type StateMap } from '../api/sse'
 import { getTabLink, type TabMessage } from '../api/tabLink'
@@ -18,29 +6,23 @@ import { emptyMap, mergeMap } from '../model/lookup'
 
 interface ItemsState {
   states: StateMap
-  /** Item states are flowing (directly, or relayed from the leader tab). */
   connected: boolean
 }
 
 const tracker = new StatesTracker()
 const link = getTabLink()
 
-/** Item names currently needed by mounted widgets, ref-counted. Kept outside the store:
- * subscription changes shouldn't notify every widget the way a setState would. */
+// kept outside the store: subscription changes must not notify every widget
 const trackedCounts = new Map<string, number>()
 
-/** Leader only: what each follower tab needs, and when it last said so. */
 interface FollowerNeed {
   items: string[]
   audio: boolean
   at: number
 }
 const followers = new Map<string, FollowerNeed>()
-/** A follower that has not repeated itself for this long is gone (closed, crashed, frozen). */
 const FOLLOWER_TTL_MS = 6000
 let lastUnionKey = ''
-/** Everything seen so far, so a tab that joins later can be handed the current picture at once
- * (and so a follower promoted to leader can hand over what it already knows). */
 let snapshot: StateMap = emptyMap()
 let wantsAudio = false
 let started = false
@@ -53,19 +35,10 @@ export const useItemsStore = create<ItemsState>(() => ({
 }))
 
 function applyStates(delta: StateMap): void {
-  // Each event carries the complete state of the items it mentions, so replace per item.
-  // (The server intentionally omits displayState when it equals the raw state - merging old
-  // fields over a new event would keep a stale formatted value around.)
-  //
-  // `mergeMap` and not object spread: these maps are keyed by ITEM NAMES, and openHAB happily
-  // allows an item called `constructor` or `toString`. On an ordinary object every reader of an
-  // untracked item would then be handed a function instead of `undefined`, which no `?? fallback`
-  // catches - see model/lookup.ts.
   useItemsStore.setState((s) => ({ states: mergeMap(s.states, delta) }))
   snapshot = mergeMap(snapshot, delta)
 }
 
-/** Union of this tab's items and every live follower's, pushed to the server only when it moves. */
 function recomputeUnion(force = false): void {
   const union = new Set(trackedCounts.keys())
   const cutoff = Date.now() - FOLLOWER_TTL_MS
@@ -99,8 +72,6 @@ function checkAudioWant(): void {
   for (const cb of audioWantListeners) cb(want)
 }
 
-/** Follower -> leader: the items this tab needs. Repeated on every heartbeat so that a leader
- * which took over mid-session learns about us, and a tab that died stops being tracked. */
 function publishNeed(): void {
   link.post({ t: 'need', items: [...trackedCounts.keys()], audio: wantsAudio })
 }
@@ -110,8 +81,6 @@ function becomeLeader(): void {
   tracker.start()
   recomputeUnion(true)
   link.post({ t: 'lead' }) // followers answer with their needs
-  // Followers repeat their needs on every heartbeat; drop the ones that stopped answering
-  // (closed or crashed tabs) so we stop tracking items nobody is showing any more.
   pruneTimer ??= setInterval(() => recomputeUnion(), FOLLOWER_TTL_MS / 2)
 }
 
@@ -136,8 +105,6 @@ export function startItemTracking(): void {
   })
   tracker.onStatus((live) => {
     liveNow = live
-    // Only the leader has a stream to report on. A follower's own tracker is stopped, so its
-    // status is meaningless - its connection is the leader's, reported over the link.
     if (!link.isLeader()) return
     useItemsStore.setState({ connected: live })
     link.post({ t: 'live', live })
@@ -146,7 +113,6 @@ export function startItemTracking(): void {
   link.onMessage((msg: TabMessage) => {
     switch (msg.t) {
       case 'states':
-        // Relayed by the leader. Ignored while we lead: our own stream is the source of truth.
         if (!link.isLeader()) applyStates(msg.states as StateMap)
         break
       case 'live':
@@ -161,9 +127,6 @@ export function startItemTracking(): void {
           at: Date.now()
         })
         recomputeUnion()
-        // Hand a newly seen tab the whole picture at once; waiting for its items to change
-        // would leave it blank even though we already know their states. It also has no way
-        // of knowing whether the stream is healthy until we say so.
         if (!known) {
           link.post({ t: 'states', states: snapshot })
           link.post({ t: 'live', live: liveNow })
@@ -171,7 +134,6 @@ export function startItemTracking(): void {
         break
       }
       case 'lead':
-        // A new leader took over: tell it what we need.
         if (!link.isLeader()) publishNeed()
         break
       case 'beat':
@@ -181,12 +143,10 @@ export function startItemTracking(): void {
   })
 
   link.onRole((leader) => (leader ? becomeLeader() : becomeFollower()))
-  // The election may already have been decided before the app got this far.
   if (link.isLeader()) becomeLeader()
   else publishNeed()
 }
 
-/** Ref-count item subscriptions so unmounting one widget doesn't drop another's item. */
 export function subscribeItems(names: string[]): () => void {
   if (names.length === 0) return () => {}
   for (const n of names) trackedCounts.set(n, (trackedCounts.get(n) ?? 0) + 1)
@@ -207,10 +167,6 @@ function needChanged(): void {
   else publishNeed()
 }
 
-/**
- * Tell the leader whether this tab wants the web-audio stream (see audio/AudioRuntime): the
- * leader holds that connection for everyone, so it has to know if anyone is listening.
- */
 export function setWantsAudio(want: boolean): void {
   if (wantsAudio === want) return
   wantsAudio = want
@@ -218,34 +174,22 @@ export function setWantsAudio(want: boolean): void {
   needChanged()
 }
 
-/** Leader only: does this browser need the web-audio stream open at all? */
 export function audioWanted(): boolean {
   return anyoneWantsAudio()
 }
 
-/** Fires when that answer changes - a follower unmuting is what opens the leader's stream. */
 export function onAudioWanted(cb: (want: boolean) => void): () => void {
   audioWantListeners.add(cb)
   return () => audioWantListeners.delete(cb)
 }
 
-/**
- * Just these items' states, as a map a widget can be handed.
- *
- * Prototype-free like the store's own map, and for the same reason: `getItem` takes whatever name
- * a widget or a template asks for, which need not be one of the names this map was built from.
- * `Object.fromEntries` - what each of these call sites used to do - hands back an ordinary object,
- * so `getItem('constructor')` on an item nobody subscribed to would answer with the `Object`
- * function. Reads inside zustand's `useShallow`, which compares these maps unchanged: it walks
- * `Object.entries` and compares prototypes, and two prototype-free maps match.
- */
+// prototype-free like the store's own map, since getItem takes whatever a widget names
 export function selectStates(states: StateMap, names: string[]): StateMap {
   const out = emptyMap<ItemState>()
   for (const name of names) out[name] = states[name]
   return out
 }
 
-/** Selector hook for one item's live state. */
 export function useItemState(name: string | undefined): ItemState | undefined {
   return useItemsStore((s) => (name ? s.states[name] : undefined))
 }

@@ -1,28 +1,6 @@
-/**
- * Per-theme custom CSS + Swiss Sheet themes e2e.
- *
- * Covers: the two Swiss Sheet built-ins appear and apply (tokens + injected stylesheet); the
- * page is a plain black field with no texture; widgets are unboxed, and a named one sits under
- * a 2px rule carried by its lowercase caption; a headerless button is an outlined block with
- * no rule, and an active one is a plate in the text colour with the page colour as ink; the
- * dial is a flat grey track with a fill in the text colour and square ends; the slider is a
- * flat track; Home tiles are ruled and the "+" tile keeps its dashed box; the masthead carries
- * a rule and a red mark; the stylesheet survives reload via the pre-paint theme cache; the light
- * variant; the theme editor's Custom CSS textarea (copied on request, round-trips to the
- * server, applies once the theme is adopted); switching to a css-less theme removes the style
- * element; console clean.
- *
- * The editor section covers what the theme editor is FOR: a token change previews on the page
- * before anything is stored, every group of the token contract is offered (not just the original
- * colours), contrast is reported while the colours are chosen, a new theme does not silently
- * inherit a structural theme's stylesheet, and saving a theme does not re-point every device at
- * it - adopting one does that, deliberately.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-swiss and one theme:custom-* (found by
- * uid diff, deleted in cleanup). The `settings` component is snapshotted first and restored
- * VERBATIM. Commands NOTHING: the dial is read-only, the slider is never touched, and every
- * button is only ever read for its computed style.
- */
+// Per-theme custom CSS + Swiss Sheet themes e2e.
+// SAFE with a live config: creates only dashboard:nh-e2e-swiss and one theme:custom-* (found by uid diff,
+// deleted in cleanup).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings as readSettings, restoreSettings } from './lib/components.mjs'
@@ -46,8 +24,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// Chromium serialises a color-mix() result as color(srgb r g b) in 0..1; everything else as
-// rgb(). Both are read into 0..255 channels so a check can compare either.
 const channels = (color) => {
   const ch = (String(color).match(/[\d.]+/g) ?? []).map(Number)
   return ch.length >= 3 && ch.slice(0, 3).every((v) => v <= 1) ? ch.map((v) => Math.round(v * 255)) : ch
@@ -57,7 +33,6 @@ const near = (color, want, tol = 2) => {
   return ch.length >= 3 && want.every((w, i) => Math.abs(ch[i] - w) <= tol)
 }
 
-// ---------- pre-suite snapshots ----------
 const settingsBefore = await readSettings()
 const themeUidsBefore = (await listUids()).filter((u) => u.startsWith('theme:'))
 
@@ -72,9 +47,6 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
-  // ---------- seed a dashboard (nothing commandable is ever clicked) ----------
-  // A toggle button whose command EQUALS the item's current state renders active without any
-  // interaction - the active plate is asserted purely from SSE state, zero commands sent.
   const presetState = (await (await fetch(BASE + `/rest/items/${ITEMS.switch}/state`, { headers: AUTH })).text()).trim()
   const seed = await fetch(NS, {
     method: 'POST',
@@ -92,7 +64,6 @@ try {
         widgets: [
           { id: 'w-v', type: 'value', config: { item: ITEMS.temperature, label: 'Bedroom Temp' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
           { id: 'w-c', type: 'clock', config: {}, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-          // never clicked - only its computed style is read
           { id: 'w-b', type: 'button', config: { label: 'Never Clicked', icon: 'oh:light' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
           {
             id: 'w-ba',
@@ -100,7 +71,6 @@ try {
             config: { label: 'State Active', item: ITEMS.switch, command: presetState, toggle: true, icon: 'oh:light' },
             layout: { lg: { x: 9, y: 0, w: 3, h: 2 } },
           },
-          // a read-only gauge and an untouched slider: both only ever read for their style
           { id: 'w-d', type: 'dial', config: { item: ITEMS.temperature, label: 'Gauge', readOnly: true, min: 0, max: 100 }, layout: { lg: { x: 0, y: 2, w: 3, h: 2 } } },
           { id: 'w-s', type: 'slider', config: { item: ITEMS.dimmer, label: 'Level', style: 'plain' }, layout: { lg: { x: 3, y: 2, w: 3, h: 2 } } },
         ],
@@ -109,7 +79,6 @@ try {
   })
   ok('seed dashboard created', seed.ok, String(seed.status))
 
-  // ---------- built-ins present, dark variant applies ----------
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-theme__pick', { timeout: 20000 })
   const darkCard = page.locator('.nh-theme__pick:has(.nh-theme__name:text-is("Swiss Sheet"))')
@@ -131,7 +100,6 @@ try {
     performance.getEntriesByType('resource').filter((r) => /\.woff2?$/.test(r.name)).map((r) => r.name.split('/').pop()))
   ok('the theme downloads no webfont', fontFetches.length === 0, fontFetches.join(', '))
 
-  // ---------- widget: unboxed, the name carries the rule ----------
   await page.goto(APP + '#/d/nh-e2e-swiss')
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   const frame = await page.$eval('.nh-gcell .nh-widget', (el) => {
@@ -160,7 +128,6 @@ try {
   ok('the name row carries a 2px rule in the text colour', labelStyle.rule === '2px' && labelStyle.ruleColor === 'rgb(242, 242, 242)', `${labelStyle.rule} ${labelStyle.ruleColor}`)
   ok('caption lowercase, regular weight, dim', labelStyle.tf === 'lowercase' && labelStyle.weight === '400' && labelStyle.color === 'rgb(140, 145, 153)', `${labelStyle.tf} ${labelStyle.weight} ${labelStyle.color}`)
   ok('caption flush with the rule (rule inset by margin, not padding)', labelStyle.ml === '8px', labelStyle.ml)
-  // the value sits top-left under its caption, like a status tile
   const valuePos = await page.$eval('.nh-value', (el) => {
     const body = el.closest('.nh-widget__body')
     const b = body.getBoundingClientRect()
@@ -169,7 +136,6 @@ try {
   })
   ok('reading sits top-left, set bold', valuePos.left < 12 && valuePos.topGap < valuePos.bodyH / 3 && valuePos.weight === '700', JSON.stringify(valuePos))
 
-  // ---------- buttons: outlined blocks, no rule, active = plate in the text colour ----------
   const btn = await page.$eval('.nh-button:not(.nh-button--active)', (el) => {
     const s = getComputedStyle(el)
     const widget = el.closest('.nh-widget')
@@ -186,9 +152,6 @@ try {
   ok('button squared by theme CSS', btn.radius === '0px', btn.radius)
   ok('button outlined and transparent, no reticle', btn.bg === 'rgba(0, 0, 0, 0)' && btn.borderW === '1px' && btn.face === 'none' && btn.shadow === 'none', `${btn.bg} ${btn.borderW} ${btn.face.slice(0, 20)}`)
   ok('a headerless button has no rule above it', !btn.headed && btn.widgetRule === '0px', `headed=${btn.headed} rule=${btn.widgetRule}`)
-  // state-matching toggle button renders the plate - from SSE state alone.
-  // The class appears only once the item's state ARRIVES over SSE, so wait for it.
-  // (and let .nh-button's 100ms background transition finish, or the sample lands mid-flight)
   const plate = await page
     .waitForSelector('.nh-button--active', { timeout: 15000 })
     .then(async (el) => {
@@ -203,7 +166,6 @@ try {
   const iconFilters = await page.$$eval('.nh-icon--img', (els) => els.map((el) => getComputedStyle(el).filter))
   ok('image icons keep their color (no filter)', iconFilters.length > 0 && iconFilters.every((f) => f === 'none'), iconFilters.join(' | '))
 
-  // ---------- dial and slider: flat bars ----------
   const dial = await page.$eval('.nh-dial', (el) => {
     const track = getComputedStyle(el.querySelector('.nh-dial__track'))
     const fill = el.querySelector('.nh-dial__fill')
@@ -217,7 +179,6 @@ try {
   })
   ok('slider is a flat custom track', slider.appearance === 'none', JSON.stringify(slider))
 
-  // ---------- masthead ----------
   const barRule = await page.$eval('.nh-dash__bar', (el) => {
     const s = getComputedStyle(el)
     return { bw: s.borderBottomWidth, bc: s.borderBottomColor, img: s.backgroundImage }
@@ -229,11 +190,8 @@ try {
   })
   ok('title lowercase bold with a red mark', mark.w === '9px' && mark.bg === 'rgb(226, 56, 42)' && mark.tf === 'lowercase' && mark.weight === '700', JSON.stringify(mark))
 
-  // ---------- Home tiles ruled; "+" tile keeps its dashed box ----------
   await page.goto(APP + '#/')
   await page.waitForSelector('.nh-tile', { timeout: 20000 })
-  // the pointer is still where the theme card was, which can be over the first tile: a hover
-  // wash and the base stylesheet's border transition would then be what gets sampled
   await page.mouse.move(0, 0)
   await sleep(250)
   const tile = await page.$eval('.nh-tile:not(.nh-tile--new)', (el) => {
@@ -247,13 +205,11 @@ try {
   })
   ok('new-dashboard tile still dashed', newTile.style === 'dashed' && newTile.w === '1px', JSON.stringify(newTile))
 
-  // ---------- pre-paint cache path: stylesheet present right after reload ----------
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForFunction(() => !!document.getElementById('nh-theme-css'), null, { timeout: 5000 })
   const reloadBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
   ok('swiss survives reload via theme cache', reloadBg === 'rgb(0, 0, 0)', reloadBg)
 
-  // ---------- light variant ----------
   await page.goto(APP + '#/settings')
   await page.waitForSelector('.nh-theme__pick')
   await lightCard.click()
@@ -273,32 +229,23 @@ try {
     .catch(() => null)
   ok('light variant: active plate is ink with white lettering', !!lightPlate && near(lightPlate.bg, [17, 17, 17]) && lightPlate.color === 'rgb(255, 255, 255)', JSON.stringify(lightPlate))
 
-  // ---------- editor: live preview, token groups, contrast, explicit stylesheet copy ----------
   await page.goto(APP + '#/settings')
   await page.waitForSelector('.nh-theme__pick')
   const sharedBefore = (await getSettings())?.theme
   await page.click('button:has-text("New theme")')
   await page.waitForSelector('#theme-css', { timeout: 10000 })
 
-  // A new theme starts from the active theme's COLOURS, not its stylesheet. Copying the
-  // stylesheet handed anyone starting from a structural theme hundreds of lines referencing
-  // bundled fonts and images, full of colours that would not follow the tokens they were about
-  // to change - so the new theme looked broken and nothing on screen said why.
   ok('a new theme does not inherit the active theme stylesheet', (await page.inputValue('#theme-css')) === '')
   await page.click('.nh-tokengroup__head:has-text("Semantic")')
   await sleep(200)
-  // whichever Swiss variant is active at this point in the suite
   const activePrimary = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--nh-primary').trim().toLowerCase())
   ok('a new theme does inherit its colours',
     (await page.inputValue('#tok-primary')).toLowerCase() === activePrimary,
     `${await page.inputValue('#tok-primary')} vs ${activePrimary}`)
-  // ...and NOT a pinned accent ink. Swiss leaves it to the automatic choice, and the copy must
-  // too, so an accent about to be changed keeps an ink that follows it.
   ok('a new theme does not inherit a pinned accent ink', (await page.inputValue('#tok-accent-ink')) === '',
     JSON.stringify(await page.inputValue('#tok-accent-ink')))
 
-  // Live preview: the whole point. Editing a token has to show on the page before any save.
   await page.fill('#tok-primary', '#00ff00')
   await sleep(350)
   const previewed = await page.evaluate(() =>
@@ -307,7 +254,6 @@ try {
   const previewUnsaved = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
   ok('live preview stores nothing on the server', previewUnsaved.length === 0, previewUnsaved.join())
 
-  // Ink on the accent is derived, so text on a filled tile stays readable whatever the accent is.
   const inkLight = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--nh-accent-ink').trim())
   await page.fill('#tok-primary', '#101010')
@@ -318,7 +264,6 @@ try {
     inkLight.toLowerCase() !== '#ffffff' && inkDark.toLowerCase() === '#ffffff',
     JSON.stringify({ onGreen: inkLight, onNearBlack: inkDark }))
 
-  // Every token in the contract is offered, grouped - not just the original nine.
   await page.click('.nh-tokengroup__head:has-text("Chart palette")')
   await sleep(200)
   ok('the chart palette is editable in the UI', (await page.locator('#tok-chart-1').count()) === 1)
@@ -326,12 +271,10 @@ try {
   await sleep(200)
   ok('the instrument tokens are editable in the UI', (await page.locator('#tok-band-light').count()) === 1)
 
-  // Readability feedback, while the colours are being chosen.
   ok('contrast is reported for the pairs that meet on screen',
     (await page.locator('.nh-contrast__row').count()) >= 4,
     String(await page.locator('.nh-contrast__row').count()))
 
-  // The stylesheet copy is offered explicitly, and says what it is.
   await page.fill('#tok-primary', activePrimary)
   await page.click('button:has-text("Start from")')
   await page.waitForFunction(() => document.querySelector('#theme-css')?.value?.includes('Helvetica'), null, { timeout: 10000 })
@@ -343,8 +286,6 @@ try {
   await page.fill('#theme-css', MARKER)
   await page.fill('#theme-name', 'E2E CSS Theme')
 
-  // Saving does NOT switch every device over. Tweaking a theme you are not using used to
-  // re-point the whole installation at it.
   await page.click('button:has-text("Save theme")')
   await sleep(900)
   ok('saving a theme leaves the shared theme alone', (await getSettings())?.theme === sharedBefore,
@@ -358,7 +299,6 @@ try {
     ok('server component carries the edited tokens', comp?.config?.tokens?.primary?.toLowerCase() === activePrimary,
       String(comp?.config?.tokens?.primary))
 
-    // ...and adopting it explicitly does apply it everywhere.
     await page.click(`.nh-theme__pick:has(.nh-theme__name:text-is("E2E CSS Theme"))`)
     await sleep(900)
     const spacing = await page.evaluate(() => getComputedStyle(document.body).letterSpacing)
@@ -367,19 +307,16 @@ try {
       String((await getSettings())?.theme))
   }
 
-  // ---------- css-less theme removes the stylesheet ----------
   await page.click('.nh-theme__pick:has(.nh-theme__name:text-is("neohab Dark"))')
   await sleep(600)
   ok('style element removed on css-less theme', await page.evaluate(() => !document.getElementById('nh-theme-css')))
   const plainSpacing = await page.evaluate(() => getComputedStyle(document.body).letterSpacing)
   ok('marker CSS gone', plainSpacing === 'normal', plainSpacing)
 
-  // cleanup of the custom theme happens in finally via uid diff
   ok('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (e) {
   ok('suite crashed', false, String(e && e.message))
 } finally {
-  // ---------- cleanup: exact uids only, settings restored verbatim ----------
   try {
     await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
     const leftoverThemes = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))

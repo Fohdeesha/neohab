@@ -1,12 +1,3 @@
-/**
- * The weather widget: current conditions, an hourly strip and a daily forecast, drawn three
- * ways (hero, compact row, forecast strip) from either of two sources - Open-Meteo fetched
- * straight from this device, or the user's own openHAB items.
- *
- * The pure model (condition tables, normalization, the display view) is in model.ts, the
- * Open-Meteo fetch and its shared cache in openmeteo.ts, and the looks in looks.tsx. This
- * module is the definition: the settings schema, the fetch wiring and the source dispatch.
- */
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
@@ -23,7 +14,6 @@ interface WeatherConfig extends Record<string, unknown> {
   units?: string
   refreshMinutes?: number
   iconStyle?: string
-  /** Which weather model Open-Meteo runs the forecast from; empty = its own pick. */
   model?: string
 }
 

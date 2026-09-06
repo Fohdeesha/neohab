@@ -1,20 +1,3 @@
-/**
- * Responsive dashboard grid.
- *
- * Wide viewports render the authored `lg` layout on a CSS grid of `dashboard.columns`, with the
- * row height either fixed or matching the column width ('match' = square cells, the HABPanel
- * convention, so dashboards keep their proportions at any width). Narrow viewports (phones)
- * collapse to a single-column stack (see stackedOrder: pinned order when the user reordered it,
- * else row by row); stacked heights preserve the author's intent by sizing rows as they would
- * render at a reference desktop width, with each widget's minPixelHeight as a floor so controls
- * never clip on phones. Stacked rows size their text per row (see stackedTextScale) rather than
- * from the grid's proportional scale, because a full-width row's room is its own height.
- *
- * Between the two sits the tablet band (see MD_BELOW): a dashboard that has a tablet layout
- * renders that one there, with its own column count; one that has not keeps rendering the desktop
- * layout, exactly as it always did. Widgets can also be hidden per surface (`config.hideOn`), so a
- * chart can be desktop-only and a big control can stay off the phone stack.
- */
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
@@ -51,12 +34,6 @@ import { WidgetDetail } from './WidgetDetail'
 import { instanceDetailRoute, instanceHasDetail } from '../widgets'
 import { navigate } from '../app/router'
 
-/**
- * One tile, and the hold/right-click that opens its detail sheet.
- *
- * A component per cell rather than the hook inline in the map below: the number of hooks a render
- * makes has to be stable, and the widget count is not.
- */
 function Cell({
   className,
   style,
@@ -70,8 +47,6 @@ function Cell({
   editing: boolean
   onDetail: (w: WidgetInstance) => void
 }) {
-  // A widget with neither an item nor a view of its own has no detail to show, so it keeps the
-  // browser's own menu rather than offering a gesture that opens an empty sheet.
   const press = useLongPress(() => onDetail(instance), !editing && instanceHasDetail(instance.type, instance.config))
   return (
     <div className={className} style={style} {...press}>
@@ -85,13 +60,10 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
-  // The text-scale floor is the device's as well as the row's (see textFloor).
   const coarse = useCoarsePointer()
   const canEdit = useEditingAllowed()
-  // Declared with the other hooks: the early returns below skip later code, and a hook after one
-  // of them would change the render's hook order.
+  // declared with the other hooks - the early returns below skip later code
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
-  // A widget with a page of its own (the log viewer) is navigated to; the rest open the sheet.
   const openDetail = (w: WidgetInstance) => {
     const route = instanceDetailRoute(w.type, props.dashboard.id, w.id)
     if (route) navigate(route)
@@ -99,16 +71,12 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   }
 
   if (width === 0) {
-    // First paint: width unknown, render the container alone and lay out next frame.
     return <div ref={ref} className="nh-grid" />
   }
 
-  // Note the container stays mounted on every path below: swapping it for a bare message would
-  // detach the element the width is measured from (see useContainerWidth).
-  // Through `widgetsOf`: a stored `widgets` that is not a list makes `.length` undefined, so
-  // this test passes and the `.filter` below throws - taking the whole dashboard view with it.
+  // the measured container stays mounted on every path, or the width can never be read again (see
+  // useContainerWidth)
   if (widgetsOf(props.dashboard).length === 0) {
-    // A visitor has no pencil to tap, so pointing at one is an instruction they cannot follow.
     return (
       <div ref={ref} className="nh-grid">
         <p className="nh-dash__empty">
@@ -118,7 +86,6 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
     )
   }
 
-  // The tablet band renders the tablet layout when there is one; otherwise nothing changes.
   const surface = surfaceFor(width)
   const dashboard = surface === 'tablet' && hasTabletLayout(props.dashboard) ? projectDashboard(props.dashboard, 'md') : props.dashboard
   const shown = widgetsOf(dashboard).filter((w) => !isHiddenOn(w, surface))

@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  # GitHub has delivered a push webhook 30 minutes late, and dropped one entirely - when that
-  # happens to CI there is no run to re-run, and the only way to get the checks on a commit is to
-  # push another one. This makes a missing run replayable from the Actions tab.
+  # a dropped push webhook leaves no run to re-run; this makes a missing one replayable by hand
   workflow_dispatch:
 
 jobs:
@@ -27,9 +25,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      # Typecheck, lint and unit tests, before the much slower add-on build. The Maven build runs
-      # the frontend build itself with its own pinned Node; this step is the fast feedback and the
-      # only place the linter and the unit suite run at all.
+      # the only place the linter and the unit suite run at all
       - name: Check the frontend
         working-directory: web
         run: |
@@ -39,8 +35,7 @@ jobs:
       - name: Build add-on
         run: ./mvnw -B -ntp clean install
 
-      # A jar whose frontend failed to pack still installs and then serves nothing at all, so it
-      # must never be published as an artifact either - the same check the release workflow makes.
+      # a jar whose frontend failed to pack still installs, and then serves nothing at all
       - name: Check the jar is complete
         run: |
           jar="$(ls target/org.openhab.ui.neohab-*.jar)"

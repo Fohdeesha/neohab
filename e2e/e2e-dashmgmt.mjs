@@ -1,8 +1,6 @@
-/**
- * Dashboard management e2e: create from Home, rename + grid settings in the editor panel,
- * undo/redo, save, delete. SAFE with a live config: touches only dashboard:nh-e2e-mgmt,
- * which is deleted in cleanup. No item commands, no wipe.
- */
+// Dashboard management e2e: create from Home, rename + grid settings in the editor panel, undo/redo, save,
+// delete.
+// SAFE with a live config: touches only dashboard:nh-e2e-mgmt, which is deleted in cleanup.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -31,11 +29,7 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 try {
-  // ---------- create from Home ----------
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-  // How you reach "create" depends on what the server already has: the "+" tile beside the
-  // existing dashboards, or the welcome card's button on a server with none. Both are real
-  // entry points, so take whichever this server offers rather than assuming a lived-in one.
   await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 15000 })
   const viaTile = (await page.locator('.nh-tile--new').count()) === 1
   ok('a way to create a dashboard on Home', viaTile || (await page.locator('.nh-welcome').count()) === 1,
@@ -51,7 +45,6 @@ try {
   ok('empty dashboard persisted to server', created?.config?.name === 'nh-e2e-mgmt', JSON.stringify(created?.config ?? null)?.slice(0, 80))
   ok('new dashboard defaults to square cells', created?.config?.rowHeight === 'match', String(created?.config?.rowHeight))
 
-  // ---------- dashboard settings in the editor ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   await page.click('[aria-label="Dashboard settings"]')
@@ -68,13 +61,11 @@ try {
   await page.fill('#nh-dash-rowpx', '60')
   await page.fill('#nh-dash-gap', '12')
 
-  // undo/redo applies to dashboard meta
   await page.click('[aria-label="Undo"]')
   ok('undo reverts the gap edit', (await page.inputValue('#nh-dash-gap')) === '8')
   await page.click('[aria-label="Redo"]')
   ok('redo restores the gap edit', (await page.inputValue('#nh-dash-gap')) === '12')
 
-  // ---------- add a widget, save ----------
   await page.click('[aria-label="Add widget"]')
   await page.waitForSelector('.nh-sheet', { timeout: 5000 })
   await page.click('.nh-sheet button:has-text("Clock")')
@@ -89,12 +80,10 @@ try {
   ok('saved: gap 12', Number(c.gap) === 12, String(c.gap))
   ok('saved: clock widget kept', Array.isArray(c.widgets) && c.widgets.length === 1 && c.widgets[0].type === 'clock', JSON.stringify(c.widgets?.map((w) => w.type) ?? []))
 
-  // ---------- renamed tile on Home (Save already returned to run mode) ----------
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tile--new', { timeout: 10000 })
   ok('Home shows the renamed tile', (await page.locator('.nh-tile:has-text("Managed")').count()) === 1)
 
-  // ---------- delete from the settings panel ----------
   await page.click('.nh-tile:has-text("Managed")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
   await page.click('[aria-label="Edit dashboard"]')
@@ -115,7 +104,6 @@ try {
   await browser.close()
 }
 
-// cleanup guard: remove the test dashboard even if a section crashed mid-way
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 ok('cleanup: test dashboard absent', (await getComp()) === null)
 

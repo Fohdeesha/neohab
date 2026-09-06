@@ -1,9 +1,3 @@
-/**
- * Settings section for custom widget definitions: create, edit, and delete `widgetdef:<id>`
- * components. Template widgets edit their HTML and a settings schema (each row becomes a field
- * in the widget's settings panel); JavaScript widgets edit their sandboxed script instead, and
- * an administrator can stop them running at all.
- */
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { deleteWidgetDef, saveSettings, saveWidgetDef, useConfigStore } from '../store/config'
@@ -18,8 +12,6 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
   const defs = useConfigStore((s) => s.widgetDefs)
   const allowJs = useConfigStore((s) => s.settings.allowJsWidgets === true)
   const [editing, setEditing] = useState<CustomWidgetDef | null>(null)
-  // The list row the editor was opened from, so it renders right under what was clicked
-  // instead of below the whole list. Null = a new widget (editor sits under the New buttons).
   const [anchor, setAnchor] = useState<string | null>(null)
 
   const newDef = (kind: 'template' | 'js') => {
@@ -38,7 +30,6 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
 
   const edit = (def: CustomWidgetDef) => {
     setAnchor(def.id)
-    // normalize imported defs into editable shape without touching the stored original yet
     setEditing({
       ...def,
       template: def.kind === 'js' ? undefined : defTemplate(def),

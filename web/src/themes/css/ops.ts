@@ -1,21 +1,5 @@
 import { fontFace } from './shared'
 
-/**
- * Operations - a control-room board.
- *
- * A dark lit field of instrument panels, tiny wide-spaced uppercase captions, and very large
- * light geometric figures with their units raised beside them. Green reads as on target and red
- * as off it, on the values, the gauge rings, the trend arrows and the chart alike - all of which
- * come from the `good`, `bad` and chart-palette tokens rather than being written in here.
- *
- * Every widget is a panel: a translucent navy surface the page's light falls across, framed by a
- * bezel that is brightest at its top edge - a border gradient, not a flat hairline. `border-image`
- * is what carries that, which is why this theme's radius token is 0: a border gradient squares off
- * rounded corners, so the two cannot be combined.
- *
- * The instrument lighting (`rim-hi`/`rim-lo`, `face-hi`/`face-lo`) is likewise set as tokens; the
- * gauge defaults them to flat, so only a theme that lights them up gets a lit face.
- */
 export const OPS_CSS = `${fontFace('Montserrat', 'montserrat.woff2', '100 900', 'woff2-variations')}/* The board is lit, not painted flat: a cold blue wash falls from above and deepens to black
    at the bottom, with the corners darkened so the middle reads as the working area. Every
    surface on top of it is translucent, so this one light source shows through all of them. */

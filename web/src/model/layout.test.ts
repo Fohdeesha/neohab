@@ -1,11 +1,3 @@
-/**
- * Layout maths.
- *
- * Two things are being defended here. One is the geometry itself - bumping, free-spot search,
- * the scaling rules. The other is that stored configuration is untrusted input: a backup, a
- * shared export or a hand edit is written verbatim, so every value read for arithmetic needs its
- * guard at the read. Those are the cases that have actually taken a dashboard down.
- */
 import { describe, expect, it } from 'vitest'
 import type { Dashboard, Rect, WidgetInstance } from './dashboard'
 import {
@@ -63,8 +55,6 @@ describe('cellMetrics', () => {
   })
 
   it('survives a column count of zero', () => {
-    // `columns: 0` divided the cell width to Infinity and took the row height, the icon scale
-    // and the whole grid with it.
     const m = cellMetrics(dash([], { columns: 0 as number, gap: 0 }), 400)
     expect(Number.isFinite(m.colWidth)).toBe(true)
     expect(Number.isFinite(m.rowHeight)).toBe(true)
@@ -84,8 +74,6 @@ describe('cellMetrics', () => {
   })
 
   it('reads a garbage gap as the default, and clamps a wild one', () => {
-    // The column count and the row height were guarded and the gap was not, so a hand-edited
-    // `gap: "wide"` made the cell width NaN and left the grid with nothing to lay out.
     for (const gap of ['wide' as unknown as number, NaN, Infinity, undefined as unknown as number]) {
       expect(gapOf(dash([], { gap })), String(gap)).toBe(DEFAULT_GAP)
     }
@@ -97,8 +85,6 @@ describe('cellMetrics', () => {
   })
 
   it('never lets the gap eat the whole row', () => {
-    // 60 columns at a 64px gap is wider than a phone; a negative column width would flow into
-    // every scale and into grid-template-columns.
     const m = cellMetrics(dash([], { columns: 60, gap: 64 }), 360)
     expect(m.colWidth).toBeGreaterThan(0)
     expect(m.rowHeight).toBeGreaterThanOrEqual(8)
@@ -117,11 +103,6 @@ describe('editZoom', () => {
     expect(editZoom(Number.NaN, true)).toBe(1)
   })
 
-  /**
-   * The whole point: the grid laid out at the run-mode width and drawn into what the panel
-   * leaves. So `available / zoom` has to come back to the width the surface had before the panel
-   * took its share - the width run mode uses - whatever that width is.
-   */
   it('lays the grid out at exactly the run-mode width', () => {
     for (const runWidth of [1896, 1200, 1024, 2560]) {
       const available = runWidth - SIDE_PANEL_WIDTH
@@ -143,9 +124,6 @@ describe('rectOf', () => {
   })
 
   it('repairs a stored rect rather than passing nonsense to the grid', () => {
-    // Stored rects were the one geometry value read without a guard: a string height made
-    // findFreeSpot return NaN, and a negative y became a grid-row counted from the END of the
-    // grid, so the widget rendered somewhere nobody put it.
     const bad = { x: -4, y: -5, w: 0, h: 'tall' } as unknown as Rect
     const r = rectOf({ id: 'a', type: 'label', config: {}, layout: { lg: bad } })
     expect(r.x).toBeGreaterThanOrEqual(0)
@@ -174,7 +152,6 @@ describe('scaling', () => {
   it('never shrinks text below the readability floor', () => {
     const d = dash([], { columns: 36 })
     const rh = cellMetrics(d, 360).rowHeight
-    // a 10px cell is far below either floor, so the floor is what decides
     expect(iconScale(d, rh)).toBeLessThan(TOUCH_TEXT_FLOOR)
     expect(textScale(d, rh, true)).toBe(TOUCH_TEXT_FLOOR)
     expect(textScale(d, rh, false)).toBe(TOUCH_TEXT_FLOOR)
@@ -184,11 +161,9 @@ describe('scaling', () => {
     expect(TOUCH_TEXT_FLOOR).toBe(0.8)
     expect(POINTER_TEXT_FLOOR).toBe(1)
     for (const rh of [10, 70, POINTER_FLOOR_ROW, POINTER_FULL_ROW, 169, 400]) expect(textFloor(true, rh)).toBe(TOUCH_TEXT_FLOOR)
-    // full size once the row reaches the full-text height, and never above it
     expect(textFloor(false, POINTER_FULL_ROW)).toBe(POINTER_TEXT_FLOOR)
     expect(textFloor(false, 169)).toBe(POINTER_TEXT_FLOOR)
     expect(textFloor(false, 400)).toBe(POINTER_TEXT_FLOOR)
-    // easing across the band, never under the touch floor
     expect(textFloor(false, (POINTER_FLOOR_ROW + POINTER_FULL_ROW) / 2)).toBeCloseTo(0.9, 6)
     expect(textFloor(false, 87)).toBeCloseTo(0.8267, 3)
     expect(textFloor(false, POINTER_FLOOR_ROW)).toBe(TOUCH_TEXT_FLOOR)
@@ -198,7 +173,6 @@ describe('scaling', () => {
   })
 
   it('a mouse-driven desk monitor never shrinks text: a 12-column board at 1270px', () => {
-    // A 1200p monitor with a browser sidebar open: 100px rows, which used to read 12.8px
     const d = dash([], { columns: 12, gap: 4 })
     const rh = cellMetrics(d, 1270).rowHeight
     expect(rh).toBeGreaterThanOrEqual(POINTER_FULL_ROW)
@@ -225,10 +199,8 @@ describe('scaling', () => {
   it('sizes stacked rows by the room the row actually has', () => {
     const d = dash([], { columns: 8 })
     const unit = cellMetrics(d, 1280).rowHeight
-    // a tall row reads at full size; a short one eases back toward the floor
     expect(stackedTextScale(d, unit, 200, true)).toBeGreaterThan(stackedTextScale(d, unit, 40, true))
     expect(stackedTextScale(d, unit, 200, true)).toBeLessThanOrEqual(1)
-    // the mouse floor never exceeds the stack's own room term, so the two pointers agree row for row
     for (const h of [40, 80, 87, 96, 100, 200])
       expect(stackedTextScale(d, unit, h, false)).toBeCloseTo(stackedTextScale(d, unit, h, true), 6)
   })
@@ -252,13 +224,6 @@ describe('accent ink', () => {
   })
 })
 
-/*
- * The shapes a stored dashboard can have that the editor never writes. A widget with no `layout`
- * key at all, and a `widgets` that is not a list, both come from the same place as every other
- * case in this file: a backup, a partial export, a hand edit or a half-finished migration. Each
- * of these threw before it was guarded, and a throw here is not one tile - it is the whole
- * dashboard view, above every widget boundary there is.
- */
 describe('a dashboard whose shape is wrong', () => {
   const shapeless = { id: 'a', type: 'label', config: {} } as unknown as WidgetInstance
 
@@ -306,20 +271,12 @@ describe('findFreeSpot', () => {
   })
 
   it('still finds a spot on a dashboard holding one corrupt rect', () => {
-    // A single unreadable height made `maxY` NaN, so the search loop never ran and every widget
-    // added from then on was stored at `y: NaN`.
     const broken = { id: 'a', type: 'label', config: {}, layout: { lg: { x: 0, y: 0, w: 2, h: 'tall' } } }
     const d = dash([broken as unknown as WidgetInstance], { columns: 4 })
     const spot = findFreeSpot(d, 2, 2)
     for (const v of Object.values(spot)) expect(Number.isFinite(v)).toBe(true)
   })
 
-  /*
-   * A pasted payload is untrusted: `JSON.parse('{"w":1e999}')` gives Infinity, which `parseClipboard`
-   * used to accept as "a number". `Math.max(1, Math.min(NaN, columns))` is NaN, so the x loop's
-   * condition is false, the search falls straight through to its final return, and the NaN size
-   * goes on to be written into the dashboard.
-   */
   it('answers with a usable rect even when asked for a size that is not a number', () => {
     for (const [width, height] of [
       [NaN, NaN],
@@ -393,8 +350,6 @@ describe('the tablet layout', () => {
   })
 
   it('clamps a stored tablet rect that is wider than its grid', () => {
-    // An imported or hand-edited layout.md can be wider than the grid it lands in, and would
-    // otherwise create implicit columns and lay the whole dashboard out against them.
     const widget: WidgetInstance = {
       id: 'a',
       type: 'label',
@@ -406,12 +361,6 @@ describe('the tablet layout', () => {
     expect(projectDashboard(d, 'md').columns).toBe(4)
   })
 
-  /*
-   * `rectOf` repairs `layout.lg` field by field because stored configuration is untrusted, and
-   * `clampRect` CLAMPS but does not REPAIR: `Math.min('wide', 12)` is NaN, and NaN survives every
-   * comparison after it. The tablet slot was the one rect reader with no repair, and
-   * `setEditBreakpoint` writes the result straight back into the saved dashboard.
-   */
   it('repairs a stored tablet rect whose fields are not numbers, in both branches', () => {
     const hostile = { x: 'left', y: 0, w: 'wide', h: 2 } as unknown as Rect
     for (const mdColumns of [6, 12]) {

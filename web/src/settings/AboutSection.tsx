@@ -1,15 +1,3 @@
-/**
- * About & diagnostics.
- *
- * Two jobs. It says what this is and who wrote it, which every add-on should; and it answers
- * "what are you running?" in one place, which nothing in the app could do before - a bug report
- * used to arrive with no version, no openHAB build and no browser, and neither the reporter nor
- * anyone reading it could find out.
- *
- * Everything here is read-only and visible to every role, because the person standing at a wall
- * panel that is misbehaving is often not an administrator. The one exception is the persistence
- * line, whose endpoint is admin-only; it says that it does not know rather than guessing.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getRootInfo } from '../api/items'
@@ -24,7 +12,6 @@ const REPO_URL = 'https://github.com/Fohdeesha/neohab'
 export function AboutSection() {
   const { t } = useTranslation()
   const [oh, setOh] = useState<{ version?: string; build?: string } | null>(null)
-  // undefined = still asking, null = not allowed to know (admin-only endpoint)
   const [services, setServices] = useState<PersistenceService[] | null | undefined>(undefined)
   const authStatus = useAuthStore((s) => s.status)
   const dashboards = useConfigStore((s) => s.dashboards.length)
@@ -44,9 +31,7 @@ export function AboutSection() {
     }
   }, [])
 
-  // The service list is admin-only. Asking as a viewer answers 401, which the browser logs as an
-  // error on every visit to Settings - and the row already says "needs an administrator to
-  // check", so the request only bought noise. Re-asked once a sign-in makes it answerable.
+  // admin-only, so asking as a viewer logs a 401 on every visit to Settings
   useEffect(() => {
     if (authStatus !== 'admin') {
       setServices(null)
@@ -79,9 +64,7 @@ export function AboutSection() {
           ? t('none installed - charts, timelines and history need one')
           : serviceNames(services).join(', ')
 
-  // One block a person can select and paste into an issue, so a report arrives with the facts
-  // in it. Deliberately no server address, no token and no item names: this gets pasted in
-  // public. Locale rather than language so a date-format report carries the right detail.
+  // no address, no token, no item names: it is meant to be pasted into an issue
   const report = [
     `neohab ${__NEOHAB_VERSION__}`,
     `openHAB ${oh?.version ?? '?'}${oh?.build ? ' (' + oh.build + ')' : ''}`,
@@ -93,14 +76,6 @@ export function AboutSection() {
     `locale: ${navigator.language}`
   ].join('\n')
 
-  /**
-   * Copy, or the next best thing.
-   *
-   * `navigator.clipboard` exists only in a secure context, and openHAB on a home LAN is plain
-   * HTTP far more often than not - verified undefined on the test server - so the clipboard API
-   * is the fallback here, not the plan. When it is missing the report is SELECTED instead, which
-   * turns the job into one Ctrl+C rather than a button that silently does nothing.
-   */
   const reportRef = useRef<HTMLPreElement>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'selected'>('idle')
   const copy = async () => {
@@ -112,7 +87,7 @@ export function AboutSection() {
         return
       }
     } catch {
-      // refused (denied permission, or an insecure context that still exposes the object)
+      // clipboard refused; the report is selectable instead
     }
     const pre = reportRef.current
     if (!pre) return

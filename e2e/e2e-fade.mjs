@@ -1,21 +1,6 @@
-/**
- * Fading-device e2e: what a control shows while something ELSE is changing its item.
- *
- * A light does not step to a new value. openHAB applies its own prediction at once, the binding
- * echoes the channel's pre-fade readback, and the real value lands when the fade ends - so one
- * press of a button that runs an openHAB rule made every colour fader on a dashboard jump to the
- * new colour, collapse to near-black and climb back, over about a second. The sequences replayed
- * below are the ones a DMX strip actually produced for one such press.
- *
- * Replayed as state UPDATES on items this suite creates itself, so no device is driven and the
- * timing is ours. Nothing is clicked: commands are intercepted anyway, and counted, because a
- * display rule that sends anything at all would be a much worse bug than the one it fixes.
- *
- * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-fade                         (neohab:config)
- *   - managed items nh_e2e_fadecol, nh_e2e_fadedim  (never file-provided items)
- * Commands nothing and touches no other item.
- */
+// Fading-device e2e: what a control shows while something ELSE is changing its item.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-fade (neohab:config), managed items
+// nh_e2e_fadecol, nh_e2e_fadedim (never file-provided items).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
@@ -39,7 +24,6 @@ const makeItem = (n, type, label) =>
     body: JSON.stringify({ type, name: n, label }),
   })
 
-/** Read the page through a shape that cannot throw, so a missing feature fails its own checks. */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
@@ -51,11 +35,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-/**
- * Record every DISTINCT position a control comes to rest at, in order, starting with the one it
- * is already at - so `moves()` below is what the fader DID, not where it began. The sampler runs
- * in the page: polling over the wire costs a round trip per sample and would miss the window.
- */
 const armSampler = (page, selector) =>
   page.evaluate((sel) => {
     window.__tl = []
@@ -69,7 +48,6 @@ const readSampler = (page) =>
     clearInterval(window.__iv)
     return window.__tl
   })
-/** Everything after the position the fader started at. */
 const moves = (tl) => (Array.isArray(tl) ? tl.slice(1) : [])
 
 const browser = await launch()
@@ -83,7 +61,6 @@ page.on('console', (m) => {
   if (!isAppResource(at)) return
   errs.push(m.text() + (at ? ' <- ' + at : ''))
 })
-// Nothing here should command anything; if the display rule ever did, it dies here and is counted.
 await page.route('**/rest/items/**', (r) => {
   if (r.request().method() !== 'POST') return r.continue()
   commands++
@@ -97,7 +74,6 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
-  /* ---------------- seed ---------------- */
   await makeItem(COLOR_ITEM, 'Color', 'NH E2E Fade Colour')
   await makeItem(DIM_ITEM, 'Dimmer', 'NH E2E Fade Dimmer')
   await putState(COLOR_ITEM, '0,0,0')
@@ -138,9 +114,6 @@ try {
   await page.waitForSelector('.nh-color input[type=range]', { timeout: 20000 })
   await sleep(1500) // let the first states arrive and settle
 
-  /* ---------------- A. a single change is shown at once ---------------- */
-  // The guard on the whole fix: calming a burst must not put a delay in front of an ordinary
-  // change. Sampled tightly, so a value held for a window could not pass this.
   await armSampler(page, '.nh-color input[type=range]')
   await sleep(100)
   await putState(COLOR_ITEM, '200,80,60')
@@ -153,9 +126,6 @@ try {
   )
   await sleep(2000) // let the window that change opened close again
 
-  /* ---------------- B. a fade moves the fader once ---------------- */
-  // Measured on a DMX strip commanded 21,87,100 by an openHAB rule: the prediction, three
-  // pre-fade echoes ~50ms later, and the real value ~1.03s on.
   await armSampler(page, '.nh-color input[type=range]')
   await sleep(100)
   await putState(COLOR_ITEM, '21,87,100')
@@ -169,8 +139,6 @@ try {
   await putState(COLOR_ITEM, '20.810,87.05900,100')
   await sleep(2500)
   const fade = moves(await readSampler(page))
-  // The strip's prediction and the value it settles at round to the same slider positions, so
-  // one move is the whole of what a person should see.
   ok('the fader moves once for a whole fade', fade.length === 1, fade.length + ' moves: ' + fade.join(' > '))
   ok(
     'and never through the near-black the strip reports mid-fade',
@@ -179,8 +147,6 @@ try {
   )
   ok('ending where the device settled', fade[fade.length - 1] === '21,87,100', String(fade[fade.length - 1]))
 
-  /* ---------------- C. a fade that ends somewhere else still gets there ---------------- */
-  // Without this, "moves once" would also pass on a display that froze on the first value.
   await armSampler(page, '.nh-color input[type=range]')
   await sleep(100)
   await putState(COLOR_ITEM, '120,100,50')
@@ -193,17 +159,12 @@ try {
   await sleep(2500)
   const land = moves(await readSampler(page))
   ok('a fader follows a fade to wherever it settles', land[land.length - 1] === '240,90,60', land.join(' > '))
-  // Two moves by design: the value the change starts with, then the one it settles at. The
-  // churn between them is what must never be drawn.
   ok(
     'without drawing the churn on the way',
     land.length === 2 && !land.includes('0,0,4') && !land.includes('300,20,90'),
     land.length + ' moves: ' + land.join(' > ')
   )
 
-  /* ---------------- D. the same for a numeric slider ---------------- */
-  // Same hook, so the same rule: a dimmer fading through its range must not drag the thumb
-  // back and forth. 40 is what the rule asked for and where it lands; 0 and 97 are the fade.
   await armSampler(page, '.nh-fader__input')
   await sleep(100)
   await putState(DIM_ITEM, '40')
@@ -217,13 +178,11 @@ try {
   const dim = moves(await readSampler(page))
   ok('a slider does not chase a dimmer through its fade', dim.length === 1 && dim[0] === '40', dim.join(' > '))
 
-  /* ---------------- E. nothing was commanded ---------------- */
   ok('a display rule commands nothing', commands === 0, 'POSTs=' + commands)
   ok('no page or console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
-  /* ---------------- cleanup ---------------- */
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   for (const item of [COLOR_ITEM, DIM_ITEM]) {
     await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})

@@ -1,13 +1,3 @@
-/**
- * Icon picker: a text field (free text allowed, e.g. custom iconset names) with a browsable
- * popover over every icon source:
- *   Color   - bundled Fluent Emoji flat + icons8 flat-color packs (full color)
- *   Mono    - bundled Material Design Icons (~7k, tinted by the theme)
- *   Weather - bundled Meteocons (animated full-color weather icons)
- *   openHAB - the server's classic icon set (state-aware)
- *   Custom  - user-uploaded icons, with upload right in the tab
- * Same fixed-position, viewport-sized popover pattern as the item picker.
- */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './Icon'
@@ -26,13 +16,11 @@ interface IconPickerProps {
 type Tab = 'color' | 'mono' | 'weather' | 'oh' | 'custom'
 
 interface PackEntry {
-  /** Complete icon reference ("fluent:house", "mdi:sofa", ...). */
   ref: string
   label: string
   search: string
 }
 
-/** Bundled search indexes per tab: [index file, ref prefix]. */
 const TAB_PACKS: Partial<Record<Tab, [file: string, prefix: string][]>> = {
   color: [
     ['fluent-index.json', 'fluent'],
@@ -121,7 +109,6 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
 
   const customIcons = useConfigStore((s) => s.customIcons)
 
-  // Fetch this tab's search indexes on demand (cached for the whole session).
   useEffect(() => {
     if (!open) return
     const packs = TAB_PACKS[tab]
@@ -169,9 +156,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     }
     const onScroll = (e: Event) => {
       if (popRef.current && e.target instanceof Node && popRef.current.contains(e.target)) return
-      // The focus-follow scroll of a just-tapped input at a panel's clipped edge arrives as
-      // the popover opens; reposition on it (without re-arming the grace clock) rather than
-      // closing the popover the tap just opened. Same fix as ItemPicker.
+      // the focus-follow scroll of a just-tapped input is part of opening the popover, not the user scrolling away
       if (Date.now() - openedAt.current < 300) {
         placeList()
         return
@@ -227,8 +212,6 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
       await saveCustomIcon({ version: 1, id: idSlug, name, ...processed })
       select('custom:' + idSlug)
     } catch (err) {
-      // errorText already turns a 401 or 403 into "sign in as an openHAB administrator", which is
-      // what the sniff on the message text used to be doing by hand and less reliably.
       setUploadError(errorText(err))
     } finally {
       setUploading(false)
@@ -300,8 +283,6 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
             value={query}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
-            // preventDefault marks the press as handled, so the sheet this picker sits in does
-            // not close on the same Escape that shut the popup.
             onKeyDown={(e) => {
               if (e.key !== 'Escape') return
               e.preventDefault()

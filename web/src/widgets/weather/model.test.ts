@@ -273,8 +273,6 @@ describe('buildForecastView', () => {
   })
 
   it("reads the current block's precipitation as today's chance, not this hour's", () => {
-    // What every outlet a reading gets compared against labels "Precipitation" is the day's
-    // figure. The hour's can be a long way from it: clear at six, thunderstorms by five.
     const v = buildForecastView(data, 'imperial', opts)
     expect(fixture.daily.precipitation_probability_max[0]).not.toBe(fixture.current.precipitation_probability)
     expect(v.precipProb).toBe(fixture.daily.precipitation_probability_max[0] + '%')

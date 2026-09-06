@@ -1,35 +1,19 @@
-/**
- * Every way a camera stream can reach a browser, behind one interface.
- *
- * Loaded on demand (with hls.js behind a further dynamic import), so dashboards without cameras
- * pay nothing for this. The widget hands over a host element and an ordered list of transports;
- * this walks the list until one produces moving pixels, then keeps it alive.
- *
- * Each attempt owns everything it creates - element, socket, peer connection, object URL - and
- * its cleanup removes all of it. A half-torn-down attempt would leak exactly the resource this
- * whole design is trying to conserve: a socket against the browser's six-per-origin budget.
- */
 import type { CameraTransport } from './model'
 
 export interface PlayerStatus {
   phase: 'connecting' | 'playing' | 'failed'
-  /** The transport currently playing, or being attempted. */
   transport: CameraTransport | null
-  /** Transports that were tried and failed during this run, in order. */
   failed: CameraTransport[]
   error?: string
 }
 
 export interface StartOptions {
   host: HTMLElement
-  /** Ordered transports to attempt. */
   chain: CameraTransport[]
-  /** URL for a transport, or null when this configuration cannot produce one. */
   urlFor: (transport: CameraTransport) => string | null
   audio: boolean
   fit: 'contain' | 'cover'
   poster: string | null
-  /** Seconds between polls for the snapshot transport. */
   snapshotInterval: number
   onStatus: (status: PlayerStatus) => void
 }
@@ -40,19 +24,11 @@ export interface PlayerHandle {
 
 type Cleanup = () => void
 
-/** How long one transport gets to produce a first frame before the chain moves on. */
 const CONNECT_TIMEOUT_MS = 8000
-/** A playing stream whose clock stops for this long is dead, whatever the socket claims. */
 const STALL_TIMEOUT_MS = 15000
-/** Backoff before re-walking the chain after a stream that had been playing dropped. */
 const RETRY_DELAY_MS = 3000
-/**
- * How long a stream must survive its first frame to count as having genuinely worked. Below
- * this, the transport is treated as broken rather than interrupted - see onDrop.
- */
 const STABLE_PLAYBACK_MS = 5000
 
-/** fMP4 codecs go2rtc can mux, in its own preference order. */
 const MSE_CODECS = [
   'avc1.640029', // H.264 high 4.1
   'avc1.64002A', // H.264 high 4.2
@@ -68,7 +44,6 @@ export function startCamera(opts: StartOptions): PlayerHandle {
   let disposed = false
   let cleanup: Cleanup | null = null
   let retryTimer: ReturnType<typeof setTimeout> | null = null
-  /** Index in the chain of the transport currently playing, and when it started. */
   let playingIndex = -1
   let playingSince = 0
   const failed: CameraTransport[] = []
@@ -82,22 +57,12 @@ export function startCamera(opts: StartOptions): PlayerHandle {
       try {
         cleanup()
       } catch {
-        /* teardown must never throw into the caller */
+        // teardown must never throw into the caller
       }
       cleanup = null
     }
   }
 
-  /**
-   * A stream that had started playing has dropped.
-   *
-   * How long it lasted decides what that means. A stream that ran for a while and then died is a
-   * network event: re-walk the chain from the top, because the best transport may well be back.
-   * One that died within seconds of its first frame was never really working - a transmuxer that
-   * produces a frame and then fails to parse the rest looks exactly like this - so that transport
-   * is demoted and the chain continues past it. Without the distinction the widget retries a
-   * broken transport forever and never reaches the one that works.
-   */
   const onDrop = () => {
     if (disposed) return
     const wasBriefly = Date.now() - playingSince < STABLE_PLAYBACK_MS
@@ -106,7 +71,6 @@ export function startCamera(opts: StartOptions): PlayerHandle {
     clear()
     playingIndex = -1
     if (wasBriefly) {
-      // it never really worked, so it belongs in the tried-and-failed list like any other
       if (dropped && !failed.includes(dropped)) failed.push(dropped)
     } else {
       failed.length = 0
@@ -166,27 +130,15 @@ function message(err: unknown): string {
   return String(err)
 }
 
-/**
- * Abandon a first-frame watcher whose attempt has already failed for another reason.
- *
- * The watcher is created before the signalling work that can throw, so on that path nobody is
- * left awaiting it. Dispatching the error settles it through its own machinery - clearing its
- * connect timeout and poll timer, unhooking its listeners and removing the element - and the
- * attached catch keeps the resulting rejection from surfacing as an unhandled one ~8s later.
- */
 function abandon(media: HTMLMediaElement, ready: Promise<Cleanup> | undefined): void {
   ready?.catch(() => {})
   try {
     media.dispatchEvent(new Event('error'))
   } catch {
-    /* the element is already gone; the catch above is what mattered */
+    // the element is already gone
   }
 }
 
-/**
- * Wrap a teardown so running it twice is harmless: on the failure path both the first-frame
- * watcher's cleanup and the attempt's own catch block reach it.
- */
 function once(fn: Cleanup): Cleanup {
   let done = false
   return () => {
@@ -196,7 +148,6 @@ function once(fn: Cleanup): Cleanup {
   }
 }
 
-/** Attempt one transport. Resolves with its cleanup once playing; rejects on failure/timeout. */
 function attempt(transport: CameraTransport, url: string, opts: StartOptions, onDrop: () => void): Promise<Cleanup> {
   switch (transport) {
     case 'webrtc':
@@ -216,15 +167,12 @@ function attempt(transport: CameraTransport, url: string, opts: StartOptions, on
   }
 }
 
-/* ---------------------------------------------------------------- element helpers */
-
 function makeVideo(opts: StartOptions): HTMLVideoElement {
   const video = document.createElement('video')
   video.className = 'nh-camera__media'
   video.style.objectFit = opts.fit
   video.autoplay = true
   video.controls = false
-  // iOS refuses to play inline without this and takes the whole screen instead.
   video.playsInline = true
   video.muted = !opts.audio
   video.preload = 'none'
@@ -241,10 +189,6 @@ function makeImage(opts: StartOptions): HTMLImageElement {
   return img
 }
 
-/**
- * Start playback, surviving the autoplay policy: unmuted playback needs a user gesture, so a
- * camera asked to carry audio falls back to muted rather than showing a frozen first frame.
- */
 async function play(video: HTMLVideoElement): Promise<void> {
   try {
     await video.play()
@@ -254,23 +198,13 @@ async function play(video: HTMLVideoElement): Promise<void> {
       try {
         await video.play()
       } catch {
-        /* still refused; the poster stays up and the stall watchdog decides */
+        // still refused
       }
       return
     }
-    /* other failures surface through the element's error/stall handling */
   }
 }
 
-/**
- * Resolve when the element first shows a *picture*, reject on error or after the connect budget.
- * Also arms the liveness watchdogs that outlive the connection phase.
- *
- * "A picture" deliberately means decoded video dimensions, not merely a loadeddata event. A
- * media element happily reports itself loaded and playing while carrying only the audio track -
- * which is exactly what happens when a transmuxer misidentifies a stream - and treating that as
- * success ends the transport chain on a black rectangle that never recovers.
- */
 function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => void, extraCleanup: Cleanup): Promise<Cleanup> {
   return new Promise<Cleanup>((resolve, reject) => {
     const isVideo = media instanceof HTMLVideoElement
@@ -280,11 +214,6 @@ function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => vo
 
     const timeout = setTimeout(() => finish(new Error('no video')), CONNECT_TIMEOUT_MS)
 
-    /**
-     * Every step is individually guarded. Teardown runs on the failure path, and a throw here
-     * used to mean the attempt's promise never settled at all - the chain would stop dead on
-     * "connecting" rather than moving to the next transport.
-     */
     const cleanup: Cleanup = () => {
       clearTimeout(timeout)
       if (stallTimer) clearInterval(stallTimer)
@@ -293,7 +222,7 @@ function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => vo
         try {
           fn()
         } catch {
-          /* teardown is best-effort by definition */
+          // teardown is best-effort by definition
         }
       }
       step(() => media.removeEventListener('error', onError))
@@ -301,7 +230,6 @@ function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => vo
       if (isVideo) {
         step(() => media.removeEventListener('resize', check))
         step(() => media.removeEventListener('ended', onLost))
-        // Detaching the source is what actually releases the socket/decoder.
         step(() => media.pause())
         step(() => (media.srcObject = null))
         step(() => media.removeAttribute('src'))
@@ -337,25 +265,20 @@ function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => vo
       onDrop()
     }
 
-    /** Has this element actually produced an image yet? */
     const check = () => {
       if (settled) return
       if (isVideo ? media.videoWidth > 0 : media.naturalWidth > 0) finish()
     }
 
-    // A video's dimensions arrive with loadeddata, or later via resize when a track shows up
-    // after the fact; an <img> streaming multipart fires load on its first part.
     const readyEvent = isVideo ? 'loadeddata' : 'load'
     media.addEventListener(readyEvent, check)
     media.addEventListener('error', onError)
     if (isVideo) {
       media.addEventListener('resize', check)
       media.addEventListener('ended', onLost)
-      // Belt and braces: dimensions can appear without either event firing again.
       pollTimer = setInterval(check, 250)
     }
 
-    /** A socket can stay open while the pictures stop; only the clock proves otherwise. */
     function armWatchdog() {
       if (!(media instanceof HTMLVideoElement)) return
       let lastTime = -1
@@ -373,9 +296,6 @@ function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => vo
   })
 }
 
-/* ---------------------------------------------------------------- go2rtc WebSocket */
-
-/** Open a WebSocket, or reject. A cross-origin refusal (HTTP 403) arrives here as a close. */
 function openSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     let ws: WebSocket
@@ -392,8 +312,6 @@ function openSocket(url: string): Promise<WebSocket> {
     }, CONNECT_TIMEOUT_MS)
     const fail = () => {
       clearTimeout(timer)
-      // The browser hides the handshake status from script, so this covers both "refused"
-      // and "unreachable". The widget distinguishes them by whether a later transport worked.
       reject(new Error('connection refused'))
     }
     ws.addEventListener('open', () => {
@@ -413,8 +331,6 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
 
   const pc = new RTCPeerConnection({
     iceServers: [],
-    // Camera servers answer with host candidates on the LAN; gathering the full set only
-    // delays the first frame.
     bundlePolicy: 'max-bundle'
   })
   const video = makeVideo(opts)
@@ -424,12 +340,12 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
     try {
       pc.close()
     } catch {
-      /* already closed */
+      // already closed
     }
     try {
       ws.close()
     } catch {
-      /* already closed */
+      // already closed
     }
   })
 
@@ -512,7 +428,7 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
     try {
       ws.close()
     } catch {
-      /* already closed */
+      // already closed
     }
     if (objectUrl) URL.revokeObjectURL(objectUrl)
   })
@@ -536,8 +452,6 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
           URL.revokeObjectURL(objectUrl)
           objectUrl = null
         }
-        // 'avc1'/'hvc1' are the video codecs; the rest are audio, and are only worth asking
-        // for when this camera is actually carrying sound.
         const supported = MSE_CODECS.filter((c) => {
           const isVideo = c.includes('vc1')
           if (!isVideo && !opts.audio) return false
@@ -557,7 +471,7 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
       try {
         sb.appendBuffer(chunk)
       } catch {
-        /* buffer full or closed; the stall watchdog will take it from here */
+        // buffer full or closed
       }
     }
 
@@ -584,7 +498,6 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
         return
       }
       queue.push(ev.data as ArrayBuffer)
-      // An unbounded queue is how a slow decoder turns into a memory leak.
       if (queue.length > 60) queue.splice(0, queue.length - 30)
       drain()
     })
@@ -599,10 +512,6 @@ async function attemptMSE(url: string, opts: StartOptions, onDrop: () => void): 
   }
 }
 
-/**
- * Keep an MSE stream near the live edge and its buffer bounded. Left alone, a buffered stream
- * drifts further behind real time the longer a wall panel runs.
- */
 function trimAndCatchUp(video: HTMLVideoElement, sb: SourceBuffer): void {
   if (sb.updating || !sb.buffered.length) return
   const end = sb.buffered.end(sb.buffered.length - 1)
@@ -612,19 +521,16 @@ function trimAndCatchUp(video: HTMLVideoElement, sb: SourceBuffer): void {
       sb.remove(start, end - 10)
       return
     } catch {
-      /* removal races an append; next updateend retries */
+      // removal races an append
     }
   }
   if (video.currentTime < end - 5 || video.currentTime < start) video.currentTime = end - 0.5
 }
 
-/* ---------------------------------------------------------------- plain media elements */
-
 async function attemptHLS(url: string, opts: StartOptions, onDrop: () => void): Promise<Cleanup> {
   const video = makeVideo(opts)
   opts.host.appendChild(video)
 
-  // Safari plays HLS natively, and its own pipeline beats anything running in JS.
   if (video.canPlayType('application/vnd.apple.mpegurl')) {
     const ready = firstFrame(video, onDrop, () => {})
     video.src = url
@@ -648,7 +554,6 @@ async function attemptHLS(url: string, opts: StartOptions, onDrop: () => void): 
   try {
     ready = firstFrame(video, onDrop, teardown)
     hls.on(Hls.Events.ERROR, (_e, data) => {
-      // Only fatal errors end the attempt; hls.js recovers from the rest by itself.
       if (data.fatal) video.dispatchEvent(new Event('error'))
     })
     hls.loadSource(url)
@@ -680,10 +585,6 @@ async function attemptMJPEG(url: string, opts: StartOptions, onDrop: () => void)
   return ready
 }
 
-/**
- * Poll a still image. The one path that needs nothing from the server but a JPEG, so it is the
- * last resort - and the only one that holds no connection between frames.
- */
 async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup> {
   const img = makeImage(opts)
   opts.host.appendChild(img)
@@ -702,9 +603,6 @@ async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup
   img.src = bust()
   const done = await ready
 
-  // Fetch and decode the next frame off-screen, then swap it in. Assigning straight to the
-  // visible element would blank it for the whole round trip, which at a short interval is most
-  // of the time the widget is on screen.
   timer = setInterval(() => {
     const next = new Image()
     const url = bust()
@@ -715,7 +613,7 @@ async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup
         img.src = url // already in the memory cache, so this swap is immediate
       })
       .catch(() => {
-        /* a dropped frame is not worth reporting; the next tick tries again */
+        // a dropped frame is not worth reporting
       })
   }, period)
   return done
@@ -731,7 +629,6 @@ async function attemptIframe(url: string, opts: StartOptions): Promise<Cleanup> 
   return new Promise<Cleanup>((resolve, reject) => {
     const cleanup: Cleanup = () => {
       clearTimeout(timer)
-      // Blanking the src first stops the embedded player's own sockets before the element goes.
       frame.src = 'about:blank'
       frame.remove()
     }

@@ -1,10 +1,3 @@
-/**
- * Compass: a bearing (wind direction, heading) drawn as a rotating pointer on a compass
- * face, with the nearest cardinal name in the center. An optional center item puts a second
- * reading (typically wind speed) in the middle of the face, the weather-console layout, and
- * the cardinal drops to a small line beneath it. Display-only: a direction is a reading, not
- * a command.
- */
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
@@ -14,19 +7,13 @@ import { bearingFrom, cardinalFor } from './model'
 interface CompassConfig {
   item: string
   label?: string
-  /** Second reading shown big in the middle of the face (wind speed beside direction). */
   centerItem?: string
-  /** Unit under the center reading; the item's own formatted unit when unset. */
   centerUnit?: string
-  /** Numeric degrees under the cardinal name. */
   showDegrees?: boolean
-  /** Fixed cardinal letters just inside the ring. */
   rose?: boolean
-  /** Pointer + center color; the theme accent when unset. */
   color?: string
 }
 
-/** Fixed rose letter positions (bearing degrees -> letter); diagonals render smaller. */
 const ROSE: [number, string, boolean][] = [
   [0, 'N', false],
   [45, 'NE', true],

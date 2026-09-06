@@ -1,8 +1,3 @@
-/**
- * Lighting presets as openHAB scenes: the rule<->preset mapping, the wall-switch bridge, and
- * the tolerant state matching. Scenes can be hand-edited or come from Main UI, so the hostile
- * shapes matter as much as the happy path.
- */
 import { describe, expect, it } from 'vitest'
 import {
   bridgeRuleFor,
@@ -115,8 +110,6 @@ describe('preset -> rule', () => {
     expect(rule.tags).toEqual(['Scene', 'neohab', 'neohab:status:House_Lighting_Preset_1:ON'])
     expect(rule.triggers).toEqual([])
     expect(rule.actions).toHaveLength(1)
-    // `editable` is the server's verdict on a stored rule, not an authored field - a rule
-    // that has not been round-tripped through the server reads as not-editable.
     expect(presetFromRule(rule)).toEqual({ ...preset, editable: false })
   })
 
@@ -127,8 +120,6 @@ describe('preset -> rule', () => {
   })
 
   it('the status item survives a 4.x summary, which strips the configuration block', () => {
-    // openHAB 4.x omits `configuration` from the USER-role summary (verified live on 4.3.7),
-    // so the tag is the only carrier a signed-out panel gets
     const rule = ruleFromPreset(preset)
     const summaryShaped = { uid: rule.uid, name: rule.name, tags: rule.tags, editable: true }
     const p = presetSummaryFromRule(summaryShaped)
@@ -172,14 +163,10 @@ describe('the wall-switch bridge', () => {
     expect(rule?.triggers?.[0].configuration).toEqual({ itemName: 'House_Lighting_Preset_1', state: 'ON' })
     expect(rule?.actions?.[0].type).toBe('core.RunRuleAction')
     expect(rule?.actions?.[0].configuration?.ruleUIDs).toEqual(['nh-scene-evening'])
-    // NOT tagged Scene - a bridge must never appear as a preset itself
     expect(rule?.tags).not.toContain('Scene')
   })
 
   it('module ids are unique across the whole rule', () => {
-    // openHAB resolves module handlers BY ID across triggers+conditions+actions: a trigger
-    // sharing an id with an action is handed the action's handler and the rule never
-    // initializes (HANDLER_INITIALIZING_ERROR - proved live on 4.3.7)
     const rule = bridgeRuleFor({
       uid: 'nh-scene-x',
       name: 'x',
@@ -214,7 +201,6 @@ describe('state matching', () => {
   it('colors are compared as colors, not strings', () => {
     expect(commandMatchesState('240,73,100', '240.0,73.2,99.8')).toBe(true)
     expect(commandMatchesState('240,73,100', '10,73,100')).toBe(false)
-    // white is white at any hue
     expect(commandMatchesState('120,0,100', '300,0,100')).toBe(true)
   })
 
@@ -230,7 +216,6 @@ describe('state matching', () => {
   })
 
   it('switching a preset off uses the right kind of off for each light', () => {
-    // a color goes OFF rather than to black, so its hue survives being switched back on
     expect(offCommandFor('288,55,40')).toBe('OFF')
     expect(offCommandFor('64')).toBe('0')
     expect(offCommandFor('22.5')).toBe('0')
@@ -288,7 +273,6 @@ describe('editing a stored value', () => {
   })
 
   it('keeps a text box for numbers a slider would mangle', () => {
-    // a slider steps in whole percent, so a setpoint would be rounded the moment it was touched
     expect(commandKind('22.5')).toBe('text')
     expect(commandKind('350')).toBe('text')
     expect(commandKind('-1')).toBe('text')

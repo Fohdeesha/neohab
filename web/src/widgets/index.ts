@@ -1,7 +1,3 @@
-/**
- * Registers all built-in widgets. Import this once at app startup.
- * Adding a widget: create a folder exporting a WidgetDefinition, then register it here.
- */
 import { registerWidget } from './registry'
 import { switchWidget } from './switch'
 import { buttonWidget } from './button'

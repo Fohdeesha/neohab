@@ -9,11 +9,6 @@ import { displayNow, msToNextBoundary } from '../../model/servertime'
 import { type ClockConfig, clockSource } from './config'
 import { acquireServerTime, useServerTimeStore } from '../../store/servertime'
 
-/**
- * The date line, in the browser's own locale so it follows the UI language, and in the clock's
- * own zone so a Tokyo clock rolls over to tomorrow when Tokyo does. Intl decides the wording and
- * the field order for each locale; only which fields to ask for is ours.
- */
 function formatDate(now: Date, format: string | undefined, zone: string): string {
   const inZone = zone === '' ? {} : { timeZone: zone }
   switch (format) {
@@ -30,19 +25,11 @@ function formatDate(now: Date, format: string | undefined, zone: string): string
   }
 }
 
-/** Hand line from the center at `deg` (0 = 12 o'clock), as an SVG line in a 200x200 viewBox. */
 function hand(deg: number, length: number) {
   const rad = ((deg - 90) * Math.PI) / 180
   return { x2: 100 + length * Math.cos(rad), y2: 100 + length * Math.sin(rad) }
 }
 
-/**
- * Theme-token analog face: border ring, text-colored hands, primary second hand. Colors come
- * from the CSS variables, so it matches every theme (including custom ones) automatically.
- *
- * Takes the hour, minute and second already resolved in the clock's own zone rather than a Date,
- * because `Date.getHours()` can only ever answer for the browser's zone.
- */
 function AnalogFace({ parts, seconds, numbers }: { parts: ZoneParts; seconds: boolean; numbers: boolean }) {
   const m = parts.minute + parts.second / 60
   const h = (parts.hour % 12) + m / 60
@@ -82,18 +69,8 @@ function AnalogFace({ parts, seconds, numbers }: { parts: ZoneParts; seconds: bo
   )
 }
 
-/** One line's cap (see fit.ts), as the custom property its stylesheet rule reads. */
 const capVar = (name: string, css: string): React.CSSProperties => ({ [name]: css }) as React.CSSProperties
 
-/**
- * The instant this clock should draw, and the tick that keeps it current.
- *
- * The offset is the shared one (`store/servertime`), held only while a clock actually asks for
- * it, so a dashboard of device-time clocks issues no requests. Each tick is aimed at the next
- * boundary of the DISPLAYED clock rather than repeated on a fixed interval: with an offset in
- * force those are not the same moment, and a clock showing seconds has to turn over on the
- * second it is showing.
- */
 function useClockNow(source: 'device' | 'server', seconds: boolean): Date {
   const [now, setNow] = useState(() => new Date())
   const offsetMs = useServerTimeStore((s) => (source === 'server' ? s.offsetMs : null))
@@ -107,8 +84,6 @@ function useClockNow(source: 'device' | 'server', seconds: boolean): Date {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
     const schedule = () => {
-      // Read through the store rather than a captured value: a sync landing mid-interval moves
-      // the boundary, and a stale closure would keep aiming at the old one.
       const offset = source === 'server' ? useServerTimeStore.getState().offsetMs : null
       timer = setTimeout(
         () => {
@@ -130,21 +105,15 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   const source = clockSource(config)
   const now = useClockNow(source, seconds)
   const zone = resolveZone(config.timeZone)
-  // The interface language, which is also what the date is written in.
   const lang = typeof navigator !== 'undefined' ? navigator.language : 'en'
   const zoneText = zoneLabelText(now, zone, lang, config.zoneLabel, config.zoneText)
 
   const analog = String(config.mode ?? '').toLowerCase() === 'analog'
   const date = formatDate(now, config.dateFormat, zone)
-  // Truthiness, not `=== true`: an imported configuration can store this as a string.
   const wantsDate = Boolean(config.showDate)
-  // Absent means shown: an existing clock, and one imported from a HABPanel config that did not
-  // ask for "No background", both get the card the rest of the dashboard has.
   const bare = config.tileBackground === false
 
   if (analog) {
-    // The face takes whatever the lines beneath it leave, so its captions are capped against the
-    // tile directly instead of being solved against one another.
     return (
       <WidgetFrame bare={bare} center>
         <div className="nh-clock nh-clock--analog">
@@ -172,11 +141,8 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     ...(zone === '' ? {} : { timeZone: zone })
   })
 
-  // Hiding the time leaves the date as the panel's own reading, so it is set as one.
   const dateOnly = config.hideTime === true
   const showDate = wantsDate || dateOnly
-  // Which lines this tile is stacking, so each one's cap is worked out against the others that
-  // are really there rather than against a fixed pair.
   const present: ClockLine[] = []
   if (!dateOnly) present.push('time')
   if (zoneText) present.push('zone')
@@ -186,8 +152,6 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     <WidgetFrame bare={bare} center>
       <div className="nh-clock">
         {dateOnly ? null : (
-          /* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
-             behind the time; identical non-digit chars overlay themselves invisibly */
           <div className="nh-clock__time" style={capVar('--nh-clock-timefit', lineFit('time', present, time))} data-ghost={ghostFor(time)}>
             {time}
           </div>
@@ -223,8 +187,6 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
     showSeconds: false,
     dateFormat: 'short',
     tileBackground: true,
-    // The server's clock by default: on a home network that is the NTP-driven one of the two,
-    // and a wall panel whose own clock has drifted is exactly what this widget should not show.
     timeSource: 'server',
     timeZone: '',
     zoneLabel: 'none'

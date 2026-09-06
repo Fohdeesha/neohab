@@ -1,10 +1,3 @@
-/**
- * Camera name field, with optional discovery.
- *
- * The name is always a plain typed value - camera servers do not have to let this page list
- * them, and most do not by default. The Find button is an accelerator layered on top: when it
- * works you click a name, when it does not you keep typing and nothing is lost.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SettingField } from '../widgets/types'

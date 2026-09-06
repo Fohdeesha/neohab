@@ -1,7 +1,3 @@
-/**
- * The timeline's own data logic: what a configuration describes, and how a history collapses
- * into the coloured runs the widget draws.
- */
 import { describe, expect, it } from 'vitest'
 import { autoRefreshSeconds, effectiveColorMaps, effectiveTimelineSeries, partitionHistory, thinBands, type TimelineConfig } from './model'
 
@@ -11,7 +7,6 @@ describe('reading the configuration', () => {
   })
 
   it('survives a series or colour map that is not a list', () => {
-    // Read during render, like the chart's: throwing here took the whole app down, not one tile.
     for (const bad of [{}, 'A', 7, null] as unknown as TimelineConfig['series'][]) {
       expect(() => effectiveTimelineSeries({ series: bad }), String(bad)).not.toThrow()
       expect(effectiveTimelineSeries({ series: bad })).toEqual([])
@@ -87,13 +82,6 @@ describe('autoRefreshSeconds', () => {
 })
 
 describe('thinBands and the band that is current', () => {
-  /*
-   * The last band is exempt from thinning because it is the state in force, so a SHORT one
-   * survives the fetch. That exemption is what makes thinning the wrong tool for the live append
-   * path: appending makes the exempt band eligible, so it is absorbed exactly as the new one
-   * arrives and the row's count never moves. The widget therefore only thins once a row is past
-   * a cap, and this pins the interaction so the reason is not lost.
-   */
   it('keeps a short band while it is the last one', () => {
     const bands = [
       { state: 'a', start: 0, end: 100_000 },

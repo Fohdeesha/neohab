@@ -18,13 +18,6 @@ export function launchChromium(opts = {}) {
   return chromium.launch(args.length ? { ...opts, args } : opts)
 }
 
-/**
- * The same, choosing a browser that is actually installed.
- *
- * Playwright's own chromium is not downloaded on every box, so the suites try the system Edge and
- * Chrome first and fall back to it. `await` inside the try on purpose: `launch` returns a rejected
- * promise for a channel that is missing, and a `try` without it catches nothing at all.
- */
 export async function launchBrowser(opts = {}) {
   for (const channel of ['msedge', 'chrome']) {
     try {

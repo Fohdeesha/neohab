@@ -1,20 +1,6 @@
-/**
- * Stepper widget e2e: one value with a step up and a step down, in six looks and five finishes.
- *
- * Every command in this suite goes to managed items it creates itself, bound to nothing, so the
- * commands are real (the state comes back over the live stream exactly as a device's would) and
- * nothing in the house moves. The count of them is one of the checks: a run of quick presses has
- * to cost the item ONE command carrying the last value, not one per press.
- *
- * The layout checks measure where the parts sit and how big they are, in the tile sizes the
- * looks were reported on, and the spill scan covers one-column cells as well as short ones.
- *
- * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-stepper                                          (neohab:config)
- *   - managed items nh_e2e_stepnum, nh_e2e_steplist, nh_e2e_stepfan, nh_e2e_stepnull,
- *     nh_e2e_stepmany
- * Enters edit mode once and leaves without saving; touches no other item.
- */
+// Stepper widget e2e: one value with a step up and a step down, in six looks and five finishes.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-stepper (neohab:config), managed
+// items nh_e2e_stepnum, nh_e2e_steplist, nh_e2e_stepfan.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
@@ -49,7 +35,6 @@ const makeItem = (n, type, label) =>
     body: JSON.stringify({ type, name: n, label }),
   })
 
-/** Read the page through a shape that cannot throw, so a missing feature fails its own checks. */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
@@ -66,10 +51,6 @@ const stepper = (label, look, finish, extra) => ({
   type: 'stepper',
   config: { item: NUM, label, look, finish, mode: 'number', min: 60, max: 85, step: 0.5, unit: '°F', ...extra },
 })
-// The dashboard's rows are 28px with a 6px gap, so a tile h rows tall is 34h - 6 px: `at`
-// takes heights in the old two-row units (a "2" is 198px, a "1" is 96px) so the seed reads as it
-// always did, and the band tiles below ask for 4 and 5 rows outright (130px and 164px), the
-// heights at which a column look's full-size parts stop fitting under a name row.
 const at = (w, x, y, wd, h) => ({ ...w, layout: { lg: { x, y: y * 3, w: wd, h: h * 3 } } })
 const band = (w, x, h) => ({ ...w, layout: { lg: { x, y: 33, w: 2, h } } })
 
@@ -87,7 +68,6 @@ const WIDGETS = [
   at(stepper('Arrows triangle', 'pair', 'plain', { arrows: 'triangle' }), 4, 4, 2, 2),
   at(stepper('Arrows plusminus', 'pair', 'plain', { arrows: 'plusminus' }), 6, 4, 2, 2),
   at(stepper('Arrows arrow', 'pair', 'plain', { arrows: 'arrow' }), 8, 4, 2, 2),
-  // Stored configuration is untrusted input: every field here is the wrong shape.
   {
     id: 'w-hostile',
     type: 'stepper',
@@ -102,14 +82,9 @@ const WIDGETS = [
   at(stepper('Short stack', 'stack', 'glass'), 3, 8, 3, 1),
   at(stepper('Short spinner', 'spinner', 'glow'), 6, 8, 3, 1),
   at(stepper('Short range', 'range', 'solid'), 9, 8, 3, 1),
-  // One-column cells, where the carousel's edge strips used to hang past the tile and the
-  // range bar's two end labels were drawn over each other; and a two-column range bar, the
-  // size of the tiles the layout was reported on.
   at(stepper('Narrow carousel', 'carousel', 'plain', { item: FAN, min: 1, max: 5, step: 1, unit: '' }), 0, 9, 1, 2),
   at(stepper('Narrow range', 'range', 'plain'), 1, 9, 1, 2),
   at(stepper('Two-col range', 'range', 'plain'), 2, 9, 2, 2),
-  // The band: cells too short for a column look's full-size parts and too tall for it to lie
-  // down, where the reading used to be drawn over the bars.
   band(stepper('Band stack 130', 'stack', 'plain'), 0, 4),
   band(stepper('Band pair 130', 'pair', 'plain'), 2, 4),
   band(stepper('Band range 130', 'range', 'plain'), 4, 4),
@@ -130,7 +105,6 @@ page.on('console', (m) => {
   errs.push(m.text() + (url ? ' <- ' + url : ''))
 })
 page.on('dialog', (d) => d.accept().catch(() => {}))
-// Commands are REAL - the items are unbound - but every one is recorded.
 await page.route('**/rest/items/**', (r) => {
   const req = r.request()
   if (req.method() === 'POST') posts.push({ item: decodeURIComponent(req.url().split('/rest/items/')[1] ?? ''), body: req.postData() ?? '' })
@@ -200,7 +174,6 @@ const styleOf = (label, selector, props) =>
   )
 
 try {
-  /* ---------------- seed ---------------- */
   await makeItem(NUM, 'Number', 'NH E2E Stepper Number')
   await makeItem(LIST, 'String', 'NH E2E Stepper List')
   await makeItem(FAN, 'Number', 'NH E2E Stepper Fan')
@@ -210,8 +183,6 @@ try {
   await putState(LIST, 'HDMI2')
   await putState(FAN, '3')
   await putState(MANYI, 'M3')
-  // A re-created item is not a blank one: persistence restores the state the last run left it
-  // with. "No value yet" has to be established, not assumed.
   await putState(NULLI, 'NULL')
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
@@ -229,7 +200,6 @@ try {
   await page.waitForSelector('.nh-step', { timeout: 20000 }).catch(() => {})
   await sleep(1500)
 
-  /* ---------------- A. every tile renders ---------------- */
   const roots = await probe(page, () => [...document.querySelectorAll('.nh-step')].map((s) => s.className))
   ok('every stepper tile renders', Array.isArray(roots) && roots.length === WIDGETS.length, `${roots?.length} of ${WIDGETS.length}`)
   const looks = ['stack', 'pair', 'spinner', 'split', 'carousel', 'range']
@@ -242,7 +212,6 @@ try {
   const errTiles = await probe(page, () => document.querySelectorAll('.nh-widget--error').length)
   ok('no tile fell back to the error boundary', errTiles === 0, 'error tiles=' + errTiles)
 
-  /* ---------------- B. the reading ---------------- */
   const pair = await waitReading('Pair', '72.0')
   ok('a number reads to the digits its step resolves, with its unit', pair?.num === '72.0' && pair?.unit === '°F', JSON.stringify(pair))
   const car = await waitReading('Carousel list', 'HDMI 2')
@@ -264,10 +233,6 @@ try {
   })
   ok('the range bar names both ends of the range', JSON.stringify(bounds) === JSON.stringify(['60.0', '85.0']), JSON.stringify(bounds))
 
-  /* ---------------- B2. where the parts sit, and how big they are ---------------- */
-  // Each of these was reported on a built dashboard: the range bar's reading pushed to the
-  // left, the spinner's reading on the tile's edge, the carousel's chevrons too small to
-  // see as targets, and the range's end labels too small to read.
   const geom = await probe(page, () => {
     const find = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
     const rect = (el) => (el ? el.getBoundingClientRect() : null)
@@ -312,12 +277,6 @@ try {
   ok('a one-column range bar drops the end labels it cannot fit', geom && geom.narrowCell > 0 && geom.narrowCell <= 120 && geom.narrowBounds === 'none', `display ${geom?.narrowBounds} in a ${geom?.narrowCell}px cell`)
   ok("the carousel's count caption reads at the tile's text size", geom && geom.countFont >= 15, `${geom?.countFont}px`)
 
-  /* ---------------- B3. every look fits the room its tile leaves ---------------- */
-  // Reported on a 140px tile: the stack's bars and reading kept their full size and overlapped.
-  // The scan takes EVERY stepper tile - the reading must not cross a control (the split tile
-  // floats its reading over the zones by design and is skipped for that half) and no part may
-  // leave the widget body - and it requires the band tiles to be there, since a fit check over
-  // tall and short cells alone is what let the overlap ship.
   const fit = await probe(page, () => {
     const R = (el) => el.getBoundingClientRect()
     const hits = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
@@ -367,7 +326,6 @@ try {
     JSON.stringify(fit?.dirs)
   )
 
-  /* ---------------- C. stepping a number ---------------- */
   const before = postsTo(NUM).length
   await tile('Pair').locator('.nh-step__btn--up').click({ timeout: 5000 }).catch(() => {})
   await sleep(80)
@@ -390,10 +348,6 @@ try {
   ok('and cost the item exactly one command, carrying the last value', burst.length === 1 && burst[0].body === '74', JSON.stringify(burst))
   ok('the item is at the last value', (await getState(NUM)) === '74', String(await getState(NUM)))
 
-  // A value this control commanded a moment ago is HELD for the optimistic layer's settle
-  // window (8s) before a differing live state takes over - the slider does the same, and it
-  // is what keeps a quantising device from snapping a control back. So the state set here
-  // reaches the reading only once that window closes, and the wait allows for it.
   await putState(NUM, '85')
   const atMax = await waitReading('Pair', '85.0', 12000)
   ok('at the maximum the up button is dimmed and marked disabled', atMax?.upOff === true && atMax?.upAria === 'true' && atMax?.downOff === false, JSON.stringify(atMax))
@@ -405,7 +359,6 @@ try {
   await sleep(900)
   ok('while down still works', (await reading('Pair'))?.num === '84.5' && (await getState(NUM)) === '84.5', String(await getState(NUM)))
 
-  /* ---------------- D. stepping a list ---------------- */
   await tile('Carousel list').locator('.nh-step__btn--up').click({ timeout: 5000 }).catch(() => {})
   await sleep(900)
   const next = await reading('Carousel list')
@@ -424,14 +377,12 @@ try {
   await sleep(900)
   ok('a list told to wrap goes round to the first choice', (await reading('Stack list'))?.num === 'Apple TV' && (await getState(LIST)) === 'HDMI1', String(await getState(LIST)))
 
-  /* ---------------- E. an item with no value yet ---------------- */
   const unknown = await reading('Unknown')
   ok('an item with no state reads a dash with both buttons live', unknown?.num === '-' && !unknown?.upOff && !unknown?.downOff, JSON.stringify(unknown))
   await tile('Unknown').locator('.nh-step__btn--up').click({ timeout: 5000 }).catch(() => {})
   await sleep(900)
   ok('and its first press starts it at the minimum', (await reading('Unknown'))?.num === '60.0' && (await getState(NULLI)) === '60', String(await getState(NULLI)))
 
-  /* ---------------- F. the split tile ---------------- */
   const zones = await probe(page, () => {
     const box = (l, sel) => {
       const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
@@ -474,7 +425,6 @@ try {
     `${zoneFrom} -> ${await getState(NUM)}`
   )
 
-  /* ---------------- G. arrow styles ---------------- */
   const g = {}
   for (const a of ['auto', 'chevron', 'triangle', 'plusminus', 'arrow']) g[a] = await glyph('Arrows ' + a, 'up')
   ok('automatic arrows are plus and minus for a number', g.auto?.d === 'M12 5v14M5 12h14', JSON.stringify(g.auto))
@@ -485,9 +435,7 @@ try {
   const listGlyph = await glyph('Carousel list', 'up')
   ok('automatic arrows are chevrons for a list', listGlyph?.d === 'M9 6l6 6-6 6', JSON.stringify(listGlyph))
 
-  /* ---------------- H. finishes ---------------- */
   const plain = await styleOf('Pair', '.nh-step__box', ['background-color', 'backdrop-filter'])
-  // `blur(var(--st-blur))` at 0px computes as blur(0px), which is no blur at all.
   ok(
     'plain is the theme\'s raised surface',
     plain?.['background-color'] === 'rgb(34, 44, 55)' && ['none', 'blur(0px)'].includes(plain?.['backdrop-filter']),
@@ -511,24 +459,17 @@ try {
   const accent = await styleOf('Accent', '.nh-step__num', ['color'])
   ok('a tile accent colour takes over from the theme\'s', accent?.color === 'rgb(224, 96, 60)', JSON.stringify(accent))
 
-  /* ---------------- I. hostile configuration ---------------- */
-  // On the defaults the hostile tile is a 0-100 stepper at step 1, so it reads the item's
-  // current value to whole digits, whatever the presses above left it at.
   const hostileWant = Number(await getState(NUM)).toFixed(0)
   const hostile = await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Hostile')
     return w ? { cls: w.querySelector('.nh-step')?.className ?? '', num: w.querySelector('.nh-step__num')?.textContent, error: !!w.closest('.nh-gcell')?.querySelector('.nh-widget--error') } : null
   })
-  // The defaults are a spinner in the glow finish, which is also what a new widget starts as.
   ok(
     'a configuration of the wrong shape everywhere still renders on the defaults',
     hostile && /nh-step--spinner/.test(hostile.cls) && /nh-step--glow/.test(hostile.cls) && hostile.num === hostileWant && !hostile.error,
     JSON.stringify(hostile) + ' want ' + hostileWant
   )
 
-  /* ---------------- J. nothing drawn outside its tile ---------------- */
-  // A "nothing spills" check passes for free on a page with nothing on it, so it also counts
-  // what it scanned and requires every tile to have been there.
   const spill = await probe(page, () => {
     const out = []
     let scanned = 0
@@ -552,7 +493,6 @@ try {
     `scanned ${spill?.scanned} of ${WIDGETS.length}` + (spill?.spills.length ? ': ' + spill.spills.join(' | ') : '')
   )
 
-  /* ---------------- K. the settings panel ---------------- */
   await page.locator('[aria-label="Edit dashboard"]').first().click({ timeout: 5000 }).catch(() => {})
   await page.waitForSelector('.nh-cell', { timeout: 10000 }).catch(() => {})
   await page.locator('.nh-cell').first().click({ timeout: 5000 }).catch(() => {})
@@ -583,7 +523,6 @@ try {
   const editing = await probe(page, () => !!document.querySelector('.nh-grid--edit'))
   ok('leaving the editor without saving', wasEditing === true && editing === false, `was=${wasEditing} now=${editing}`)
 
-  /* ---------------- L. the detail sheet offers the widget\'s own scale ---------------- */
   const target = tile('Pair')
   await target.scrollIntoViewIfNeeded().catch(() => {})
   const b = await target.boundingBox().catch(() => null)
@@ -606,7 +545,6 @@ try {
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
-  /* ---------------- cleanup ---------------- */
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   for (const item of ITEMS_MADE) await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const left = await fetch(NS, { headers: AUTH })

@@ -1,18 +1,9 @@
-/**
- * HABPanel importer e2e. When the target server carries a real habpanel:panelconfig it is
- * imported through the settings UI (read-only source) and the result is cross-checked against
- * the import report; servers without one skip straight to the file-import path, which uses a
- * synthetic export and is fully self-contained. habpanel:panelconfig is never written.
- */
+// HABPanel importer e2e. When the target server carries a real habpanel:panelconfig it is imported through
+// the settings UI (read-only source) and the result is.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
 
 
-// WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
-// Refuse to run against a live config - snapshot + wipe first, restore + verify after
-// (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs - see the README). Running
-// one of these against a live config once forced a full restore; the guard makes that
-// mistake impossible.
 {
   const pre = await (await fetch(NS)).json()
   if (pre.length > 0) {
@@ -35,7 +26,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// snapshot habpanel source config for before/after comparison (MUST be untouched)
 const hpBefore = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig')).json())
 
 const browser = await launch()
@@ -47,7 +37,6 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => localStorage.setItem('neohab:apiToken', t), TOKEN)
 
 try {
-  // ---------- server import of a real config (skipped when this server has none) ----------
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('section:has(h2:text-is("Migrate from HABPanel"))', { timeout: 10000 })
   await sleep(2000) // give the detector time to list any server-side panel configs
@@ -55,8 +44,6 @@ try {
   if (hpRows === 0) {
     console.log('SKIP  no HABPanel panel config on this server - running the file-import path only')
   } else {
-    // Whatever the config holds, the report, the stored components and the rendered result
-    // must all agree with each other - that is the invariant a real import can break.
     const rowText = await page.locator('.nh-hpimport__row').first().textContent()
     const rowDash = Number(/(\d+) dashboards/.exec(rowText ?? '')?.[1] ?? NaN)
     ok('server config detected with a dashboard count', Number.isFinite(rowDash) && rowDash > 0, rowText?.slice(0, 80))
@@ -70,7 +57,6 @@ try {
     ok('report agrees with the detected dashboard count', repDash === rowDash, head.slice(0, 100))
     ok('report counts widgets', repWidgets > 0, String(repWidgets))
 
-    // server-side: what was stored matches what the report claimed
     const comps = await (await fetch(NS)).json()
     const dashComps = comps.filter((c) => c.uid.startsWith('dashboard:'))
     const defCount = comps.filter((c) => c.uid.startsWith('widgetdef:')).length
@@ -83,7 +69,6 @@ try {
     const settings = comps.find((c) => c.uid === 'settings')
     ok('a theme was mapped', typeof settings?.config?.theme === 'string' && settings.config.theme.length > 0, settings?.config?.theme)
 
-    // ---------- home + the largest imported dashboard render completely ----------
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-tile')
     const tiles = await page.locator('.nh-tile:not(.nh-tile--new)').count()
@@ -103,7 +88,6 @@ try {
     )
   }
 
-  // ---------- file import path (synthetic legacy + template) ----------
   const synthetic = {
     dashboards: [
       {
@@ -147,11 +131,9 @@ try {
   await browser.close()
 }
 
-// ---------- habpanel source untouched ----------
 const hpAfter = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig')).json())
 ok('habpanel:panelconfig untouched', hpBefore === hpAfter)
 
-// ---------- cleanup ----------
 const list = await (await fetch(NS)).json()
 for (const c of list) {
   await fetch(NS + '/' + encodeURIComponent(c.uid), { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } })

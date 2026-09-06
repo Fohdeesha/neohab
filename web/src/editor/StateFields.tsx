@@ -1,7 +1,3 @@
-/**
- * Per-state list editors: icon rules (button/switch/value) and color maps (timeline).
- * Registered as SettingField types 'stateicons'/'statecolors' and rendered by SettingsPanel.
- */
 import { useTranslation } from 'react-i18next'
 import { IconPicker } from '../components/IconPicker'
 import { ItemPicker } from '../components/ItemPicker'

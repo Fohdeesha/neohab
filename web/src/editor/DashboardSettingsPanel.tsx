@@ -1,8 +1,3 @@
-/**
- * Dashboard-level settings (name, grid geometry) for the draft being edited, plus deletion.
- * Edits apply to the draft immediately (live preview, coalesced undo, persisted on Save),
- * exactly like the widget settings panel.
- */
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { IconPicker } from '../components/IconPicker'
@@ -21,8 +16,6 @@ import { errorText } from '../api/errors'
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
   const { t } = useTranslation()
   const fixed = dashboard.rowHeight !== 'match'
-  // The tablet fields only exist once a tablet layout does - offering a column count for a layout
-  // that is not there would be a setting with no effect.
   const tablet = hasTabletLayout(dashboard)
   const sidebarOn = useConfigStore((s) => s.settings.sidebar !== false)
 
@@ -39,11 +32,6 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
     navigate({ name: 'home' })
   }
 
-  /**
-   * Export this dashboard alone, with the custom widgets, icons and background it uses, so it
-   * can be shared or kept aside. The draft is exported, not the saved version, so what you see
-   * is what lands in the file.
-   */
   const exportDashboard = async () => {
     try {
       const out = await buildDashboardExport(dashboard)
@@ -62,7 +50,6 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
     }
   }
 
-  /** The label markup this panel's fields use, so NumberSetting sits in the form like the rest. */
   const fieldLabel = (text: string) => <span className="nh-field__label">{text}</span>
   const fieldHint = (text: string) => <span className="nh-field__hint">{text}</span>
 
@@ -162,7 +149,6 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           max={300}
           step={5}
           hint={fieldHint(t('Scales all widget text on this dashboard, on top of the automatic sizing. 100 = normal.'))}
-          // 100 is the default, so it is stored as "unset" rather than as a value to carry around.
           onCommit={(n) => updateDashboardMeta({ textSize: n === 100 ? undefined : n }, 'dash:textsize')}
         />
 

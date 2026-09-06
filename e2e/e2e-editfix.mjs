@@ -1,11 +1,7 @@
-/**
- * Editor-fix e2e: dial step decimals, per-widget delete button, drag-to-bump (dwell-gated
- * swap + push-down cascade), and button Action field visibility.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-editfix and deletes exactly that in
- * cleanup (guarded, runs even if a section throws). The server's own dashboards are read ONLY.
- * No item commands anywhere: the dials are read-only gauges and no widget is ever pressed.
- */
+// Editor-fix e2e: dial step decimals, per-widget delete button, drag-to-bump (dwell-gated swap + push-down
+// cascade), and button Action field visibility.
+// SAFE with a live config: creates only dashboard:nh-e2e-editfix and deletes exactly that in cleanup
+// (guarded, runs even if a section throws).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -23,7 +19,6 @@ const getComp = async () => {
   return r.ok ? r.json() : null
 }
 
-// Cell DOM order == the seeded widgets array order, and reordering never happens.
 const A = 0, B = 1, C = 2, D = 3
 
 function launch() {
@@ -40,7 +35,6 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-/** Grid placement of the nth cell, as the rect it encodes: "4 / span 2" -> x:3, w:2. */
 const rectOfCell = async (i) =>
   page.$$eval('.nh-cell', (els, idx) => {
     const e = els[idx]
@@ -53,15 +47,6 @@ const rectOfCell = async (i) =>
 const same = (r, x, y, w, h) => !!r && r.x === x && r.y === y && r.w === w && r.h === h
 const at = (r) => (r ? `${r.x},${r.y} ${r.w}x${r.h}` : 'null')
 
-/**
- * Press the nth cell's handle and drag it by whole cells; caller dwells, asserts, releases.
- *
- * The grid is re-measured every time, and in DRAWN pixels: while a settings panel is docked the
- * grid is laid out at its full run-mode width and zoomed to fit what is left (so the editor shows
- * what a save will produce), which makes every pitch on screen the layout pitch times the zoom.
- * The mouse moves in drawn pixels, so the row height - a layout number from the dashboard - has
- * to be scaled the same way the measured width already is. Both are the plain values at zoom 1.
- */
 async function grabAndMove(i, dCols, dRows) {
   const grid = page.locator('.nh-grid--edit')
   const g = await grid.boundingBox()
@@ -78,7 +63,6 @@ const bumpedCount = () => page.locator('.nh-cell--bumped').count()
 const invalidCount = () => page.locator('.nh-drop--invalid').count()
 
 try {
-  // ---------- seed ----------
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -97,7 +81,6 @@ try {
           { id: 'w-b', type: 'clock', config: { showDate: false }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
           { id: 'w-c', type: 'label', config: { text: 'C' }, layout: { lg: { x: 0, y: 4, w: 2, h: 1 } } },
           { id: 'w-d', type: 'label', config: { text: 'D' }, layout: { lg: { x: 0, y: 5, w: 2, h: 1 } } },
-          // no `action` key on purpose: an imported-style button must still resolve to command
           { id: 'w-e', type: 'button', config: { label: 'Nav', command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
           { id: 'w-f', type: 'dial', config: { item: ITEMS.temperature, label: 'Tenths', min: 0, max: 200, step: 0.1, readOnly: true }, layout: { lg: { x: 6, y: 3, w: 3, h: 3 } } },
           { id: 'w-g', type: 'dial', config: { item: ITEMS.temperature, label: 'Whole', min: 0, max: 200, step: 1, readOnly: true }, layout: { lg: { x: 9, y: 3, w: 3, h: 3 } } },
@@ -111,10 +94,8 @@ try {
   await page.waitForSelector('.nh-grid', { timeout: 15000 })
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
-  // the grid renders empty for one frame while it measures itself; wait for the cells
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length === 7, { timeout: 5000 })
 
-  // ---------- the drag must not reflow the grid under the pointer ----------
   {
     const wide = (await page.locator('.nh-grid--edit').boundingBox()).width
     const h = await page.locator('.nh-cell').nth(A).locator('.nh-cell__handle').boundingBox()
@@ -133,14 +114,12 @@ try {
     ok('panel closes again', (await page.locator('.nh-sheet--side').count()) === 0)
   }
 
-  // ---------- delete button on every widget ----------
   ok('every cell has a delete button', (await page.locator('.nh-cell__delete').count()) === 7, String(await page.locator('.nh-cell__delete').count()))
   ok('delete button sits in the handle strip', (await page.locator('.nh-cell__handle .nh-cell__delete').count()) === 7)
   const dBox = await page.locator('.nh-cell').nth(A).locator('.nh-cell__delete').boundingBox()
   const aBox = await page.locator('.nh-cell').nth(A).boundingBox()
   ok('delete sits at the cell top-right', dBox.y < aBox.y + 30 && dBox.x + dBox.width > aBox.x + aBox.width - 12, `x+w=${Math.round(dBox.x + dBox.width)} cell right=${Math.round(aBox.x + aBox.width)}`)
 
-  // the delete button accepts a press only while its cell's chrome is drawn (see e2e-copypaste)
   await page.locator('.nh-cell').nth(6).hover()
   await page.locator('.nh-cell').nth(6).locator('.nh-cell__delete').click()
   await sleep(250)
@@ -151,7 +130,6 @@ try {
   await sleep(250)
   ok('undo restores the deleted widget', (await page.locator('.nh-cell').count()) === 7)
 
-  // ---------- bump: same-size swap, gated on the dwell ----------
   ok('seed: A at 0,0', same(await rectOfCell(A), 0, 0, 2, 2), at(await rectOfCell(A)))
   ok('seed: B at 3,0', same(await rectOfCell(B), 3, 0, 2, 2), at(await rectOfCell(B)))
 
@@ -168,7 +146,6 @@ try {
   ok('swap: B took A\'s spot', same(await rectOfCell(B), 0, 0, 2, 2), at(await rectOfCell(B)))
   ok('nothing else moved (C)', same(await rectOfCell(C), 0, 4, 2, 1), at(await rectOfCell(C)))
 
-  // one undo entry for the whole swap
   await page.click('[aria-label="Undo"]')
   await sleep(200)
   ok('one undo reverts both halves of the swap', same(await rectOfCell(A), 0, 0, 2, 2) && same(await rectOfCell(B), 3, 0, 2, 2), `${at(await rectOfCell(A))} / ${at(await rectOfCell(B))}`)
@@ -176,7 +153,6 @@ try {
   await sleep(200)
   ok('redo re-applies the swap', same(await rectOfCell(A), 3, 0, 2, 2) && same(await rectOfCell(B), 0, 0, 2, 2))
 
-  // ---------- bump: no dwell = no bump ----------
   await grabAndMove(B, 3, 0) // B(0,0) onto A(3,0)
   await sleep(120)
   ok('a quick drag over a widget stays rejected', (await invalidCount()) === 1 && (await bumpedCount()) === 0)
@@ -184,8 +160,6 @@ try {
   await sleep(250)
   ok('rejected drop moves nothing', same(await rectOfCell(B), 0, 0, 2, 2) && same(await rectOfCell(A), 3, 0, 2, 2), `${at(await rectOfCell(B))} / ${at(await rectOfCell(A))}`)
 
-  // ---------- bump: push-down cascade over two occupants ----------
-  // A is at 3,0 (2x2); drop it on 0,4 which covers C(0,4) and D(0,5).
   await grabAndMove(A, -3, 4)
   await sleep(DWELL)
   ok('cascade previews both occupants as bumped', (await bumpedCount()) === 2, String(await bumpedCount()))
@@ -203,7 +177,6 @@ try {
   await page.click('[aria-label="Redo"]')
   await sleep(200)
 
-  // ---------- a bumped layout persists ----------
   await page.click('button:has-text("Save")')
   await sleep(1500)
   const saved = await getComp()
@@ -221,8 +194,6 @@ try {
     return true
   })(), JSON.stringify(byId))
 
-  // ---------- button Action field visibility ----------
-  // Save returned to run mode; re-enter to continue editing.
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length === 7, { timeout: 5000 })
@@ -250,12 +221,10 @@ try {
   await sleep(200)
   ok('switching back hides the navigate fields again', !(await shown('Open URL')) && (await shown('Alternate command')))
 
-  // ---------- dial: step decides the displayed decimals ----------
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
   const dialText = async (label) =>
     (await page.locator(`.nh-gcell:has(.nh-widget__labeltext:text-is("${label}")) .nh-dial__value`).textContent())?.trim()
-  // wait for the SSE state to land (both dials start at min = 0)
   for (let i = 0; i < 40 && (await dialText('Whole')) === '0'; i++) await sleep(250)
   const tenths = await dialText('Tenths')
   const whole = await dialText('Whole')
@@ -263,16 +232,6 @@ try {
   ok('step 1 dial shows no decimal', /^\d+$/.test(whole), String(whole))
   ok('both dials agree on the value', Math.round(parseFloat(tenths)) === parseInt(whole, 10), `${tenths} vs ${whole}`)
 
-  // ---------- the editor shows what a save will produce ----------
-  //
-  // Reported: a weather widget lost its readings while being edited and got them back on Exit.
-  // Two causes, both geometry. The handle strip reserved a 26px band above every widget, and a
-  // docked settings panel took its own width off the surface - and a cell that is narrower or
-  // shorter is a different widget: text and icons scale with it, and every container query it
-  // sheds content on moves with it. So the same dashboard is measured three ways here, and the
-  // LAYOUT geometry has to be identical in all of them. `offsetWidth`/`offsetHeight` are layout
-  // pixels, which is what the widgets are laid out in; the panel now zooms the grid rather than
-  // squeezing it, so only the DRAWN width changes.
   const layoutOf = () =>
     page.evaluate(() => {
       const grid = document.querySelector('.nh-grid')
@@ -313,22 +272,15 @@ try {
   ok('a docked panel changes nothing about the scaling', panel.font === run.font && panel.iconScale === run.iconScale, `${panel.font}/${panel.iconScale}`)
   ok('the grid is drawn smaller to make room for the panel', panel.gridDrawn < run.gridDrawn - 100, `${panel.gridDrawn} vs ${run.gridDrawn}`)
   ok('the panel does not cover the grid', panel.panelLeft !== null && panel.gridRight <= panel.panelLeft, `grid right ${panel.gridRight} vs panel left ${panel.panelLeft}`)
-  // Mirrors SIDE_PANEL_WIDTH in model/layout.ts, which is the number editZoom() works the zoom
-  // out from. The two have to agree - and the layout checks above are what would catch it if
-  // they did not, because the grid would then be laid out at the wrong width.
   ok('the panel is the width the layout arithmetic assumes', panel.panelWidth === 391, `${panel.panelWidth}px`)
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
 
-  // ---------- a live fractional-step gauge, if this server has one (read-only) ----------
-  // Look for any live dashboard carrying a dial with a fractional step - the original
-  // complaint was such a gauge rounding its display. Skipped cleanly when none exists.
   const liveDashes = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid.startsWith('dashboard:'))
   let liveGauge = null
   for (const d of liveDashes) {
     for (const w of d.config.widgets ?? []) {
       if (w.type !== 'dial' || !(Number(w.config?.step) > 0) || Number(w.config?.step) >= 1 || !w.config?.label) continue
-      // the bound item must exist and carry a numeric state, or the gauge shows nothing
       const state = await (await fetch(`${BASE}/rest/items/${w.config.item}/state`, { headers: AUTH })).text()
       if (!Number.isFinite(parseFloat(state))) continue
       liveGauge = { dash: d.config.id, label: w.config.label }
@@ -340,11 +292,6 @@ try {
     await page.goto(APP + '#/d/' + encodeURIComponent(liveGauge.dash), { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     await sleep(2500) // let SSE deliver the bound item's state
-    // Either renderer: the dial has a classic face AND five ring styles, and which one a live
-    // dashboard uses is the user's choice. This scan takes whichever fractional-step dial the
-    // server happens to list first, so pinning the classic class made the check depend on
-    // component ordering - it passed for months and then landed on an LED gauge. Both honour
-    // the step's precision, which is what is actually under test.
     const valueSel = '.nh-dial__value, .nh-gauge__value'
     const cell = `.nh-gcell:has(.nh-widget__labeltext:text-is("${liveGauge.label}"))`
     const text = (await page.locator(`${cell} :is(${valueSel})`).first().textContent().catch(() => null))?.trim()
@@ -361,7 +308,6 @@ try {
   await browser.close()
 }
 
-// cleanup guard: only ever this suite's dashboard, even if a section threw
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 ok('cleanup: suite dashboard removed', (await getComp()) === null)
 

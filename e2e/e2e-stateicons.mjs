@@ -1,13 +1,6 @@
-/**
- * Papercut-batch e2e: value-widget icons (beside the readout, state-aware), per-state icon
- * rules with numeric ranges (icon + tint flip when the item crosses a range boundary), the
- * navigate button's dashboard picker, and the per-device theme override.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-sticons and dashboard:nh-e2e-sticons2
- * (both deleted), commands only the configured dimmer item (initial state recorded and
- * restored), never touches the switch item (its rule targets whatever state it already has),
- * and verifies the SHARED theme setting is untouched by the device override.
- */
+// Papercut-batch e2e: value-widget icons (beside the readout, state-aware).
+// SAFE with a live config: creates only dashboard:nh-e2e-sticons and dashboard:nh-e2e-sticons2 (both
+// deleted), commands only the configured dimmer item (initial state.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings } from './lib/components.mjs'
@@ -33,7 +26,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// ---------- snapshots ----------
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 const dimmerNow = Math.round(Number(dimmerOrig))
@@ -111,13 +103,10 @@ const iconOf = async () => {
 }
 
 try {
-  // ---------- value widget icon + range rules ----------
   await page.goto(APP + '#/d/nh-e2e-sticons', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-value .nh-icon--mdi', { timeout: 15000 })
   ok('value widget renders an icon beside the readout', true)
 
-  // the rules only engage once the item state ARRIVES over SSE - until then the base icon
-  // (mdi:home) shows; sampling before that is the documented state-arrival flake
   await page
     .waitForFunction(
       () => {
@@ -144,7 +133,6 @@ try {
     first.color
   )
 
-  // cross the range boundary -> other icon + other tint
   const target = inLow ? 75 : 25
   await postItem(dimmer, target)
   await page
@@ -167,7 +155,6 @@ try {
   ok('crossing the range flips the tint', second.color === (inLow ? 'rgb(0, 255, 0)' : 'rgb(255, 0, 0)'), second.color)
   await postItem(dimmer, dimmerOrig)
 
-  // ---------- switch per-state rule (matched, never commanded) ----------
   const swIcon = page.locator('.nh-switch .nh-icon--mdi').first()
   await page.waitForSelector('.nh-switch .nh-icon--mdi', { timeout: 10000 })
   const swMask = await swIcon.evaluate((e) => getComputedStyle(e).webkitMaskImage || getComputedStyle(e).maskImage)
@@ -175,7 +162,6 @@ try {
   ok('switch state rule swaps its icon', swMask.includes('sleep'), swMask.slice(0, 90))
   ok('switch state rule tints its icon', swColor === 'rgb(255, 0, 255)', swColor)
 
-  // ---------- state-icons editor rows ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, undefined, { timeout: 5000 })
@@ -190,7 +176,6 @@ try {
     (await page.locator('.nh-sheet input[placeholder="State, or a range like 1-49"]').count()) === 3
   )
 
-  // ---------- dashboard picker on the navigate button ----------
   await page.locator('.nh-cell', { hasText: 'Go' }).first().click()
   await page.waitForSelector('.nh-sheet', { timeout: 5000 })
   const dashSelect = page.locator('.nh-sheet select#f-w-nav-navigateDashboard')
@@ -201,12 +186,10 @@ try {
   await page.click('button:has-text("Exit")')
   await sleep(300)
 
-  // navigate works in run mode
   await page.click('.nh-button:has-text("Go")')
   await sleep(500)
   ok('navigate button goes to the picked dashboard', page.url().includes('#/d/nh-e2e-sticons2'), page.url())
 
-  // ---------- per-device theme override ----------
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#nh-set-devicetheme', { timeout: 10000 })
   ok('device theme select defaults to follow', (await page.inputValue('#nh-set-devicetheme')) === '')
@@ -239,7 +222,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup (always) ----------
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + UID2, { method: 'DELETE', headers: AUTH })
 await postItem(dimmer, dimmerOrig)

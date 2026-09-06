@@ -12,7 +12,6 @@ describe('parseHash', () => {
   })
 
   it('writes the log route the way it reads it', () => {
-    // `navigate` encodes both ids; a dashboard id with a space has to come back whole.
     const hash = '#/log/' + encodeURIComponent('Guest Room') + '/' + encodeURIComponent('w/1')
     expect(parseHash(hash)).toEqual({ name: 'log', dashboard: 'Guest Room', widget: 'w/1' })
   })
@@ -28,12 +27,6 @@ describe('parseHash', () => {
     expect(parseHash('#/d/kitchen?kiosk=on')).toEqual({ name: 'dashboard', id: 'kitchen' })
   })
 
-  /*
-   * A hash the app never writes but a person can: `navigate()` always encodes, so every one of
-   * these arrives by hand, from a bookmark, or from a chat client that mangled a link. An
-   * unguarded `decodeURIComponent` throws `URIError` on all of them, and it throws during App's
-   * own render, which is a blank page with no way back.
-   */
   it('does not throw on a malformed escape, from any route', () => {
     expect(() => parseHash('#/d/%')).not.toThrow()
     expect(() => parseHash('#/d/100%')).not.toThrow()

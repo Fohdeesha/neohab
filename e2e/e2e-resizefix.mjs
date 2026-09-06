@@ -1,11 +1,7 @@
-/**
- * Resize-preview e2e: a corner resize must stretch the widget's box in place (no translate),
- * with the placeholder anchored at the widget's own column/row; a handle move must still
- * translate. Probe-proven to fail pre-fix (probe-resize.mjs: translate(160px, 90px) mid-resize).
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-resize, deletes exactly that in
- * cleanup, commands nothing (clock widgets only). Nothing is ever saved (Exit discards).
- */
+// Resize-preview e2e: a corner resize must stretch the widget's box in place (no translate), with the
+// placeholder anchored at the widget's own column/row.
+// SAFE with a live config: creates only dashboard:nh-e2e-resize, deletes exactly that in cleanup, commands
+// nothing (clock widgets only).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -29,12 +25,6 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-/**
- * How many drawn pixels one layout pixel is. While a settings panel is docked the editing grid
- * is laid out at its full run-mode width and zoomed to fit what is left, so that the editor
- * shows what a save will produce - which means the app works in layout pixels while the mouse
- * moves in drawn ones. Every expectation below that mixes the two goes through this.
- */
 const zoomOf = () =>
   page.$eval('.nh-grid--edit', (el) => (el.offsetWidth > 0 ? el.getBoundingClientRect().width / el.offsetWidth : 1))
 
@@ -73,7 +63,6 @@ try {
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
 
-  // ---------- corner resize: stretch in place, no translate ----------
   const before = await cellStyle(0)
   const grip = await (await page.$('.nh-cell .nh-cell__resize')).boundingBox()
   const gx = grip.x + grip.width / 2, gy = grip.y + grip.height / 2
@@ -85,7 +74,6 @@ try {
   ok('mid-resize: no translate on the cell', mid.transform === '', mid.transform || '(none)')
   ok('mid-resize: box stretches with the pointer (width)', Math.abs(mid.width - (before.width + 160)) < 3, `${before.width} -> ${mid.width}`)
   ok('mid-resize: box stretches with the pointer (height)', Math.abs(mid.height - (before.height + 90)) < 3, `${before.height} -> ${mid.height}`)
-  // the browser serializes max(40px, calc(100% + Npx)) without the calc keyword
   ok('mid-resize: stretch is inline width, not a move', mid.inlineWidth.includes('max('), mid.inlineWidth)
   const drop = await page.$eval('.nh-drop', (el) => ({ col: el.style.gridColumn, row: el.style.gridRow }))
   ok('mid-resize: placeholder stays anchored at the widget origin', drop.col.startsWith('1 /') && drop.row.startsWith('1 /'), JSON.stringify(drop))
@@ -95,14 +83,12 @@ try {
   ok('drop commits the snapped size', after.col === '1 / span 4' && after.row === '1 / span 5', JSON.stringify(after))
   ok('after drop: inline stretch removed', after.inlineWidth === '' && after.transform === '', JSON.stringify({ w: after.inlineWidth, t: after.transform }))
 
-  // ---------- shrink clamps instead of going negative ----------
   const grip2 = await (await page.$('.nh-cell .nh-cell__resize')).boundingBox()
   await page.mouse.move(grip2.x + 4, grip2.y + 4)
   await page.mouse.down()
   await page.mouse.move(grip2.x - 600, grip2.y - 600, { steps: 6 })
   await sleep(150)
   const shrunk = await cellStyle(0)
-  // the 40px floor is a layout size; the box is measured as drawn, so the zoom in effect applies
   const kShrink = await zoomOf()
   ok(
     'shrink clamps at a visible minimum',
@@ -112,7 +98,6 @@ try {
   await page.mouse.up()
   await sleep(300)
 
-  // ---------- handle move still translates ----------
   const handle = await (await page.$$('.nh-cell__grip'))[1].boundingBox()
   const hx = handle.x + handle.width / 2, hy = handle.y + handle.height / 2
   await page.mouse.move(hx, hy)
@@ -120,8 +105,6 @@ try {
   await page.mouse.move(hx + 120, hy + 60, { steps: 6 })
   await sleep(150)
   const midMove = await cellStyle(1)
-  // The transform is written in layout pixels, and what has to hold is that the widget follows
-  // the pointer ON SCREEN: layout delta x zoom = the delta the mouse actually moved.
   const kMove = await zoomOf()
   const moved = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(midMove.transform)
   ok(
@@ -133,7 +116,6 @@ try {
   await page.mouse.up()
   await sleep(300)
 
-  // discard everything
   await page.click('button:has-text("Exit")')
   await sleep(500)
   const comp = await (await fetch(NS + '/' + UID, { headers: AUTH })).json()

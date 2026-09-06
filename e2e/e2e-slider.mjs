@@ -1,21 +1,6 @@
-/**
- * Slider widget e2e: five styles, both orientations.
- *
- * Every command in this suite goes to a managed item it creates itself, bound to nothing, so the
- * commands are real (the state comes back over the live stream exactly as a device's would) and
- * nothing in the house moves.
- *
- * The geometry section is the one that matters most. Four of the styles paint their own track and
- * fill under the browser's own range input, so the fill and the thumb have to agree about where
- * the value is - and a range input insets the thumb's travel by half a thumb at each end. Both
- * halves are measured: what the browser does with a press at a known position, and where the fill
- * ends up at the ends of that same scale.
- *
- * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-slider   (neohab:config)
- *   - managed item nh_e2e_slide
- * Enters edit mode once and leaves without saving; touches no other item.
- */
+// Slider widget e2e: five styles, both orientations.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-slider (neohab:config), managed
+// item nh_e2e_slide Enters edit mode once and leaves without.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
@@ -37,7 +22,6 @@ const getState = () =>
     .then((j) => j.state)
     .catch(() => null)
 
-/** Read the page through a shape that cannot throw, so a missing feature fails its own checks. */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
@@ -56,8 +40,6 @@ const sl = (label, style, extra, x, y, w, h) => ({
   layout: { lg: { x, y, w, h } },
 })
 
-// 40px rows with a 6px gap, so a tile h rows tall is 46h - 6 px: fine enough to seed the short
-// band where a reading row has to be shed as well as the ordinary sizes.
 const WIDGETS = [
   sl('Gradient', 'gradient', {}, 0, 0, 3, 4),
   sl('Wedge', 'taper', {}, 3, 0, 3, 4),
@@ -65,16 +47,12 @@ const WIDGETS = [
   sl('Bubble', 'bubble', {}, 9, 0, 3, 4),
   sl('Plain', 'plain', {}, 0, 4, 3, 4),
   sl('Tinted', 'gradient', { accentColor: '#e0483d' }, 3, 4, 3, 4),
-  // On end.
   sl('V gradient', 'gradient', { orient: 'vertical' }, 6, 4, 2, 8),
   sl('V inset', 'inset', { orient: 'vertical' }, 8, 4, 2, 8),
   sl('V bubble', 'bubble', { orient: 'vertical' }, 10, 4, 2, 8),
-  // Short: the reading row has to give way rather than crowd the track.
   sl('Short', 'gradient', {}, 0, 8, 3, 2),
   sl('Short inset', 'inset', {}, 3, 8, 3, 2),
-  // A scale that is not 0-100, which the rail's ends have to print.
   sl('Kelvin', 'inset', { min: 2000, max: 6500, step: 50, unit: ' K' }, 0, 10, 3, 4),
-  // Stored configuration is untrusted input: every field here is the wrong shape.
   sl('Junk', 'constructor', { orient: 'toString', min: 'abc', max: -5, step: 0 }, 3, 10, 3, 4),
 ]
 
@@ -83,8 +61,6 @@ const ctx = await browser.newContext({ viewport: { width: 1400, height: 1100 } }
 await ctx.addInitScript(
   ([theme, token]) => {
     try {
-      // Pinned: this suite measures the app's own defaults, and the theme in effect belongs to
-      // whoever runs the server.
       localStorage.setItem('neohab:themeOverride', theme)
       localStorage.setItem('neohab:apiToken', token)
     } catch {}
@@ -97,15 +73,11 @@ let page
 let initial = null
 
 try {
-  // ---- seed -----------------------------------------------------------------------------------
   await fetch(itemUrl(ITEM), {
     method: 'PUT',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'Dimmer', name: ITEM, label: 'E2E slider' }),
   })
-  // A managed item deleted and re-created with the same name is not a blank one: persistence
-  // restores what the last run left it with, so the precondition is established rather than
-  // assumed.
   await putState(40)
   await sleep(500)
   initial = await getState()
@@ -131,7 +103,6 @@ try {
   await page.waitForSelector('.nh-fader', { timeout: 20000 }).catch(() => {})
   await sleep(1400)
 
-  // ---- A: each style draws its own parts --------------------------------------------------------
   console.log('\n-- A: the styles --')
   const parts = await probe(page, () => {
     const byLabel = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
@@ -182,8 +153,6 @@ try {
   )
   ok('the gradient style reads above the track', /\d/.test(parts?.grad?.read ?? ''), parts?.grad?.read)
 
-  // The plain style has to stay exactly what it was: the same markup the detail sheet and the
-  // floor plan's popup draw, so a theme restyling `.nh-slider__input` still reaches all three.
   ok(
     'the plain style is still the shared control',
     parts?.plain?.plainInput === true && /nh-slider/.test(parts?.plain?.cls ?? ''),
@@ -199,15 +168,10 @@ try {
   )
   ok('the tint moves the ramp off its reference colours', parts?.tint?.fill && parts.tint.fill !== parts.grad.fill)
 
-  // Stored configuration nobody can read draws the widget's own defaults rather than nothing.
   ok('a style nobody spelled right falls back to the default', /nh-fader--gradient/.test(parts?.junk?.cls ?? ''), parts?.junk?.cls)
   ok('an orientation nobody spelled right lies flat', /nh-fader--h/.test(parts?.junk?.cls ?? ''))
 
-  // ---- B: the fill and the browser's own thumb agree ---------------------------------------------
   console.log('\n-- B: geometry --')
-  // What the browser does with a press at a known position. A range input insets the thumb's
-  // travel by half a thumb at each end, which is the premise the fill's arithmetic rests on: if it
-  // did not, the fill would run ahead of the thumb at one end and behind it at the other.
   const railBox = await probe(page, () => {
     const byLabel = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
     const c = byLabel('Gradient')
@@ -239,13 +203,8 @@ try {
       ok(n, false, 'no rail')
   }
 
-  // ...and where the fill ends up at the ends of that same scale. Measured after a reload, so the
-  // optimistic layer is not still holding the value the presses above sent.
   await page.reload({ waitUntil: 'load' })
   await page.waitForSelector('.nh-fader', { timeout: 20000 }).catch(() => {})
-  // Longer than STEADY_MS (1500): a value arriving within that window of the last one shown is
-  // held back until it closes, which is the app working as designed - and a shorter wait reads the
-  // PREVIOUS value, so the number in the detail would not be the one this asked for.
   const SETTLED = 1900
   const fillAt = async (value) => {
     await putState(value)
@@ -275,9 +234,6 @@ try {
     at0 ? `fill ${at0.len.toFixed(1)} vs thumb/2 ${(at0.thumb / 2).toFixed(1)}` : 'no fill'
   )
   const at100 = await fillAt(100)
-  // Half a thumb short of the rail's end, which is where the thumb's centre is: the last half of
-  // the thumb hangs over the end of its own travel, and a fill drawn to the rail's edge would sit
-  // proud of it. The same distance as at the minimum, from the other side.
   ok(
     'at the maximum the fill reaches the thumb centre, half a thumb short of the end',
     at100 && Math.abs(at100.endGap - at100.thumb / 2) <= 1.5,
@@ -290,7 +246,6 @@ try {
     at50 ? `fill ${at50.len.toFixed(1)} of ${at50.railLen.toFixed(1)}` : 'no fill'
   )
 
-  // ---- C: on end ---------------------------------------------------------------------------------
   console.log('\n-- C: vertical --')
   const vert = await probe(page, () => {
     const byLabel = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
@@ -322,8 +277,6 @@ try {
     vert ? `${vert.grows.toFixed(1)} of ${vert.railLen.toFixed(1)}` : 'none'
   )
 
-  // ArrowUp raises the value on a fader, which is why the input is turned rather than rotated: a
-  // rotated one keeps the horizontal key mapping and reads backwards.
   const vinput = page.locator('.nh-widget:has(.nh-widget__labeltext:text-is("V gradient")) input.nh-fader__input')
   const beforeKey = Number(await vinput.inputValue().catch(() => NaN))
   await vinput.focus().catch(() => {})
@@ -333,7 +286,6 @@ try {
   await page.keyboard.press('ArrowDown')
   await sleep(900)
 
-  // ---- D: what a short or narrow tile keeps --------------------------------------------------------
   console.log('\n-- D: shedding, and staying inside the tile --')
   const shed = await probe(page, () => {
     const byLabel = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
@@ -349,8 +301,6 @@ try {
     }
   })
   ok('a tile with room draws the reading', shed?.tallRead === true)
-  // Both halves in one check: on a build that draws no reading anywhere, "the short one has none"
-  // is true for the wrong reason.
   ok('a tile too short for it drops the reading', shed?.tallRead === true && shed?.shortRead === false, JSON.stringify(shed))
   ok('...and keeps the track, which is the part you drag', shed?.shortTrack === true)
   ok('...and the inset rail keeps the ends of its scale', shed?.shortInsetBounds === true)
@@ -375,7 +325,6 @@ try {
   ok('there are tiles to scan, in every style and both ways round', (spill?.tiles ?? 0) >= 13, String(spill?.tiles))
   ok('nothing is drawn outside its tile', spill?.bad.length === 0, (spill?.bad ?? []).join('; ').slice(0, 170))
 
-  // The band the pointer can grab: a 6px track is not a touch target.
   const hit = await probe(page, () => {
     const byLabel = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
     const r = byLabel('Gradient')?.querySelector('input.nh-fader__input')?.getBoundingClientRect()
@@ -383,7 +332,6 @@ try {
   })
   ok('the track is a finger wide, not a hairline', (hit ?? 0) >= 26, `${(hit ?? 0).toFixed(0)}px`)
 
-  // ---- E: the badge follows the thumb, and stays inside the tile --------------------------------
   console.log('\n-- E: the badge --')
   const badgeAt = async (value) => {
     await putState(value)
@@ -417,7 +365,6 @@ try {
   ok('at the minimum the badge stays inside the tile', b0?.inside === true, b0 ? `centre ${b0.centre.toFixed(0)}` : 'none')
   ok('at the maximum the badge stays inside the tile', b100?.inside === true, b100 ? `centre ${b100.centre.toFixed(0)}` : 'none')
 
-  // ---- F: what a press actually sends ---------------------------------------------------------------
   console.log('\n-- F: commands --')
   await page.reload({ waitUntil: 'load' })
   await page.waitForSelector('.nh-fader', { timeout: 20000 }).catch(() => {})
@@ -434,8 +381,6 @@ try {
     return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null
   })
   if (box) {
-    // A drag: the press stages, the release sends, and the item gets one command carrying where the
-    // thumb was let go - not one per pointer move.
     await page.mouse.move(box.x + box.w * 0.3, box.y + box.h / 2)
     await page.mouse.down()
     await page.mouse.move(box.x + box.w * 0.7, box.y + box.h / 2, { steps: 10 })
@@ -444,9 +389,6 @@ try {
     ok('a drag sends exactly one command', posts.length === 1, JSON.stringify(posts))
     ok('and it carries where the thumb was let go', Number(posts[0]) >= 60 && Number(posts[0]) <= 80, String(posts[0]))
 
-    // A hold takes the gesture, and the release that ends it sends nothing: the value was staged
-    // on the press and is dropped, which is what makes "a hold never changes a value" true of a
-    // control that commits on pointer-up.
     posts.length = 0
     await page.mouse.move(box.x + box.w * 0.2, box.y + box.h / 2)
     await page.mouse.down()
@@ -462,7 +404,6 @@ try {
   }
   await page.unroute('**/rest/items/' + ITEM)
 
-  // ---- G: the settings panel -----------------------------------------------------------------------
   console.log('\n-- G: the settings panel --')
   await page.reload({ waitUntil: 'load' })
   await page.waitForSelector('.nh-fader', { timeout: 20000 }).catch(() => {})
@@ -480,8 +421,6 @@ try {
   ok('the panel offers every style', (fields?.style ?? []).length === 5, JSON.stringify(fields?.style))
   ok('the panel offers both orientations', JSON.stringify(fields?.orient) === '["horizontal","vertical"]', JSON.stringify(fields?.orient))
 
-  // The live preview: choosing a style redraws the tile that is being edited. Run mode draws
-  // `.nh-gcell` and the editor `.nh-cell`, so this asks about the surface it is standing on.
   const fieldSelect = (label) =>
     page.locator('.nh-sheet .nh-field', { has: page.locator('.nh-field__label', { hasText: label }) }).locator('select')
   await fieldSelect('Style').selectOption('inset').catch(() => {})
@@ -494,8 +433,6 @@ try {
     (await probe(page, () => !!document.querySelector('.nh-cell .nh-fader--inset.nh-fader--v'))) === true
   )
 
-  // The editor's exit confirm is a native dialog, which Playwright dismisses (i.e. cancels) unless
-  // it is told otherwise - so leaving a dirty draft has to accept it explicitly.
   page.once('dialog', (d) => d.accept())
   await page.click('button:has-text("Exit")').catch(() => {})
   await sleep(700)
@@ -510,7 +447,6 @@ try {
 } catch (e) {
   ok('the suite ran to the end', false, String(e).slice(0, 200))
 } finally {
-  // ---- cleanup ---------------------------------------------------------------------------------
   console.log('\n-- cleanup --')
   if (page) await page.close().catch(() => {})
   await ctx.close().catch(() => {})

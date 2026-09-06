@@ -44,13 +44,11 @@ page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
 page.on('dialog', (d) => d.accept())
 
-// Sign in via API token (kiosk path) before the app boots.
 await page.addInitScript((token) => {
   localStorage.setItem('neohab:apiToken', token)
 }, TOKEN)
 
 try {
-  // The suite's own dashboard (the in-code demo no longer exists on empty namespaces).
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
@@ -83,15 +81,11 @@ try {
   await page.click('.nh-tile:not(.nh-tile--new)')
   await page.waitForSelector('.nh-grid', { timeout: 10000 })
 
-  // --- enter edit mode (API token counts as signed in; no sign-in sheet expected) ---
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   ok('edit mode entered', true)
   ok('save disabled while clean', await page.$eval('button:has-text("Save")', (b) => b.disabled).catch(() => false))
 
-  // --- add a widget via the palette ---
-  // The edit grid paints empty for one frame (it lays out once its width is known), so counting
-  // cells the moment .nh-grid--edit appears reads 0 and the +1 assertion fails at random.
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 10000 })
   const before = await page.$$eval('.nh-cell', (els) => els.length)
   await page.click('[aria-label="Add widget"]')
@@ -102,12 +96,10 @@ try {
   ok('palette adds widget', after === before + 1, `${before} -> ${after}`)
   ok('settings panel opened for new widget', (await page.$('.nh-sheet--side')) !== null)
 
-  // --- change a setting (checkbox) and see it apply to the draft ---
   const secondsBox = page.locator('.nh-sheet--side label:has-text("Show seconds") input[type="checkbox"]')
   await secondsBox.check()
   ok('setting toggled', await secondsBox.isChecked())
 
-  // --- drag the selected (new) widget one cell right via its handle ---
   const handle = await page.$('.nh-cell--selected .nh-cell__handle')
   const box = await handle.boundingBox()
   const grid = await (await page.$('.nh-grid--edit')).boundingBox()
@@ -120,13 +112,11 @@ try {
   await sleep(300)
   ok('drag moved widget (undo count grows)', await page.$eval('[aria-label="Undo"]', (b) => !b.disabled))
 
-  // --- undo / redo ---
   await page.click('[aria-label="Undo"]')
   await sleep(150)
   ok('redo enabled after undo', await page.$eval('[aria-label="Redo"]', (b) => !b.disabled))
   await page.click('[aria-label="Redo"]')
 
-  // --- save (which now returns to run mode) and verify on the server ---
   await page.click('button:has-text("Save")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 5000 })
   ok('Save returned to run mode', (await page.locator('.nh-grid--edit').count()) === 0)
@@ -136,7 +126,6 @@ try {
   const widgetCount = saved.body?.config?.widgets?.length
   ok('saved dashboard has 9 widgets', widgetCount === 9, `count=${widgetCount}`)
 
-  // --- reload onto home: config comes from the server, no welcome card ---
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tile:not(.nh-tile--new)', { timeout: 10000 })
@@ -149,7 +138,6 @@ try {
   await browser.close()
 }
 
-// Cleanup: remove the saved dashboard (404 = nothing was saved) so the VM stays pristine.
 const del = await restDelete(NS + '/dashboard:nh-e2e-edit')
 const check = await restGet(NS)
 ok(

@@ -1,16 +1,3 @@
-/**
- * Thermostat: the room's temperature and the setpoint, with buttons to move the setpoint, and
- * a row of buttons for the mode (heat or cool), the fan (auto or on) and auxiliary heat.
- *
- * Four looks draw the same state: an arc with a draggable handle and the buttons in its gap, a
- * solid dial in the mode's colour ringed with ticks, a disc with both temperatures marked on its
- * rim, and a ring around a plate of readings. Every item is a setting of its own, so a widget
- * can be as small as a temperature and a setpoint or carry all six.
- *
- * A press shows its result at once and sends it a moment later, so a run of taps costs the
- * device one command carrying the last value; a drag round the ring sends on release, the way
- * the dial does. The optimistic layer then holds the value until the device confirms it.
- */
 import { useEffect, useRef, useState } from 'react'
 import type { ComponentType, PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -65,11 +52,6 @@ const LOOK_COMPONENTS: Record<ThermostatLook, ComponentType<{ view: ThermoView }
   ring: RingLook
 }
 
-/**
- * One commanded item's state with the optimistic layer over it: a press shows its result at
- * once and the display holds it until the device confirms. `sendCommand` never rejects, and a
- * refusal drops the shown value, so a mode the server would not take does not sit on screen.
- */
 function useCommanded(ctx: WidgetProps['ctx'], item: string | undefined) {
   const bound = typeof item === 'string' && item !== ''
   const live = knownState(bound ? ctx.getItem(item)?.state : undefined) ?? null
@@ -94,9 +76,6 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
   const sp = readTemp(ctx.getItem(config.setpointItem))
   const unit = unitOf(config.unit, sp.unit, current.unit)
 
-  // The range comes from the widget's own settings where they are set, else from what the
-  // setpoint item declares about itself - which the live state stream does not carry, so the
-  // catalog is fetched only when that is needed.
   const setpointItem = typeof config.setpointItem === 'string' ? config.setpointItem : ''
   const wantsCatalog = setpointItem !== '' && !hasOwnRange(config)
   const catalogItem = useCatalogStore((s) => (wantsCatalog ? s.items.find((i) => i.name === setpointItem) : undefined))
@@ -110,8 +89,6 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
   const [drag, setDrag] = useState<number | null>(null)
   const shown = drag ?? optimistic.display
 
-  // One command per run of presses: each press updates the reading, and the command carrying
-  // the last value goes out once the presses stop. A drag sends on release, at once.
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
   const sendSetpoint = (v: number, delay: number) => {
@@ -133,9 +110,6 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
     sendSetpoint(next, SEND_DELAY_MS)
   }
 
-  // The ring. A press on the band around the face stages the setpoint under the pointer and the
-  // release sends it; a press on the face inside does nothing, so a hold there still opens the
-  // sheet and a tap in the middle moves nothing.
   const svgRef = useRef<SVGSVGElement | null>(null)
   const valueAtPointer = (e: PointerEvent<SVGSVGElement>): { value: number; onBand: boolean } => {
     const rect = svgRef.current!.getBoundingClientRect()
@@ -160,8 +134,6 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
     if (drag === null) return
     const v = drag
     setDrag(null)
-    // A press stages the value under the pointer and this release sends it - unless a hold was
-    // recognised first, in which case the press was the gesture and the setpoint keeps its value.
     if (holdTookGesture()) return
     optimistic.commit(v)
     sendSetpoint(v, 0)
@@ -229,10 +201,6 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
   const cool = colorOf(config.coolColor)
   if (heat) style['--th-heat'] = heat
   if (cool) style['--th-cool'] = cool
-  // The colour of the temperature this thermostat is SET to. A face with no mode and nothing
-  // running takes it (see `.nh-thermo--neutral` in app.css) instead of sitting in the theme's
-  // accent, so the arc's fill and the ring's rim say how warm the setting is. Left unset when
-  // there is no setpoint to colour by, and the accent stands.
   if (setKnown) style['--th-temp'] = rampColor(setFraction)
   const configured = (typeof config.currentItem === 'string' && config.currentItem !== '') || setpointItem !== ''
 
@@ -312,12 +280,6 @@ const hasFan = (c: Record<string, unknown>) => barOf(c).fan
 const hasAux = (c: Record<string, unknown>) => barOf(c).aux
 const hasStatus = (c: Record<string, unknown>) => typeof c.statusItem === 'string' && c.statusItem !== ''
 
-/**
- * The setpoint's scale for the detail sheet, from the same rule the tile uses. The sheet has no
- * render to read the unit from, so the item's live state and the catalog are read directly; in
- * a unit check both are empty and the Celsius defaults answer, which is what the tile would draw
- * before its first state arrived.
- */
 function sheetScale(c: ThermostatConfig) {
   const item = typeof c.setpointItem === 'string' ? c.setpointItem : ''
   const live = item ? useItemsStore.getState().states[item] : undefined
@@ -333,8 +295,6 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
   defaultSize: { w: 3, h: 3 },
   hasHeader: true,
   minPixelHeight: floorOf,
-  // Every select's default is carried here as well as in its reader: a select whose value
-  // resolves to nothing renders blank, and the registry check for that reads this.
   defaultConfig: () => ({ currentItem: '', setpointItem: '', look: DEFAULT_LOOK }),
   settings: [
     { key: 'currentItem', type: 'item', label: 'Current temperature item', itemTypes: ['Number'], readOnly: true },
@@ -383,9 +343,6 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
   ],
   itemKeys: (c) => [c.currentItem, c.setpointItem, c.modeItem ?? '', c.fanItem ?? '', c.auxItem ?? '', c.statusItem ?? ''],
   canCommand: () => true,
-  // The widget's own controls, wherever they are drawn: the setpoint on its own scale, the mode
-  // and the fan as the two commands each was given, aux as on and off. The room's temperature
-  // and the status item are read and never written, so a hold offers nothing for them.
   controlFor: (c, item): ItemControl | undefined => {
     if (item === '') return undefined
     const cmd = commands(c)

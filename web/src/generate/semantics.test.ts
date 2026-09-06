@@ -1,10 +1,3 @@
-/**
- * openHAB's semantic model, as much of it as the dashboard generator needs.
- *
- * The classification rule mirrors core's own `SemanticTags.getSemanticType`, so the cases here
- * are the ones where getting it wrong changes what a generated dashboard shows: which tag wins
- * when an item carries several, and what a Property-only item counts as.
- */
 import { describe, expect, it } from 'vitest'
 import type { SemanticTag } from '../api/tags'
 import type { Item } from '../api/types'
@@ -34,7 +27,6 @@ describe('the tag index', () => {
     const index = buildTagIndex([tag('Location_Indoor_Room_Sauna'), tag('Equipment_HeatPump')])
     expect(index.get('Sauna')).toMatchObject({ root: 'Location' })
     expect(index.get('HeatPump')).toMatchObject({ root: 'Equipment' })
-    // and the server's list is authoritative: a stock tag it omits is simply not there
     expect(index.get('Kitchen')).toBeUndefined()
   })
 
@@ -53,7 +45,6 @@ describe('the tag index', () => {
   it('keeps the first definition when a custom tag reuses a stock short name', () => {
     const index = buildTagIndex([tag('Location_Indoor_Room_Kitchen'), tag('Equipment_Kitchen', 'Kitchen')])
     expect(index.get('Kitchen')?.root).toBe('Location')
-    // the fully qualified id still reaches the custom one
     expect(index.get('Equipment_Kitchen')?.root).toBe('Equipment')
   })
 
@@ -108,7 +99,6 @@ describe('detecting a model at all', () => {
   it('is true only when something is a location or equipment', () => {
     expect(hasSemanticModel([item('a', ['Kitchen'])], DEFAULTS)).toBe(true)
     expect(hasSemanticModel([item('a', ['Lightbulb'])], DEFAULTS)).toBe(true)
-    // points and properties alone are not a model to build dashboards from
     expect(hasSemanticModel([item('a', ['Measurement']), item('b', ['Temperature'])], DEFAULTS)).toBe(false)
     expect(hasSemanticModel([item('a')], DEFAULTS)).toBe(false)
     expect(hasSemanticModel([], DEFAULTS)).toBe(false)

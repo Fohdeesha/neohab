@@ -1,31 +1,9 @@
-/**
- * The small Markdown subset the project's docs are written in, rendered to HTML.
- *
- * This exists so the documentation can ship inside the add-on: a link from the theme editor has
- * to reach a real page on the same server, and someone who installed a jar has no repository to
- * read the Markdown in. The source of truth stays `docs/*.md`, and this turns it into a page at
- * build time, so the two can never disagree.
- *
- * It is deliberately strict rather than lenient. A construct it does not implement raises an
- * error naming the line, so unsupported Markdown fails the build instead of silently reaching
- * the shipped page as literal text. The subset: headings, paragraphs, unordered and ordered
- * lists, fenced code, tables, horizontal rules, and inline code / bold / links.
- */
+// a strict subset: anything it does not implement throws with a line number rather than shipping mangled
 
 const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/**
- * A private-use character, used to park code spans while the rest of the line is marked up.
- * It cannot occur in the source docs, so the placeholder can never collide with the prose around
- * it - a bare index like " 3 " could, and would rewrite any sentence containing a small number
- * into whatever code span happened to have that index.
- */
 const MARK = ''
 
-/**
- * Inline markup within one line. Code spans come out first and go back last, so `**` or `[`
- * inside a code span is never treated as markup.
- */
 function inline(text, where) {
   const codes = []
   let s = text.replace(/`([^`]+)`/g, (_, code) => {
@@ -52,7 +30,6 @@ const cells = (row) =>
 
 const LIST_ITEM = /^(\s*)([-*]|\d+\.)\s+(.*)$/
 
-/** Render Markdown to an HTML fragment. `name` only appears in error messages. */
 export function renderMarkdown(src, name = 'markdown') {
   const lines = src.replace(/\r\n/g, '\n').split('\n')
   const out = []
@@ -93,7 +70,6 @@ export function renderMarkdown(src, name = 'markdown') {
       continue
     }
 
-    // A table is a header row, a row of dashes, then body rows.
     if (line.trim().startsWith('|') && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] ?? '')) {
       const head = cells(line)
       i += 2
@@ -105,7 +81,6 @@ export function renderMarkdown(src, name = 'markdown') {
       continue
     }
 
-    // A list runs until a line that is neither an item of the same kind nor its continuation.
     const bullet = LIST_ITEM.exec(line)
     if (bullet) {
       const ordered = /\d/.test(bullet[2])
@@ -128,7 +103,6 @@ export function renderMarkdown(src, name = 'markdown') {
     if (/^\s*>/.test(line)) throw new Error(`${where()}: blockquotes are not supported - ${line.trim()}`)
     if (/^!\[/.test(line.trim())) throw new Error(`${where()}: images are not supported - ${line.trim()}`)
 
-    // Paragraph: consecutive plain lines, joined into one.
     const para = []
     while (i < lines.length && lines[i].trim() !== '') {
       const l = lines[i]
@@ -144,7 +118,6 @@ export function renderMarkdown(src, name = 'markdown') {
   return out.join('\n')
 }
 
-/** A complete, self-contained page. No external requests: the server may have no internet. */
 export function renderPage(title, bodyHtml) {
   return `<!doctype html>
 <html lang="en">

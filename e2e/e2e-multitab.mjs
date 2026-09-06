@@ -1,19 +1,4 @@
-/**
- * Multiple tabs open against the same server.
- *
- * Event streams are permanent connections and a browser only allows six per origin for ALL its
- * tabs together, so a tab that opens its own quickly starves the origin: before the tab link,
- * the third neohab tab rendered its dashboard and then sat there dead, because the POST that
- * tells the server which items to track could never get a socket. One tab now holds the stream
- * for the whole browser and relays states to the rest.
- *
- * Covers: many tabs all live, exactly one connection holder, relayed state changes, the union of
- * different dashboards' items, handover when the holder closes, and the notice a tab shows when
- * updates really have stopped.
- *
- * SAFE: creates only dashboard:nh-e2e-mt*, deletes exactly those, and commands only the
- * configured dimmer item - recorded first and restored at the end.
- */
+// Multiple tabs open against the same server.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -43,14 +28,11 @@ const dash = (id, name, item) => ({
   },
 })
 
-// The dimmer carries the relay checks; the temperature item only has to differ from it so that
-// two dashboards need genuinely different items (the union check).
 await put(dash('nh-e2e-mt', 'E2E Multitab', ITEMS.dimmer))
 await put(dash('nh-e2e-mt2', 'E2E Multitab 2', ITEMS.temperature))
 
 const initialDimmer = await itemState(ITEMS.dimmer)
 
-/** Count the streams a tab holds, and remember them across reloads. */
 const INSTRUMENT = () => {
   window.__streams = []
   const Orig = window.EventSource
@@ -80,7 +62,6 @@ try {
     return p
   }
 
-  /* ---------- 1. six tabs, all live ---------- */
   const tabs = []
   for (let i = 0; i < 6; i++) tabs.push(await openTab())
   await sleep(5000)
@@ -90,7 +71,6 @@ try {
   const allLive = values.every((v) => v !== '(none)' && v !== '-')
   ok('six tabs all show item state (3rd tab was dead before the tab link)', allLive, values.join(' | '))
 
-  /* ---------- 2. exactly one tab holds the connections ---------- */
   const perTab = []
   for (const p of tabs) perTab.push(await streams(p))
   const holders = perTab.filter((s) => s.length > 0)
@@ -99,18 +79,15 @@ try {
   const totalStreams = perTab.flat().length
   ok('whole browser holds at most two streams', totalStreams <= 2, `total=${totalStreams}`)
 
-  /* ---------- 2b. the web-audio stream: on the holder, and only when the server has the sink -------- */
   const sinks = await fetch(`${BASE}/rest/audio/sinks`, { headers: AUTH }).then((r) => r.json()).catch(() => [])
   const hasWebAudio = Array.isArray(sinks) && sinks.some((s) => s.id === 'webaudio')
   const holderStreams = holders[0] ?? []
   if (hasWebAudio) {
-    // Sharing must not quietly switch the feature off: the holder carries it for everyone.
     ok('the holder also carries the web-audio stream', holderStreams.includes('audio'), `[${holderStreams}]`)
   } else {
     ok('no web-audio stream when the server has no such sink', !holderStreams.includes('audio'), `[${holderStreams}]`)
   }
 
-  /* ---------- 3. a state change reaches every tab ---------- */
   const target = String((Number(initialDimmer) || 0) === 55 ? 45 : 55)
   await command(ITEMS.dimmer, target)
   await sleep(3000)
@@ -118,7 +95,6 @@ try {
   for (const p of tabs) after.push(await value(p))
   ok('every tab receives the relayed state change', after.every((v) => v.replace(/[^\d.]/g, '').startsWith(target)), after.join(' | '))
 
-  /* ---------- 4. tabs on different dashboards each get their own items ---------- */
   const other = await openTab('nh-e2e-mt2')
   await sleep(4000)
   const otherValue = await value(other)
@@ -128,7 +104,6 @@ try {
   const otherStreams = await streams(other)
   ok('the new tab opens no stream of its own', otherStreams.length === 0, `[${otherStreams}]`)
 
-  /* ---------- 4b. audio relayed from the holder plays in a follower ---------- */
   {
     const follower = tabs.find((_, i) => i !== perTab.findIndex((s) => s.length > 0))
     await follower.route('**/nh-e2e-relay.wav', (route) =>
@@ -141,7 +116,6 @@ try {
         return Promise.resolve()
       }
     })
-    // Stand in for the holder's stream: the relay itself is what this checks.
     await follower.evaluate((url) => {
       new BroadcastChannel('neohab:tablink').postMessage({ t: 'playurl', url, from: 'e2e-holder' })
     }, `${BASE}/nh-e2e-relay.wav`)
@@ -150,7 +124,6 @@ try {
     ok('a follower plays audio relayed by the holder', played.length === 1, `played=${played.length}`)
   }
 
-  /* ---------- 5. handover when the connection holder closes ---------- */
   const holderIndex = perTab.findIndex((s) => s.length > 0)
   await tabs[holderIndex].close()
   const survivors = tabs.filter((_, i) => i !== holderIndex)
@@ -172,10 +145,8 @@ try {
   for (const p of survivors) await p.close()
   await other.close()
 
-  /* ---------- 6. a tab that really has no updates says so ---------- */
   {
     const solo = await ctx.newPage()
-    // Block the stream outright: no relay, no reconnect - exactly what a dead link looks like.
     await solo.route('**/rest/events/states**', (route) => route.abort())
     await solo.goto(`${BASE}/neohab/index.html#/d/nh-e2e-mt`, { waitUntil: 'domcontentloaded' })
     const appeared = await solo.waitForSelector('.nh-live', { timeout: 25000 }).then(() => true).catch(() => false)
@@ -193,7 +164,6 @@ try {
     await solo.close()
   }
 
-  /* ---------- 7. no console noise anywhere ---------- */
   const real = errors.filter((e) => !/Failed to load resource/i.test(e))
   ok('no page errors across all tabs', real.length === 0, real.slice(0, 2).join(' | '))
 } finally {

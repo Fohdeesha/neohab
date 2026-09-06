@@ -7,10 +7,7 @@ import { stepDecimals } from '../common/itemControl'
 import { arcPath, polar, START, SWEEP } from './geometry'
 import { scaleOf, type DialConfig } from './gauge'
 
-/** Dial - a circular touch slider for numeric/dimmer items. Commits on release. */
 export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
-  // Guarded at the read (see scaleOf): a cleared or nonsensical step made the snap divide by
-  // zero, and a min or max that is not a number rendered the whole dial as NaN.
   const { min, max, step } = scaleOf(config)
   const decimals = stepDecimals(step)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -25,11 +22,9 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
     let angle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI
-    // normalize into [START, START+SWEEP]
     while (angle < START) angle += 360
     const clamped = Math.min(START + SWEEP, Math.max(START, angle))
     const raw = min + ((clamped - START) / SWEEP) * (max - min)
-    // round to the step's own precision before clamping, or a 0.1 step sends 72.30000000000001
     const snapped = Number((Math.round(raw / step) * step).toFixed(decimals))
     return Math.min(max, Math.max(min, snapped))
   }
@@ -46,8 +41,6 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
     if (drag === null) return
     const v = drag
     setDrag(null)
-    // A press stages the value under the finger and this release sends it - unless a hold was
-    // recognised first, in which case the press was the gesture and the dial keeps its value.
     if (holdTookGesture()) return
     void ctx.sendCommand(config.item, String(v))
   }

@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { kindOf, migrateConfig, MIGRATIONS, SCHEMA_VERSIONS, versionOf, type ComponentKind, type Migration } from './schema'
 
-/**
- * The migration runner has no production migrations yet, which is exactly the state in which a
- * mechanism quietly rots. So the runner is driven here with steps of its own - a table that
- * takes a fictional kind from version 1 to 4 - and the ordering, the partial chain and the
- * refusal are all exercised against it. When the first real migration is written it drops into
- * a list whose behaviour is already pinned.
- */
 const table = (steps: Migration[]): Record<ComponentKind, Migration[]> => ({
   dashboard: steps,
   theme: [],
@@ -17,7 +10,6 @@ const table = (steps: Migration[]): Record<ComponentKind, Migration[]> => ({
   settings: []
 })
 
-/** A world where dashboards are at `v` and everything else is still at 1. */
 const versions = (v: number): Record<ComponentKind, number> => ({
   dashboard: v,
   theme: 1,
@@ -27,7 +19,6 @@ const versions = (v: number): Record<ComponentKind, number> => ({
   settings: 1
 })
 
-/** Records the order steps ran in, so a chain applied backwards cannot pass. */
 const trail = (): { steps: Migration[]; seen: string[] } => {
   const seen: string[] = []
   const step =
@@ -45,7 +36,6 @@ describe('the version a config claims', () => {
   })
 
   it('reads Gson’s float echo as the whole number it is', () => {
-    // openHAB serialises through Gson, which writes every number as 1.0
     expect(versionOf({ version: 1.0 })).toBe(1)
     expect(versionOf({ version: 2.0 })).toBe(2)
   })
@@ -55,7 +45,6 @@ describe('the version a config claims', () => {
   })
 
   it('treats anything unreadable as version 1, never as newer', () => {
-    // Guessing "newer" on malformed input would lock someone out of their own dashboards.
     expect(versionOf({})).toBe(1)
     expect(versionOf({ version: null })).toBe(1)
     expect(versionOf({ version: 'tomorrow' })).toBe(1)
@@ -100,7 +89,6 @@ describe('migrating forward', () => {
     const result = migrateConfig('dashboard', { version: 1, keep: 'me' }, table(steps), versions(4))
     expect(result.status).toBe('ok')
     if (result.status !== 'ok') return
-    // Order matters: a chain applied backwards would still touch every step.
     expect(seen).toEqual(['one', 'two', 'three'])
     expect(result.config).toMatchObject({ keep: 'me', one: true, two: true, three: true, version: 4 })
     expect(result.migrated).toBe(true)
@@ -124,7 +112,6 @@ describe('migrating forward', () => {
   })
 
   it('still advances the version across a gap with no step for it', () => {
-    // A kind that gained a version without needing a data change must not stall halfway.
     const result = migrateConfig('dashboard', { version: 1 }, table([]), versions(3))
     expect(result.status).toBe('ok')
     if (result.status !== 'ok') return
@@ -157,8 +144,6 @@ describe('refusing a config from the future', () => {
 })
 
 describe('the table and the declared versions agree', () => {
-  // A migration added without bumping the version would never run; a version bumped without a
-  // migration would silently skip a step. Neither is visible by reading either file alone.
   it('has exactly one step per version above the first, for every kind', () => {
     for (const kind of Object.keys(SCHEMA_VERSIONS) as ComponentKind[]) {
       expect(`${kind}: ${MIGRATIONS[kind].length}`).toBe(`${kind}: ${SCHEMA_VERSIONS[kind] - 1}`)

@@ -1,12 +1,3 @@
-/**
- * Item picker combobox: a text input with an explicit dropdown button, so it is obvious the
- * item can be chosen from a list rather than typed. Typing filters by name and label;
- * arrow keys navigate, Enter selects, Escape closes.
- *
- * The list is rendered position:fixed and sized to the space available in the viewport
- * (rather than a small fixed height) so long item lists are comfortable to scan, and it
- * escapes any scrolling/clipping ancestor such as the settings sheet.
- */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
@@ -16,14 +7,7 @@ interface ItemPickerProps {
   id: string
   value: string
   onChange: (itemName: string) => void
-  /**
-   * Accept a name that is not in the item list. Off by default: for a widget bound to an item,
-   * a value that names nothing is a broken widget, so typing is treated as searching and only a
-   * real pick is stored. On for the few fields where a name the server has not reported yet is
-   * still legitimate.
-   */
   allowUnknown?: boolean
-  /** Restrict to these item types (a typed Group matches via its base type). */
   itemTypes?: string[]
   placeholder?: string
 }
@@ -50,7 +34,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
   const items = useCatalogStore((s) => s.items)
   const loaded = useCatalogStore((s) => s.loaded)
   const [open, setOpen] = useState(false)
-  /** Text being typed to filter; null means "display the configured value". */
   const [query, setQuery] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
   const [pos, setPos] = useState<ListPos | null>(null)
@@ -74,7 +57,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     if (box) {
       const below = window.innerHeight - box.bottom - MARGIN
       const above = box.top - MARGIN
-      // Open downward unless there is clearly more room above.
       const flip = below < 260 && above > below
       const maxHeight = Math.max(180, flip ? above : below)
       setPos(
@@ -91,8 +73,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     openedAt.current = Date.now()
   }
 
-  // Close when tapping outside, scrolling elsewhere, or resizing (the fixed position
-  // would otherwise go stale).
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
@@ -101,10 +81,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     }
     const onScroll = (e: Event) => {
       if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return
-      // Focusing an input sitting at a scroll container's clipped edge makes the browser
-      // scroll it the rest of the way into view RIGHT as the list opens - that scroll is part
-      // of opening, not the user scrolling away. Follow it (reposition, without re-arming the
-      // grace clock) instead of closing on it; scrolls after the window really do close.
+      // same: follow that scroll rather than closing on it
       if (Date.now() - openedAt.current < 300) {
         placeList()
         return
@@ -129,15 +106,12 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     return { matches: filtered.slice(0, MAX_RESULTS), truncated: filtered.length - MAX_RESULTS }
   }, [items, itemTypes, query])
 
-  /** True while select() restores focus, so onFocus doesn't reopen the list it just closed. */
   const restoringFocus = useRef(false)
 
   const select = (item: Item) => {
     onChange(item.name)
     close()
-    // Clicking an option blurs the input, so focus has to be put back for keyboard flow - but
-    // that fires onFocus, which would reopen the list. focus() dispatches synchronously, so the
-    // guard is set and cleared around it (and clears itself if no event fires at all).
+    // focus() dispatches synchronously, so guard around it or onFocus reopens the list we just closed
     restoringFocus.current = true
     inputRef.current?.focus()
     restoringFocus.current = false
@@ -161,8 +135,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
       const item = matches[highlight]
       if (item) select(item)
     } else if (e.key === 'Escape') {
-      // Marked as handled so the sheet this picker sits in does not close on the same press: one
-      // Escape shuts the list, the next shuts the panel.
       e.preventDefault()
       close()
     }
@@ -186,15 +158,10 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             setQuery(text)
             if (!open) openList()
             setHighlight(0)
-            // Typing filters the list; it does not bind the widget. Writing each keystroke
-            // through would leave a widget bound to a half-typed name the moment the picker was
-            // abandoned. A name that really is an item is still accepted as typed, which is what
-            // makes the field usable from the keyboard alone.
+            // typing filters, it does not bind: writing each keystroke through leaves a widget bound to a half-typed name
             if (allowUnknown || text === '' || items.some((i) => i.name === text)) onChange(text)
           }}
           onBlur={() => {
-            // Leaving with a half-typed search shows the stored value again, rather than
-            // pretending the search text was a choice.
             if (!allowUnknown) setQuery(null)
           }}
           onFocus={() => {
@@ -209,7 +176,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             aria-label={t('Clear selection')}
             tabIndex={-1}
             onPointerDown={(e) => {
-              // pointerdown + preventDefault, like the toggle: no focus bounce, no outside-close race
               e.preventDefault()
               onChange('')
               setQuery(null)
@@ -227,7 +193,6 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
           aria-label={open ? t('Close item list') : t('Show item list')}
           tabIndex={-1}
           onPointerDown={(e) => {
-            // pointerdown (not click) so the outside-close handler doesn't race us
             e.preventDefault()
             if (open) close()
             else {
@@ -264,11 +229,8 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
               }
               onPointerEnter={() => setHighlight(i)}
               onPointerDown={(e) => {
-                // Keep focus in the input (like the toggle and clear buttons): the default
-                // focus-move would blur it, the blur resets a half-typed search, and the list
-                // re-rendering back to the full set mid-click moves this row out from under
-                // the pointer - the click then lands on nothing and the pick silently dies.
-                // Selection itself stays on click so touch can still scroll the list by drag.
+                // keep focus in the input - the blur resets the search, the list re-renders under the pointer, and the click
+                // lands on nothing
                 e.preventDefault()
               }}
               onClick={() => select(item)}>

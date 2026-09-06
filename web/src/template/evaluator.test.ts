@@ -1,11 +1,3 @@
-/**
- * The Tier-1 expression sandbox.
- *
- * Custom widget templates run arbitrary user expressions. They are interpreted rather than
- * eval()'d, identifiers never fall through to globals, and the routes from any value to
- * `Function` are closed. The escape attempts below are the reason this file exists; the
- * AngularJS-compatibility cases are the reason imported HABPanel templates keep working.
- */
 import { describe, expect, it } from 'vitest'
 import { evaluate, type Scope } from './evaluator'
 
@@ -63,8 +55,6 @@ describe('expressions', () => {
 
 describe('assignment', () => {
   it('writes where the name already lives, so an ng-init accumulator adds up', () => {
-    // `total = 0` on a wrapper and `total = total + x` inside a repeat must reach the same
-    // variable, or every iteration writes to its own child scope and the total stays 0.
     const parent = scope({ total: 0 })
     const child: Scope = Object.create(parent)
     evaluate('total = total + 5', child)
@@ -137,15 +127,11 @@ describe('the sandbox', () => {
   })
 
   it('resolves a bare identifier to undefined rather than an Object.prototype member', () => {
-    // The scope root has a null prototype, so `toString` and friends are not reachable names.
     for (const name of ['toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf']) {
       expect(evaluate(name, s), name).toBeUndefined()
     }
   })
 
-  // A second pass over the sandbox, taking the routes a reader of the first list would try next:
-  // building the key rather than writing it, reaching it through optional chaining or a template
-  // literal, and borrowing a function's own `call`/`bind`/`apply` to change the receiver.
   it('cannot reach a constructor by a computed or disguised key', () => {
     const s2 = scope({ text: 'x', obj: { a: 1 }, list: [1], fn: () => 1 })
     for (const expr of [
@@ -171,7 +157,6 @@ describe('the sandbox', () => {
     })
     for (const expr of ['fn.call(obj)', 'fn.bind(obj)()', 'fn.apply(obj)', 'fn.constructor("return globalThis")()']) {
       const out = evaluate(expr, s2)
-      // whatever it answers, it must never hand back a live global object
       expect(out === globalThis, expr).toBe(false)
       expect(typeof out === 'object' && out !== null && 'process' in (out as object), expr).toBe(false)
     }

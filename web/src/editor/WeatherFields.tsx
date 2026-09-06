@@ -1,15 +1,3 @@
-/**
- * The weather widget's two editor fields.
- *
- * Location: a geocoding search (Open-Meteo's keyless service) layered over plain latitude and
- * longitude inputs - when the search works you click a place, when it does not (no internet
- * from this device, service down) you type coordinates and nothing is lost. The camera
- * widget's Find button is the pattern.
- *
- * Item pattern: a plain text field holding an item-name pattern with `{n}`, previewed live
- * against the item catalog ("resolves 5 of 7") so a near-miss pattern is visible while it is
- * being typed instead of rendering as silently empty forecast columns.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SettingField } from '../widgets/types'
@@ -31,7 +19,6 @@ export function WeatherLocationField({ field, widget, value }: { field: SettingF
   const raw = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
 
   const set = (patch: Record<string, unknown>) => {
-    // updateWidgetConfig coalesces by field key, so digit-by-digit coordinate typing is one undo entry
     updateWidgetConfig(widget.id, field.key, { ...raw, ...patch })
   }
 
@@ -152,7 +139,6 @@ export function ItemPatternField({
     } else if (loaded) {
       const known = new Set(items.map((i) => i.name))
       const missing = names.filter((n) => !known.has(n))
-      // bare numbers on purpose: "5 of 7" needs no plural agreement in any language
       preview =
         missing.length === 0
           ? t('Every day resolves to an item.')
@@ -173,7 +159,6 @@ export function ItemPatternField({
         id={id}
         type="text"
         value={text}
-        // an item-name pattern, never translated
         placeholder={field.placeholder}
         onChange={(e) => updateWidgetConfig(widget.id, field.key, e.target.value || undefined)}
       />

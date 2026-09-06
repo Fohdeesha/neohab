@@ -1,22 +1,9 @@
-/**
- * Hour-by-weekday heatmap, drawn on a plain canvas.
- *
- * Deliberately not uPlot: this is a 24x7 matrix of coloured cells with named axes and a colour
- * scale, which is a few dozen lines of canvas work, against bending a time-series library into a
- * shape it has no concept of. Loaded on demand with the rest of the chart chunk.
- *
- * Colours come from the theme's own tokens (surface -> primary), so a heatmap reads as part of
- * whatever theme is active rather than importing a palette of its own.
- */
 import { HEATMAP_COLS, HEATMAP_ROWS, type HeatmapData } from './aggregate'
 
 export interface HeatmapParams {
   host: HTMLElement
-  /** Weekday names (Monday first) and hour labels, from the caller's locale. */
   weekdays: string[]
-  /** Formats a cell value for the tooltip / scale ends. */
   formatValue: (value: number) => string
-  /** Accessible summary put on the canvas element. */
   title: string
 }
 
@@ -30,7 +17,6 @@ function cssVar(name: string, fallback: string): string {
   return v || fallback
 }
 
-/** Parse #rgb/#rrggbb into [r,g,b]; anything else falls back to mid grey. */
 function rgb(color: string): [number, number, number] {
   const hex = color.trim()
   const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(hex)
@@ -60,7 +46,6 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
   p.host.appendChild(tip)
 
   let data: HeatmapData | null = null
-  /** Cell geometry from the last paint, so the pointer can be mapped back to a cell. */
   let geom = { left: 0, top: 0, cellW: 0, cellH: 0 }
 
   const draw = () => {
@@ -83,7 +68,6 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
     const font = '10px system-ui, sans-serif'
     ctx.font = font
 
-    // room for the weekday column, the hour row and the colour scale under it
     const labelW = Math.min(38, Math.max(...p.weekdays.map((w) => ctx.measureText(w).width)) + 8)
     const axisH = 14
     const scaleH = 16
@@ -108,7 +92,6 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
           ctx.globalAlpha = 1
           ctx.fillStyle = mix(empty, hot, span > 0 ? (v - data.min) / span : 1)
         }
-        // a hairline gap so cells read as a grid without drawing 168 strokes
         ctx.fillRect(x + 0.5, y + 0.5, Math.max(0.5, cellW - 1), Math.max(0.5, cellH - 1))
       }
     }
@@ -122,13 +105,11 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
     }
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    // label every third hour when there is no room for all 24
     const step = cellW >= 18 ? 1 : cellW >= 9 ? 3 : 6
     for (let col = 0; col < HEATMAP_COLS; col += step) {
       ctx.fillText(String(col), left + col * cellW + cellW / 2, top + gridH + 2)
     }
 
-    // colour scale: empty -> hot, with the value range at its ends
     const scaleY = top + gridH + axisH + 2
     const scaleW = Math.min(120, gridW / 2)
     for (let i = 0; i < scaleW; i++) {

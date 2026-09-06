@@ -1,12 +1,4 @@
-/**
- * Runs the full safe-additive battery in sequence and summarizes.
- *
- * Deliberately does NOT include the SIX wipe-cycle suites - e2e, e2e-editor, e2e-widgets,
- * e2e-settings, e2e-importer and e2e-history. Those need the snapshot/wipe/restore dance
- * described in README.md, and each aborts on its own if the namespaces are not empty.
- * e2e-history goes FIRST of the six: it is the only one that guards all three namespaces, and
- * every suite that saves configuration leaves restore points behind.
- */
+// Runs the full safe-additive battery in sequence and summarizes.
 import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -15,11 +7,6 @@ import { BASE } from './lib/target.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-/**
- * The wipe-cycle suites, named here so the split is enforced rather than merely documented: a new
- * suite that lands in neither list stops the battery instead of being silently skipped.
- * e2e-history first - see the comment above and README.md.
- */
 const WIPE_CYCLE = ['e2e-history', 'e2e', 'e2e-editor', 'e2e-widgets', 'e2e-settings', 'e2e-importer']
 
 const SAFE_SUITES = [
@@ -83,8 +70,6 @@ const SAFE_SUITES = [
   'e2e-multitab',
 ]
 
-// Every suite file must be classified. A suite added to the directory and forgotten here would
-// otherwise never run, and one mis-sorted into the battery would delete a live configuration.
 const onDisk = readdirSync(here)
   .filter((f) => /^e2e.*\.mjs$/.test(f))
   .map((f) => f.replace(/\.mjs$/, ''))
@@ -104,11 +89,6 @@ if (overlap.length > 0) {
   process.exit(2)
 }
 
-/**
- * Say which server and which build this run is about. The battery runs against openHAB 4.x AND
- * 5.x, and a log that names neither cannot be compared with the other one - the first 5.x run
- * turned out to have been against a different bundle entirely.
- */
 const version = await fetch(BASE + '/rest/')
   .then((r) => r.json())
   .then((j) => j.runtimeInfo?.version ?? '?')

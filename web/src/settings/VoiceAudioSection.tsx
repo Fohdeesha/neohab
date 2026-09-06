@@ -6,10 +6,6 @@ import { listVoices, onVoicesChanged, recognitionSupported, speak, ttsSupported 
 import { ItemPicker } from '../components/ItemPicker'
 import { useEditingAllowed } from '../store/auth'
 
-/**
- * Server audio, spoken announcements and voice input. The speech item and the voice button
- * are shared configuration; everything else is this device's own choice.
- */
 export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
   const audio = useAudioStore((s) => s.settings)

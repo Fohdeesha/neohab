@@ -44,7 +44,6 @@ import { SignInSheet } from '../editor/SignInSheet'
 import { NavButton } from './Sidebar'
 import { VoiceButton } from '../audio/VoiceButton'
 
-/** True when the keyboard focus is in a text field, so shortcuts must not fire. */
 function isTyping(): boolean {
   const el = document.activeElement as HTMLElement | null
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
@@ -52,60 +51,32 @@ function isTyping(): boolean {
 
 export function DashboardView({ id }: { id: string }) {
   const { t } = useTranslation()
-  // subscribed, not read once: a save, an import or a reload replaces the stored dashboard, and
-  // the view must follow it on its own rather than relying on an editor render to carry it in.
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const authRequired = useConfigStore((s) => s.authRequired)
-  // The whole editor store on purpose, unlike everywhere else: this component reads twelve of its
-  // thirteen fields, so selectors would be a dozen subscriptions to say "all of it" - and every
-  // field it does not read changes in the same gestures as the ones it does.
   const editor = useEditorStore()
-  // The tablet-layout switch only makes sense on the grid surface (the phone stack has no
-  // breakpoints of its own), and the toolbar is tight enough without a button that does nothing.
   const gridSurface = useGridEditSurface()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
-  // Measured so the editing grid can be zoomed rather than squeezed while a panel is docked
-  // (see editZoom): the surface's own width, already short by the panel when one is open.
   const surfaceRef = useRef<HTMLDivElement>(null)
   const surfaceWidth = useContainerWidth(surfaceRef)
   const panelDocked = useSidePanelDocked()
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [signInOpen, setSignInOpen] = useState(false)
-  /** The sign-in was opened by a refused save, so finishing it should retry that save. */
   const [retryAfterSignIn, setRetryAfterSignIn] = useState(false)
-  // The edit hint is about gestures, and which gestures exist depends on the pointer.
   const coarse = useCoarsePointer()
 
   const editing = editor.editing && editor.draft?.id === id
   const dashboard = editing ? editor.draft! : saved
   const backgroundStyle = useBackgroundStyle(dashboard)
   const selectedIds = editor.selectedIds
-  // The settings panel is for one widget at a time, and only when the selection was an explicit
-  // single-select (panelOpen). Ctrl/Shift-click, marquee and long-press never open it, even at
-  // selection size 1 - they signal multi-select intent.
   const selected =
     editing && editor.panelOpen && selectedIds.length === 1 ? editor.draft!.widgets.find((w) => w.id === selectedIds[0]) : undefined
 
   const panelOpen = editing && !!(selected || editor.dashSettingsOpen)
   const zoom = editZoom(surfaceWidth, panelOpen && panelDocked)
 
-  // Leaving the editor by ANY route change - a sidebar link, browser Back, a bookmark, the
-  // dashboard-control item - asks when there is something to lose, and puts the address back when
-  // the answer is no. This is the one place that asks: the sidebar used to ask for its own links
-  // and every other way out silently discarded the draft.
-  //
-  // The question waits for the navigation to finish rather than blocking it. `window.confirm`
-  // called here runs inside the commit the route change triggered, which stops the browser
-  // mid-navigation - a modal dialog wedged into a navigation nothing can complete. Asked
-  // afterwards it is the same question over the screen the user asked for, and the editor state
-  // is untouched until it is answered, so the draft is still whole either way.
-  //
-  // Restoring the address pushes an entry rather than rewinding, because which direction "back"
-  // is depends on how the user left (Back moved them backwards, a link moved them forwards). The
-  // remount that follows finds the draft exactly as it was. `i18n.t` rather than the hook's `t`:
-  // this effect must not re-run - and so tear the editor down - merely because the language
-  // changed.
+  // asked AFTER the navigation: window.confirm inside the route change wedges a dialog into a navigation nothing
+  // can finish
   useEffect(() => {
     return () => {
       const s = useEditorStore.getState()
@@ -115,7 +86,6 @@ export function DashboardView({ id }: { id: string }) {
         return
       }
       setTimeout(() => {
-        // Already resolved by something else (a save, an Exit, a second route change).
         if (!useEditorStore.getState().editing) return
         if (window.confirm(i18n.t('Discard all unsaved changes?'))) stopEditing()
         else navigate({ name: 'dashboard', id })
@@ -123,22 +93,17 @@ export function DashboardView({ id }: { id: string }) {
     }
   }, [id])
 
-  // A refresh, a closed tab, or the service worker reloading after an upgrade: the browser's own
-  // dialog is the only thing that can stand in the way of those.
   useEffect(() => {
     if (!editing) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!useEditorStore.getState().dirty) return
       e.preventDefault()
-      // Older browsers want the assignment; the text itself has been ignored for years.
       e.returnValue = ''
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [editing])
 
-  // Editing keyboard shortcuts: undo/redo, delete, select-all, deselect. Copy/cut/paste ride the
-  // browser's native clipboard events instead (below), so Ctrl+C/Ctrl+V behave like anywhere.
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent) => {
@@ -158,10 +123,6 @@ export function DashboardView({ id }: { id: string }) {
         e.preventDefault()
         removeWidgets(ids)
       } else if (key === 'escape') {
-        // Escape backs out one layer at a time: whatever panel or sheet is open closes itself
-        // (see Sheet), then the selection, then edit mode. Read from the store rather than the
-        // render scope - this listener is registered once per edit session, so a captured
-        // `dirty` would be the value it had when editing started.
         if (anySheetOpen() || e.defaultPrevented) return
         const s = useEditorStore.getState()
         e.preventDefault()
@@ -173,9 +134,6 @@ export function DashboardView({ id }: { id: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [editing, t])
 
-  // Native clipboard: Ctrl+C / Ctrl+X / Ctrl+V (and the menu equivalents) copy, cut, and paste
-  // widgets. Writing/reading via the event's clipboardData is synchronous and prompt-free, and
-  // the tagged JSON lets a widget be pasted into another tab or window too.
   useEffect(() => {
     if (!editing) return
     const selectedWidgets = () => {
@@ -220,9 +178,6 @@ export function DashboardView({ id }: { id: string }) {
   }, [editing])
 
   if (!dashboard) {
-    // On a server whose implicit user role is off, nothing was read at all - so every deep link
-    // looks like a dashboard that does not exist. Say what is actually wrong, and offer the way
-    // out; the sheet's own sign-in reloads the configuration and this link then resolves.
     return (
       <div className="nh-dash">
         <header className="nh-dash__bar">
@@ -245,8 +200,6 @@ export function DashboardView({ id }: { id: string }) {
   }
 
   const enterEdit = () => {
-    // An administrator (or anyone, when anonymous editing is allowed) goes straight into the
-    // editor; otherwise ask for credentials up front rather than after the work.
     if (editingAllowed()) startEditing(dashboard)
     else setSignInOpen(true)
   }
@@ -256,8 +209,6 @@ export function DashboardView({ id }: { id: string }) {
     stopEditing()
   }
 
-  // Toolbar/touch equivalents of the clipboard shortcuts (button clicks are a user gesture, so
-  // these can also mirror to the OS clipboard).
   const copySelected = () => {
     const s = useEditorStore.getState()
     if (!s.draft || s.selectedIds.length === 0) return
@@ -397,10 +348,6 @@ export function DashboardView({ id }: { id: string }) {
 
       <div ref={surfaceRef} className={'nh-dash__surface' + (panelOpen ? ' nh-dash__surface--panel' : '')}>
         {editing ? (
-          // The zoom wrapper stays mounted for the whole edit session (a wrapper that came and
-          // went would remount the grid, and with it any drag in progress). Zoom is a layout
-          // zoom: the grid inside lays out at the run-mode width and is only drawn smaller, so
-          // every cell keeps the size, the scaling and the container queries it has in run mode.
           <div className="nh-editzoom" style={{ '--nh-editzoom': zoom } as React.CSSProperties}>
             <EditableGrid dashboard={dashboard} />
           </div>

@@ -1,9 +1,3 @@
-/**
- * Turning a stored chart configuration into the concrete values the renderers need: colours
- * filled in from the palette, numbers coerced (imported configs store them as strings), defaults
- * applied. Pure, and shared by the chart widget and the full-screen chart view so both draw the
- * same chart from the same configuration.
- */
 import { AGGREGATE_FUNCTIONS, isCategorical, type AggregateFunction, type GroupBy } from './aggregate'
 import { effectiveSeries, effectiveThresholds, type ChartConfig, type ChartThreshold } from './model'
 import { chartScheme, seriesColor } from './palette'
@@ -35,7 +29,6 @@ export interface ResolvedChart {
   groupBy: GroupBy
   grouped: boolean
   categorical: boolean
-  /** Heatmap mode, and there is a series to draw one from. */
   heatmap: boolean
   yMin?: number
   yMax?: number
@@ -45,7 +38,6 @@ export interface ResolvedChart {
   service?: string
 }
 
-/** Optional numeric config value; imported configs sometimes store numbers as strings. */
 export function numOpt(v: unknown): number | undefined {
   if (typeof v === 'number' && Number.isFinite(v)) return v
   if (typeof v === 'string' && v.trim() !== '') {
@@ -95,7 +87,6 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
   }
 }
 
-/** Series without the fields only the loader needs - exactly what the plot takes. */
 export function plotSeries(series: ResolvedSeries[]) {
   return series.map(({ item: _item, aggregate: _aggregate, ...rest }) => rest)
 }

@@ -1,11 +1,3 @@
-/**
- * Background references.
- *
- * The case that matters is the one the garbage collector got wrong: a reference does not have
- * to be a field anybody thought of. A floor plan keeps its plan image inside the widget's own
- * config, and collecting only the top-level fields deleted the image out from under it on the
- * next save.
- */
 import { describe, expect, it } from 'vitest'
 import { collectBackgroundRefs, isUploadedBackground, resolveBackgroundRef } from './background'
 
@@ -61,9 +53,6 @@ describe('collectBackgroundRefs', () => {
   })
 
   it('finds a reference wherever a widget config could hold one', () => {
-    // Shapes a widget's stored config actually takes: a plain key, a value inside a list of
-    // rows, and one nested two deep. Whichever a future widget picks, the collector has to see
-    // it - a reference it misses is an image deleted out from under a working dashboard.
     const config = {
       image: 'bg:direct',
       lights: [{ id: 'l1', item: 'Lamp', icon: 'bg:inrow' }],

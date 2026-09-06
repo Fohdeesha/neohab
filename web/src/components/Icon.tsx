@@ -1,16 +1,3 @@
-/**
- * Renders a widget icon from any source:
- *   "mdi:<name>"    - bundled Material Design Icon (monochrome). Rendered as a CSS mask so
- *                     the theme or an explicit `color` tints it.
- *   "fluent:<name>" - bundled Fluent Emoji flat icon (full color)
- *   "fc:<name>"     - bundled icons8 flat-color icon (full color)
- *   "meteo:<name>"  - bundled Meteocons weather icon (full color, animated)
- *   "custom:<id>"   - user-uploaded icon stored in the neohab:config namespace
- *   "oh:<name>"     - openHAB server icon (classic set), rendered by the server and
- *   "oh:<name>@<iconset>"  state-aware when `state` is given (light on/off, dimmer level...)
- *
- * A bare name without a prefix is treated as an openHAB icon (what HABPanel configs contain).
- */
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { ohUrl } from '../api/base'
 import { useConfigStore } from '../store/config'
@@ -21,11 +8,9 @@ export type IconSource = 'mdi' | 'fluent' | 'fc' | 'meteo' | 'custom' | 'oh'
 export interface IconRef {
   source: IconSource
   name: string
-  /** Only meaningful for `oh` icons. */
   iconset: string
 }
 
-/** Bundled packs served from the jar at icons/<dir>/<name>.svg. */
 const PACK_DIRS: Partial<Record<IconSource, string>> = {
   mdi: 'mdi',
   fluent: 'fluent',
@@ -64,33 +49,16 @@ export function ohIconUrl(name: string, iconset: string, state?: string): string
 
 interface IconProps {
   icon: string | undefined
-  /** Size (square) in px at desktop dashboard scale; inside a grid it is multiplied by the
-   *  grid's --nh-iconscale so icons track the cell size on any screen. */
   size?: number
-  /** Current item state, for state-aware openHAB icons. */
   state?: string
-  /** Explicit tint for monochrome (mdi) icons; overrides theme/active-state tinting. */
   color?: string
   className?: string
 }
 
 const hideBroken = (e: SyntheticEvent<HTMLImageElement>) => {
-  // unknown icon name: hide the broken-image glyph
   ;(e.target as HTMLImageElement).style.visibility = 'hidden'
 }
 
-/**
- * Whether a mask image can actually be loaded.
- *
- * A monochrome icon is drawn as a coloured box masked to the glyph's shape, and CSS says a
- * mask-image that fails to load resolves to `none`, so the box is drawn UNMASKED. A mistyped
- * name ("mdi:lightbub") therefore painted a solid block of the icon colour, which reads as a
- * rendering fault rather than a name that does not exist. The `<img>`-based sources hide
- * themselves through `onError`; a mask has no such event, so the URL is probed once instead.
- *
- * Cached per URL for the session: `Icon` renders on nearly every widget update, and a name that
- * is missing stays missing.
- */
 type MaskStatus = 'ok' | 'missing'
 const maskStatus = new Map<string, MaskStatus>()
 const maskProbes = new Map<string, Promise<MaskStatus>>()
@@ -112,7 +80,6 @@ function probeMask(url: string): Promise<MaskStatus> {
   return probe
 }
 
-/** True once `url` is known not to exist, so the caller can render nothing instead of a block. */
 function useMaskMissing(url: string | null): boolean {
   const [missing, setMissing] = useState(() => (url ? maskStatus.get(url) === 'missing' : false))
 
@@ -138,11 +105,6 @@ function useMaskMissing(url: string | null): boolean {
   return missing
 }
 
-/**
- * State-aware openHAB icons re-fetch when the item changes, and a set may have art for one
- * state but not another. The hidden flag is set imperatively, so React won't clear it on the
- * next src - without this an icon that 404s once stays invisible for the rest of the session.
- */
 const showLoaded = (e: SyntheticEvent<HTMLImageElement>) => {
   ;(e.target as HTMLImageElement).style.visibility = ''
 }
@@ -150,7 +112,6 @@ const showLoaded = (e: SyntheticEvent<HTMLImageElement>) => {
 export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const ref = parseIconRef(icon)
   const customUri = useConfigStore((s) => (ref?.source === 'custom' ? s.customIcons.find((i) => i.id === ref.name)?.dataUri : undefined))
-  // Hooks run for every icon, so the URL is computed before the early return below.
   const maskUrl = ref?.source === 'mdi' ? packIconUrl('mdi', ref.name) : null
   const maskMissing = useMaskMissing(maskUrl)
   if (!ref) return null
@@ -158,7 +119,6 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const dim = `calc(${size}px * var(--nh-iconscale, 1))`
 
   if (ref.source === 'mdi') {
-    // `maskUrl` is non-null in exactly this branch, by the same condition that built it.
     if (maskMissing || maskUrl === null) return null
     const mask = `url("${cssUrl(maskUrl)}")`
     return (
@@ -167,10 +127,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
         style={{
           width: dim,
           height: dim,
-          // Quoted and escaped, like every other url() in the app. `encodeURIComponent` leaves
-          // `!'()*-._~` alone, so an icon name containing `)` closed the url() early - and a
-          // mask declaration the browser drops is NO mask, which draws the icon's colour as a
-          // solid block. That is the same unmasked block `probeMask` exists to prevent.
+          // a mask declaration the browser drops is NO mask, which paints the icon colour as a solid block
           WebkitMaskImage: mask,
           maskImage: mask,
           backgroundColor: color || undefined
@@ -206,7 +163,6 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
     )
   }
 
-  // bundled full-color packs (fluent / fc / meteo)
   return (
     <img
       className={'nh-icon nh-icon--img' + (className ? ' ' + className : '')}

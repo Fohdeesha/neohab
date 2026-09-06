@@ -1,27 +1,3 @@
-/**
- * The widget detail sheet: what a hold or a right-click on a tile opens.
- *
- * A dashboard tile is a deliberate summary - one number, one button - and the question it always
- * raises is "and what has it been doing?". This answers it without leaving the dashboard or
- * editing anything: the full control for the item, its current value, when it last changed, and
- * its recent history.
- *
- * The history is the chart widget itself rather than a second plotting path, so a sheet and a
- * chart tile on the same item agree by construction and the sheet inherits the persistence
- * notice, the lazy plot chunk and the theme sampling for free.
- *
- * A widget whose tile is not about an item at all - a weather panel, a clock - answers the
- * gesture with a view of its own instead (`WidgetDefinition.DetailView`), because it still has
- * more to show than its tile does: the whole forecast behind a compact row, the date and the
- * zone behind "08:25".
- *
- * WHICH control to offer is asked of the widget (`WidgetDefinition.controlFor`), never guessed from
- * the item's state. Guessing is what made a slider configured 2000-6500 K come out as a 0-100 track
- * that would have commanded 47 to a lamp, gave a rollershutter a position slider where its tile
- * offers up/stop/down, and left a media player with no buttons at all - PLAY is not a shape a state
- * sniffer can recognise. The guess survives as `kind: 'auto'`, for the widgets that genuinely have
- * nothing to declare.
- */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { holdTookGesture } from './useLongPress'
@@ -53,15 +29,10 @@ import { ChoiceControl, RangeControl, SwitchControl } from '../widgets/common/Qu
 import { stateKind } from '../widgets/common/stateKind'
 import type { WidgetContext } from '../widgets/types'
 
-/** A state change refetches the item for its timestamps, but no faster than this - a dimmer
- *  fading through twenty values must not become twenty requests. */
 const REFETCH_DEBOUNCE_MS = 1500
 
 export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; onClose: () => void }) {
   const { t } = useTranslation()
-  // The effective config, exactly as WidgetHost builds it: definition defaults under the stored
-  // keys. An imported config often omits a key the widget has a default for, and the sheet has to
-  // read the same values the tile is drawing itself with.
   const config = useMemo(
     () => ({ ...getWidgetDefinition(instance.type)?.defaultConfig(), ...instance.config }),
     [instance.type, instance.config]
@@ -69,16 +40,9 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
   const items = useMemo(() => itemsForInstance(instance.type, config), [instance.type, config])
   const def = getWidgetDefinition(instance.type)
   const DetailView = widgetDetailView(instance.type)
-  // The widget's own name when it has one, else what the palette calls it - a sheet titled
-  // "Weather" beats one titled after an item the widget does not have.
   const ownTitle = typeof config.label === 'string' && config.label.trim() !== '' ? config.label : t(def?.name ?? 'Details')
-  // Whether the tile you held is a control at all. A read-only gauge, a value readout or a chart
-  // is a display, and being handed a slider from one is a surprise rather than a shortcut.
   const commands = useMemo(() => instanceCommands(instance.type, config), [instance.type, config])
-  // One item goes straight to it; several ask which, rather than guessing at the first.
   const [chosen, setChosen] = useState<string | null>(items.length === 1 ? items[0] : null)
-  // The item's own label, once the pane has fetched it. A dashboard is read in labels, so that is
-  // the better title; the name stays underneath, because it is what a rule or a link refers to.
   const [label, setLabel] = useState<string | null>(null)
   useEffect(() => setLabel(null), [chosen])
 
@@ -88,20 +52,8 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Into the body, not where this sits in the tree: every grid cell is a size container, which
-  // makes it the containing block for fixed descendants, so a panel rendered inside the grid
-  // could be laid out and clipped to a tile rather than the screen.
-  // A touch-generated click is hit-tested where the finger LIFTS, not where it went down (a
-  // mouse click is dispatched on the common ancestor of the two, which is why this never showed
-  // on a desktop). By the time a hold is released the sheet has been under the finger for half a
-  // second, so that click landed on the scrim and closed the sheet the hold had just opened -
-  // whenever the widget held was far enough from the middle for the panel not to cover it. The
-  // cell's own click-swallow cannot reach it: the click's target is inside this portal, so the
-  // cell is nowhere in its path.
-  //
-  // `holdTookGesture()` is the flag the hold already keeps for exactly this shape of problem, and
-  // it is still up when the click dispatches - it is cleared a turn later. Worst case if it ever
-  // stuck, the close button and Escape both ignore it.
+  // portalled into the body (a grid cell is a size container, so a fixed child would be laid out and clipped to
+  // the tile), and the scrim ignores the click that ends the hold which opened it
   const onScrimClick = () => {
     if (holdTookGesture()) return
     onClose()
@@ -128,8 +80,6 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
           {DetailView ? (
             <WidgetPane instance={instance} config={config} items={items} View={DetailView} />
           ) : chosen ? (
-            // Keyed on the item, so choosing another in the picker starts from nothing rather
-            // than showing the previous item's facts until each request lands.
             <ItemPane
               key={chosen}
               name={chosen}
@@ -159,14 +109,6 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
   )
 }
 
-/**
- * A widget's own detail view, given the same live context its tile has.
- *
- * Its items are subscribed here rather than relied on from the tile behind the sheet: they are
- * ref-counted, so subscribing again costs nothing, and it keeps the view working whatever else
- * is mounted. Widgets that fetch their own data (the weather's forecast) share the cache their
- * tile filled, so opening the sheet costs no request.
- */
 function WidgetPane({
   instance,
   config,
@@ -190,9 +132,6 @@ function WidgetPane({
     }),
     [instance.id, states]
   )
-  // Contained like the tile is. A widget's own view reads the same stored configuration its tile
-  // does, and the tile has a boundary around it; without one here a config that shows an error
-  // tile would take the whole app down the moment somebody held it.
   return (
     <WidgetBoundary type={instance.type} resetKey={config}>
       <View config={config} ctx={ctx} />
@@ -200,26 +139,14 @@ function WidgetPane({
   )
 }
 
-/**
- * The window the history opens on: the widget's own when it has one, so holding a chart set to 7d
- * opens on 7d instead of starting the reader back at a day. Validated rather than trusted - it
- * comes out of stored configuration - and the chips are there to change it either way.
- */
 function historyPeriodOf(config: Record<string, unknown>): string {
   if (isPeriod(config.period)) return config.period
-  // What the gauge's own sparkline is set to.
   if (isPeriod(config.historyPeriod)) return config.historyPeriod
   return '24h'
 }
 
-/**
- * The control a widget asked for, or nothing when it comes to nothing.
- *
- * `auto` is the old rule, and it is still the right answer where a widget cannot know what it is
- * bound to (a floor plan's lights). The item's own declared command options come BEFORE the
- * numeric slider inside it: an item that lists the commands it accepts is telling you exactly
- * that, and a projector input at "3" is not something to drag a 0-100 track over.
- */
+// the item's own command options come BEFORE the numeric slider: an item listing what it accepts is telling
+// you exactly that
 function renderControl(control: ItemControl, name: string, ctx: WidgetContext, state: string | undefined, options: CommandOption[]) {
   switch (control.kind) {
     case 'color':
@@ -235,14 +162,7 @@ function renderControl(control: ItemControl, name: string, ctx: WidgetContext, s
       if (kind === 'color') return <ColorControl item={name} ctx={ctx} />
       if (kind === 'onoff') return <SwitchControl item={name} ctx={ctx} />
       if (options.length) {
-        return (
-          <ChoiceControl
-            item={name}
-            ctx={ctx}
-            // A server's own option labels are its text, not ours, so they are shown verbatim.
-            choices={options.map((o) => ({ command: o.command, label: o.label ?? o.command }))}
-          />
-        )
+        return <ChoiceControl item={name} ctx={ctx} choices={options.map((o) => ({ command: o.command, label: o.label ?? o.command }))} />
       }
       return kind === 'level' ? <RangeControl item={name} ctx={ctx} /> : null
     }
@@ -270,9 +190,6 @@ function ItemPane({
   useEffect(() => subscribeItems([name]), [name])
   const live = useItemsStore((s) => s.states[name])
 
-  // Fetched per item rather than taken from the catalog: the catalog deliberately asks for only
-  // the fields it needs across thousands of items, and the registry's own state history is not
-  // among them. One request for the single item somebody is looking at.
   const load = useCallback(
     (signal: AbortSignal) => {
       getItem(name, signal)
@@ -291,8 +208,6 @@ function ItemPane({
     return () => ctrl.abort()
   }, [load])
 
-  // A change means the timestamps just moved, so read them again - debounced, or a dimmer fading
-  // through twenty values would become twenty requests.
   const liveState = live?.state
   useEffect(() => {
     if (liveState === undefined) return
@@ -304,7 +219,6 @@ function ItemPane({
     }
   }, [liveState, load])
 
-  // Rebuilt when the state moves, so the controls below re-render against the current value.
   const ctx = useMemo<WidgetContext>(
     () => ({
       widgetId: 'detail:' + name,
@@ -315,10 +229,7 @@ function ItemPane({
     [name, live]
   )
 
-  // openHAB 4.x serves no change timestamp at all, so the history answers instead. Asked only
-  // once the item has been read and only when the server did not answer, so a 5.x server costs
-  // no request; a failure (no persistence service) simply leaves the row out, and the chart
-  // below is already where that gets explained.
+  // openHAB 4.x serves no change timestamp, so persistence answers instead
   const [history, setHistory] = useState<HistoryChange>({ kind: 'unknown' })
   const serverChange = lastChangeAt(item)
   const needHistory = item !== null && serverChange === undefined
@@ -331,9 +242,6 @@ function ItemPane({
     return () => ctrl.abort()
   }, [name, needHistory])
 
-  // A change watched happening is the most accurate answer there is, and beats the persistence
-  // resolution outright. The FIRST state to arrive is the subscription delivering what was
-  // already there, which is not a change - hence the previous value rather than a plain effect.
   const [observed, setObserved] = useState<number | undefined>(undefined)
   const previousState = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -343,28 +251,20 @@ function ItemPane({
   }, [liveState])
 
   const readOnly = item?.stateDescription?.readOnly === true
-  // Array.isArray, not `?? []`: this sheet renders outside any WidgetBoundary, so a response
-  // whose commandOptions is not a list would take the dashboard down rather than one tile.
+  // Array.isArray, not `?? []`: this renders outside any WidgetBoundary
   const optionsRaw = item?.commandDescription?.commandOptions
   const options = Array.isArray(optionsRaw) ? optionsRaw : []
-  // Two independent refusals, either of which is enough: the widget saying it is a display, and
-  // the item saying it will not be written. Built as a node rather than a flag, so a control that
-  // comes to nothing leaves no empty box behind - which is what a media player used to get.
   const controlNode = commands && !readOnly && control ? renderControl(control, name, ctx, live?.state ?? item?.state, options) : null
   const stored = history.kind === 'at' ? history.time : undefined
   const reported = serverChange ?? stored
   const changed = observed !== undefined && (reported === undefined || observed > reported) ? observed : reported
   const relative = changed === undefined ? undefined : relativeTime(changed, Date.now(), i18n.language)
-  // History exists and the value held right across the window. Saying so beats leaving the row
-  // out, which reads as "nothing is known" when what is known is that this thing is steady.
   const heldAllWindow = changed === undefined && history.kind === 'before'
 
   const chartConfig = useMemo(
     () => ({
       series: [{ item: name }],
       period,
-      // The expand route addresses a real dashboard widget; this chart is synthesized, so it has
-      // nowhere to expand to.
       expand: false,
       legend: false,
       label: ''

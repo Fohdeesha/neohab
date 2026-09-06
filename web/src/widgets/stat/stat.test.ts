@@ -1,10 +1,3 @@
-/**
- * The stat widget's arithmetic.
- *
- * This module had no test at all, although the work that added it recorded a count of checks -
- * they lived in a session scratchpad and never reached the repo, so a contributor cloning it ran
- * none of them. The period lookup below is the reason it was noticed.
- */
 import { describe, expect, it } from 'vitest'
 import { referenceValue, STAT_PERIODS, statPeriodMs, trendDirection, trendTone } from './stat'
 
@@ -20,13 +13,6 @@ describe('statPeriodMs', () => {
     expect(statPeriodMs('nonsense')).toBe(STAT_PERIODS['24h'])
   })
 
-  /*
-   * The period is stored widget configuration, so the key is not one this code chose. A bare
-   * `STAT_PERIODS[key]` walks the prototype chain, and because a function is not nullish the
-   * `?? STAT_PERIODS['24h']` never fires: `Date.now() - <function>` is NaN, and
-   * `new Date(NaN).toISOString()` throws inside the history fetch. The widget catches it, so the
-   * trend arrow silently never appears and nothing says why.
-   */
   it('falls back for a period named after an Object.prototype member', () => {
     for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
       expect(statPeriodMs(key)).toBe(STAT_PERIODS['24h'])

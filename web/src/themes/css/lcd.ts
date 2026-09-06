@@ -1,18 +1,5 @@
 import { fontFace, squareControls, tightCellInsets, wholeTileActive } from './shared'
 
-/**
- * LCD Console - a segment-display weather-station console.
- *
- * Panels of glowing seven-segment digits on a pure black void, hairline coloured panel borders,
- * tiny uppercase corner labels, and faint unlit "ghost" segments behind every reading. Values and
- * the digital clock are set in DSEG (bundled, OFL-1.1), with DSEG's 14-segment face for
- * alphanumerics, so "OFF" and the label widget read as segment text too.
- *
- * Built for the per-widget "Accent colour" setting: each panel takes its own neon through
- * `--nh-cellaccent` (green outdoor, magenta records, amber warnings), azure when unset. The ghost
- * underlay is the `data-ghost` metadata the value and clock widgets always carry; only this
- * stylesheet draws it, so no other theme is affected by it.
- */
 export const LCD_CSS = `${fontFace('DSEG7', 'dseg7.woff2', '400 700')}${fontFace('DSEG14', 'dseg14.woff2', '400 700')}::selection {
   background: var(--nh-primary);
   color: var(--nh-accent-ink, #000);

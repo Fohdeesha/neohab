@@ -1,39 +1,22 @@
-/**
- * The six looks of the stepper, drawn from one view of the value.
- *
- * Every look is the same two buttons and the same reading arranged differently, so the parts are
- * written once (`StepButton`, `Reading`, `Arrow`) and each look is only its arrangement. What a
- * press does lives in the widget, which hands the looks an `onStep`; nothing here decides a value.
- */
 import type { ArrowDir, ArrowShape, Glyph } from './model'
 
 export interface StepperView {
-  /** The reading: a formatted number, or the current choice's label. */
   text: string
   unit?: string
-  /** Segment-display metadata for the LCD theme; undefined for anything but plain digits. */
   ghost?: string
-  /** True for a list, whose reading is words rather than digits. */
   isText: boolean
   atMin: boolean
   atMax: boolean
   onStep: (dir: 1 | -1) => void
   glyph: (axis: 'vertical' | 'horizontal', dir: 1 | -1) => Glyph
-  /** Accessible names for the two buttons, already translated. */
   labels: { up: string; down: string }
-  /** Where the value sits in its range, 0..1. */
   fraction: number
-  /** Number of position dots to draw, 0 for none. */
   dots: number
-  /** Which dot is lit. */
   dotIndex: number
-  /** A "3 of 20" caption for a list too long for dots. */
   count?: string
-  /** The two ends of the range, as the range bar prints them. */
   bounds?: [string, string]
 }
 
-/* Internal glyph tables, keyed by values this module chose itself - a bare index is fine here. */
 const CHEVRON: Record<'up' | 'down' | 'left' | 'right', string> = {
   up: 'M6 15l6-6 6 6',
   down: 'M6 9l6 6 6-6',
@@ -76,15 +59,9 @@ interface ButtonProps {
   view: StepperView
   dir: 1 | -1
   axis: 'vertical' | 'horizontal'
-  /** Which kind of button this look draws: a boxed one, a spinner half, or a bare edge. */
   kind: 'box' | 'half' | 'edge'
 }
 
-/**
- * One of the two controls. A button with nowhere to go is dimmed and inert rather than
- * `disabled`: a disabled control swallows the pointer events the hold gesture on the cell above
- * needs, and the tile would stop answering a long press exactly when a value sits at its limit.
- */
 function StepButton({ view, dir, axis, kind }: ButtonProps) {
   const off = dir > 0 ? view.atMax : view.atMin
   return (
@@ -126,7 +103,6 @@ function Dots({ view }: { view: StepperView }) {
   return null
 }
 
-/** Up bar, reading, down bar: the thermostat classic, every target the full width of the tile. */
 export function StackLook({ view }: { view: StepperView }) {
   return (
     <div className="nh-step__stack">
@@ -139,7 +115,6 @@ export function StackLook({ view }: { view: StepperView }) {
   )
 }
 
-/** The reading as the hero, the two controls in a row beneath it. */
 export function PairLook({ view }: { view: StepperView }) {
   return (
     <div className="nh-step__pair">
@@ -154,7 +129,6 @@ export function PairLook({ view }: { view: StepperView }) {
   )
 }
 
-/** The reading on the left and a tall split button on the right, up over down. */
 export function SpinnerLook({ view }: { view: StepperView }) {
   return (
     <div className="nh-step__spin">
@@ -169,11 +143,6 @@ export function SpinnerLook({ view }: { view: StepperView }) {
   )
 }
 
-/**
- * The whole tile as the control: the top half steps up and the bottom half down, or the left
- * and right halves in a wide cell. Each zone carries both glyphs and the stylesheet shows the one
- * that matches the cell's shape, since only a container query knows it.
- */
 export function SplitLook({ view }: { view: StepperView }) {
   const zone = (dir: 1 | -1) => {
     const off = dir > 0 ? view.atMax : view.atMin
@@ -204,7 +173,6 @@ export function SplitLook({ view }: { view: StepperView }) {
   )
 }
 
-/** Quiet chevrons at the tile's edges, the reading across the width, dots saying where you are. */
 export function CarouselLook({ view }: { view: StepperView }) {
   return (
     <div className="nh-step__car">
@@ -218,7 +186,6 @@ export function CarouselLook({ view }: { view: StepperView }) {
   )
 }
 
-/** The reading over a thin bar showing where it sits in its range, a button at each end. */
 export function RangeLook({ view }: { view: StepperView }) {
   return (
     <div className="nh-step__range">

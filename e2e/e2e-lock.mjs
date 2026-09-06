@@ -1,25 +1,7 @@
-/**
- * Admin-role gating e2e.
- *
- * The model under test (like openHAB's own UIs): only administrator devices see any editing
- * affordance - everyone else gets a view-only panel (no pencil, no new-dashboard tile, no
- * config sections in Settings) whose widgets still work, with Settings > Account as the way
- * in. There is no way to open editing to visitors: the anonymous-editing switch that briefly
- * existed is gone, and its stored key - like the older `lockEditing` - is ignored outright,
- * which this suite proves by writing both keys and watching nothing change.
- *
- * Also covers: the admin probe (GET /rest/persistence) runs for credentialed devices and is
- * SKIPPED for anonymous ones; a view-only device can sign in via Settings > Account and the
- * affordances appear reactively without a reload; per-device settings (device theme, text
- * size, kiosk) stay available to view-only devices.
- *
- * Anonymous item COMMANDS staying live is proven where widgets are actually driven signed-out:
- * e2e.mjs runs entirely anonymous, and e2e-floorplan activates presets from an anonymous panel.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-lock (clock/label - nothing
- * commandable), snapshots the `settings` component first and restores it VERBATIM, and fails
- * hard if any context ever POSTs to /rest/items.
- */
+// Admin-role gating e2e. The model under test (like openHAB's own UIs): only administrator devices see any
+// editing affordance.
+// SAFE with a live config: creates only dashboard:nh-e2e-lock (clock/label, nothing commandable), snapshots
+// the `settings` component first and restores it VERBATIM, and.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 import { getSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
@@ -40,7 +22,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-/** New page in its own context; tracks probe requests, item POSTs and console errors. */
 async function makePage(browser, token) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } })
   const page = await ctx.newPage()
@@ -62,10 +43,7 @@ async function makePage(browser, token) {
   return { ctx, page, track }
 }
 
-// ---------- pre-suite snapshot ----------
 const settingsBefore = await getSettings()
-// A clean base with both retired keys removed, so the ignored-keys section's own writes are the
-// only ones in play - the owner's real settings come back verbatim from the snapshot at the end.
 const baseSettings = settingsWithoutKeys(settingsBefore, ['lockEditing', 'allowAnonymousEditing'])
 const putSettingsComp = async (comp) => {
   const res = await putComponent(NS, comp)
@@ -78,7 +56,6 @@ const pages = []
 try {
   await putSettingsComp(baseSettings)
 
-  // ---------- seed (nothing commandable) ----------
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -101,7 +78,6 @@ try {
   })
   ok('seed dashboard created', seed.ok, String(seed.status))
 
-  // ---------- admin device ----------
   const admin = await makePage(browser, TOKEN)
   pages.push(admin)
   await admin.page.goto(APP + '#/d/nh-e2e-lock', { waitUntil: 'domcontentloaded' })
@@ -120,7 +96,6 @@ try {
   ok('admin: account says administrator',
     (await admin.page.locator('section:has(h2:text-is("Account"))').innerText()).includes('administrator'))
 
-  // ---------- anonymous device: view-only ----------
   const anon = await makePage(browser, null)
   pages.push(anon)
   await anon.page.goto(APP + '#/d/nh-e2e-lock', { waitUntil: 'domcontentloaded' })
@@ -139,11 +114,8 @@ try {
   for (const h of ['Custom widgets', 'Lighting presets', 'Custom icons', 'Backup']) {
     ok(`anon: "${h}" section hidden`, (await anon.page.locator(`section:has(h2:text-is("${h}"))`).count()) === 0)
   }
-  // NOT :has-text("HABPanel") - the built-in "Aqua (HABPanel classic)" theme card would match.
   ok('anon: HABPanel import hidden', (await anon.page.locator('section:has(h2:text-is("Migrate from HABPanel"))').count()) === 0)
   ok('anon: shared theme cards hidden (they write panel config)', (await anon.page.locator('.nh-theme__pick').count()) === 0)
-  // About's persistence row is admin-only, so asking as a visitor only ever bought a 401 in the
-  // console on every visit to this screen. The row says it does not know, which it already did.
   await sleep(1200)
   ok('anon: Settings makes no admin probe either', anon.track.probes.length === 0, String(anon.track.probes.length))
   ok(
@@ -161,7 +133,6 @@ try {
   ok('anon: Account Sign in still there',
     (await anon.page.locator('section:has(h2:text-is("Account")) button:text-is("Sign in")').count()) === 1)
 
-  // ---------- signed in but not an admin (garbage token -> 401): view-only too ----------
   const user = await makePage(browser, 'oh.notreal.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
   pages.push(user)
   await user.page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
@@ -173,7 +144,6 @@ try {
   await user.page.waitForSelector('.nh-widget', { timeout: 20000 })
   ok('user-level: no pencil', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
 
-  // ---------- both retired keys are IGNORED: writing them changes nothing ----------
   await putSettingsComp({
     ...baseSettings,
     config: { ...baseSettings.config, lockEditing: false, allowAnonymousEditing: true },
@@ -191,7 +161,6 @@ try {
   ok('retired keys: shared theme cards still hidden', (await anon.page.locator('.nh-theme__pick').count()) === 0)
   await putSettingsComp(baseSettings)
 
-  // ---------- view-only device signs in via Settings > Account, affordances appear live ----------
   const wall = await makePage(browser, null)
   pages.push(wall)
   await wall.page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
@@ -212,16 +181,12 @@ try {
   await wall.page.waitForSelector('.nh-widget', { timeout: 20000 })
   ok('view-only wall: pencil visible after sign-in', (await wall.page.locator('[aria-label="Edit dashboard"]').count()) === 1)
 
-  // ---------- hygiene ----------
   for (const [name, p] of [['admin', admin], ['anon', anon], ['user', user], ['wall', wall]]) {
     ok(`${name}: zero item commands sent`, p.track.itemPosts.length === 0, p.track.itemPosts.join(' '))
-    // A credentialed-but-rejected device legitimately logs 401 resource errors (the probe and
-    // the client's anonymous retry); everything else must be clean.
     const errs = p.track.errs.filter((e) => !/Failed to load resource.*401|401.*Unauthorized/i.test(e))
     ok(`${name}: console clean`, errs.length === 0, errs.slice(0, 3).join(' | '))
   }
 } finally {
-  // ---------- cleanup: settings verbatim, seed deleted ----------
   const settingsBack = await restoreSettings(settingsBefore).catch((e) => ({ mode: 'restore FAILED', detail: String(e) }))
   console.log(`cleanup: settings ${settingsBack.mode} (${settingsBack.detail})`)
   try {

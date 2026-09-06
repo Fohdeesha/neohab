@@ -1,11 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { dismissNotice, useNotifyStore } from '../store/notify'
 
-/**
- * Transient notices, stacked bottom-centre above every surface (sheets included) and clear of
- * the phone home indicator. Non-blocking: they never take focus or swallow taps meant for the
- * dashboard underneath.
- */
 export function Toast() {
   const { t } = useTranslation()
   const notices = useNotifyStore((s) => s.notices)

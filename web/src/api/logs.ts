@@ -1,19 +1,3 @@
-/**
- * The server's log, over its `/ws/logs` websocket.
- *
- * One connection per page (see `store/logs.ts` for the sharing), speaking whichever of the two
- * protocols the server's version calls for, kept alive past the server's ten-second idle timeout,
- * and reconnected with a backoff when it drops - asking, on openHAB 5, only for what arrived
- * since the last entry it saw, so a dropped connection costs no gap and no duplicates.
- *
- * What it cannot tell: a socket the server REFUSED (openHAB 5 answers a non-administrator with
- * 403 at the upgrade) and a server that is down both reach the browser as a close with no status.
- * So it reports the plain fact - the socket never opened - and the widget reads that beside what
- * it knows about the device's own sign-in.
- *
- * The parsing and the protocol details are in `widgets/log/model.ts`, which has no browser in it
- * and is where the unit checks are.
- */
 import { getAccessToken } from './auth'
 import { ohUrl } from './base'
 import { getRootInfo } from './items'
@@ -39,17 +23,11 @@ export interface LogSocketHandlers {
   onStatus: (status: LogSocketStatus) => void
 }
 
-/** The server closes an idle socket at 10s (`setIdleTimeout(10000)` in core's servlet). */
 const KEEPALIVE_MS = 8000
 const RETRY_MIN_MS = 1000
 const RETRY_MAX_MS = 30_000
-/** A socket that never opened is most likely refused for good; ask again, but not often. */
 const RETRY_REFUSED_MS = 60_000
 
-/**
- * Which protocol the server speaks, asked once per page. A failed probe is not cached, so a
- * server that was mid-restart is asked again on the next connect rather than remembered wrong.
- */
 let protocolProbe: Promise<LogProtocol> | null = null
 
 function logProtocol(): Promise<LogProtocol> {
@@ -71,7 +49,6 @@ export class LogSocket {
   private retryDelay = RETRY_MIN_MS
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private keepalive: ReturnType<typeof setInterval> | null = null
-  /** A connect that resolves after a stop must not open a socket nobody asked for. */
   private generation = 0
 
   constructor(private handlers: LogSocketHandlers) {}
@@ -88,12 +65,10 @@ export class LogSocket {
     this.clearTimers()
     const ws = this.ws
     this.ws = null
-    // A clean close is silent on the server; only an abrupt one is logged there.
     ws?.close()
     this.handlers.onStatus('idle')
   }
 
-  /** After the credentials changed: connect again, with whatever token there is now. */
   restart(): void {
     this.stop()
     this.retryDelay = RETRY_MIN_MS
@@ -121,7 +96,7 @@ export class LogSocket {
     try {
       ws = new WebSocket(logSocketUrl(window.location.href, ohUrl('/ws/logs'), token))
     } catch {
-      // A malformed address is the one way the constructor throws; treat it as a refusal.
+      // a malformed address is the one way the constructor throws, so treat it as a refusal
       this.schedule(false)
       return
     }
@@ -155,7 +130,6 @@ export class LogSocket {
       if (this.closed) return
       this.schedule(this.opened)
     }
-    // Every error is followed by a close, which is where the retry lives.
   }
 
   private schedule(wasOpen: boolean): void {

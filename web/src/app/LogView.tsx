@@ -1,16 +1,3 @@
-/**
- * One log widget, full screen: what a hold on its tile opens.
- *
- * A tile is a keyhole onto a log; the point of looking closer is room. This view takes the
- * widget's own settings (source, level, logger patterns, text, lines to keep) and gives them the
- * whole viewport, a search box over what is shown, the level and the source as chips that can be
- * changed on the spot without touching the widget, and the three things a log reader reaches for:
- * pause, clear and copy. Browser Back returns to the dashboard.
- *
- * The chips start from the widget's settings and change nothing stored - they are for looking,
- * and the widget is configured in the editor. Pause freezes what is on screen while the socket
- * keeps collecting, so resuming shows what happened meanwhile rather than losing it.
- */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -56,7 +43,6 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
   const dashboard = dashboards.find((d) => d.id === dashboardId)
   const widget = dashboard?.widgets.find((w) => w.id === widgetId)
   const isLog = widget?.type === 'log'
-  // The effective settings, exactly as the tile reads them: definition defaults under the stored keys.
   const config = useMemo(() => ({ ...logWidget.defaultConfig(), ...(widget?.config ?? {}) }), [widget])
 
   useEffect(() => (isLog ? subscribeLogs() : undefined), [isLog])
@@ -65,7 +51,6 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
   const admin = useIsAdmin()
   const [signIn, setSignIn] = useState(false)
 
-  // The chips start where the widget is set, and move independently of it.
   const [source, setSource] = useState<LogSource>(() => sourceSetting(config.source))
   const [minLevel, setMinLevel] = useState<MinLevel>(() => minLevelOf(config.minLevel))
   const [query, setQuery] = useState('')
@@ -76,8 +61,6 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
   const entries = paused ? frozen : live
   const filter = useMemo(() => ({ ...filterOf(config), source, minRank: minRank(minLevel) }), [config, source, minLevel])
   const keep = keepOf(config.keep)
-  // Two lists rather than one: the count says how many the search hid, which is what tells a
-  // reader whether "nothing here" is the filter or the log.
   const matching = useMemo(() => lastMatching(entries, filter, keep), [entries, filter, keep])
   const shown = useMemo(() => (query.trim() === '' ? matching : matching.filter((e) => searchMatches(e, query))), [matching, query])
 
@@ -91,12 +74,8 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
     setFrozen([])
   }
 
-  /**
-   * Copy what is shown, or the next best thing. `navigator.clipboard` exists only in a secure
-   * context, and openHAB on a home LAN is plain HTTP far more often than not, so the fallback is
-   * to SELECT the lines - one Ctrl+C rather than a button that silently does nothing. The same
-   * shape as the About screen's report.
-   */
+  // navigator.clipboard exists only in a secure context, and a LAN openHAB is not one - so select the text
+  // instead
   const copy = async () => {
     const text = shown.map((e) => entryText(e, i18n.language)).join('\n')
     try {
@@ -106,7 +85,7 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
         return
       }
     } catch {
-      /* refused, or an insecure context that still exposes the object */
+      // refused, or an insecure context that still exposes the object
     }
     const list = bodyRef.current?.querySelector('.nh-log__scroll')
     if (!list) return

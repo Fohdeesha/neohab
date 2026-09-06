@@ -9,17 +9,12 @@ import { NumberSetting } from '../components/NumberSetting'
 import { useEditingAllowed } from '../store/auth'
 import { appGoFullscreen } from '../app/ohapp'
 
-/**
- * Kiosk / wall-panel settings. Everything here is per-device (localStorage) except the
- * dashboard-control item, which is part of the server configuration.
- */
 export function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
   const kioskSettings = useKioskStore((s) => s.settings)
   const sessionKiosk = useKioskStore((s) => s.sessionKiosk)
   const dashboards = useConfigStore((s) => s.dashboards)
   const controlItem = useConfigStore((s) => s.settings.controlItem) ?? ''
-  // The control item is server configuration, so it follows the editing lock like the rest.
   const canEdit = useEditingAllowed()
   const wakeActive = useWakeLockStore((s) => s.active)
   const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement)
@@ -35,7 +30,6 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
   const setKioskMode = (on: boolean) => {
     setKioskSettings({ kiosk: on })
     if (on) {
-      // All chrome (including the way back from this screen) is gone now - land somewhere useful.
       const pinned = kioskSettings.pinnedDashboard
       if (pinned && dashboards.some((d) => d.id === pinned)) navigate({ name: 'dashboard', id: pinned })
       else navigate({ name: 'home' })
@@ -53,8 +47,6 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
       void document.exitFullscreen()
       return
     }
-    // Inside the openHAB phone app the webview's own fullscreen does not hide the native chrome;
-    // asking the app does. In a browser this is a no-op and the standard API takes over.
     if (appGoFullscreen()) return
     document.documentElement.requestFullscreen().catch(() => onNotice(t('Fullscreen was blocked by the browser.')))
   }

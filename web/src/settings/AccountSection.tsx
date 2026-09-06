@@ -7,21 +7,16 @@ import { useConfigStore } from '../store/config'
 
 export function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
-  // Subscribing to the auth status keeps this section current after a sign-in or sign-out
-  // (refreshAuthStatus updates the store, which re-renders us and re-evaluates isLoggedIn).
   const status = useAuthStore((s) => s.status)
   const authRequired = useConfigStore((s) => s.authRequired)
   const [signInOpen, setSignInOpen] = useState(false)
   const [proxyOpen, setProxyOpen] = useState(false)
-  // Proxy credentials live in memory, so this has to be told when they change.
   const [proxy, setProxy] = useState(() => getBasicCredentials())
   useEffect(() => onBasicCredentialsChange(() => setProxy(getBasicCredentials())), [])
 
   const signedIn = isLoggedIn()
   const statusText = !signedIn
     ? // Whether viewing works without an account is the SERVER's choice, and on one with
-      // openHAB's implicit user role off it does not - telling that person otherwise sends them
-      // looking for a fault that is not there.
       authRequired
       ? t('This device is not signed in, and this server shows nothing to signed-out visitors.')
       : t('This device is not signed in. Viewing works without an account; editing needs an openHAB administrator sign-in.')
@@ -43,8 +38,6 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
           type="button"
           className="nh-btn nh-btn--ghost"
           onClick={() => {
-            // The local half of a sign-out is synchronous; only the server-side revocation is
-            // awaited, and nothing here waits for it.
             void logout()
             clearApiToken()
             void refreshAuthStatus()

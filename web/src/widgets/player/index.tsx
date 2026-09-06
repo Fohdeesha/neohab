@@ -8,7 +8,6 @@ interface PlayerConfig {
   label?: string
 }
 
-/** Player - previous / play-pause / next transport controls for Player items. */
 function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
   const { t } = useTranslation()
   const state = ctx.getItem(config.item)
@@ -38,7 +37,6 @@ function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
   )
 }
 
-/** The transport, as a list a popup can draw. Keys, not labels: this is our own vocabulary. */
 const PLAYER_COMMANDS: ItemChoice[] = [
   { command: 'PREVIOUS', labelKey: 'Previous' },
   { command: 'PLAY', labelKey: 'Play' },
@@ -59,10 +57,6 @@ export const playerWidget: WidgetDefinition<PlayerConfig> = {
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
-  // PLAY is not a shape a state sniffer recognises, so a popup that guessed from the state offered
-  // this widget's item nothing at all. Play and pause are separate buttons here rather than the
-  // tile's one toggle: a list of commands is what a detail sheet can draw, and both are always
-  // reachable whatever the player is doing.
   controlFor: (c, item) => (item === c.item ? { kind: 'choices', choices: PLAYER_COMMANDS } : undefined),
   Component: PlayerWidget
 }

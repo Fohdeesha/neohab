@@ -1,26 +1,8 @@
-/**
- * The wall around the whole app, and around anything rendered outside a widget.
- *
- * `WidgetBoundary` makes one bad widget a tile instead of a blank page. Everything above it had no
- * such wall: a throw in `App`'s own render - which is where `useRoute()` runs - unmounted the tree
- * for good, leaving no header, no sidebar and no route to Settings. A malformed hash was enough to
- * do it, and the only way out was editing the address bar.
- *
- * Note where this has to sit to catch that case. React only catches what a boundary's CHILDREN
- * throw, so a boundary inside `App` cannot catch `App`'s own render: it has to wrap `<App />`
- * itself, which is why main.tsx is one of its three homes. The other two are the route switch, so
- * that one bad screen keeps the chrome around it, and the ambient runtimes (audio, kiosk, the
- * screensaver, the sidebar), which have no business taking a dashboard down with them - those pass
- * `silent`, because a runtime that cannot start should stop, not fill the screen with an apology.
- */
+// has to wrap <App /> itself in main.tsx: React only catches what a boundary's CHILDREN throw, and useRoute()
+// runs in App's own render
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import i18n from '../i18n'
 
-/**
- * A translation that cannot itself become the failure. Nothing catches what this panel throws, so
- * an error here is the blank page it exists to prevent. Keys are the English source strings, so
- * falling back to the key still reads as English.
- */
 function say(key: string): string {
   try {
     return i18n.t(key)
@@ -31,9 +13,7 @@ function say(key: string): string {
 
 interface Props {
   children: ReactNode
-  /** Render nothing rather than a panel. For the ambient runtimes, which draw nothing anyway. */
   silent?: boolean
-  /** Named in the console so a report says which of the three walls caught it. */
   where?: string
 }
 
@@ -53,9 +33,6 @@ export class AppBoundary extends Component<Props, State> {
   }
 
   componentDidMount(): void {
-    // A boundary never resets itself, so without this the panel would outlive the very navigation
-    // it offers: the links below change the hash, the route changes underneath, and the user is
-    // still looking at the error.
     window.addEventListener('hashchange', this.clear)
   }
 

@@ -1,16 +1,3 @@
-/**
- * The custom-theme editor.
- *
- * It previews: every edit is applied to the running app immediately, and the theme the app should
- * really be showing is put back when the editor closes - including after a save that did not
- * adopt the draft. Picking colours through a save round-trip is guesswork, and a save that also
- * repainted every other device in the house is worse.
- *
- * The fields build themselves from the one token list in `themes/tokens.ts`, so a token is
- * discoverable the moment it exists. Alongside them it reports two things that are otherwise
- * invisible until something looks wrong: whether the colours can be read, and whether the
- * stylesheet breaks one of the rules in `themes/cssRules.ts`.
- */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { deleteTheme, saveSettings, saveTheme, useConfigStore } from '../store/config'
@@ -21,7 +8,6 @@ import { CONTRAST_PAIRS, contrastLevel, contrastOf, type ContrastLevel } from '.
 import { TOKEN_SPECS } from '../themes/tokens'
 import { errorText } from '../api/errors'
 
-/** Re-apply whatever theme the app should actually be showing right now. */
 function applyLiveTheme(): void {
   applyTheme(getActiveTheme())
 }
@@ -41,11 +27,8 @@ export function ThemeEditor({
   const sharedThemeId = useConfigStore((s) => s.settings.theme)
   const [makeShared, setMakeShared] = useState(() => sharedThemeId === theme.id)
   const [saving, setSaving] = useState(false)
-  // Whether this theme is on the server yet, so a brand-new one is not offered a Delete button.
   const saved = useConfigStore((s) => s.customThemes.some((c) => c.id === theme.id))
 
-  // Live preview: the draft is applied as it is edited, and whatever the app should really be
-  // showing is put back when the editor closes - including after a save that did not adopt it.
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
@@ -63,8 +46,7 @@ export function ThemeEditor({
     setSaving(true)
     try {
       await saveTheme(theme)
-      // Saving a theme is not the same as adopting it: tweaking a theme should not repaint every
-      // device in the house. Sharing it is the checkbox beside this button, and nothing else.
+      // saving a theme is not adopting it - tweaking one should not repaint every device in the house
       if (makeShared) {
         const err = await saveSettings({ theme: theme.id })
         if (err) {
@@ -150,7 +132,6 @@ export function ThemeEditor({
   )
 }
 
-/** One editor section: every token in a group, each explained and each clearable back to Auto. */
 function TokenGroupFields({
   group,
   theme,
@@ -162,8 +143,6 @@ function TokenGroupFields({
 }) {
   const { t } = useTranslation()
   const specs = tokensInGroup(group)
-  // Only the Core group is open to begin with: it is the one nearly every theme only needs, and
-  // twenty-six fields unfolded at once is not a starting point anyone wants.
   const [open, setOpen] = useState(group === 'Core')
   const set = specs.filter((s) => theme.tokens[s.key] !== undefined).length
 
@@ -183,8 +162,6 @@ function TokenField({ spec, theme, onSet }: { spec: TokenSpec; theme: Theme; onS
   const { t } = useTranslation()
   const value = theme.tokens[spec.key]
   const id = 'tok-' + spec.key
-  // Any CSS colour is allowed (a theme may want `color-mix(...)`), so the text box is the real
-  // field and the swatch is a shortcut that writes a hex value into it.
   const swatch = /^#[0-9a-f]{6}$/i.test(value ?? '') ? (value as string) : '#888888'
 
   return (
@@ -226,11 +203,6 @@ const LEVEL_LABEL: Record<ContrastLevel, string> = {
   fail: 'hard to read'
 }
 
-/**
- * Whether the colours can actually be read. Only the pairs that genuinely meet on screen, and
- * only where both are colours we can parse - a `color-mix()` accent is reported as unknown
- * rather than guessed at.
- */
 function ContrastReport({ theme }: { theme: Theme }) {
   const { t } = useTranslation()
   const rows = CONTRAST_PAIRS.map((pair) => {
@@ -247,7 +219,6 @@ function ContrastReport({ theme }: { theme: Theme }) {
       <div className="nh-contrast">
         {rows.map(({ pair, ratio }) => {
           const level = ratio === null ? null : contrastLevel(ratio)
-          // Where the text really is large, AA-large is a pass rather than a warning.
           const ok = level === 'AAA' || level === 'AA' || (level === 'AA-large' && pair.large)
           return (
             <div key={pair.label} className={'nh-contrast__row' + (ratio !== null && !ok ? ' nh-contrast__row--warn' : '')}>
@@ -269,7 +240,6 @@ function ContrastReport({ theme }: { theme: Theme }) {
   )
 }
 
-/** One broken rule, in wording aimed at the person writing the stylesheet. */
 function issueText(t: (k: string, o?: Record<string, string>) => string, issue: ThemeCssIssue): string {
   const p = issue.params
   switch (issue.rule) {
@@ -309,7 +279,6 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
   }
 }
 
-/** What the stylesheet gets wrong, reported as it is typed. */
 function StylesheetIssues({ css, radius }: { css: string; radius: string }) {
   const { t } = useTranslation()
   const issues = useMemo(() => checkThemeCss(css, { radius }), [css, radius])
@@ -326,18 +295,8 @@ function StylesheetIssues({ css, radius }: { css: string; radius: string }) {
   )
 }
 
-/**
- * The theme's own stylesheet.
- *
- * Copying a built-in's stylesheet is offered rather than done automatically: a structural theme's
- * CSS is two hundred lines referencing bundled fonts and images, full of colours written directly
- * into it that do NOT follow the tokens above, so a silent copy looks broken for a reason nothing
- * on screen explains. The button says which theme it is copying and what that costs.
- */
 function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
   const { t } = useTranslation()
-  // The theme on screen, which is the one a person means by "this" - not the shared setting,
-  // which a device with its own theme override is not even showing.
   const source = useActiveTheme()
   const [busy, setBusy] = useState(false)
   const areaRef = useRef<HTMLTextAreaElement>(null)

@@ -17,11 +17,6 @@ describe('slider style and orientation', () => {
     expect(styleOf('nonesuch')).toBe('gradient')
   })
 
-  /**
-   * A style out of a stored configuration is a key this code did not choose. Read with a bare
-   * index, `constructor` finds a function on Object.prototype, which is not nullish, so a
-   * trailing `?? 'gradient'` never fires and the widget renders `nh-fader--function Object()...`.
-   */
   it('is not fooled by a key that exists on every object', () => {
     for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
       expect(styleOf(key), key).toBe('gradient')
@@ -45,11 +40,6 @@ describe('slider style and orientation', () => {
 })
 
 describe('the tile accent', () => {
-  /**
-   * The same rule `widgetAccentColor` applies before writing `--nh-cellaccent` onto the cell: the
-   * class this decides and the variable that class reads have to agree, or a tinted look would
-   * mix toward a colour that is not there.
-   */
   it('counts a colour the cell would actually carry', () => {
     expect(tintedOf('#ff0000')).toBe(true)
     expect(tintedOf('rebeccapurple')).toBe(true)
@@ -70,15 +60,12 @@ describe('the floor a stacked phone row gets', () => {
     for (const s of STYLES) {
       expect(STYLE_FLOOR[s], s).toBeGreaterThan(0)
       expect(sliderFloor(s, 'horizontal'), s).toBe(STYLE_FLOOR[s])
-      // A fader with no travel is not a control, whichever style draws it.
       expect(sliderFloor(s, 'vertical'), s).toBe(VERTICAL_FLOOR)
       expect(sliderFloor(s, 'vertical'), s).toBeGreaterThan(STYLE_FLOOR[s])
     }
   })
 
   it('asks for the most where the badge rides above the track', () => {
-    // The bubble's reading is a badge over the thumb rather than a row beside it, so its rail
-    // starts lower down and the row it sits in has to be taller.
     for (const s of STYLES) if (s !== 'bubble') expect(STYLE_FLOOR.bubble).toBeGreaterThan(STYLE_FLOOR[s])
   })
 })
@@ -88,7 +75,6 @@ describe('the reading', () => {
     expect(readingOf(21.5, 1)).toBe('22')
     expect(readingOf(21.5, 0.5)).toBe('21.5')
     expect(readingOf(21.46, 0.01)).toBe('21.46')
-    // Never snapped to the step itself: a 50 K step still reads the value it was given.
     expect(readingOf(4123, 50)).toBe('4123')
   })
 
@@ -97,7 +83,6 @@ describe('the reading', () => {
     expect(readingOf(60, 1, ' K')).toBe('60 K')
     expect(readingOf(60, 1)).toBe('60')
     expect(readingOf(60, 1, undefined)).toBe('60')
-    // A unit out of an imported file need not be a string.
     expect(readingOf(60, 1, 5 as unknown as string)).toBe('60')
   })
 
@@ -115,8 +100,6 @@ describe('the ends of the scale', () => {
   })
 
   it('prints the guarded scale, not the stored one', () => {
-    // A maximum at or below the minimum leaves nothing to drag along, so the scale reader
-    // replaces it - and the labels have to say what the track actually spans.
     expect(boundsOf(numericScale(0, -5, 0))).toEqual(['0', '100'])
     expect(boundsOf(numericScale('abc', 'xyz', 'nope'))).toEqual(['0', '100'])
   })

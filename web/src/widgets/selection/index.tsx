@@ -9,30 +9,18 @@ import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 interface SelectionConfig {
   item: string
   label?: string
-  /** Manual choices, one per line: `COMMAND=Label` or just `COMMAND`. */
   choices?: string
-  /**
-   * 'buttons' (default) shows every choice at once; 'dropdown' collapses them into a select,
-   * for long lists and for filter-style controls where the current choice is the point.
-   */
   display?: 'buttons' | 'dropdown'
-  /** Header icon, any Icon source ("mdi:", "fluent:", "custom:", "oh:", ...). */
   icon?: string
   iconSize?: number
-  /** Explicit tint for monochrome (mdi) header icons. */
   iconColor?: string
 }
 
-/**
- * Selection - a grid of command buttons. Choices come from the manual list when given,
- * otherwise from the item's command options (as defined by its channel/state description).
- */
 function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
   const { t } = useTranslation()
   const manual = parseChoices(config.choices)
   const catalogItem = useCatalogStore((s) => s.items.find((i) => i.name === config.item))
 
-  // The live state stream doesn't carry command metadata; fetch the catalog only when needed.
   useEffect(() => {
     if (manual.length === 0 && config.item) ensureCatalog()
   }, [manual.length, config.item])
@@ -121,9 +109,6 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
-  // The author's own list, or - when there is none - the same command options the widget itself
-  // falls back to, which is what the automatic rule reads. Without this a selection bound to a
-  // Number item was handed a 0-100 slider, for an item that accepts three particular values.
   controlFor: (c, item) => {
     if (item !== c.item) return undefined
     const manual = parseChoices(c.choices)

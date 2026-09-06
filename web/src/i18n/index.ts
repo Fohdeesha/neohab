@@ -1,16 +1,4 @@
-/**
- * UI translations.
- *
- * Keys are the English source strings themselves (gettext style), so untranslated text always
- * falls back to readable English and the code stays greppable. English therefore ships no
- * catalog beyond its plural variants (en.json); every other language is a JSON catalog mapping
- * the English strings, lazy-loaded as its own chunk the first time it is picked so non-English
- * users pay for exactly one catalog and English users pay for none.
- *
- * Language choice: the explicit per-device setting wins (localStorage), otherwise the browser
- * language, otherwise English. Only chrome is translated - dashboard content (widget labels,
- * dashboard names) is the user's own data.
- */
+// keys are the English source strings, so untranslated text falls back to readable English
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import en from './en.json'
@@ -37,7 +25,6 @@ const loaders: Record<string, () => Promise<{ default: Record<string, string> }>
   pl: () => import('./pl.json')
 }
 
-/** The explicit per-device choice, or null when following the browser. */
 export function storedLanguage(): string | null {
   try {
     return localStorage.getItem(STORAGE_KEY)
@@ -62,25 +49,19 @@ void i18n.use(initReactI18next).init({
   fallbackLng: 'en',
   resources: { en: { translation: en } },
   interpolation: { escapeValue: false }, // React escapes for us
-  // Keys are English sentences - they contain '.' and ':' that must not be parsed as paths.
+  // keys are English sentences, so '.' and ':' must not be parsed as paths
   keySeparator: false,
   nsSeparator: false
 })
 
 i18n.on('languageChanged', (lng) => {
-  // Guarded because this module is now imported by pure code (api/errors, which translates what a
-  // failed request is called), and that code is unit-tested in Node where there is no document.
-  // An unhandled rejection there is noise that hides a real one.
   if (typeof document !== 'undefined') document.documentElement.lang = lng
 })
 
 async function activate(code: string): Promise<void> {
   if (code !== 'en' && !i18n.hasResourceBundle(code, 'translation')) {
     try {
-      // Through `lookup` because `setLanguage` is exported and takes a bare string: a code that
-      // names an Object.prototype member would otherwise be CALLED as a loader, and `Object()`
-      // answers with `{}` rather than throwing, so the catch below never sees it and an empty
-      // catalog is registered for the language instead.
+      // through lookup: setLanguage is exported and takes a bare string
       const load = lookup(loaders, code)
       if (!load) return
       const mod = await load()
@@ -92,25 +73,16 @@ async function activate(code: string): Promise<void> {
   await i18n.changeLanguage(code)
 }
 
-/** Explicitly pick a language for this device ('auto' clears the choice and re-detects). */
 export async function setLanguage(choice: string): Promise<void> {
   try {
     if (choice === 'auto') localStorage.removeItem(STORAGE_KEY)
     else localStorage.setItem(STORAGE_KEY, choice)
   } catch {
-    /* private mode - the change still applies for this session */
+    // private mode - the change still applies for this session
   }
   await activate(choice === 'auto' ? detectLanguage() : choice)
 }
 
-/**
- * Apply the detected language at startup.
- *
- * English is in the bundle and is applied synchronously by the `init` above, so an English
- * session never waits. Any other language is a separate chunk, so its first frame is unavoidably
- * English and swaps once the catalog arrives - a fetch cannot be awaited before paint without
- * holding the whole app back on every load, including the English ones.
- */
 void activate(detectLanguage())
 
 export default i18n

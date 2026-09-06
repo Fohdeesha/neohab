@@ -1,16 +1,3 @@
-/**
- * Stepper: a value with a step up and a step down.
- *
- * A number moves by its step inside a range (a setpoint, a volume, a fan speed); a list moves
- * through its choices (a TV input, a mode). Six looks arrange the same two buttons and reading
- * differently, five finishes decide what they are made of, and the arrow glyph is its own
- * choice - all three are settings, so a dashboard can have a plain thermostat beside a glowing
- * one without either being a different widget.
- *
- * A press shows its result at once and sends it a moment later, so a run of taps costs the
- * device one command carrying the last value rather than one per tap. The optimistic layer
- * then holds that value until the device confirms it, the way the slider's does.
- */
 import { useEffect, useRef } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,7 +42,6 @@ const LOOK_COMPONENTS: Record<StepperLook, ComponentType<{ view: StepperView }>>
   range: RangeLook
 }
 
-/** The item's state as a string, or null for NULL/UNDEF and for an item not yet heard from. */
 function knownState(raw: unknown): string | null {
   return typeof raw === 'string' && raw !== 'NULL' && raw !== 'UNDEF' ? raw : null
 }
@@ -69,8 +55,6 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
   const wrap = wrapOf(config.wrap)
   const scale = numericScale(config.min, config.max, config.step)
 
-  // A list comes from the widget's own choices, else from the item's declared options - which
-  // the live state stream does not carry, so the catalog is fetched only when that is needed.
   const manual = parseChoices(config.choices)
   const wantsCatalog = mode === 'list' && manual.length === 0 && typeof config.item === 'string' && config.item !== ''
   const catalogItem = useCatalogStore((s) => (wantsCatalog ? s.items.find((i) => i.name === config.item) : undefined))
@@ -90,8 +74,6 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
   const cur = Number.isFinite(parsed) ? parsed : undefined
   const idx = mode === 'list' ? choiceIndex(shown, choices) : -1
 
-  // One command per run of presses: each press updates the reading, and the command carrying
-  // the last value goes out once the presses stop.
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
   const send = (command: string) => {
@@ -128,9 +110,6 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
 
   const positions = mode === 'number' ? positionsIn(scale) : n
   const position = mode === 'number' ? positionOf(cur, scale) : idx
-  // Dots only while a row of them stays readable: a fan with five speeds, a list of inputs.
-  // The carousel shows them for either kind; the range bar draws a list as one segment per
-  // entry and a number as its continuous bar.
   const dots =
     look === 'carousel'
       ? positions > 0 && positions <= MAX_DOTS
@@ -152,8 +131,6 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
           ? [choices[0].label, choices[n - 1].label]
           : undefined
 
-  // The carousel's edges are previous/next chevrons whatever the value is; plus and minus at
-  // the edges of a tile read as a calculator.
   const arrowStyle: StepperArrows = look === 'carousel' && arrows === 'auto' ? 'chevron' : arrows
 
   const view: StepperView = {
@@ -196,11 +173,7 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
   description: 'Step a number up and down, or cycle through a list',
   defaultSize: { w: 3, h: 3 },
   hasHeader: true,
-  // The stack sandwiches its reading between two finger-sized bars, so a phone row has to be
-  // taller for it than for the other looks; the floor is the only lever a widget has there.
   minPixelHeight: (c) => LOOK_FLOOR[lookOf(c.look)],
-  // Every select's default is carried here as well as in its reader: a select whose value
-  // resolves to nothing renders blank, and the registry check for that reads this.
   defaultConfig: () => ({
     item: '',
     mode: 'number',
@@ -280,8 +253,6 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
-  // The widget's own scale or its own list, wherever the control is drawn: a hold on a setpoint
-  // stepping 16-30 by 0.5 must not be handed a 0-100 slider.
   controlFor: (c, item) => {
     if (item !== c.item) return undefined
     if (modeOf(c.mode) === 'list') {

@@ -1,15 +1,7 @@
-/**
- * Kiosk/PWA bundle verification: PWA manifest + service worker + offline shell, wake lock,
- * screensaver (blank/clock, wake-tap swallowed), kiosk mode (chrome hidden, ?kiosk URL params,
- * 5-tap corner exit), per-device pinned dashboard, and the dashboard-control item.
- *
- * SAFE with a live config:
- *   - creates only dashboard:nh-e2e-kiosk and dashboard:nh-e2e-kiosk2; deletes exactly those.
- *   - the `settings` component is snapshotted, modified (controlItem) and restored verbatim.
- *   - item commands: the dimmer item ONLY (approved test item); initial state recorded and
- *     restored (the restore doubles as the follow-off check).
- *   - service worker tests run in throwaway Playwright profiles (nothing persists).
- */
+// Kiosk/PWA bundle verification: PWA manifest + service worker + offline shell, wake lock, screensaver
+// (blank/clock, wake-tap swallowed).
+// SAFE with a live config: creates only dashboard:nh-e2e-kiosk and dashboard:nh-e2e-kiosk2; deletes exactly
+// those.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
@@ -18,7 +10,6 @@ const UID_A = 'dashboard:nh-e2e-kiosk'
 const UID_B = 'dashboard:nh-e2e-kiosk2'
 const CONTROL_ITEM = ITEMS.dimmer
 
-/** Which kind of origin these were measured on: several answers below are decided by it. */
 const SCHEME = HTTPS ? 'HTTPS' : 'HTTP'
 
 const results = []
@@ -45,7 +36,6 @@ async function newPage(browser) {
   return { context, page, errs }
 }
 
-/** Overwrite this device's kiosk settings and reload (must already be on the app origin). */
 async function setKiosk(page, obj) {
   await page.evaluate((o) => {
     if (o === null) localStorage.removeItem('neohab:kiosk')
@@ -56,12 +46,10 @@ async function setKiosk(page, obj) {
 const browser = await launch()
 let secureBrowser = null
 let settingsSnapshot = null
-/** Whether this suite wrote the settings component, so cleanup knows to put it back. */
 let settingsTouched = false
 let initialLevel = null
 
 try {
-  // ---------- seed ----------
   for (const [uid, id, name] of [[UID_A, 'nh-e2e-kiosk', 'E2E Kiosk'], [UID_B, 'nh-e2e-kiosk2', '57']]) {
     const r = await fetch(NS, {
       method: 'POST',
@@ -84,7 +72,6 @@ try {
   initialLevel = (await st.text()).trim()
   ok('recorded initial ' + CONTROL_ITEM, st.ok && initialLevel.length > 0, initialLevel)
 
-  // ================= 1. PWA assets served from the jar =================
   {
     const mf = await fetch(BASE + '/neohab/manifest.json')
     const mfJson = mf.ok ? await mf.json() : null
@@ -106,7 +93,6 @@ try {
     ok('index.html links the manifest', html.includes('manifest.json'))
   }
 
-  // ================= 2. service worker + offline shell (secure-treated profile) =================
   {
     secureBrowser = await launch(['--unsafely-treat-insecure-origin-as-secure=' + BASE])
     const { context, page, errs } = await newPage(secureBrowser)
@@ -131,7 +117,6 @@ try {
     ok('no /rest response ever cached', !cached.urls.some((u) => u.includes('/rest/')),
       cached.urls.filter((u) => u.includes('/rest/')).slice(0, 3).join(','))
 
-    // offline: the shell still comes up (config fetch fails, app renders its error/welcome state)
     await context.setOffline(true)
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {})
     await sleep(2500)
@@ -144,7 +129,6 @@ try {
       JSON.stringify(offlineShell))
     await context.setOffline(false)
 
-    // wake lock exists here and actually engages
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('.nh-home__status', { timeout: 15000 })
     ok('wake lock API present (secure context)', await page.evaluate(() => 'wakeLock' in navigator))
@@ -157,19 +141,11 @@ try {
     const probe = awakeText ? 'granted' : await page.evaluate(() =>
       navigator.wakeLock.request('screen').then(() => 'granted', (e) => 'denied:' + e.name))
     ok('wake lock actually granted', awakeText !== null || probe === 'granted', String(probe))
-    // The offline section legitimately produces resource-load errors while the network is cut;
-    // anything else (real page/app errors) still fails here.
     const realErrs = errs.filter((e) => !e.includes('ERR_INTERNET_DISCONNECTED'))
     ok('secure-context page: no console errors (offline noise excluded)', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
     await context.close()
   }
 
-  // ================= 3. what the wake lock looks like on each kind of origin =================
-  //
-  // The browser decides this from the page's scheme, so there are two right answers and the
-  // check is which one the target actually gets: on plain http the API is missing, so the toggle
-  // must be dead and say why rather than pretending; over TLS it is there and the toggle works.
-  // Asserting only the http half failed over TLS on an app that was behaving correctly.
   {
     const { context, page } = await newPage(browser)
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -183,15 +159,11 @@ try {
     await context.close()
   }
 
-  // ================= 4. kiosk mode: URL params, chrome, 5-tap exit =================
   {
     const { context, page } = await newPage(browser)
-    // Counted, not used: the exit gesture must raise NO native dialog, so this staying at zero is
-    // itself one of the checks below.
     let dialogs = 0
     page.on('dialog', (d) => { dialogs++; void d.accept() })
 
-    // hash-query variant + route parsing tolerance
     await page.goto(APP + '#/d/nh-e2e-kiosk?kiosk=on', { waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     ok('kiosk(hash param): dashboard route still parses', (await page.locator('.nh-widget').count()) >= 2)
@@ -200,8 +172,6 @@ try {
     ok('kiosk via URL is session-only (nothing persisted)',
       await page.evaluate(() => !JSON.parse(localStorage.getItem('neohab:kiosk') || '{}').kiosk))
 
-    // pinned sidebar + kiosk: the aside is gone AND the 260px inset with it (the layout hook is
-    // kiosk-aware; failing that, kiosk mode would show a blank stripe where the pin insets)
     await page.evaluate(() => localStorage.setItem('neohab:sidebarPinned', '1'))
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
@@ -212,19 +182,16 @@ try {
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
 
-    // Home in kiosk: no settings button, no new-dashboard tile
     await page.goto(APP + '?kiosk=on#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-tiles', { timeout: 15000 })
     ok('kiosk(search param) home: settings + new-tile hidden',
       (await page.locator('.nh-home__settings, .nh-tile--new').count()) === 0)
 
-    // settings page in kiosk: kiosk + follow checkboxes reflect the mode
     await page.goto(APP + '?kiosk=on#/settings', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('#kiosk-mode', { timeout: 15000 })
     ok('kiosk: mode checkbox reflects URL override', await page.isChecked('#kiosk-mode'))
     ok('kiosk: follow-control defaults to on in kiosk mode', await page.isChecked('#kiosk-follow'))
 
-    // 5-tap corner exit: interrupted sequence does nothing, complete one exits
     await page.goto(APP + '?kiosk=on#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     const cx = 20, cy = VP.height - 20 // bottom-left corner, empty grid there
@@ -232,8 +199,6 @@ try {
     await sleep(1000) // > TAP_WINDOW_MS: sequence expires
     for (let i = 0; i < 2; i++) { await page.mouse.click(cx, cy); await sleep(80) }
     await sleep(300)
-    // The confirmation is the app's own dialog, not window.confirm: a kiosk browser is exactly
-    // the kind that suppresses native ones, and there the five taps used to do nothing at all.
     const exitBox = page.locator('.nh-kioskexit')
     ok(
       '3 taps + pause + 2 taps does NOT exit',
@@ -258,26 +223,22 @@ try {
     await context.close()
   }
 
-  // ================= 5. kiosk toggle in settings navigates out =================
   {
     const { context, page } = await newPage(browser)
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('#kiosk-mode', { timeout: 15000 })
     page.on('dialog', (d) => d.accept())
-    // click, not check(): the toggle navigates away, and check()'s post-verify would race the unmount
     await page.click('#kiosk-mode')
     await sleep(500)
     const hash = await page.evaluate(() => window.location.hash)
     ok('enabling kiosk in settings leaves the (now chromeless) settings screen', hash === '#/', hash)
     ok('kiosk persisted from settings', await page.evaluate(() => JSON.parse(localStorage.getItem('neohab:kiosk') || '{}').kiosk === true))
-    // exit again via taps so the profile ends clean
     const cx = 20, cy = VP.height - 20
     for (let i = 0; i < 5; i++) { await page.mouse.click(cx, cy); await sleep(80) }
     await sleep(300)
     await context.close()
   }
 
-  // ================= 6. pinned start dashboard =================
   {
     const { context, page } = await newPage(browser)
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -287,20 +248,16 @@ try {
     await page.goto(APP, { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => window.location.hash === '#/d/nh-e2e-kiosk', { timeout: 10000 }).catch(() => {})
     ok('app start lands on the pinned dashboard', (await page.evaluate(() => window.location.hash)) === '#/d/nh-e2e-kiosk')
-    // a deep link wins over the pin - reload so the start-redirect logic actually re-runs
-    // (a bare hash change is a same-document navigation and would prove nothing)
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await sleep(1500)
     ok('deep link wins over the pin', (await page.evaluate(() => window.location.hash)) === '#/settings')
-    // navigating Home by hand stays Home (redirect is start-only)
     await page.evaluate(() => { window.location.hash = '#/' })
     await sleep(800)
     ok('manual Home visit is not re-redirected', (await page.evaluate(() => window.location.hash)) === '#/')
     await context.close()
   }
 
-  // ================= 7. screensaver =================
   {
     const { context, page } = await newPage(browser)
     await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -308,7 +265,6 @@ try {
     await setKiosk(page, { kiosk: false, screensaver: 'clock', screensaverMinutes: 0.05, wakeLock: false })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
-    // hands off: idle for ~3s + check interval
     await page.waitForSelector('.nh-saver', { timeout: 10000 })
     const saver = await page.locator('.nh-saver').boundingBox()
     ok('clock saver engages after the idle timeout', !!saver)
@@ -316,7 +272,6 @@ try {
     const time = await page.locator('.nh-saver__time').textContent().catch(() => null)
     ok('clock shows a time', !!time && /\d/.test(time), String(time))
 
-    // the waking tap is swallowed (a bubble listener on window must never see it)
     await page.evaluate(() => {
       window.__sawDown = 0
       window.addEventListener('pointerdown', () => { window.__sawDown++ })
@@ -329,7 +284,6 @@ try {
     await sleep(100)
     ok('the next tap flows normally', (await page.evaluate(() => window.__sawDown)) === 1)
 
-    // blank mode has no clock
     await setKiosk(page, { kiosk: false, screensaver: 'blank', screensaverMinutes: 0.05, wakeLock: false })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-saver', { timeout: 10000 })
@@ -340,11 +294,7 @@ try {
     await context.close()
   }
 
-  // ================= 8. dashboard-control item =================
   {
-    // snapshot + patch the global settings component
-    // A fresh server has no settings component at all: snapshotting null is correct, and
-    // cleanup then removes what this suite created rather than leaving it behind.
     settingsSnapshot = await getSettings()
     settingsTouched = true
     const put = await patchSettings(settingsSnapshot, { controlItem: CONTROL_ITEM })
@@ -373,7 +323,6 @@ try {
       ok('control item check skipped (initial state collided with the test value)', true, initialLevel)
     }
 
-    // follow off: restoring the initial value must NOT navigate (this also restores the item)
     await setKiosk(page, { kiosk: false, screensaver: 'off', screensaverMinutes: 10, wakeLock: false, followControl: false })
     await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
@@ -386,7 +335,6 @@ try {
     await context.close()
   }
 
-  // ================= 9. run-mode regression: plain browsing untouched =================
   {
     const { context, page, errs } = await newPage(browser)
     await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -402,7 +350,6 @@ try {
 } catch (e) {
   ok('suite crashed', false, String(e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e))
 } finally {
-  // ---------- cleanup: exact uids only; settings restored verbatim; item state restored ----------
   for (const uid of [UID_A, UID_B]) {
     const d = await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' deleted', d.ok || d.status === 404, String(d.status))

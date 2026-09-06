@@ -1,21 +1,6 @@
-/**
- * Sign-in flow e2e: the "Log in with openHAB" button must actually START the PKCE flow -
- * navigate to the core-served /auth login page with a well-formed S256 challenge - from
- * Settings > Account, on ANY origin. (The dashboard pencil used to be a second entry point;
- * it is not one any more: a view-only device has no pencil at all - e2e-lock proves it.)
- * On plain-HTTP origins SubtleCrypto does not exist, and a missing fallback once left the
- * button silently dead (found by a user, not by the suites - hence this suite). Also proves a
- * failure inside authorize() surfaces as a notice instead of vanishing into an unhandled
- * rejection.
- *
- * When the target configuration provides a throwaway login (`user` in target.local.json, see
- * README), the FULL exchange runs too: credentials into the server's form, redirect back,
- * code-for-token exchange, admin status from the session JWT, a real admin write through the
- * session, and sign-out. Without one that section self-skips.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-pkce (deleted; only in the exchange
- * section), commands nothing, and only ever signs in as the throwaway user.
- */
+// Sign-in flow e2e: the "Log in with openHAB" button must actually START the PKCE flow.
+// SAFE with a live config: creates only dashboard:nh-e2e-pkce (deleted; only in the exchange section),
+// commands nothing, and only ever signs in as the throwaway user.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, AUTH, TEST_USER, HTTPS } from './lib/target.mjs'
 
@@ -33,7 +18,6 @@ function launch() {
 }
 const browser = await launch()
 
-/** Click the PKCE button and return the URL it lands on (or the unchanged URL on failure). */
 async function clickLogin(page) {
   await page.waitForSelector('button:has-text("Log in with openHAB")', { timeout: 5000 })
   await Promise.all([
@@ -56,13 +40,10 @@ function checkAuthUrl(url, label) {
     q.get('redirect_uri') === APP,
     q.get('redirect_uri') ?? 'none'
   )
-  // core's authorize page rejects the credential submit with unauthorized_client unless
-  // client_id EXACTLY equals redirect_uri - the bug the first real exchange run uncovered
   ok(`${label}: client_id equals redirect_uri`, q.get('client_id') === q.get('redirect_uri'), q.get('client_id') ?? 'none')
 }
 
 try {
-  // ---------- entry point 1: Settings > Account (anonymous device, plain HTTP) ----------
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
     const rejections = []
@@ -72,9 +53,6 @@ try {
       })
     })
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
-    // SubtleCrypto only exists in a secure context. On http its absence IS the bug this suite
-    // was written for (the challenge has to come from the bundled SHA-256 instead); on https
-    // it must be there, and e2e-https checks the challenge it produces.
     const subtle = await page.evaluate(() => !!window.crypto.subtle)
     ok(
       HTTPS ? 'this origin has SubtleCrypto, as a secure context must' : 'this origin has no SubtleCrypto (the case that was broken)',
@@ -88,17 +66,12 @@ try {
     ok('settings: the openHAB login form rendered', (await page.locator('input[type="password"]').count()) > 0)
     ok('settings: no unhandled rejection', ((await page.evaluate(() => window.__rej ?? [])).length) === 0)
 
-    // back lands in the app, still anonymous, still working
     await page.goBack({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('h2:text-is("Account")', { timeout: 10000 })
     ok('settings: back returns to the app', true)
     await page.close()
   }
 
-  // The dashboard pencil is deliberately NOT exercised here any more: a view-only device has
-  // no pencil at all. That (and Settings > Account remaining the way in) is proven by e2e-lock.
-
-  // ---------- the full credential exchange (needs the throwaway login) ----------
   if (!TEST_USER) {
     console.log('SKIP  no throwaway login in the target configuration - credential exchange not exercised (see README)')
   } else {
@@ -120,13 +93,11 @@ try {
     ])
     ok('exchange: server redirected back to the app', true, page.url().slice(0, 100))
 
-    // boot completes the code-for-token exchange and strips the code from the address
     await page.waitForFunction(() => !window.location.search.includes('code='), undefined, { timeout: 15000 })
     ok('exchange: auth code stripped from the address', !page.url().includes('code='), page.url().slice(0, 120))
     await page.waitForFunction(() => !!localStorage.getItem('neohab:refreshToken'), undefined, { timeout: 10000 }).catch(() => {})
     ok('exchange: refresh token stored', await page.evaluate(() => !!localStorage.getItem('neohab:refreshToken')))
 
-    // the session JWT carries the administrator role - the path no suite could reach before
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
     await page
       .waitForSelector('text=This device is signed in as an administrator.', { timeout: 10000 })
@@ -136,11 +107,7 @@ try {
       (await page.locator('text=This device is signed in as an administrator.').count()) === 1
     )
 
-    // a real admin write through the session token: create a dashboard, verify, delete it
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
-    // The "+" tile on a server that has dashboards, the welcome card's button on one that has
-    // none: both lead to the same sheet, and the point here is the admin WRITE, not which
-    // affordance got us there.
     await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 10000 })
     const viaTile = (await page.locator('.nh-tile--new').count()) === 1
     await page.click(viaTile ? '.nh-tile--new' : '.nh-welcome__actions button:has-text("Create your first dashboard")')
@@ -152,14 +119,8 @@ try {
     ok('exchange: session token performs an admin write', created.ok)
     await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH })
 
-    // sign out: token revoked server-side, forgotten locally, UI back to anonymous
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('button:has-text("Sign out on this device")', { timeout: 10000 })
-    // Kept so the revocation can be checked from outside the browser. Core's deleteSession
-    // refuses a request with no principal outright, so a logout that carried no credentials
-    // answered 401 and left the session alive in the account for its full life - locally signed
-    // out, still signed in everywhere it mattered. The console filter above is why nothing here
-    // ever noticed.
     const refresh = await page.evaluate(() => localStorage.getItem('neohab:refreshToken'))
     let logoutStatus = 0
     page.on('response', (r) => {
@@ -173,7 +134,6 @@ try {
       (await page.locator('text=This device is not signed in').count()) === 1
     )
     ok('sign-out: the server accepted the revocation', logoutStatus === 200, 'status=' + logoutStatus)
-    // The real test of a revocation: the token it revoked must no longer buy an access token.
     const reuse = await fetch(BASE + '/rest/auth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -190,7 +150,6 @@ try {
     await page.close()
   }
 
-  // ---------- a failure inside authorize() must surface, never vanish ----------
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
     await page.addInitScript(() => {
@@ -215,7 +174,6 @@ try {
   await browser.close()
 }
 
-// cleanup guard: the exchange dashboard must never survive, even if a section crashed
 await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH })
 {
   const r = await fetch(NS + '/' + PKCE_UID, { headers: AUTH })
@@ -228,5 +186,4 @@ for (const r of results) {
   console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.detail ? '  [' + r.detail + ']' : ''}`)
 }
 console.log(allPass ? '\nALL PASS' : '\nSOME FAILED')
-// exitCode, not exit(): a hard exit during teardown trips a libuv assertion on Windows
 process.exitCode = allPass ? 0 : 1

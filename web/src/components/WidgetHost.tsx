@@ -1,8 +1,3 @@
-/**
- * Renders one widget instance: looks up its definition, subscribes to just the items it needs,
- * and hands it the uniform widget context. Re-renders are scoped to the widget's own items, and
- * a widget that throws is contained here (see WidgetBoundary) rather than taking the app with it.
- */
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
@@ -17,24 +12,17 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   const { t } = useTranslation()
   const def = getWidgetDefinition(instance.type)
 
-  // Key the subscription on the item names themselves, not config identity - the config object
-  // is recloned on every edit and would otherwise resubscribe per keystroke.
+  // keyed on the item names, not the config object, which is recloned on every keystroke
   const itemNames = itemsForInstance(instance.type, instance.config)
   const itemsKey = itemNames.join('\n')
   useEffect(() => subscribeItems(itemsKey ? itemsKey.split('\n') : []), [itemsKey])
 
-  // Select only this widget's item states (shallow-compared) to limit re-renders.
   const states = useItemsStore(useShallow((s) => selectStates(s.states, itemNames)))
 
-  // Definition defaults fill any keys the stored config doesn't set (e.g. imported configs), so
-  // widget behavior and the settings form always agree on effective values. Memoised on the
-  // stored config's identity: rebuilding it every render handed every widget a new object, which
-  // makes memoising a widget impossible for anyone who later wants to.
+  // definition defaults under the stored config, memoised so widgets are not handed a new object every render
   const config = useMemo(() => {
     const merged: Record<string, unknown> = { ...def?.defaultConfig(), ...instance.config }
-    // "Show the name: Not at all" is honoured here rather than inside each widget. Every widget
-    // draws its own header from config.label, so one that forgot to check would silently ignore
-    // the setting - dropping the name centrally makes that impossible.
+    // honoured here rather than in each widget, so one that forgot to check cannot ignore the setting
     if (merged.labelMode === 'none') delete merged.label
     return merged
   }, [def, instance.config])
@@ -62,8 +50,6 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
 
   const Component = def.Component
   return (
-    // Reset on the stored config, so an edit that fixes a broken widget renders it again without
-    // a reload; the instance id covers a paste replacing what is in this slot.
     <WidgetBoundary type={instance.type} resetKey={instance.config}>
       <Component config={config} ctx={ctx} />
     </WidgetBoundary>

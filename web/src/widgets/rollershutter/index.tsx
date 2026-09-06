@@ -9,7 +9,6 @@ interface RollershutterConfig {
   label?: string
 }
 
-/** Rollershutter - UP / STOP / DOWN controls with the current position. */
 function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) {
   const { t } = useTranslation()
   const state = ctx.getItem(config.item)
@@ -35,11 +34,6 @@ function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) 
   )
 }
 
-/**
- * The three commands this widget exists to send. A rollershutter's state is a percentage, so a
- * popup that guessed from the state offered a position slider instead - which on a garage door is
- * a real door moving to wherever the track was pressed.
- */
 const ROLLER_COMMANDS: ItemChoice[] = [
   { command: 'UP', labelKey: 'Up' },
   { command: 'STOP', labelKey: 'Stop' },

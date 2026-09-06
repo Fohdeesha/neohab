@@ -1,17 +1,5 @@
 import { tightCellInsets, wholeTileActive } from './shared'
 
-/**
- * Ember - a weather-station instrument panel: flat stat tiles on deep slate-navy with one vivid
- * ember-orange accent.
- *
- * The tile IS the unit: hairline edges, tight insets, small mixed-case labels, and a huge bold
- * value with its unit as a raised suffix. Buttons render as flat tile content (no inner card),
- * and an active toggle turns its whole tile into the accent plate.
- *
- * The accent leads the chart palette through the `chart-1` token rather than a `:root` rule here,
- * so single-series charts render as orange traces out of the box and the theme editor can show
- * where that colour comes from.
- */
 export const EMBER_CSS = `/* Stat-tile typography: labels center by DEFAULT via the cell var - a per-widget Name
    alignment choice still wins, because the cell's inline style overrides this sheet. */
 .nh-gcell,

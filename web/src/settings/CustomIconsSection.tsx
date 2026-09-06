@@ -8,11 +8,8 @@ import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 import { errorText } from '../api/errors'
 
-/** Manager for user-uploaded icons: upload, rename, delete, and the upload size limit. */
 export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
-  // Selectors, not the whole store: this section re-rendered on every unrelated configuration
-  // change - a theme edit, a dashboard save - to read two fields.
   const customIcons = useConfigStore((s) => s.customIcons)
   const maxKB = useConfigStore((s) => s.settings.maxIconKB) ?? DEFAULT_MAX_ICON_KB
   const fileRef = useRef<HTMLInputElement>(null)

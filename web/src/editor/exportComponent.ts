@@ -1,11 +1,3 @@
-/**
- * Download one custom widget definition or theme as a partial export file, with whatever it
- * references (a definition's uploaded icons) travelling with it.
- *
- * Shared by the theme cards and the custom-widget manager so both report failures and missing
- * references the same way. Dashboards have their own entry point in the editor's dashboard
- * settings panel, because that one exports the unsaved draft.
- */
 import { downloadJson } from '../components/download'
 import i18n from '../i18n'
 import { partialFileName } from '../model/partial'

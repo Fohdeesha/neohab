@@ -1,25 +1,9 @@
-/**
- * The clock's extra time zones, registered as SettingField type 'clockzones'.
- *
- * A world clock is a row of tiles, but you should not need a row of tiles to answer "what time is
- * it there" - so one clock can carry any number of other zones and list them all when it is held.
- * Each row is a zone and, optionally, what to call it: "Head office" reads better than "London",
- * and both read better than "Europe/London".
- */
 import { useTranslation } from 'react-i18next'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
 import type { SettingField } from '../widgets/types'
 import { zoneCity, zoneOptions, type ExtraZone } from '../widgets/clock/zones'
 
-/**
- * The zone list as a grouped native select.
- *
- * Deliberately not a searchable popover like the item and icon pickers: this list is fixed,
- * complete and known in advance, so the browser's own control gives type-ahead, a native wheel on
- * a phone, and none of the focus and positioning traps a custom popover has repeatedly cost this
- * project. The regions become `<optgroup>`s, which is what keeps 419 entries navigable.
- */
 function ZoneSelect({
   id,
   value,
@@ -52,13 +36,8 @@ function ZoneSelect({
   )
 }
 
-/**
- * The clock's own zone: this device's, or any the browser knows.
- *
- * The list is built on first render rather than at module load. As a plain `select` field it would
- * have been 419 options assembled while the app booted, on every dashboard, for a control almost
- * nobody opens - measured at 45ms, most of it collating strings that are ASCII identifiers.
- */
+// built on first render, not at module load - as a plain select field these 419 options cost 45ms of every
+// dashboard's boot
 export function TimeZoneField({ widget, field, value }: { widget: WidgetInstance; field: SettingField; value: unknown }) {
   const { t } = useTranslation()
   const id = `f-${widget.id}-${field.key}`
@@ -77,8 +56,6 @@ export function TimeZoneField({ widget, field, value }: { widget: WidgetInstance
 
 export function ClockZonesField({ widget, field }: { widget: WidgetInstance; field: SettingField }) {
   const { t } = useTranslation()
-  // Read raw rather than through `extraZones`: that drops incomplete rows, and a row being filled
-  // in has to stay on screen while it is incomplete or it could never be filled in at all.
   const rows: ExtraZone[] = Array.isArray(widget.config[field.key])
     ? (widget.config[field.key] as ExtraZone[]).filter((r) => typeof r === 'object' && r !== null)
     : []

@@ -1,14 +1,7 @@
-/**
- * Lasso-below-the-grid fix verification.
- *
- * The reported repro: in edit mode, a lasso could not be started anywhere below the "Drag by the
- * handle" hint - that area was outside the grid (dead page background, .nh-dash never actually
- * filled the viewport). After the fix the edit grid stretches down to the hint, which itself
- * sits at the bottom of the page, so a marquee can start anywhere below the widgets.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-lasso and deletes exactly that uid in
- * cleanup (guarded). NO item commands anywhere - seeded widgets are clocks/labels only.
- */
+// Lasso-below-the-grid fix verification. The reported repro: in edit mode, a lasso could not be started
+// anywhere below the "Drag by the handle" hint.
+// SAFE with a live config: creates only dashboard:nh-e2e-lasso and deletes exactly that uid in cleanup
+// (guarded).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -37,7 +30,6 @@ await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', 
 const box = (sel) => page.locator(sel).first().boundingBox()
 
 try {
-  // ---------- seed ----------
   const r = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -59,13 +51,11 @@ try {
   await page.goto(APP + '#/d/nh-e2e-lasso', { waitUntil: 'domcontentloaded', timeout: 20000 })
   await page.waitForSelector('.nh-grid', { timeout: 15000 })
 
-  // ---------- run mode: the height chain fills the viewport, rows stay content-sized ----------
   const dash = await box('.nh-dash')
   ok('run: .nh-dash fills the viewport', dash && Math.abs(dash.height - VP.height) < 2, JSON.stringify(dash))
   const runGrid = await box('.nh-grid')
   ok('run: grid stays content-sized (no stretch in run mode)', runGrid && runGrid.height < 300, String(runGrid?.height))
 
-  // ---------- edit mode: grid fills down to the hint, hint at the bottom ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 5000 })
@@ -78,8 +68,6 @@ try {
   const cell = await box('.nh-cell')
   ok('edit: widget rows keep their fixed height', cell && Math.abs(cell.height - 88) < 2, String(cell?.height))
 
-  // ---------- THE repro: lasso started from the empty area near the page bottom ----------
-  // Press well below where the hint used to sit (the reported dead area), drag up over the widgets.
   const startX = 700, startY = VP.height - 80
   ok('repro press point is inside the (now stretched) grid',
     grid && startY > grid.y && startY < grid.y + grid.height && startY > (await (async () => 0)()),
@@ -98,12 +86,10 @@ try {
   ok('lasso from the bottom area selects all 3 widgets',
     (await page.locator('.nh-cell--selected').count()) === 3 && /^3 /.test(selTxt || ''), selTxt || '(no selbar)')
 
-  // ---------- a bare click down there clears the selection (background semantics) ----------
   await page.mouse.click(startX, startY)
   await sleep(150)
   ok('bare click in the bottom area clears the selection', (await page.locator('.nh-cell--selected').count()) === 0)
 
-  // ---------- marquee from a widget body still works (regression guard) ----------
   const cellBox = await box('.nh-cell')
   await page.mouse.move(cellBox.x + cellBox.width / 2, cellBox.y + cellBox.height / 2)
   await page.mouse.down()
@@ -113,7 +99,6 @@ try {
   ok('marquee from a widget body still selects', (await page.locator('.nh-cell--selected').count()) >= 2,
     String(await page.locator('.nh-cell--selected').count()))
 
-  // Leave edit mode without saving (nothing to keep).
   await page.click('button:has-text("Exit")')
   await sleep(200)
 

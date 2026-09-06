@@ -1,16 +1,3 @@
-/**
- * Configuration version history.
- *
- * A snapshot is taken *before* a configuration write, so what the list offers is the state you
- * had just before an editing session - which is what going back means. Writes that follow one
- * another closely belong to the same session and reuse the point already taken, so an afternoon
- * of tweaking leaves one entry to return to instead of consuming the whole list.
- *
- * Storage is split across two namespaces of its own (see api/history.ts for why): `neohab:history`
- * holds the `index` alone - everything the list needs - and `neohab:historydata` holds `snap:<id>`,
- * the configuration itself, and `blob:<sha256>`, the uploaded images shared between every snapshot
- * that contains them.
- */
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
 import {
@@ -61,15 +48,8 @@ import { errorText } from '../api/errors'
 
 interface HistoryState {
   index: HistoryIndex | null
-  /**
-   * Whether the index component is on the server. Holding an index in memory is not the same
-   * thing - it may never have been written, or have just been deleted - and updating a component
-   * that is not there answers 404, which the browser logs as an error whether or not the code
-   * expected it. Same reasoning as the configuration store's `serverUids`.
-   */
   indexStored: boolean
   loading: boolean
-  /** A capture or restore is in flight. */
   busy: boolean
   error: string | null
 }
@@ -82,13 +62,11 @@ export const useHistoryStore = create<HistoryState>(() => ({
   error: null
 }))
 
-/** Write the index, then remember that it exists so the next write updates rather than probes. */
 async function writeIndex(index: HistoryIndex): Promise<void> {
   await putIndexComponent(indexComponent(index), useHistoryStore.getState().indexStored)
   useHistoryStore.setState({ index, indexStored: true })
 }
 
-/** When this device last saw a configuration write, shared across its tabs. */
 const LAST_WRITE_KEY = 'neohab:lastConfigWrite'
 
 function lastWriteAt(): number | null {
@@ -105,18 +83,12 @@ function markWrite(): void {
   try {
     window.localStorage.setItem(LAST_WRITE_KEY, String(Date.now()))
   } catch {
-    /* private mode - the only cost is an extra restore point after a reload */
+    // private mode - the only cost is an extra restore point after a reload
   }
 }
 
-/* ------------------------------------- hashing ------------------------------------- */
-
 const toHex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 
-/**
- * SHA-256 of a string. `crypto.subtle` exists only in a secure context, and an openHAB served
- * over plain HTTP on a LAN is not one, so the bundled implementation carries those installs.
- */
 export async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text)
   const subtle = globalThis.crypto?.subtle
@@ -124,15 +96,12 @@ export async function sha256Hex(text: string): Promise<string> {
   return toHex(sha256(bytes))
 }
 
-/* ---------------------------------- reading history ---------------------------------- */
-
 const indexComponent = (index: HistoryIndex): UIComponent<HistoryIndex> => ({
   uid: INDEX_UID,
   component: INDEX_COMPONENT,
   config: index
 })
 
-/** Snapshots already fetched, so switching between comparisons does not refetch them. */
 const snapshotCache = new Map<string, Snapshot>()
 const CACHE_MAX = 6
 
@@ -154,12 +123,6 @@ export async function getSnapshot(id: string): Promise<Snapshot | null> {
   return cacheSnapshot(component.config)
 }
 
-/**
- * Rebuild the index from the stored snapshots. Only reached when the index is missing - normally
- * because nothing has ever been captured, occasionally because a write was interrupted or two
- * administrators captured at the same moment and one index write lost the race. Listing pulls
- * every stored image with it, which is exactly why the index exists and this stays a repair path.
- */
 async function rebuildIndex(): Promise<HistoryIndex> {
   const all = (await listDataComponents()) as unknown as RawComponent[]
   const snapshots: Snapshot[] = []
@@ -171,8 +134,6 @@ async function rebuildIndex(): Promise<HistoryIndex> {
   snapshots.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
   for (const s of snapshots) cacheSnapshot(s)
 
-  // Summaries describe the step that produced each snapshot, so each is compared with the one
-  // before it; the oldest has nothing before it and is the starting point.
   const metas: SnapshotMeta[] = snapshots.map((s, i) => {
     const older = snapshots[i + 1]
     const rows = older ? diffEntries(older.components ?? [], s.components ?? []) : []
@@ -187,12 +148,11 @@ async function rebuildIndex(): Promise<HistoryIndex> {
   })
   const index: HistoryIndex = { version: HISTORY_VERSION, snapshots: metas, blobs }
   if (metas.length > 0 || blobs.length > 0) {
-    // Best effort: a viewer without admin rights can still read a rebuilt index in memory.
     try {
       await putIndexComponent(indexComponent(index), false)
       useHistoryStore.setState({ indexStored: true })
     } catch {
-      /* not signed in - the next capture writes it */
+      // not signed in - the next capture writes it
     }
   }
   return index
@@ -202,12 +162,6 @@ const blobHashesOf = (entries: SnapshotEntry[]): string[] => [
   ...new Set(entries.map((e) => e.blobHash).filter((h): h is string => typeof h === 'string'))
 ]
 
-/**
- * The stored index, or null when there is none. Listing rather than fetching `index` by uid is
- * deliberate: the index namespace holds only this one component, so a listing is as cheap as a
- * fetch, and it answers "not there yet" with an empty list instead of a 404 the browser would
- * log as an error on every fresh install.
- */
 async function readStoredIndex(): Promise<HistoryIndex | null> {
   const components = await listIndexComponents()
   const found = components.find((c) => c.uid === INDEX_UID)
@@ -235,8 +189,6 @@ export async function loadHistory(): Promise<void> {
   }
 }
 
-/* ------------------------------------ capturing ------------------------------------ */
-
 function historyLimits(): { limit: number; windowMin: number } {
   const s = useConfigStore.getState().settings
   return {
@@ -245,7 +197,6 @@ function historyLimits(): { limit: number; windowMin: number } {
   }
 }
 
-/** The current configuration, in the shape a snapshot stores, with image bodies split out. */
 async function captureEntries(): Promise<{ entries: SnapshotEntry[]; bodies: Map<string, string> }> {
   const raw = (await listComponents()) as unknown as RawComponent[]
   const entries = raw.map(toEntry)
@@ -260,19 +211,6 @@ async function captureEntries(): Promise<{ entries: SnapshotEntry[]; bodies: Map
   return { entries, bodies }
 }
 
-/**
- * Take a restore point for the configuration as it is right now, unless one already covers this
- * editing session. Returns whether a snapshot was written.
- *
- * Throws if the history could not be written. The write hook below turns that into a notice
- * rather than a failed save; a restore surfaces it directly. A failed capture deliberately does
- * not count as this session's write, so the next save tries again instead of staying uncovered
- * for the rest of the window.
- */
-/**
- * Delete everything the history has stored, including the index itself, so turning the feature
- * off actually frees the space rather than leaving it parked on the server.
- */
 async function clearHistory(index: HistoryIndex): Promise<void> {
   for (const snapshot of index.snapshots) {
     await deleteDataComponent(SNAPSHOT_PREFIX + snapshot.id).catch(() => undefined)
@@ -285,18 +223,7 @@ async function clearHistory(index: HistoryIndex): Promise<void> {
   useHistoryStore.setState({ index: emptyIndex(), indexStored: false })
 }
 
-/**
- * Captures run one at a time.
- *
- * `restoreSnapshot` has carried a re-entrancy guard since the day a second restore was found
- * interleaving with the first; this path had none, and it runs before EVERY configuration write.
- * Two overlapping saves both read the index, both wrote a snapshot, and both wrote back an index
- * built from their own stale read - so the second won and the first's snapshot was orphaned.
- *
- * Chained rather than refused: a capture is a background step of somebody's save, so failing the
- * second one would fail their save. Running it after the first is also what makes it a no-op,
- * because by then `markWrite()` has happened and the coalescing window says so.
- */
+// captures run one at a time, or two would each write an index computed from its own read
 let captureChain: Promise<unknown> = Promise.resolve()
 
 export function captureSnapshot(force = false): Promise<boolean> {
@@ -304,7 +231,6 @@ export function captureSnapshot(force = false): Promise<boolean> {
     () => runCapture(force),
     () => runCapture(force)
   )
-  // The chain must not reject, or one failure would poison every capture after it.
   captureChain = run.catch(() => undefined)
   return run
 }
@@ -312,9 +238,6 @@ export function captureSnapshot(force = false): Promise<boolean> {
 async function runCapture(force = false): Promise<boolean> {
   const { limit, windowMin } = historyLimits()
   if (!historyEnabled(limit)) {
-    // Turned off: stop capturing, and clear what is already stored. The index is read straight
-    // from the server rather than rebuilt, so an install with history off never pays for a
-    // namespace listing; once it is known to be empty, later writes cost nothing at all.
     const known = useHistoryStore.getState().index ?? (await readStoredIndex())
     if (known && (known.snapshots?.length > 0 || known.blobs?.length > 0)) await clearHistory(known)
     else useHistoryStore.setState({ index: emptyIndex() })
@@ -340,16 +263,13 @@ async function runCapture(force = false): Promise<boolean> {
     return false
   }
 
-  // Hand the flag back to whoever held it rather than forcing it off: a capture taken as the
-  // first step of a restore would otherwise clear `busy` while the restore was still writing,
-  // and `busy` is what disables the Restore button.
+  // hand the flag back rather than forcing it off, or a capture taken as the first step of a restore re-enables
+  // Restore mid-flight
   const wasBusy = useHistoryStore.getState().busy
   useHistoryStore.setState({ busy: true })
   try {
     const { entries, bodies } = await captureEntries()
 
-    // Store image bodies the history does not have yet. Shared by hash, so a snapshot of a
-    // configuration with a 5 MB background costs 5 MB once, not once per snapshot.
     const known = new Set(index.blobs)
     for (const [hash, body] of bodies) {
       if (known.has(hash)) continue
@@ -358,7 +278,6 @@ async function runCapture(force = false): Promise<boolean> {
       known.add(hash)
     }
 
-    // What changed to reach this state, measured against the point before it.
     const previous = index.snapshots[0] ? await getSnapshot(index.snapshots[0].id) : null
     const rows = previous ? diffEntries(previous.components, entries) : []
 
@@ -373,15 +292,11 @@ async function runCapture(force = false): Promise<boolean> {
     }
     const snapshot: Snapshot = { ...meta, version: HISTORY_VERSION, components: entries }
 
-    // The snapshot itself goes first: an index that named a snapshot which was never written
-    // would be a broken row, while a snapshot the index does not name is invisible and is picked
-    // up by the rebuild.
+    // the snapshot goes first: an index naming one that was never written is a broken row
     await putDataComponent<Snapshot>({ uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: snapshot }, false)
     cacheSnapshot(snapshot)
 
-    // Re-read before overwriting. The chain above serialises this tab, but a second admin tab
-    // has its own store and its own copy of the index, and `lastWriteAt` only coalesces writes
-    // that have already finished. Merging is what stops the loser's snapshot being orphaned.
+    // re-read before overwriting - a second admin tab has its own copy of the index
     const stored = (await readStoredIndex().catch(() => null)) ?? index
     const combined = mergeIndexes({ version: HISTORY_VERSION, snapshots: [meta, ...index.snapshots], blobs: [...known] }, stored)
     const { keep, drop } = applyRetention(combined.snapshots, limit)
@@ -393,8 +308,6 @@ async function runCapture(force = false): Promise<boolean> {
       snapshotCache.delete(gone.id)
     }
 
-    // Images no remaining snapshot references. A hash stays listed until its component is really
-    // gone, so a failed delete is retried by the next capture instead of leaking silently.
     const orphans = unusedBlobs(next)
     if (orphans.length > 0) {
       const removed = new Set<string>()
@@ -403,7 +316,7 @@ async function runCapture(force = false): Promise<boolean> {
           await deleteDataComponent(BLOB_PREFIX + hash)
           removed.add(hash)
         } catch {
-          /* retried on the next capture */
+          // retried on the next capture
         }
       }
       if (removed.size > 0) {
@@ -418,13 +331,6 @@ async function runCapture(force = false): Promise<boolean> {
   }
 }
 
-/**
- * Installed on the configuration store so every write is preceded by a restore point. Kept as a
- * registration rather than an import from config.ts, so the dependency runs one way only.
- *
- * A failed capture must never fail the save it was protecting - the user's change still goes
- * through, and the notice says the safety net did not.
- */
 export function installHistoryHook(): void {
   onBeforeConfigWrite(async (kind) => {
     try {
@@ -439,33 +345,14 @@ export function installHistoryHook(): void {
   })
 }
 
-/* ------------------------------------- restoring ------------------------------------- */
-
 export interface RestoreResult {
-  /** Components written back. */
   restored: number
-  /** Components deleted because the snapshot did not contain them. */
   removed: number
-  /** Components left untouched because their stored image body is missing. */
   skipped: string[]
 }
 
-/**
- * A restore is a long sequence of writes and deletes, so a second one starting while the first is
- * mid-flight would compute its delete list from a half-restored configuration - and capture that
- * half-restored state as a restore point. The disabled button is what normally prevents it; this
- * makes it impossible rather than merely unlikely.
- */
 let restoreInFlight = false
 
-/**
- * Put the whole configuration back to a snapshot.
- *
- * The current state is captured first, so a restore is itself undoable. Components are written
- * before anything is deleted: an interrupted restore then leaves a superset that can simply be
- * restored again, rather than a configuration with pieces missing - the same reasoning as the
- * backup importer.
- */
 export async function restoreSnapshot(id: string): Promise<RestoreResult> {
   if (restoreInFlight) throw new Error(i18n.t('A restore is already running on this device.'))
   restoreInFlight = true
@@ -474,7 +361,6 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
     const snapshot = await getSnapshot(id)
     if (!snapshot) throw new Error('That restore point is no longer stored on the server.')
 
-    // Undo path for the restore itself, taken before anything is touched.
     await captureSnapshot(true)
 
     const target: UIComponent[] = []
@@ -485,8 +371,6 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
         const blob = await getDataComponent<StoredBlob>(BLOB_PREFIX + entry.blobHash)
         const dataUri = blob?.config?.dataUri
         if (typeof dataUri !== 'string') {
-          // Its image is gone, so it cannot be put back faithfully. Leaving what is on the
-          // server alone beats writing a component whose picture is missing.
           skipped.push(entry.uid)
           continue
         }
@@ -508,8 +392,6 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
       else await addComponent(component)
     }
 
-    // Anything the snapshot did not contain goes, except components skipped above: those are
-    // still meant to exist, just not rewritable.
     const keep = new Set([...target.map((c) => c.uid), ...skipped])
     let removed = 0
     for (const component of existing) {
@@ -527,9 +409,6 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
   }
 }
 
-/* -------------------------------------- renaming -------------------------------------- */
-
-/** Give a restore point a name of its own, or clear it back to its date. */
 export async function renameSnapshot(id: string, label: string): Promise<void> {
   const index = useHistoryStore.getState().index
   if (!index) return
@@ -538,7 +417,6 @@ export async function renameSnapshot(id: string, label: string): Promise<void> {
   const next: HistoryIndex = { ...index, snapshots }
   await writeIndex(next)
 
-  // The snapshot keeps its own copy so a rebuilt index does not lose the name.
   const snapshot = await getSnapshot(id)
   if (snapshot) {
     const updated: Snapshot = { ...snapshot, label: trimmed || undefined }
@@ -547,9 +425,6 @@ export async function renameSnapshot(id: string, label: string): Promise<void> {
   }
 }
 
-/* ------------------------------ comparing with the present ------------------------------ */
-
-/** The live configuration in snapshot form, for comparing a restore point with what is there now. */
 export async function currentEntries(): Promise<SnapshotEntry[]> {
   const { entries } = await captureEntries()
   return entries

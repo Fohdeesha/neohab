@@ -1,19 +1,3 @@
-/**
- * Tier-2 custom widget: user JavaScript running inside a sandboxed iframe.
- *
- * The frame is sandbox="allow-scripts" WITHOUT allow-same-origin, so the script runs in an
- * opaque origin: no access to the app's DOM, cookies, localStorage (tokens), or credentialed
- * requests. Its only bridge is a small postMessage SDK exposed as `oh`:
- *
- *   oh.config / oh.theme            - instance settings and current theme tokens
- *   oh.getItem(name) -> Promise     - one-shot item state
- *   oh.onChange(name, cb)           - live updates for an item
- *   oh.sendCommand(name, command)   - send a command
- *   oh.onReady(cb)                  - config/theme are populated
- *
- * JavaScript widgets run unless an administrator has turned them off in Settings
- * (settings.allowJsWidgets); when off, a notice renders instead.
- */
 import { useEffect, useRef } from 'react'
 import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
@@ -30,7 +14,6 @@ interface JsWidgetProps {
   bare?: boolean
 }
 
-/** The SDK bootstrapped into every widget frame, ahead of the user script. */
 const SDK_SOURCE = `
 (function () {
   'use strict'
@@ -92,7 +75,6 @@ const SDK_SOURCE = `
 `
 
 function buildSrcdoc(script: string): string {
-  // a literal </script> in the user source would break out of the tag
   const safe = script.replace(/<\/script/gi, '<\\/script')
   return `<!doctype html>
 <html>
@@ -127,9 +109,6 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   editingRef.current = editing
   const valuesKey = JSON.stringify(values)
 
-  // The iframe is keyed on its content below, so a config/script change replaces the frame and
-  // this bridge together - the SDK's subscription state and ours can never drift apart. Theme
-  // changes deliberately do NOT tear this down (they're pushed via postMessage instead).
   useEffect(() => {
     if (!allow) return
     const iframe = iframeRef.current
@@ -173,8 +152,6 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       }
     }
 
-    // Push live updates for subscribed items. The early-out matters: this runs for every JS
-    // widget on every state frame, and one that has asked for nothing yet should cost nothing.
     const storeUnsub = useItemsStore.subscribe((state, prev) => {
       if (subscribed.size === 0 || state.states === prev.states) return
       for (const n of subscribed) {
@@ -188,14 +165,9 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       storeUnsub()
       for (const u of unsubs) u()
     }
-    // Deliberately keyed to exactly what remounts the frame (script + values). Adding `label`
-    // here would tear the bridge down without reloading the frame: the SDK only announces its
-    // subscriptions once at boot, so the rebuilt bridge would never learn them and live
-    // updates would stop until something else remounted the widget.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow, valuesKey, def.script])
 
-  // theme changes propagate without reloading the frame
   useEffect(() => {
     if (!allow) return
     iframeRef.current?.contentWindow?.postMessage({ neohab: true, type: 'theme', theme: activeTheme.tokens }, '*')

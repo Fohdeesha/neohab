@@ -1,10 +1,3 @@
-/**
- * Values just commanded, held on screen while the devices catch up - see `model/settling.ts`
- * for the rule and the device behaviour that makes it necessary.
- *
- * Written by preset activation and by the floor plan's light popup, and read by the floor plan;
- * no other widget consults it, so nothing else changes what it shows.
- */
 import { create } from 'zustand'
 import { commandMatchesState } from '../model/presets'
 import { SETTLE_MS, settledDisplay, type Settling } from '../model/settling'
@@ -13,15 +6,12 @@ import { useSteadyStates } from '../widgets/common/useSteadyValue'
 import { emptyMap, mergeMap } from '../model/lookup'
 
 interface SettlingState {
-  /** item name -> the value commanded for it, and when. */
   pending: Record<string, Settling>
 }
 
 export const useSettlingStore = create<SettlingState>(() => ({ pending: emptyMap() }))
 
-/** Record values just commanded. Entries for the same item replace each other. */
 export function markSettling(commands: { item: string; command: string }[]): void {
-  // Keyed by item name, so prototype-free - see model/lookup.ts.
   const add: Record<string, Settling> = emptyMap()
   const at = Date.now()
   for (const c of commands) {
@@ -30,20 +20,15 @@ export function markSettling(commands: { item: string; command: string }[]): voi
   const items = Object.keys(add)
   if (items.length === 0) return
   useSettlingStore.setState((s) => ({ pending: mergeMap(s.pending, add) }))
-  // Re-render once the window closes, so a value the device never took stops being displayed
-  // even when no further state event arrives to trigger one.
   setTimeout(() => dropUnconfirmed(items, at), SETTLE_MS + 50)
 }
 
-/** Forget commanded values (the server refused them, so they never happened). */
 export function clearSettling(items: string[]): void {
   useSettlingStore.setState((s) => {
     const pending = mergeMap(s.pending)
     let changed = false
     for (const item of items) {
-      // `hasOwnProperty` and not `in`: the map is prototype-free so the two agree today, but a
-      // guard that only holds because of another module's invariant is one somebody can break
-      // from a distance.
+      // hasOwnProperty rather than `in`, so this does not lean on another module's invariant
       if (Object.prototype.hasOwnProperty.call(pending, item)) {
         delete pending[item]
         changed = true
@@ -53,11 +38,6 @@ export function clearSettling(items: string[]): void {
   })
 }
 
-/**
- * At the end of a window, drop the entries the live state never agreed with - which is exactly
- * what the display rule already ignores, so this only forces the re-render and keeps the map
- * from growing. Entries the device confirmed stay: showing the commanded numbers is the point.
- */
 function dropUnconfirmed(items: string[], at: number): void {
   const states = useItemsStore.getState().states
   useSettlingStore.setState((s) => {
@@ -65,7 +45,6 @@ function dropUnconfirmed(items: string[], at: number): void {
     let changed = false
     for (const item of items) {
       const p = pending[item]
-      // A newer command for the same light replaced this one and carries its own timer.
       if (!p || p.at !== at) continue
       if (commandMatchesState(p.command, states[item]?.state)) continue
       delete pending[item]
@@ -75,15 +54,6 @@ function dropUnconfirmed(items: string[], at: number): void {
   })
 }
 
-/**
- * Subscribe to the settling map and read one item's display state through it.
- *
- * Two layers, and the reader needs both. This one holds a value neohab itself commanded, where
- * the target is known. Underneath it, `useSteadyStates` calms a device that is being changed by
- * something else - a rule, a scene, another panel - where there is no target to hold and the
- * only thing to do is wait for the churn to settle. Composed here rather than at each call site,
- * so a floor plan's glows and its preset chips cannot end up following different rules.
- */
 export function useSettledState(): (item: string, live: string | undefined) => string | undefined {
   const pending = useSettlingStore((s) => s.pending)
   const steady = useSteadyStates()

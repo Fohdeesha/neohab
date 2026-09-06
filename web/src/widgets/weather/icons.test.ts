@@ -1,12 +1,3 @@
-/**
- * Every icon name the condition tables can produce must exist in the bundled Meteocons pack,
- * in BOTH drawing styles the widget offers (line, and the "-fill" variant). A name that does
- * not exist renders as a hidden broken image - a widget that silently shows no icon for one
- * particular weather condition, which nobody notices until that weather happens.
- *
- * Read from the @iconify-json source package (what stage-assets.mjs stages from) rather than
- * the staged web/public copy, so the check runs on a fresh clone before any build.
- */
 import { icons as meteocons } from '@iconify-json/meteocons'
 import { describe, expect, it } from 'vitest'
 import { OWM_ICON_CONDITIONS, OWM_ID_CONDITIONS, UNKNOWN_ICON, WMO_CONDITIONS } from './model'

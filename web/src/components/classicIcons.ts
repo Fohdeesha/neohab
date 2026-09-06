@@ -1,7 +1,3 @@
-/**
- * Base icon names of the openHAB 'classic' icon set (state-suffix variants collapsed;
- * the server picks the right variant from the ?state= parameter).
- */
 export const CLASSIC_ICONS: string[] = [
   'alarm',
   'attic',

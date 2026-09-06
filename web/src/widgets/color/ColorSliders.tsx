@@ -1,12 +1,3 @@
-/**
- * The hue/saturation/brightness sliders and their swatch, with no item behind them. Split out
- * of ColorControl so the same picker serves a live light and a stored value: the preset editor
- * changes what a scene will set a light to, with no device involved, and it should not offer a
- * second, slightly different colour picker to do it.
- *
- * Each track previews what dragging it would do at the CURRENT other channels: hue = the full
- * wheel, saturation = gray to pure colour, brightness = black to full colour.
- */
 import { hsbToCss, type Hsb } from '../../model/color'
 
 export function ColorSliders({
@@ -19,18 +10,9 @@ export function ColorSliders({
 }: {
   hsb: Hsb
   disabled?: boolean
-  /** Every drag frame, and every arrow-key step. */
   onInput: (next: Hsb) => void
-  /** Pointer release. Absent where there is nothing to commit to. */
   onCommit?: (next: Hsb) => void
-  /** Key release, with the key, so a caller can coalesce arrow stepping into one command. */
   onKeyCommit?: (key: string, next: Hsb) => void
-  /**
-   * Controls drawn at the right-hand end of the swatch - the colour widget's on and off buttons.
-   * Passed in rather than built here because they command an item, and this module deliberately
-   * knows nothing about one. Absent everywhere it is not asked for, so a picker without it renders
-   * exactly as it always has.
-   */
   aside?: React.ReactNode
 }) {
   const swatch = hsbToCss(hsb)

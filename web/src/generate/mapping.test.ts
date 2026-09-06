@@ -1,15 +1,3 @@
-/**
- * Choosing a widget for an item.
- *
- * The rules worth pinning are the ones that decide whether a generated dashboard is useful or
- * actively wrong: a read-only point must not become a control somebody can drag, and a settable
- * number with no declared range must not be given an invented 0-100 slider that sends nonsense
- * to a setpoint measured in degrees.
- *
- * Item types, group types and semantic tag names all arrive from the server, and semantic tags in
- * particular are user-defined - so the tables here are indexed by strings this code does not
- * control, which is exactly the shape that has already produced three bugs in the importer.
- */
 import { describe, expect, it } from 'vitest'
 import type { Item } from '../api/types'
 import {
@@ -37,7 +25,6 @@ const withProperty = (property: string): Semantics => ({
   property: { name: property, root: 'Property', label: property }
 })
 
-/** Strings that find something on Object.prototype when used as a plain object key. */
 const PROTO_KEYS = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']
 
 describe('base type', () => {
@@ -88,7 +75,6 @@ describe('suggesting a widget', () => {
     expect(suggestWidget(item({ name: 'i', type }), NO_SEM, 'I')?.type).toBe(expected)
   })
 
-  // The point of reading the model at all: a Switch that reports rather than commands.
   it('makes a Switch tagged as a Status point an indicator, not a dead control', () => {
     const s = suggestWidget(item({ name: 'i', type: 'Switch' }), point('Status'), 'I')
     expect(s).toMatchObject({ type: 'value', note: 'readonly' })
@@ -116,7 +102,6 @@ describe('suggesting a widget', () => {
       })
     expect(suggestWidget(opts(2), point('Control'), 'I')?.type).toBe('selection')
     expect(suggestWidget(opts(1), point('Control'), 'I')?.type).toBe('value')
-    // a read-only String is a readout whatever options it declares
     expect(suggestWidget(opts(3), point('Status'), 'I')?.type).toBe('value')
   })
 
@@ -132,7 +117,6 @@ describe('suggesting a widget', () => {
   it('marks a read-only dial as a gauge when the type is overridden to one', () => {
     const cfg = configFor('dial', item({ name: 'i', type: 'Number' }), { label: 'I', readOnly: true })
     expect(cfg.readOnly).toBe(true)
-    // a controllable one must stay draggable
     expect(configFor('dial', item({ name: 'i', type: 'Number' }), { label: 'I' }).readOnly).toBeUndefined()
   })
 })
@@ -143,7 +127,6 @@ describe('widget configuration', () => {
     for (const type of ['switch', 'button', 'slider', 'dial', 'value', 'selection', 'color', 'rollershutter', 'player']) {
       expect(configFor(type, i, { label: 'L' }).item, type).toBe('Kitchen_Light')
     }
-    // the series-based widgets bind through a series instead
     for (const type of ['chart', 'timeline']) {
       expect(configFor(type, i, { label: 'L' }).series).toEqual([{ item: 'Kitchen_Light' }])
     }
@@ -191,7 +174,6 @@ describe('the type override list', () => {
   })
 
   it('offers only types that can drive the item', () => {
-    // a Player has no meaningful slider; a Switch has no colour picker
     expect(widgetChoices(item({ name: 'i', type: 'Player' }), 'player')).not.toContain('slider')
     expect(widgetChoices(item({ name: 'i', type: 'Switch' }), 'switch')).not.toContain('color')
   })
@@ -213,7 +195,6 @@ describe('labels', () => {
 
   it('drops the cluster’s own prefix so a Kitchen dashboard does not repeat itself', () => {
     expect(prettyLabel(item({ name: 'kitchen_main_lights_level' }), 'kitchen')).toBe('Main Lights Level')
-    // case-insensitively, which is how the prefix source clusters them
     expect(prettyLabel(item({ name: 'Kitchen_Fan' }), 'kitchen')).toBe('Fan')
   })
 
@@ -222,7 +203,6 @@ describe('labels', () => {
   })
 
   it('does not treat the prefix as a pattern', () => {
-    // a regex-special prefix must match literally rather than blowing up or matching wrongly
     expect(prettyLabel(item({ name: 'a.b_thing' }), 'a.b')).toBe('Thing')
     expect(prettyLabel(item({ name: 'axb_thing' }), 'a.b')).toBe('Axb Thing')
   })
@@ -253,12 +233,7 @@ describe('icons', () => {
   })
 })
 
-/* ------------------------------- untrusted keys ------------------------------- */
-
 describe('names that collide with Object.prototype', () => {
-  // Semantic tags are user-defined, so a tag really can be called `constructor`. A bare
-  // `TABLE[key]` returns a function for these, and a function is not nullish, so no `??` catches
-  // it: the icon becomes "mdi:function Object() { [native code] }" and the size becomes NaN.
   it.each(PROTO_KEYS)('does not turn a tag named %s into an icon', (name) => {
     for (const icon of [locationIcon(name), equipmentIcon(name)]) {
       expect(icon === undefined || /^mdi:[a-z0-9-]+$/.test(icon), `${name} -> ${icon}`).toBe(true)

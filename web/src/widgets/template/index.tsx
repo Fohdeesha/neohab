@@ -1,16 +1,3 @@
-/**
- * Template widget: renders HABPanel-style declarative templates (Tier 1) and, when enabled by
- * an administrator, sandboxed JavaScript widgets (Tier 2, see ./JsWidget).
- *
- * A template comes either inline (`config.template`) or from a custom widget definition
- * (`config.customwidget` -> `widgetdef:<id>` component), whose settings schema supplies
- * per-instance `config.*` values. Templates render into a shadow root so their <style> blocks
- * can't leak into the app, and re-render only when an item they actually read changes: the
- * scope helpers record every item name touched during a pass, and the widget subscribes to
- * exactly that set.
- *
- * The engine (sanitizer + evaluator) is lazy-loaded as a separate chunk on first use.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { WidgetDefinition, WidgetProps } from '../types'
@@ -40,7 +27,6 @@ type Engine = typeof import('../../template/engine')
 let enginePromise: Promise<Engine> | null = null
 const loadEngine = () => (enginePromise ??= import('../../template/engine'))
 
-/** Build the expression scope for one render pass, recording touched item names into `deps`. */
 function buildScope(opts: {
   deps: Set<string>
   config: Record<string, unknown>
@@ -79,8 +65,6 @@ function buildScope(opts: {
       .filter(filter)
       .map((i) => ({ name: i.name, label: i.label, type: i.type, state: liveState(i.name)?.state ?? i.state }))
 
-  // null prototype: a bare identifier like `constructor` must resolve to undefined,
-  // not fall through to Object.prototype
   return Object.assign(Object.create(null) as Scope, {
     config,
     ngModel: { name: label },
@@ -126,7 +110,6 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
     }
   }, [])
 
-  // group/tag helpers need the item catalog; load it only when the template mentions them
   useEffect(() => {
     if (/itemsInGroup|itemsWithTag/.test(template)) ensureCatalog()
   }, [template])
@@ -182,7 +165,6 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
     <div ref={hostRef} className="nh-template__host" />
   )
 
-  // dontwrap = no card chrome at all (overlay-style templates rely on filling the whole cell)
   if (config.dontwrap) return <div className="nh-widget nh-widget--bare nh-template__wrap">{body}</div>
   return (
     <WidgetFrame label={label || undefined} bare={config.nobackground}>

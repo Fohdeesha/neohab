@@ -1,23 +1,10 @@
-/**
- * Safe expression evaluator for Tier-1 template widgets.
- *
- * Expressions are parsed by jsep into an AST and interpreted here - no eval()/Function().
- * The evaluator is deliberately forgiving like AngularJS was (HABPanel templates rely on it):
- * missing identifiers and member access on null/undefined yield undefined instead of throwing,
- * and any runtime error inside an expression resolves to undefined.
- *
- * Security model: expressions can only reach values placed in the scope (helpers, config,
- * template-local variables). Identifier lookup never falls through to globals, and access to
- * `__proto__` / `prototype` / `constructor` is blocked so an expression cannot climb from a
- * scope value to Function and arbitrary code.
- */
+// interpreted, never eval'd: identifiers cannot reach globals and the scope root is prototype-free
 import jsep from 'jsep'
 import jsepObject from '@jsep-plugin/object'
 import jsepAssignment from '@jsep-plugin/assignment'
 
 jsep.plugins.register(jsepObject, jsepAssignment)
 
-/** Template scope: prototype-chained objects so child scopes (x-for) shadow their parents. */
 export type Scope = Record<string, unknown>
 
 const FORBIDDEN_PROPS = new Set(['__proto__', 'prototype', 'constructor'])
@@ -38,7 +25,6 @@ export function parseExpression(src: string): jsep.Expression | Error {
   return ast
 }
 
-/** Evaluate an expression string against a scope. Errors resolve to undefined. */
 export function evaluate(src: string, scope: Scope): unknown {
   const ast = parseExpression(src.trim())
   if (ast instanceof Error) return undefined
@@ -126,7 +112,6 @@ function evalNode(node: jsep.Expression, scope: Scope): unknown {
       if (n.operator !== '=') return undefined
       const left = n.left as AnyNode
       const value = evalNode(n.right as jsep.Expression, scope)
-      // Assignments only ever write template-scope variables, never members of exposed objects.
       if (left.type === 'Identifier' && !FORBIDDEN_PROPS.has(left.name as string)) {
         assign(scope, left.name as string, value)
       }
@@ -144,12 +129,8 @@ function evalNode(node: jsep.Expression, scope: Scope): unknown {
   }
 }
 
-/**
- * Write a scope variable where it already lives, like AngularJS did: a name defined on a parent
- * scope is updated there, so `ng-init="total = 0"` on a wrapper and `total = total + x` inside an
- * ng-repeat accumulate into the same variable instead of the assignment landing on the loop's own
- * child scope and vanishing with each iteration. An undeclared name is created locally.
- */
+// write a scope variable where it already lives, like AngularJS did, or ng-init on a wrapper never sees the
+// loop's writes
 function assign(scope: Scope, name: string, value: unknown): void {
   let target: object | null = scope
   while (target) {
@@ -175,7 +156,6 @@ function binary(op: string, l: unknown, r: unknown): unknown {
   const b = r as number
   switch (op) {
     case '+':
-      // JS semantics on purpose: number addition or string concatenation
       return (l as never) + (r as never)
     case '-':
       return a - b
@@ -186,8 +166,7 @@ function binary(op: string, l: unknown, r: unknown): unknown {
     case '%':
       return a % b
     case '==':
-      // Loose equality on purpose: AngularJS templates rely on it, and HABPanel templates are
-      // full of `state == 1` against a string state.
+      // loose equality on purpose: HABPanel templates are full of `state == 1` against a string state
       return l == r
     case '!=':
       return l != r

@@ -1,8 +1,3 @@
-/**
- * "Migrate from HABPanel" settings section. Offers two paths: importing a
- * habpanel-config.json export file, or importing a panel configuration found live on this
- * openHAB server. Shows an honest per-import report of what was mapped and approximated.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { listComponentsIn } from '../api/components'
@@ -22,7 +17,6 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
   const [serverConfigs, setServerConfigs] = useState<UIComponent[]>([])
-  /** Whether the server has been asked yet, so "nothing found" is only said once it is true. */
   const [probed, setProbed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<HabpanelImportResult | null>(null)
@@ -63,8 +57,6 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
 
     setBusy(true)
     try {
-      // One restore point for the whole import, so the configuration as it was before it is
-      // recoverable however recently the last ordinary save happened.
       await beginBulkConfigWrite()
       for (const dashboard of converted.dashboards) {
         await saveDashboard(dashboard)
@@ -129,9 +121,6 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
           })}
         </div>
       ) : probed ? (
-        // HABPanel can keep its panels in the browser rather than on the server, and that is the
-        // single most repeated confusion about migrating off it: the section looked broken to
-        // anyone whose panels were never saved to openHAB, because it simply showed nothing.
         <p className="nh-settings__text">
           {t(
             'No HABPanel configuration is saved on this server. If your panels only exist in HABPanel’s own browser storage, open HABPanel, save the panel configuration to the server or export it, and come back with the file.'

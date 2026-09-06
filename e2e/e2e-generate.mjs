@@ -1,14 +1,6 @@
-/**
- * Dashboard generator e2e: the four sources, the review step and what actually lands on the
- * server.
- *
- * The semantic-model sections run against a synthetic tagged item list injected with a route
- * mock, because a server with a real semantic model cannot be assumed - everything else runs
- * against the target server's own items.
- *
- * SAFE with a live config: records the namespace before each creation and deletes exactly what
- * appeared, so nothing else is touched. No item commands at all.
- */
+// Dashboard generator e2e: the four sources, the review step and what actually lands on the server.
+// SAFE with a live config: records the namespace before each creation and deletes exactly what appeared, so
+// nothing else is touched.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -26,7 +18,6 @@ const getComp = async (uid) => {
 }
 const del = (uid) => fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
 
-/** Every uid created since `before`, so a cluster-named dashboard is cleaned up too. */
 const freshUids = async (before) => [...(await listUids())].filter((u) => !before.has(u))
 
 const overlapping = (widgets) => {
@@ -39,10 +30,6 @@ const overlapping = (widgets) => {
   return null
 }
 
-/**
- * A small semantic model: two locations, equipment with points, a status point that must not
- * become a control, and an item outside the model that must not be picked up.
- */
 const MODEL_ITEMS = [
   { name: 'gKitchen', type: 'Group', state: 'NULL', label: 'Kitchen', tags: ['Kitchen'], groupNames: [] },
   { name: 'gLiving', type: 'Group', state: 'NULL', label: 'Living Room', tags: ['LivingRoom'], groupNames: [] },
@@ -64,7 +51,6 @@ function launch() {
 const browser = await launch()
 const errs = []
 
-/** A page with the admin token, optionally serving the synthetic model instead of real items. */
 async function openPage({ model = false, viewport = { width: 1500, height: 1000 } } = {}) {
   const page = await browser.newPage({ viewport })
   page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -79,7 +65,6 @@ async function openPage({ model = false, viewport = { width: 1500, height: 1000 
   return page
 }
 
-/** Home -> new dashboard -> generator wizard. */
 async function openWizard(page) {
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tile--new, .nh-welcome', { timeout: 15000 })
@@ -96,7 +81,6 @@ async function openWizard(page) {
 const created = []
 
 try {
-  /* ---------------- 1. the source step against the server's real items ---------------- */
   {
     const page = await openPage()
     await openWizard(page)
@@ -117,20 +101,15 @@ try {
       JSON.stringify(by.semantic)
     )
 
-    // step navigation
     await page.click('[data-source="prefix"]')
     await page.waitForSelector('.nh-gen__list', { timeout: 5000 })
     ok('choosing a source moves to the cluster step', true)
-    // Scoped to the sheet and matched exactly: `:has-text` is a case-insensitive SUBSTRING, so on
-    // a server with no dashboards the welcome card's "Restore a backup" behind the sheet matches
-    // "Back" too, Playwright takes the first, and the click is swallowed by the sheet on top.
     await page.click('.nh-sheet button:text-is("Back")')
     await page.waitForSelector('[data-source="prefix"]', { timeout: 5000 })
     ok('Back returns to the source step', true)
     await page.close()
   }
 
-  /* ---------------- 2. cluster step + single-dashboard output ---------------- */
   {
     const page = await openPage()
     await openWizard(page)
@@ -155,13 +134,10 @@ try {
     await page.click('button:has-text("Select all")')
     ok('Select all restores it', (await page.$$eval('.nh-gen__list input', (els) => els.every((e) => e.checked))))
 
-    // one cluster, one dashboard, a name we control
     await page.click('button:has-text("Select none")')
     await page.locator('.nh-gen__list .nh-gen__row').first().locator('input').check()
     const firstName = clusters[0].name
     await page.locator('.nh-gen__mode input').nth(1).check()
-    // The name is optional, and the placeholder is the name that will really be used. A button
-    // sitting disabled with nothing saying why is what this used to be.
     ok('an unnamed single dashboard can still be reviewed', !(await page.$eval('.nh-gen__footer button.nh-btn--primary', (b) => b.disabled)))
     ok(
       'and the placeholder is the name it would take',
@@ -186,13 +162,10 @@ try {
     ok('each row offers alternatives', rows.every((r) => r.types.length >= 2), JSON.stringify(rows[0]?.types))
     ok('the chosen type is the first option', rows.every((r) => r.types[0] === r.type))
 
-    // drop the first row, then create
     await page.locator('.nh-gen__cluster .nh-gen__row').first().locator('input').uncheck()
     const btn = await page.textContent('.nh-gen__footer button.nh-btn--primary')
     ok('the button counts only the included rows', btn?.includes(String(rows.length - 1)), btn ?? '')
 
-    // Override one row's widget type. The alternative is chosen so that no other included row
-    // already suggests it - otherwise finding it on the server would prove nothing.
     const included = rows.slice(1)
     let overrideAt = -1
     let alt = null
@@ -226,10 +199,6 @@ try {
     ok('no widget overlaps another', overlapping(cfg?.widgets ?? []) === null, JSON.stringify(overlapping(cfg?.widgets ?? [])))
     ok('every widget fits the grid', cfg?.widgets.every((w) => w.layout.lg.x + w.layout.lg.w <= cfg.columns))
     ok('every widget is bound and labelled', cfg?.widgets.every((w) => (typeof w.config.item === 'string' && w.config.item) || Array.isArray(w.config.series)))
-    // The rule is: prefer the item's OWN label, and only when it has none derive one from the
-    // name with the cluster prefix stripped. Asserting the stripping over every widget tests the
-    // wrong branch on a server whose items are all labelled - and their labels may legitimately
-    // start with the cluster name, because that is where the cluster name came from.
     const labelled = new Map(
       (await (await fetch(`${BASE}/rest/items?fields=name,label`, { headers: AUTH })).json()).map((i) => [i.name, i.label])
     )
@@ -244,14 +213,12 @@ try {
       )
     }
 
-    // the generated dashboard renders
     await sleep(1200)
     const cells = await page.$$eval('.nh-gcell', (els) => els.length)
     ok('the generated dashboard renders every widget', cells === cfg?.widgets.length, `${cells} vs ${cfg?.widgets.length}`)
     await page.close()
   }
 
-  /* ---------------- 3. hand-picked items ---------------- */
   {
     const page = await openPage()
     await openWizard(page)
@@ -284,7 +251,6 @@ try {
     await page.close()
   }
 
-  /* ---------------- 4. the semantic model (synthetic items) ---------------- */
   {
     const page = await openPage({ model: true })
     await openWizard(page)
@@ -329,7 +295,6 @@ try {
     await page.close()
   }
 
-  /* ---------------- 5. one dashboard per location, with icons ---------------- */
   {
     const page = await openPage({ model: true })
     await openWizard(page)
@@ -339,7 +304,6 @@ try {
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
 
-    // drop a whole cluster with its own checkbox
     await page.locator('.nh-gen__clusterhead').nth(1).locator('input').uncheck()
     const before = await listUids()
     await page.click('.nh-gen__footer button.nh-btn--primary')
@@ -356,18 +320,10 @@ try {
     await page.close()
   }
 
-  /* ---------------- 6. the first-run screen, signed out ---------------- */
   {
-    // A server with no dashboards yet, without wiping anything: the component list is mocked
-    // empty, and the page starts with no token. Signed out is a view-only device by default,
-    // so the screen must offer a sign-in and NOT the setup actions; signing in (this suite's
-    // admin token) reveals the four actions with no reload, and Generate then opens the
-    // generator directly rather than through a gate.
     const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
     page.on('pageerror', (e) => errs.push(String(e.message)))
     page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
-    // The app requests the namespace with a literal colon, so this has to be a regex rather
-    // than an encoded glob.
     await page.route(/\/rest\/ui\/components\/neohab:config(\?|$)/, (route) =>
       route.request().method() === 'GET'
         ? route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
@@ -384,8 +340,6 @@ try {
       (await page.locator('.nh-welcome__actions .nh-btn:text-is("Sign in")').count()) === 1
     )
 
-    // Guarded clicks: on a build without the sign-in button the assertions must be what fails,
-    // not a thrown timeout that hides the rest of the section.
     await page.click('.nh-welcome__actions .nh-btn:text-is("Sign in")', { timeout: 10000 }).catch(() => {})
     const sheetOpened = await page
       .waitForSelector('.nh-signin', { timeout: 5000 })
@@ -397,7 +351,6 @@ try {
       await page.click('button:has-text("Use an API token instead")')
       await page.fill('#nh-token', TOKEN)
       await page.click('button:has-text("Use token")')
-      // The four actions appear reactively once the device turns out to be an administrator.
       revealed = await page
         .waitForSelector('.nh-welcome__actions .nh-btn:has-text("Generate from my items")', { timeout: 15000 })
         .then(() => true)
@@ -425,7 +378,6 @@ try {
     const r = await del(uid)
     if (!r.ok) console.log('cleanup failed for ' + uid + ': ' + r.status)
   }
-  // belt and braces: nothing named nh-e2e-gen-* may survive
   for (const uid of await listUids()) {
     if (uid.startsWith('dashboard:nh-e2e-gen')) await del(uid)
   }

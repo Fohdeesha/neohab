@@ -1,10 +1,3 @@
-/**
- * Settings > Version history: the restore points, what each one changed, and putting one back.
- *
- * A point is highlighted to reveal what happened at it. Two comparisons are offered, because they
- * answer different questions: what that step changed (against the point before it), and what
- * restoring it would change (against the configuration as it is now).
- */
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NumberSetting } from '../components/NumberSetting'
@@ -115,12 +108,9 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
   )
 }
 
-/** A restore point's date, in the reader's own locale. */
 function formatWhen(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  // Seconds included: with a short window two points can land in the same minute, and two rows
-  // reading the same time would be indistinguishable.
   return date.toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -167,8 +157,7 @@ function HistoryDetail({
     setRows(null)
     setFailed(null)
     try {
-      // The earliest point is a starting state, not a step. Comparing it with nothing would
-      // report every component as newly added, which is not what happened.
+      // the earliest point is a starting state, not a step
       if (mode === 'step' && !previousId) {
         setRows([])
         return
@@ -176,7 +165,6 @@ function HistoryDetail({
       const target = await getSnapshot(snapshot.id)
       if (!target) throw new Error(t('That restore point is no longer stored on the server.'))
       if (mode === 'now') {
-        // "What restoring would change": from what is there now, to what the point holds.
         setRows(diffEntries(await currentEntries(), target.components))
         return
       }
@@ -321,7 +309,6 @@ function kindLabel(kind: ChangeKind, t: Translate): string {
   return t('changed')
 }
 
-/** The uid prefixes, in words. Anything unrecognised keeps its prefix rather than being hidden. */
 function categoryLabel(category: string, t: Translate): string {
   switch (category) {
     case 'dashboard':

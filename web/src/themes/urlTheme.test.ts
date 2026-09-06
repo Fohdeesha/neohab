@@ -1,13 +1,5 @@
-/**
- * The escape hatch's parser.
- *
- * `urlTheme.ts` reads the parameter once at module load, which is what makes it usable on the
- * pre-paint path, so each case here loads a fresh copy of the module with `window.location` set,
- * rather than trying to change it afterwards.
- */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 
-/** Load the module fresh with the given URL in place. */
 async function withUrl(href: string): Promise<typeof import('./urlTheme')> {
   const url = new URL(href)
   vi.stubGlobal('window', { location: { hash: url.hash, search: url.search } })
@@ -48,7 +40,6 @@ describe('the ?theme= escape hatch', () => {
   })
 
   it('treats an empty value as present, not absent', async () => {
-    // `?theme=` alone is someone reaching for the hatch and not finishing the word.
     const m = await withUrl(`${BASE}?theme=`)
     expect(m.urlThemeForced).toBe(true)
     expect(m.urlThemeId).toBe('')

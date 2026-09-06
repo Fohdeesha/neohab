@@ -31,15 +31,9 @@ import {
   type RingStyle
 } from './gauge'
 
-/**
- * The ring gauge styles: one or two rings - glowing LED beads, a continuous solid band,
- * chunky flat blocks, or clay-shaded 3D - with severity colors and a center readout.
- */
 export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const kind: RingStyle =
     config.style === 'arc' || config.style === 'blocks' || config.style === '3d' || config.style === 'ticks' ? config.style : 'led'
-  // Guarded at the read like every other stored value here: a min or max that is not a number
-  // drew NaN arcs and a reading of "NaN", and a zero step divided by zero in the pointer snap.
   const { min, max, step } = scaleOf(config)
   const decimals = stepDecimals(step)
   const { min: min2, max: max2, step: step2 } = scaleOf(config, 'inner')
@@ -70,32 +64,23 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const color2 = gaugeColor(value2, config.severity2, config.color2) ?? 'var(--nh-primary)'
   const primaryIsInner = inner && config.centerShows === 'inner'
   const alarmed = inAlarm(config, live, min, max)
-  // the glow is the LED style's signature; the flat and clay styles default it off
   const bloomVisible = (config.bloom ?? kind === 'led') || alarmed
   const bloomColor = primaryIsInner ? color2 : color
 
-  /* Geometry: ticks need room outside the ring, so the ring shrinks when they are shown. */
   const R = showTicks ? 34 : 44
   const centerR = showTicks ? 21 : 27
   const slots = sweep >= 360 ? count : Math.max(1, count - 1)
   const arcGap = (2 * Math.PI * R * (sweep / 360)) / slots
   const ledR = Math.min(2.5, Math.max(0.9, arcGap * 0.42))
-  /* The tick ring: fine radial marks hung between two hairline rims near the rim of the face,
-     the lit ones reaching a little further in so the reading is legible as a length as well as
-     a color. Short marks and a wide-open middle are what make it read as an instrument. */
   const tickRing = kind === 'ticks'
   const tickW = Math.min(1.6, Math.max(0.5, arcGap * 0.24))
   const tickOuter = R + 2
   const tickLen = R * 0.105
   const tickLenLit = R * 0.145
-  /* the inner ring sits inside the outer beads' halos, with its own smaller beads; the tick
-     ring's second ring hangs just inside the first one's rim */
   const R2 = tickRing ? R - 8 : R * 0.76
   const ledR2 = Math.min(2.1, Math.max(0.8, ((2 * Math.PI * R2 * (sweep / 360)) / slots) * 0.42))
-  /* solid band and block thicknesses (viewBox units), outer and inner */
   const bandW = 7
   const bandW2 = 4.5
-  /* 3d: the value arc sits between the clay block ring and the disc */
   const R3 = R * 0.72
   const R3i = R * 0.55
 
@@ -115,7 +100,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     const rect = svgRef.current!.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
-    // atan2 in screen space IS the SVG angle space: 0° at 3 o'clock, clockwise positive
     const angle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI
     return ring === 'inner'
       ? angleToValue(angle, min2, max2, start, sweep, step2, decimals2)
@@ -135,8 +119,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     if (drag === null) return
     const { ring, v } = drag
     setDrag(null)
-    // See ClassicDial: a hold recognised during the press takes the gesture, so this release
-    // sends nothing and the staged value is already gone.
     if (holdTookGesture()) return
     void ctx.sendCommand(ring === 'inner' ? config.item2! : config.item, String(v))
   }
@@ -145,22 +127,16 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const text2 = value2.toFixed(decimals2)
   const primaryText = primaryIsInner ? text2 : text
   const primaryUnit = primaryIsInner ? config.unit2 : config.unit
-  /* "39 / 58": the reading over its scale maximum (trailing zeros dropped, like tick labels) */
   const maxText =
     config.showMax === true ? String(Number((primaryIsInner ? max2 : max).toFixed(primaryIsInner ? decimals2 : decimals))) : null
   const secondaryLine = inner
     ? (primaryIsInner ? text : text2) +
       ((primaryIsInner ? config.unit : config.unit2) ? ' ' + (primaryIsInner ? config.unit : config.unit2) : '')
     : null
-  /* The tick ring has no center disc to fit inside, so its reading takes the whole face -
-     the instrument look, where the number is the widget. */
-  /* the "/ 58" tail is drawn at ~0.44x the value size, so it costs about half its length */
   const centerLen = primaryText.length + (maxText !== null ? (maxText.length + 2) * 0.55 : 0)
   const valueSize = centerR * (tickRing ? 1.15 : 0.52) * Math.min(1, (tickRing ? 4.2 : 5.5) / Math.max(1, centerLen))
-  /** The gauge names itself inside the face instead of in the tile header. */
   const named = config.centerLabel === true && (config.label ?? '') !== ''
 
-  // stored lists are untrusted input - a hand-edited config can hold anything here
   const markers = (Array.isArray(config.markers) ? config.markers : []).flatMap((m: GaugeMarker, i) => {
     const mv = m.item ? numericValue(ctx.getItem(m.item)) : m.value
     if (typeof mv !== 'number' || !Number.isFinite(mv)) return []
@@ -173,7 +149,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     return a2 > a1 ? [{ ...z, a1, a2, key: i }] : []
   })
 
-  /* opt-in history bars under the center value, following the primary ring's item */
   const historyOn = config.history === true
   const histItem = (primaryIsInner ? config.item2 : config.item) || ''
   const periodMs = historyPeriodMs(config)
@@ -184,10 +159,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       return
     }
     let dead = false
-    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
-    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
-    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
-    // every earlier window running to completion.
     const ctrl = new AbortController()
     const load = async () => {
       try {
@@ -211,15 +182,12 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const showBars = historyOn && bars !== null && bars.some((b) => b !== null)
   const historyLine = config.historyStyle === 'line'
 
-  /** Lit fraction range along the arc: from the start (or the zero reference) to the value. */
   const span = (vf: number, zf: number, bidi: boolean): [number, number] | null => {
     const lo = bidi ? Math.min(vf, zf) : 0
     const hi = bidi ? Math.max(vf, zf) : vf
     return hi - lo > 1e-6 ? [lo, hi] : null
   }
   const segPath = (RR: number, f1: number, f2: number) => {
-    // a full-circle span has identical endpoints, and an SVG arc between identical points
-    // draws nothing - split it into two half arcs
     if (sweep >= 360 && f2 - f1 > 0.9999) {
       const a0 = fractionToAngle(f1, start, sweep)
       const p0 = polar(50, 50, RR, a0)
@@ -229,7 +197,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     return arcPath(50, 50, RR, fractionToAngle(f1, start, sweep), fractionToAngle(f2, start, sweep))
   }
 
-  /** Clay-shaded solid value arc (the 3d style's indicator, outer or inner). */
   const clayArc = (RR: number, w: number, vf: number, zf: number, bidi: boolean, col: string, key: string) => {
     const s = span(vf, zf, bidi)
     return (
@@ -258,13 +225,11 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     )
   }
 
-  /** Chunky flat block segments (the blocks style, outer or inner ring). */
   const blockRing = (RR: number, w: number, vf: number, zf: number, bidi: boolean, col: string, innerRing: boolean) =>
     Array.from({ length: count }, (_, i) => {
       const lit = blockLit(i, count, vf, zf, bidi)
       if (!lit && config.hideUnlit) return null
       const d = segPath(RR, (i + 0.09) / count, (i + 0.91) / count)
-      // lit stroke via attribute only - a stylesheet stroke would override it
       return lit ? (
         <path
           key={`${innerRing ? 'ib' : 'b'}-${i}`}
@@ -283,11 +248,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       )
     })
 
-  /** Continuous solid band with a dim track (the arc style, outer or inner ring). The two
-      film overlays after the band are invisible until a theme raises --nh-band-light /
-      --nh-band-shade: a brightened tail at the value tip and a darkened one at the start,
-      each faded along its own chord - a lit arc, without touching the band's own attribute
-      paint (which severity stops and the color setting drive). */
   const bandRing = (RR: number, w: number, vf: number, zf: number, bidi: boolean, col: string, key: string) => {
     const s = span(vf, zf, bidi)
     const film = s && s[1] - s[0] > 0.03 ? Math.min(0.25, (s[1] - s[0]) * 0.45) : 0
@@ -330,9 +290,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     )
   }
 
-  /* Center layout. The tick ring gets its own: a wide-open face with the name above the
-     reading, the unit raised beside it as a superscript, and the sparkline below - the
-     reference instrument panel. Every other style keeps the layout it already had. */
   const nameY = tickRing ? 50 - R * 0.48 : 50 - centerR * 0.62
   const nameSize = tickRing ? R * 0.165 : centerR * 0.2
   const valueY = tickRing ? (named ? 52 : 50) + (showBars ? -1.5 : 0) : showBars ? (inner ? 41.5 : 44) : config.unit || inner ? 47.5 : 50
@@ -343,7 +300,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       : inner || showBars
         ? valueSize * 0.92
         : valueSize
-  /* history: bars, or a sparkline through the same normalized series */
   const histY = tickRing ? 50 + R * 0.58 : Math.min(50 + centerR - 3.5, 50 + centerR * (inner ? 0.62 : 0.55))
   const histH = tickRing ? R * 0.19 : centerR * (inner ? 0.26 : 0.32)
   const histHalf = Math.sqrt(Math.max(0, centerR * centerR - (histY - 50) * (histY - 50)))
@@ -480,8 +436,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
               const a = fractionToAngle(ledFraction(i, count, sweep), start, sweep)
               const p1 = polar(50, 50, tickOuter, a)
               const p2 = polar(50, 50, tickOuter - (lit ? tickLenLit : tickLen), a)
-              // lit marks take their color from the attribute - a stylesheet stroke on the
-              // class would override it, so the lit class carries no stroke rule
               return (
                 <line
                   key={`k-${i}`}
@@ -574,7 +528,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
         {inner && kind === 'blocks' ? blockRing(R2, bandW2, frac2, zeroFrac2, config.bidirectional2 === true, color2, true) : null}
         {inner && kind === '3d' ? clayArc(R3i, 4, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'v3i') : null}
         {ticks.map((tk, i) => {
-          // the arc style's ticks cross the band, tachometer-style; the others sit outside
           const p1 = polar(
             50,
             50,
@@ -595,7 +548,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
                   className="nh-gauge__ticklabel"
                   {...(() => {
                     const p = polar(50, 50, R + 13, tk.angle)
-                    // keep the label inside the viewBox - a left/right-edge label would clip
                     const half = tk.label!.length * 1.25
                     return { x: Math.min(99 - half, Math.max(1 + half, p.x)), y: p.y }
                   })()}
@@ -639,9 +591,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={valueFont}
-          /* the tick ring reads its value in the ring's own color, the way the reference
-             instrument does. An inline style, because a stylesheet fill on .nh-gauge__value
-             would beat a fill attribute. */
           style={tickRing ? { fill: primaryIsInner ? color2 : color } : undefined}>
           {primaryText}
           {maxText !== null ? (
@@ -665,7 +614,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
           ) : null}
         </text>
         {inner ? (
-          /* dual gauge: the other ring's reading, smaller and dim, under the primary */
           <text
             className="nh-gauge__unit nh-gauge__second"
             x={50}
@@ -690,7 +638,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
           ? (() => {
               const n = bars!.length
               if (historyLine) {
-                // a trace rather than bars: the instrument-panel sparkline
                 return (
                   <g>
                     {sparkSegments(bars!, 50 - histW / 2, histW, histY, histH).map((d, i) => (

@@ -1,14 +1,3 @@
-/**
- * "Manage presets": rename, edit and delete the presets the plan's chips activate, from the
- * plan itself. Administrators only - every write here is a rule write, which the server allows
- * nobody else, and the values a preset holds cannot even be read without that role.
- *
- * A full-screen sheet rather than a popup inside the widget, because a preset's editor holds a
- * colour picker per light and a floor plan can be a small tile on a dashboard.
- *
- * Presets made elsewhere (Main UI, a hand-written rule) are listed and left alone: neohab's own
- * scenes are the ones it knows the shape of.
- */
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +8,6 @@ import { PresetEdit } from './PresetEdit'
 import type { FloorplanLight } from './model'
 import { errorText } from '../../api/errors'
 
-/** Enough of a preview to tell two scenes apart at a glance, without becoming a row of confetti. */
 const MAX_DOTS = 8
 
 export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight[]; onClose: () => void }) {
@@ -46,9 +34,6 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
     }
   }
 
-  // Rendered into the body, not where it sits in the tree: every grid cell is a size container,
-  // which makes it the containing block for fixed descendants, so a sheet rendered inside a
-  // widget would be laid out and clipped to that widget's tile rather than the screen.
   return createPortal(
     <div className="nh-pmgr" role="dialog" aria-label={t('Manage presets')}>
       <header className="nh-pmgr__bar">
@@ -88,7 +73,6 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
                       ? t('{{count}} light', { count: preset.lights.length }) +
                         (bridged.includes(s.uid) ? ' · ' + t('wall switch linked') : '')
                       : // Values still loading for one of ours: say nothing rather than call it
-                        // somebody else's for the second it takes.
                         s.managed
                         ? ''
                         : t('created outside neohab')}
@@ -135,7 +119,6 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
   )
 }
 
-/** The colours a preset sets, as dots. Nothing for a preset of dimmers and switches. */
 function Dots({ preset }: { preset: Preset | undefined }) {
   const colors = (preset?.lights ?? []).filter((l) => commandKind(l.command) === 'color').slice(0, MAX_DOTS)
   if (colors.length === 0) return null

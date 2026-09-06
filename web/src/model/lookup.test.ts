@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyMap, lookup, mergeMap } from './lookup'
 
-/*
- * openHAB item names are validated by `ItemUtil.isValidItemName` as `[a-zA-Z_][a-zA-Z0-9_]*`, so
- * every one of these is a name a person can really give an item. Semantic tags are user-defined
- * too, and a stored widget config can hold any string at all.
- */
 const HOSTILE = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', '__proto__', 'toLocaleString']
 
 describe('lookup', () => {
@@ -54,11 +49,6 @@ describe('mergeMap', () => {
     for (const key of HOSTILE) expect(m[key]).toBeUndefined()
   })
 
-  /*
-   * `JSON.parse` gives `__proto__` as an OWN property, so an item of that name really does arrive
-   * this way over SSE. On a prototype-free target there is no inherited setter for Object.assign
-   * to trigger, so it lands as data and cannot reach any other object.
-   */
   it('stores an item literally named __proto__ as data, and pollutes nothing', () => {
     const delta = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>
     const m = mergeMap<unknown>(emptyMap(), delta)

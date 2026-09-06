@@ -1,9 +1,3 @@
-/**
- * "Save preset" dialog: captures the plan's lights AS THEY ARE NOW into a scene - a new one,
- * or overwriting one of the neohab-managed presets. Per-light checkboxes let a preset cover a
- * subset (movie night touches the living room and leaves the bedroom alone); lights whose
- * state is unknown cannot be captured and say so instead of silently storing garbage.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetContext } from '../types'
@@ -22,8 +16,6 @@ export function PresetSaveDialog({ ctx, lights, onClose }: { ctx: WidgetContext;
   const [target, setTarget] = useState('') // '' = new preset
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  // Prototype-free: a light's id can come from stored configuration, so it can be any string at
-  // all, and a miss on an ordinary object answers with a function - see model/lookup.ts.
   const [included, setIncluded] = useState<Record<string, boolean>>(() => mergeMap(...lights.map((l) => ({ [l.id]: true }))))
 
   const captures = lights.map((l) => {
@@ -39,8 +31,6 @@ export function PresetSaveDialog({ ctx, lights, onClose }: { ctx: WidgetContext;
     if (!presetName) return
     setBusy(true)
     try {
-      // Overwriting keeps the preset's identity (uid, status item, bridge) and replaces the
-      // lights this plan covers; lights of the preset NOT on this plan are kept as they are.
       const keptLights = existing ? existing.lights.filter((pl) => !chosen.some((c) => c.light.item === pl.item)) : []
       const preset: Preset = existing
         ? { ...existing, lights: [...keptLights, ...chosen.map((c) => ({ item: c.light.item, command: c.command! }))] }

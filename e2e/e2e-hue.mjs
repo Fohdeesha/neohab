@@ -1,15 +1,4 @@
-/**
- * Hue-wrap e2e: the color track's top end (360) must reach the device.
- *
- * openHAB's HSBType validates 0 <= h < 360 and rejects the whole command with HTTP 400
- * otherwise, so the far-right end of a max=360 track used to be the one value the server
- * refused: the swatch went red, the light never moved. The widget now wraps 360 -> 0 (same
- * red on the wheel) when building the command.
- *
- * SAFE with the live config: creates only dashboard:nh-e2e-hue and deletes exactly that in a
- * guarded cleanup. Commands only the color item (an approved test item), restores its exact
- * recorded state.
- */
+// Hue-wrap e2e: the color track's top end (360) must reach the device.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -56,7 +45,6 @@ try {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message))
 
-  // Bright green start: makes a red result unmistakable at both the swatch and the device.
   await cmd('120,100,100')
   await sleep(2000)
 
@@ -67,7 +55,6 @@ try {
   await sleep(1500)
   ok('starts on the live green', (await hue.inputValue()) === '120', 'h=' + (await hue.inputValue()))
 
-  // --- 1. pointer drag to the very end (the exact reported gesture)
   const box = await hue.boundingBox()
   await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2)
   await page.mouse.down()
@@ -90,11 +77,9 @@ try {
   const [r, g] = sw.match(/\d+/g).map(Number)
   ok('swatch matches the device (both red)', r > 200 && g < 60, sw)
 
-  // --- 2. the user's slider position survives the 0-echo (hue memory), well past the 8s window
   await sleep(8500)
   ok('slider stays at the end (no snap-back)', (await hue.inputValue()) === '360', 'h=' + (await hue.inputValue()))
 
-  // --- 3. a mid-track hue still behaves normally (no off-by-one from the wrap)
   posts.length = 0
   await hue.evaluate((el) => el.focus())
   const box2 = await hue.boundingBox()

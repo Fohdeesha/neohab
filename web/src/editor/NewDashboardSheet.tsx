@@ -1,8 +1,3 @@
-/**
- * Create a new empty dashboard: display name → URL-safe id, persisted to the server
- * immediately. The way here is gated like the edit pencil (administrators), but the server is
- * what actually decides, so a refusal is reported rather than assumed away.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'

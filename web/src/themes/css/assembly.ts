@@ -1,17 +1,5 @@
 import { fontFace, wholeTileActive } from './shared'
 
-/**
- * Assembly - a dark green glass production board.
- *
- * Translucent panels that blur what is behind them (the page's own soft-lit green, or a
- * background image when one is set), hairline mint borders with an inner top light, vivid green
- * instruments with brightened value tips, and the active control drawn as the board's selected
- * card - green outline, tinted fill, soft glow.
- *
- * The gauge band films are switched on through the `band-light` and `band-shade` tokens: the
- * widget draws them at zero strength everywhere, so they are invisible until a theme raises them.
- * The backdrop image ships with the add-on, because glass needs something to blur.
- */
 export const ASSEMBLY_CSS = `${fontFace('Poppins', 'poppins-400.woff2', '400')}${fontFace('Poppins', 'poppins-500.woff2', '500')}${fontFace('Poppins', 'poppins-600.woff2', '600')}/* The room behind the glass: a defocused robot hall (bundled render - lit clerestory, rim-lit
    arms, floor sheen), under a light legibility scrim, over the gradient washes that stand in
    while it loads. This is what the panels blur, which is what makes them read as glass; an

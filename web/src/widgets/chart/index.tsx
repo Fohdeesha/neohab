@@ -13,32 +13,18 @@ import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus
 import type { ChartHandle } from './plot'
 import type { HeatmapHandle } from './heatmap'
 
-/** Chip selection per widget instance; survives the run/edit remount. Session-scoped. */
 const periodMemory = new Map<string, string>()
 
-/**
- * History chart backed by openHAB persistence: multi-series, gradient fills, crosshair tooltip,
- * legend with series toggling, quick period chips, drag-zoom (double-click resets), threshold
- * lines/bands, and live SSE appending. It can also group the history into buckets (per hour/day,
- * or by hour of day / day of week) with a per-series aggregate function, and show an
- * hour-by-weekday heatmap instead of a plot. All uPlot and canvas work lives in ./plot and
- * ./heatmap, loaded on demand so dashboards without charts don't pay for it.
- */
 function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const { t } = useTranslation()
   const route = useRoute()
   const { series: resolved, thresholds, groupBy, grouped, categorical, heatmap } = resolveChart(config)
 
-  // The picked period outlives this component: entering/leaving edit mode remounts the whole
-  // widget tree, and losing the chip selection there means you can't tweak a chart while
-  // looking at the range you care about. Session-scoped, keyed by widget instance id.
   const [period, setPeriodState] = useState(() => periodMemory.get(ctx.widgetId) ?? config.period ?? '24h')
   const setPeriod = (p: string) => {
     periodMemory.set(ctx.widgetId, p)
     setPeriodState(p)
   }
-  // Follow a *change* to the configured default (the settings panel edits it live); the mount
-  // run must not clobber the remembered chip with the default.
   const configPeriodRef = useRef(config.period)
   useEffect(() => {
     if (configPeriodRef.current === config.period) return
@@ -51,8 +37,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error' | 'nopersistence'>('loading')
   const [zoomed, setZoomed] = useState(false)
   const [hidden, setHidden] = useState<number[]>([])
-  // Only asked for once the fetch has actually failed that way, so an ordinary dashboard never
-  // probes an admin endpoint it has no use for.
   const advice = usePersistenceAdvice(status === 'nopersistence')
 
   const hostRef = useRef<HTMLDivElement>(null)
@@ -67,7 +51,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const ctxRef = useRef(ctx)
   ctxRef.current = ctx
 
-  // Rebuild triggers: anything that changes chart topology or styling.
   const seriesKey = JSON.stringify(resolved)
   const optionsKey =
     JSON.stringify(thresholds) +
@@ -100,7 +83,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       return unit ? out + ' ' + unit : out
     }
 
-    /** Hour-by-weekday matrix of the first series - a different picture, not a different plot. */
     async function loadHeatmap() {
       const to = Date.now() / 1000
       const from = to - windowMs / 1000
@@ -150,8 +132,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       })
       if (disposed) return
       tablesRef.current = tables
-      // A refetch answering after live points arrived would rewind the chart; the live
-      // effect re-appends current values because the last-appended memory is cleared.
       lastLiveRef.current.clear()
       if (tables.every((tbl) => tbl[0].length === 0)) {
         handleRef.current?.destroy()
@@ -177,7 +157,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
             zoomedRef.current = z
             if (disposed) return
             setZoomed(z)
-            // leaving zoom: catch up on everything skipped while zoomed
             if (!z) void load().catch(() => {})
           }
         })
@@ -187,10 +166,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       setStatus('ready')
     }
 
-    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
-    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
-    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
-    // every earlier window running to completion.
     const ctrl = new AbortController()
     const run = () => (heatmap ? loadHeatmap() : load())
     setStatus('loading')
@@ -218,10 +193,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesKey, optionsKey, period, config.service, config.refresh])
 
-  // Live appending: WidgetHost re-renders on subscribed item changes; coalesce into one
-  // appended row per 500ms so a fading dimmer doesn't spam one point per SSE frame.
-  // Only for ungrouped plots: pushing a raw reading into an aggregated bucket, or into a
-  // category, would misstate the aggregate until the next refetch.
   const liveTracked = config.live !== false && !grouped && !heatmap
   const liveKey = liveTracked ? JSON.stringify(resolved.map((s) => ctx.getItem(s.item)?.state)) : ''
   useEffect(() => {
@@ -267,7 +238,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     const wasHidden = hiddenRef.current.includes(i)
     const next = wasHidden ? hiddenRef.current.filter((x) => x !== i) : [...hiddenRef.current, i]
     hiddenRef.current = next
-    // show again exactly when it was hidden before this click
     handleRef.current?.setSeriesVisible(i, wasHidden)
     setHidden(next)
   }
@@ -277,13 +247,9 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const showChips = config.picker !== false && chips.length > 0
   const showLegend = config.legend !== false && resolved.length >= 2 && !heatmap
   const label = config.label ?? (resolved.length === 1 ? resolved[0].label : undefined)
-  // The route is where the dashboard id comes from: a widget knows nothing about its dashboard,
-  // and this button only exists while one is on screen in run mode.
   const onDashboard = route.name === 'dashboard' ? route.id : null
   const canExpand = config.expand !== false && !ctx.editing && onDashboard !== null
 
-  // With a header and enough width, the chips sit beside the name instead of stacking above
-  // the plot (measured live: the threshold leaves the label room to ellipsize gracefully).
   const wrapRef = useRef<HTMLDivElement>(null)
   const wrapWidth = useContainerWidth(wrapRef)
   const expandNode = canExpand ? (
@@ -296,8 +262,6 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       ⤢
     </button>
   ) : null
-  // The chip row and the full-screen button are separate: turning the period selector off must
-  // leave no chip row behind (and the button has a toggle of its own).
   const chipsNode =
     showChips || zoomed ? (
       <div className="nh-chart__chips">

@@ -1,18 +1,6 @@
-/**
- * Tablet layout + per-surface visibility e2e.
- *
- * Covers: a dashboard without a tablet layout renders the desktop layout at tablet width exactly
- * as before (the feature is opt-in); switching the editor to the tablet layout materialises it,
- * moving a widget there leaves the desktop layout alone (and the other way round), the tablet
- * column count is its own, Save persists `layout.md` + `mdColumns`, the tablet band then renders
- * that layout, and removing it puts tablets back on the desktop layout. Plus hideOn: a widget
- * hidden on phones/tablets/desktops disappears at exactly that size in run mode, stays visible
- * (dimmed, marked) in edit mode so it can be un-hidden, and a dashboard whose widgets are all
- * hidden says so rather than rendering an empty grid.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-bp, deletes exactly that, and commands
- * NOTHING (clock/label/value widgets only).
- */
+// Tablet layout + per-surface visibility e2e.
+// SAFE with a live config: creates only dashboard:nh-e2e-bp, deletes exactly that, and commands NOTHING
+// (clock/label/value widgets only).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -32,8 +20,6 @@ async function launch() {
 
 const DASH = 'nh-e2e-bp'
 const UID = 'dashboard:' + DASH
-// Viewports that land in each band. The grid measures its container, so the dashboard surface is
-// a little narrower than the window; these are comfortably inside each band either way.
 const PHONE = { width: 393, height: 850 }
 const TABLET = { width: 1000, height: 900 }
 const DESKTOP = { width: 1500, height: 950 }
@@ -67,7 +53,6 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => void d.accept())
 await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-/** Reload onto the dashboard (a hash-only goto would keep a stale configuration). */
 const open = async () => {
   await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -78,7 +63,6 @@ const enterEdit = async () => {
   await page.waitForSelector('.nh-grid--edit, .nh-grid--stackedit', { timeout: 15000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 15000 })
 }
-/** Grid geometry as rendered: id -> {col,row,span} plus the grid's column template. */
 const rendered = () =>
   page.evaluate(() => {
     const grid = document.querySelector('.nh-grid, .nh-grid--edit')
@@ -107,11 +91,9 @@ const cellPoint = async (col, row) =>
     },
     { col, row }
   )
-/** Drag a cell by its handle strip from one grid cell to another. */
 const dragCell = async (fromCol, fromRow, toCol, toRow) => {
   const from = await cellPoint(fromCol, fromRow)
   const to = await cellPoint(toCol, toRow)
-  // the handle strip sits along the top of the cell
   const handle = await page.evaluate(
     ({ x, y }) => {
       const el = document.elementFromPoint(x, y)?.closest('.nh-cell')
@@ -130,7 +112,6 @@ const dragCell = async (fromCol, fromRow, toCol, toRow) => {
 }
 
 try {
-  /* ---------- opt-in: no tablet layout means the tablet band is unchanged ---------- */
   ok('seed', await seed([W('w-a', 0, 0, 2, 2), W('w-b', 4, 0, 2, 2)]))
   await page.setViewportSize(TABLET)
   await open()
@@ -138,13 +119,11 @@ try {
   ok('without a tablet layout the tablet band uses the desktop grid', plainTablet.columns === 12, String(plainTablet.columns))
   ok('and the desktop rects', plainTablet.cells.map((c) => c.col).join(',') === '1,5', JSON.stringify(plainTablet.cells))
 
-  /* ---------- the switcher only exists on the grid surface ---------- */
   await enterEdit()
   ok('the layout switcher is offered while editing', (await page.locator('.nh-bpswitch').count()) === 1)
   ok('it starts on the desktop layout', (await page.textContent('.nh-bpswitch'))?.includes('Desktop') === true, String(await page.textContent('.nh-bpswitch')))
   ok('dashboard settings offer no tablet fields yet', (await page.locator('#nh-dash-mdcolumns').count()) === 0)
 
-  /* ---------- switching materialises a tablet layout that looks identical ---------- */
   await page.click('.nh-bpswitch')
   await page.waitForSelector('.nh-bpswitch--md', { timeout: 10000 })
   const afterSwitch = await rendered()
@@ -152,7 +131,6 @@ try {
   ok('the tablet layout starts as a copy of the desktop one', afterSwitch.cells.map((c) => c.col).join(',') === '1,5', JSON.stringify(afterSwitch.cells))
   ok('the tablet grid starts with the same column count', afterSwitch.columns === 12, String(afterSwitch.columns))
 
-  /* ---------- moving a widget on the tablet layout leaves the desktop one alone ---------- */
   await dragCell(4, 0, 8, 2)
   await sleep(300)
   const movedTablet = await rendered()
@@ -162,7 +140,6 @@ try {
   const desktopAfter = await rendered()
   ok('the desktop layout is untouched by a tablet move', desktopAfter.cells.map((c) => c.col + '/' + c.row).join(',') === '1/1,5/1', JSON.stringify(desktopAfter.cells))
 
-  /* ---------- a tablet column count of its own ---------- */
   await page.click('.nh-bpswitch')
   await page.waitForSelector('.nh-bpswitch--md', { timeout: 10000 })
   await page.click('[aria-label="Dashboard settings"]')
@@ -182,7 +159,6 @@ try {
   ok('every widget carries a tablet rect', saved?.config.widgets.every((w) => w.layout.md), JSON.stringify(saved?.config.widgets.map((w) => w.layout)))
   ok('desktop rects persisted unchanged', saved?.config.widgets.map((w) => w.layout.lg.x).join(',') === '0,4', JSON.stringify(saved?.config.widgets.map((w) => w.layout.lg)))
 
-  /* ---------- run mode: each band renders its own layout ---------- */
   await open()
   const runTablet = await rendered()
   ok('the tablet band renders the tablet grid', runTablet.columns === 6, String(runTablet.columns))
@@ -195,7 +171,6 @@ try {
   await open()
   ok('phones still stack', (await rendered()).stacked === true)
 
-  /* ---------- removing the tablet layout ---------- */
   await page.setViewportSize(DESKTOP)
   await open()
   await enterEdit()
@@ -213,7 +188,6 @@ try {
   await open()
   ok('tablets are back on the desktop layout', (await rendered()).columns === 12)
 
-  /* ---------- hideOn ---------- */
   ok(
     'seed with per-surface visibility',
     await seed([
@@ -235,7 +209,6 @@ try {
   await open()
   ok('a phone-hidden widget is gone on a phone', (await page.locator('.nh-gcell').count()) === 3, String(await page.locator('.nh-gcell').count()))
 
-  /* ---------- hidden widgets are still editable ---------- */
   await page.setViewportSize(DESKTOP)
   await open()
   await enterEdit()
@@ -244,7 +217,6 @@ try {
   ok('hidden widgets are marked', (await page.locator('.nh-cell--hidden').count()) === 3, String(await page.locator('.nh-cell--hidden').count()))
   ok('the marker explains itself', (await page.locator('.nh-cell__hidden').first().getAttribute('title'))?.includes('Hidden on') === true, String(await page.locator('.nh-cell__hidden').first().getAttribute('title')))
 
-  // un-hide through the settings panel
   await page.locator('.nh-cell--hidden').first().locator('.nh-cell__overlay').click()
   await page.waitForSelector('.nh-hideon', { timeout: 10000 })
   const pressed = await page.locator('.nh-hideon .nh-chip[aria-pressed="true"]').count()
@@ -260,13 +232,11 @@ try {
   const changed = hidSaved?.config.widgets.find((w) => w.id !== 'w-all' && Array.isArray(w.config.hideOn) && w.config.hideOn.includes('phone'))
   ok('the chip choice persisted', changed !== undefined, JSON.stringify(hidSaved?.config.widgets.map((w) => [w.id, w.config.hideOn])))
 
-  /* ---------- an empty dashboard still explains itself ---------- */
   ok('seed empty', await seed([]))
   await open()
   const emptyDash = await rendered()
   ok('an empty dashboard shows its hint', /no widgets yet/.test(emptyDash.empty ?? ''), String(emptyDash.empty))
 
-  /* ---------- the editor survives crossing the stacked threshold ---------- */
   ok('seed for a resize', await seed([W('w-a', 0, 0, 2, 2), W('w-b', 4, 0, 2, 2)]))
   await page.setViewportSize(DESKTOP)
   await open()
@@ -281,7 +251,6 @@ try {
   ok('widening again gives a working grid, not an empty one', backToGrid === 2, String(backToGrid))
   await page.click('button:has-text("Exit")')
 
-  /* ---------- everything hidden says so ---------- */
   ok('seed all-hidden', await seed([W('w-x', 0, 0, 2, 2, { hideOn: ['phone', 'tablet', 'desktop'] })]))
   await open()
   const allHidden = await rendered()

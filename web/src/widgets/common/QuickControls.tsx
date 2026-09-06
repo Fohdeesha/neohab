@@ -1,13 +1,3 @@
-/**
- * The small controls a popup puts in front of one item.
- *
- * Shared because two surfaces ask for them: the floor plan's tap-a-light popup and the widget
- * detail sheet. WHICH one to draw is decided elsewhere - see `itemControl.ts`, where the widget
- * itself answers - and these draw it. A Color item gets the colour widget's own picker (see
- * ColorControl); these three cover the rest. Kept behaviourally identical to the slider widget -
- * drag, optimistic display, coalesced keyboard stepping - because a control that behaves subtly
- * differently depending on which popup it is in is worse than no popup.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { holdTookGesture } from '../../components/useLongPress'
@@ -18,11 +8,6 @@ import { stateMatches } from './stateIcon'
 import { useKeyboardCommit } from './useKeyboardCommit'
 import { useOptimisticValue } from './useOptimisticValue'
 
-/**
- * A slider over the range the widget works in - 0 to 100 in whole steps when nobody said
- * otherwise, which is what a plan's light wants. Same drag/commit/optimistic behaviour as the
- * slider widget, sized for a popup.
- */
 export function RangeControl({
   item,
   ctx,
@@ -46,8 +31,6 @@ export function RangeControl({
 
   const commit = (v: number) => {
     setDrag(null)
-    // See the slider widget: a press stages, a release sends, and a hold recognised in between
-    // takes the gesture - so this one sends nothing and the draft is already back.
     if (holdTookGesture()) return
     optimistic.commit(v)
     if (!ctx.editing) {
@@ -78,14 +61,9 @@ export function RangeControl({
   )
 }
 
-/** Two buttons sending whatever this widget calls on and off - not always ON and OFF. */
 export function SwitchControl({ item, ctx, on = 'ON', off = 'OFF' }: { item: string; ctx: WidgetContext; on?: string; off?: string }) {
   const { t } = useTranslation()
   const state = ctx.getItem(item)
-  // Two ways to be on, because a switch widget can be bound to more than a Switch item. Either
-  // the state IS the on command (numerically tolerant, so "100" matches a server's "100.0"), or
-  // the item reads as on the way the switch widget itself reads it - a dimmer at 60 is on, even
-  // though 60 is not the command this button sends.
   const currentlyOn = stateMatches(on, state?.state) || isOn(state)
   const send = (cmd: string) => {
     if (!ctx.editing) void ctx.sendCommand(item, cmd)
@@ -102,10 +80,6 @@ export function SwitchControl({ item, ctx, on = 'ON', off = 'OFF' }: { item: str
   )
 }
 
-/**
- * A button per command: a rollershutter's up/stop/down, a player's transport, a selection's own
- * choices, an item's declared command options. The one currently in effect is highlighted.
- */
 export function ChoiceControl({ item, ctx, choices }: { item: string; ctx: WidgetContext; choices: ItemChoice[] }) {
   const { t } = useTranslation()
   const state = ctx.getItem(item)?.state
@@ -113,8 +87,6 @@ export function ChoiceControl({ item, ctx, choices }: { item: string; ctx: Widge
     <div className="nh-quickbtns">
       {choices.map((choice, i) => (
         <button
-          // The index too: a hand-written choice list can name the same command twice, and two
-          // children with one key is a React warning and a render nobody can predict.
           key={i + '|' + choice.command}
           type="button"
           className={'nh-btn' + (stateMatches(choice.command, state) ? ' nh-btn--primary' : '')}

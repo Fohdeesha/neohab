@@ -1,15 +1,3 @@
-/**
- * The Settings screen: a shell that stacks the sections, and the one notice line they all write
- * to. Each section lives in `src/settings/` and owns its own state and persistence.
- *
- * The order is deliberate - what every device can change comes first, what changes the server's
- * configuration comes after, the account follows because it is where you go when something above
- * it refused, and About is last: it changes nothing, and it is where you go to find out what you
- * are running when you are about to report that none of it worked.
- *
- * That order is also five screens of scrolling, so an index of jump links sits at the top. The
- * links are what makes Account reachable without a hunt; the order below is unchanged.
- */
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEditingAllowed } from '../store/auth'
@@ -28,13 +16,6 @@ import { HistorySection } from '../settings/HistorySection'
 import { AccountSection } from '../settings/AccountSection'
 import { AboutSection } from '../settings/AboutSection'
 
-/**
- * The index rows, and the anchor each one scrolls to.
- *
- * The label has to match the section's own heading, or the index sends people somewhere that
- * looks like the wrong place. Kept here rather than exported from each section, because the
- * sections know nothing about the shell and should not have to.
- */
 const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'kiosk', label: 'Kiosk & wall panel' },
@@ -50,16 +31,8 @@ const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
   { id: 'about', label: 'About' }
 ]
 
-/**
- * The anchor lives on a wrapper here rather than on each section's own element: twelve files would
- * otherwise have to know what the shell calls them. `scrollIntoView` rather than an `href="#..."`,
- * because the app's own routing owns the fragment.
- *
- * Defined at module scope, and it has to be. Declared inside SettingsView it would be a NEW
- * component type on every render of the shell, so React would unmount and remount every section
- * each time the notice line changed - and a section that had just put something in its own state
- * (the backup import's confirmation card) would lose it before it could draw.
- */
+// module scope on purpose - declared inside SettingsView this is a new component type every render, so every
+// section remounts
 function Anchor({ id, children }: { id: string; children: ReactNode }) {
   return <div id={'nh-sec-' + id}>{children}</div>
 }
@@ -67,8 +40,6 @@ function Anchor({ id, children }: { id: string; children: ReactNode }) {
 export function SettingsView() {
   const { t } = useTranslation()
   const [notice, setNotice] = useState<string | null>(null)
-  // Non-admin devices get a viewer's Settings: the per-device options stay, everything that
-  // changes the server configuration goes away.
   const canEdit = useEditingAllowed()
 
   return (

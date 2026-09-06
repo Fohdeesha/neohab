@@ -1,12 +1,3 @@
-/**
- * Floor plan widget - the house on an uploaded plan image, each light glowing live in its
- * color. The image supplies geometry; the styling pipeline (grayscale/invert/tint classes)
- * makes any upload sit in the theme, and the glow layer blends additively over it the way
- * real light does. Tap a light for its control popup; preset chips activate openHAB scenes.
- *
- * Light placement happens in the settings panel's "Edit lights" sheet (edit mode taps select
- * the widget, so the widget surface itself cannot host placement).
- */
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
@@ -38,7 +29,6 @@ export function PlanCanvas({
 }: {
   config: FloorplanConfig
   ctx: WidgetProps<FloorplanConfig>['ctx']
-  /** Extra layer content (the editor sheet's draggable markers) rendered inside the plan rect. */
   children?: (rect: { left: number; top: number; width: number; height: number }) => React.ReactNode
   onPlanPointerDown?: (e: React.PointerEvent, rect: { left: number; top: number; width: number; height: number }) => void
 }) {
@@ -50,8 +40,6 @@ export function PlanCanvas({
   const [img, setImg] = useState<{ w: number; h: number } | null>(null)
   const [popup, setPopup] = useState<FloorplanLight | null>(null)
 
-  // Glows are drawn through the settling layer: a light mid-fade reports the value it is
-  // leaving before the one it was sent, and the room should not flash back through it.
   const settled = useSettledState()
 
   const lights = lightsOf(config)
@@ -114,9 +102,6 @@ export function PlanCanvas({
         </div>
       ) : null}
       {config.presetBar !== false && !children ? (
-        // Anchored just under the plan, not the widget: a heavily letterboxed plan (tall
-        // stacked rows on phones) would otherwise leave the chips floating far below it. The
-        // bar places itself within the room it is given, since only it knows how tall it is.
         <PresetBar
           ctx={ctx}
           lights={lights}
@@ -144,8 +129,6 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
   defaultSize: { w: 8, h: 6 },
   minPixelHeight: 220,
   hasHeader: true,
-  // planStyle carries its default here as well as in planStyleOf: a select whose value resolves
-  // to nothing renders blank, which reads as broken next to a plan that is plainly styled.
   defaultConfig: () => ({ markers: true, presetBar: true, planStyle: 'blueprint' }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
@@ -183,9 +166,6 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
   ],
   itemKeys: (c) => lightsOf(c).map((l) => l.item),
   canCommand: () => true,
-  // A plan's lights are whatever the house has - a colour bulb, a dimmer, a plain switch - and
-  // nothing on the plan says which. Working it out from the state is the honest answer here, and
-  // it is what the tap-a-light popup on the plan itself does.
   controlFor: (c, item) => (lightsOf(c).some((l) => l.item === item) ? { kind: 'auto' } : undefined),
   Component: FloorplanWidget
 }

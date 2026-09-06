@@ -3,7 +3,6 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { displayValue, ghostFor, isSegmentable, numericValue, segParts, splitValueUnit } from '../common/format'
 import { getItemHistory } from '../../api/persistence'
-// Color stops live with the gauge, which is where the type and its editor already are.
 import { severityColor, type SeverityStop } from '../dial/gauge'
 import { referenceValue, statPeriodMs, trendDirection, trendTone, type TrendDirection } from './stat'
 
@@ -11,43 +10,30 @@ interface StatConfig {
   item: string
   label?: string
   unit?: string
-  /** Small line under the reading, naming what it measures ("Target", "Accounts"). */
   caption?: string
-  /** Ink for the reading; a matching color stop wins over it. Empty follows the theme. */
   color?: string
   severity?: SeverityStop[]
-  /** Short chip beside the reading - a marker for a tile that needs attention. */
   badge?: string
   badgeColor?: string
-  /** Where the comparison for the trend arrow comes from. */
   trend?: 'none' | 'history' | 'item'
   trendPeriod?: string
   trendItem?: string
-  /** Which direction counts as good news, and so which arrows are drawn green. */
   goodDirection?: 'up' | 'down' | 'none'
-  /** A second, smaller reading under the main one: live item, or fixed text. */
   subItem?: string
   subText?: string
   subCaption?: string
-  /** How the block sits in its tile. Reading order (left) by default. */
   align?: 'left' | 'center' | 'right'
   icon?: string
   iconColor?: string
   iconSize?: number
 }
 
-/** Arrow glyphs drawn as paths, so weight and color follow the tile instead of a font. */
 const ARROWS: Record<TrendDirection, string> = {
   up: 'M6 0 L11.5 7.2 H8.2 V14 H3.8 V7.2 H0.5 Z',
   down: 'M6 14 L11.5 6.8 H8.2 V0 H3.8 V6.8 H0.5 Z',
   flat: 'M0 5 H12 V9 H0 Z'
 }
 
-/**
- * Stat - the dashboard stat tile: one large reading with its unit set apart, an optional
- * caption naming it, a trend arrow against history or another item, and a second smaller
- * reading beneath. Display only; nothing here ever commands.
- */
 function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
   const state = ctx.getItem(config.item)
   const { num, unit } = splitValueUnit(displayValue(state))
@@ -55,8 +41,6 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
   const value = numericValue(state)
   const color = (value !== undefined ? severityColor(value, config.severity) : undefined) ?? config.color
 
-  /* Trend against history: the value in force one window ago. Refetched on the same slow
-     cadence as the gauge's history - a trend arrow is context, not a live reading. */
   const wantsHistory = config.trend === 'history' && config.item !== ''
   const periodMs = statPeriodMs(config.trendPeriod)
   const [past, setPast] = useState<number | undefined>(undefined)
@@ -66,10 +50,6 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
       return
     }
     let dead = false
-    // Abort in the cleanup so a dashboard left behind is not still downloading its history.
-    // Uncancelled fetches compete for the browser's six-per-origin sockets - the same budget
-    // api/tabLink.ts exists to conserve - and a rapid run of period chips would otherwise leave
-    // every earlier window running to completion.
     const ctrl = new AbortController()
     const load = async () => {
       try {
@@ -99,7 +79,6 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
   const sub = config.subItem ? displayValue(subState) : config.subText
   const hasFoot = direction !== null || (sub !== undefined && sub !== '')
 
-  // Same segment-display metadata the value widget carries: inert until a theme draws it.
   const { int, frac } = segParts(num)
   const seg = isSegmentable(num)
 

@@ -1,11 +1,3 @@
-/**
- * Settings section listing the widget gallery: ready-made custom widgets, installed with one tap.
- *
- * Installing writes a `widgetdef:<id>` component exactly like a hand-written one, so an installed
- * widget is then editable, exportable and usable from the palette with nothing special about it.
- * A widget already installed and unchanged says so instead of piling up copies; one that was
- * edited locally installs alongside under a free id, so local changes are never overwritten.
- */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { nextFreeId } from '../model/components'
@@ -17,7 +9,6 @@ import { errorText } from '../api/errors'
 
 const BUNDLED_URL = 'gallery/index.json'
 
-/** Same definition, ignoring the bookkeeping fields, so a re-install is recognised as a no-op. */
 function sameDef(a: CustomWidgetDef, b: CustomWidgetDef): boolean {
   const norm = (d: CustomWidgetDef) =>
     JSON.stringify({ kind: d.kind ?? 'template', template: d.template ?? '', script: d.script ?? '', settings: d.settings ?? [] })
@@ -73,7 +64,7 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
         onNotice(t('“{{name}}” is already installed.', { name: def.name }))
         return
       }
-      // A local edit under the same id is someone's work: install beside it, never over it.
+      // a local edit under the same id is someone's work: install beside it, never over it
       const id = existing ? nextFreeId(def.id, new Set(defs.map((d) => d.id))) : def.id
       const name = id === def.id ? def.name : `${def.name} (${id.split('-').pop()})`
       await saveWidgetDef({ ...def, id, name })

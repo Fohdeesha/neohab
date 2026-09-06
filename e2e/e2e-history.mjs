@@ -1,17 +1,8 @@
-// Version history suite: capture before a change, coalescing, the diff view, renaming,
-// restoring (including that the Restore button stays disabled for the whole of it, and a second
-// restore is refused), retention, hash-shared images, the retention fields committing on blur
-// rather than per keystroke, turning it off, and a failed capture not failing the save it
-// protects.
-//
-// Assumes EMPTY namespaces (wipe→restore cycle); creates everything it needs via REST/the app.
+// Version history suite: capture before a change, coalescing, the diff view, renaming, restoring,
+// retention, hash-shared images, turning it off, and a failed capture not failing the save it protects.
 import { launchChromium } from './lib/browser.mjs'
 import { ALL_NS, APP, AUTH, HISTORY_DATA_NS, HISTORY_NS, NS, TOKEN } from './lib/target.mjs'
 
-// WIPE-CYCLE GUARD: this suite assumes empty namespaces and its cleanup DELETES EVERYTHING in
-// both of them. Refuse to run against a live configuration - snapshot + wipe first, restore +
-// verify after (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs, see README).
-// The history is checked too: restore points are a user's data, and this suite prunes them.
 {
   const counts = []
   for (const [kind, url] of ALL_NS) counts.push([kind, (await (await fetch(url)).json()).length])
@@ -35,7 +26,6 @@ const getJson = async (url) => {
 const del = async (url) => (await fetch(url, { method: 'DELETE', headers: AUTH })).status
 const post = async (url, body) =>
   (await fetch(url, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).status
-/** Write a component whether or not it is already there (a restore may have removed it). */
 const upsert = async (url, body) => {
   const path = url + '/' + encodeURIComponent(body.uid)
   const res = await fetch(path, { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -48,7 +38,6 @@ const dataUids = async () => ((await getJson(HISTORY_DATA_NS)) ?? []).map((c) =>
 const histUids = async () => ((await getJson(HISTORY_NS)) ?? []).map((c) => c.uid)
 const snapshotOf = async (id) => (await getJson(HISTORY_DATA_NS + '/snap:' + id))?.config ?? null
 
-/** Wait until the history index holds exactly `n` restore points. */
 async function waitSnapshots(n, timeout = 15000) {
   const until = Date.now() + timeout
   for (;;) {
@@ -84,7 +73,6 @@ const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
 const consoleErrors = []
 page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
-// The console only says "404"; recording the URL alongside makes a failure diagnosable.
 const badResponses = []
 page.on('response', (r) => {
   if (r.status() >= 400) badResponses.push(r.status() + ' ' + r.request().method() + ' ' + r.url())
@@ -96,37 +84,20 @@ await page.addInitScript((t) => {
   } catch {}
 }, TOKEN)
 
-/**
- * Open Settings with a real page load. A `goto` to a URL that differs only in its hash is a
- * same-document navigation: the app would keep the settings it already holds in memory, and a
- * retention limit written over REST between steps would never be picked up.
- */
 async function openSettings() {
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-themes', { timeout: 15000 })
 }
 
-/** Forget this device's last-write time, so the next change starts a new restore point. */
 const forgetWindow = () => page.evaluate(() => localStorage.removeItem('neohab:lastConfigWrite'))
 
-/** Expand the first change row, leaving an already-expanded one alone. */
 async function expandFirstRow() {
   const head = page.locator('.nh-histrow__head').first()
   if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click()
   await page.waitForSelector('.nh-histfield', { timeout: 10000 })
 }
 
-/**
- * Switch the comparison and wait for the new result to replace the old one.
- *
- * "The panel does not say Loading" is not enough on its own, and this failed about one run in
- * four because of it: switching mode clears the rows and re-fetches, but there is a window
- * between the click and React rendering "Loading…" in which the panel still holds the PREVIOUS
- * comparison and says nothing about loading, so the wait returns immediately and the rows that
- * get counted are the old ones, mid-replacement. Waiting for the panel to be quiet across two
- * polls closes it: whatever the timing, one of them lands after the re-render.
- */
 async function compareMode(label) {
   await page.click(`button:has-text("${label}")`)
   const settled = async () => {
@@ -143,7 +114,6 @@ async function compareMode(label) {
   await settled()
 }
 
-/** Make one configuration change through the app: pick a theme, and wait for it to land. */
 async function changeTheme(name, id) {
   await page.click(`.nh-theme__pick:has-text("${name}")`)
   const until = Date.now() + 10000
@@ -156,8 +126,6 @@ async function changeTheme(name, id) {
 }
 
 try {
-  /* ================= 1. the first restore point holds the state BEFORE the change ========= */
-  // Seeded straight over REST, so nothing is captured yet: the app has made no write.
   ok(
     'seed dashboard with one widget',
     (await post(NS, { uid: 'dashboard:nh-e2e-hist', component: 'neohab:dashboard', config: dashboard('nh-e2e-hist', 'E2E History', [clock('w-1', 0)]) })) === 200
@@ -192,7 +160,6 @@ try {
   ok('the restore point has no server-added fields', snapDash1 && !('props' in snapDash1) && !('timestamp' in snapDash1))
   ok('the first restore point reports no earlier changes', index1.snapshots[0].summary?.count === 0)
 
-  /* ============================ 2. coalescing within the window ========================== */
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0)
   await page.click('[aria-label="Add widget"]')
@@ -206,7 +173,6 @@ try {
   const live2 = await getJson(NS + '/dashboard:nh-e2e-hist')
   ok('the second change was still saved', live2?.config?.widgets?.length === 3, `widgets=${live2?.config?.widgets?.length}`)
 
-  // A gap longer than the window (simulated by forgetting when this device last wrote).
   await forgetWindow()
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0)
@@ -227,7 +193,6 @@ try {
   const snapDash2 = snap2?.components?.find((c) => c.uid === 'dashboard:nh-e2e-hist')
   ok('the new point holds three widgets (the state before the third change)', snapDash2?.config?.widgets?.length === 3)
 
-  /* ================================= 3. the Settings UI ================================= */
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   const section = page.locator('section:has(h2:text-is("Version history"))')
   await section.waitFor({ timeout: 10000 })
@@ -264,15 +229,12 @@ try {
     fieldPaths.join(' | ')
   )
 
-  // The other comparison answers a different question, and here it must differ: the live
-  // configuration has a widget this point does not.
   await compareMode('Compared with now')
   ok('comparing with now also reports the dashboard', (await page.locator('.nh-histrow').count()) === 1)
   await expandFirstRow()
   ok('comparing with now lists fields too', (await page.locator('.nh-histfield').count()) > 0)
   await compareMode('Changes at this point')
 
-  // Oldest point vs the point before it: there is none.
   await page.locator('.nh-hist__row').last().click()
   await page.waitForSelector('.nh-histdetail')
   ok(
@@ -284,7 +246,6 @@ try {
       .catch(() => false)
   )
 
-  /* =================================== 4. renaming =================================== */
   await page.locator('.nh-hist__row').first().click()
   await page.waitForSelector('.nh-histdetail__label')
   await page.fill('.nh-histdetail__label', 'before the rework')
@@ -298,33 +259,18 @@ try {
   await page.waitForSelector('.nh-hist__row')
   ok('the name is shown instead of the date', (await page.locator('.nh-hist__when').first().innerText()) === 'before the rework')
 
-  /* =================================== 5. restoring =================================== */
   ok(
     'seed an extra dashboard that the restore must remove',
     (await post(NS, { uid: 'dashboard:nh-e2e-extra', component: 'neohab:dashboard', config: dashboard('nh-e2e-extra', 'E2E Extra', []) })) === 200
   )
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-hist__row')
-  // The oldest point: one dashboard, one widget.
   await page.locator('.nh-hist__row').last().click()
   await page.waitForSelector('.nh-histdetail')
 
-  // A restore is a long run of writes and deletes, and the disabled button is what stops a second
-  // one starting on top of it. Slow the configuration writes down so the button's state can be
-  // read WHILE the restore is working: the nested "undo point" capture used to hand the flag back
-  // as false, re-enabling the button for the whole write/delete phase.
-  // A RegExp, not a glob: the writes go to BOTH the collection url (POST, for a component that
-  // does not exist yet) and the per-uid url (PUT/DELETE), and Playwright's `*` does not cross a
-  // `/` while `**` does - a glob that matched only one of the two shapes slowed almost nothing
-  // and the restore outran the sampler entirely.
   const CONFIG_URLS = /\/rest\/ui\/components\/neohab:config/
   let configWrites = 0
   let lastWriteAt = 0
-  // Every write's dispatch time, not just the last: the restore's writes are the ones that
-  // happen BEFORE it reports done, and a write that follows it is not one this check is about.
-  // Keeping only "the last write" swept in whichever came last, so a save-time write landing
-  // after the notice put `lastWriteAt` past the moment the button legitimately went live - and
-  // the check then failed for a request that could never have satisfied it.
   const writeTimes = []
   const slowWrites = async (route) => {
     if (['PUT', 'POST', 'DELETE'].includes(route.request().method())) {
@@ -338,9 +284,6 @@ try {
     await route.continue()
   }
   await page.route(CONFIG_URLS, slowWrites)
-  // Sampled from INSIDE the page, and armed before the click: polling over the wire costs a
-  // round trip per sample, which was enough to miss the window entirely and read nothing but the
-  // finished state. The button's label flips to "Working…" while busy, so the finder matches both.
   await page.evaluate(() => {
     const w = window
     w.__nhSamples = []
@@ -363,11 +306,7 @@ try {
     return w.__nhSamples
   })
   await page.unroute(CONFIG_URLS, slowWrites)
-  // The invariant is not "always disabled" - it is legitimately enabled again once the restore
-  // has finished, and the sampler catches that tail. What must never happen is the button going
-  // live while the restore is STILL WRITING, which is exactly what the nested capture used to do.
   const firstLive = disabledSamples.find((s) => !s.d)
-  // The restore's OWN last write: the newest one dispatched before it said it was finished.
   const restoreWrites = writeTimes.filter((t) => t <= doneAt)
   const lastRestoreWrite = restoreWrites.length ? Math.max(...restoreWrites) : lastWriteAt
   ok(
@@ -376,7 +315,6 @@ try {
     `${disabledSamples.length} samples, ${restoreWrites.length} of ${writeTimes.length} writes during the restore; ` +
       (firstLive ? `went live ${firstLive.t - lastRestoreWrite}ms after its last write` : 'never went live')
   )
-  // ...and that the samples covered real work, not an instant no-op.
   ok('the restore was still writing while that was sampled', configWrites >= 2, `${configWrites} config writes`)
   await page.waitForSelector('.nh-settings__notice', { timeout: 30000 })
   const notice = await page.locator('.nh-settings__notice').innerText()
@@ -400,8 +338,6 @@ try {
     undoSnap?.components?.some((c) => c.uid === 'dashboard:nh-e2e-extra')
   )
 
-  /* ================================== 6. retention ================================== */
-  // Keep only two, so the next captures push the oldest out.
   ok(
     'set the retention to two',
     (await upsert(NS, { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'dark', historyLimit: 2 } })) === 200
@@ -423,7 +359,6 @@ try {
   const orphaned = droppedIds.filter((id) => uidsNow.includes('snap:' + id) && !pruned.snapshots.some((s) => s.id === id))
   ok('the dropped restore points are deleted, not just delisted', orphaned.length === 0, orphaned.join(','))
 
-  /* ============================ 7. images are stored once ============================ */
   const dataUri = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64')
   ok(
     'seed an uploaded icon',
@@ -456,7 +391,6 @@ try {
     `blobs=${blobCount}`
   )
 
-  // Restoring a point that contains the icon must bring the image back intact.
   ok('delete the icon from the configuration', (await del(NS + '/icon:nh-e2e-ico')) === 200)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-hist__row')
@@ -468,7 +402,6 @@ try {
   const restoredIcon = await getJson(NS + '/icon:nh-e2e-ico')
   ok('restoring brings the image back whole', restoredIcon?.config?.dataUri === dataUri)
 
-  // Churn past every point that referenced it; the shared body must then be collected.
   ok('delete the restored icon from the configuration', (await del(NS + '/icon:nh-e2e-ico')) === 200)
   for (const [name, id] of [
     ['neohab Dark', 'dark'],
@@ -494,9 +427,6 @@ try {
     consoleErrors.slice(0, 3).join(' | ') + (badResponses.length ? '  responses: ' + badResponses.slice(0, 5).join(' | ') : '')
   )
 
-  /* ============ 7b. the retention fields commit on blur, not per keystroke ============
-   * openHAB rewrites a whole namespace file per component write, and every write also takes a
-   * restore point, so typing "120" into a field that saved per keystroke was three of each. */
   await openSettings()
   await page.waitForSelector('#nh-hist-window')
   const windowBefore = (await getJson(NS + '/settings'))?.config?.historyWindowMin ?? 5
@@ -516,7 +446,6 @@ try {
     (await getJson(NS + '/settings'))?.config?.historyWindowMin === 120,
     JSON.stringify((await getJson(NS + '/settings'))?.config?.historyWindowMin)
   )
-  // out-of-range input is clamped to the field's own range rather than stored as typed
   await page.fill('#nh-hist-window', '99999')
   await page.locator('#nh-hist-window').press('Tab')
   await sleep(1200)
@@ -524,7 +453,6 @@ try {
   ok('an out-of-range value is clamped, not stored as typed', clamped === 1440, JSON.stringify(clamped))
   ok('and the field shows the clamped value', (await page.locator('#nh-hist-window').inputValue()) === '1440')
 
-  /* ================================ 8. turning it off ================================ */
   await openSettings()
   await page.waitForSelector('#nh-hist-limit')
   await page.fill('#nh-hist-limit', '0')
@@ -537,7 +465,6 @@ try {
   const offUids = [...(await histUids()), ...(await dataUids())]
   ok('with history off the stored points are removed, index included', offUids.length === 0, offUids.join(','))
 
-  /* ==================== 9. a failed capture must not fail the save ==================== */
   ok(
     'turn history back on',
     (await upsert(NS, { uid: 'settings', component: 'neohab:settings', config: { version: 1, theme: 'dark', historyLimit: 25 } })) === 200
@@ -561,7 +488,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup: remove everything the test persisted, in both namespaces ----------
 let cleaned = true
 for (const [, url] of ALL_NS) {
   for (const c of (await getJson(url)) ?? []) {

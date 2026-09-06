@@ -3,10 +3,6 @@ import { useConfigStore } from '../store/config'
 import { listThemes } from '../themes/themes'
 import { setDeviceTheme, useDeviceThemeStore } from '../store/deviceTheme'
 
-/**
- * Per-device theme override. The cards above set the SHARED theme; this select pins a
- * different one on this device only (a light desk browser next to a dark wall panel).
- */
 export function DeviceThemeField() {
   const { t } = useTranslation()
   const customThemes = useConfigStore((s) => s.customThemes)

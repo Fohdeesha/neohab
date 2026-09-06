@@ -1,20 +1,9 @@
-/**
- * Parity-widget e2e. SAFETY: commands are only ever sent to the three approved test items
- * (the switch item, the dimmer item, the color item). The Player widget is
- * bound to the player item for DISPLAY ONLY (never clicked); Garage_Door is never referenced.
- *
- * Flow: build the test dashboard in edit mode -> Save -> exit to run mode -> exercise the
- * widgets for real -> delete everything via REST so the VM stays pristine.
- */
+// Parity-widget e2e. SAFETY: commands are only ever sent to the three approved test items (the switch item,
+// the dimmer item, the color item).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS, isAppResource } from './lib/target.mjs'
 
 
-// WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
-// Refuse to run against a live config - snapshot + wipe first, restore + verify after
-// (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs - see the README). Running
-// one of these against a live config once forced a full restore; the guard makes that
-// mistake impossible.
 {
   const pre = await (await fetch(NS)).json()
   if (pre.length > 0) {
@@ -40,7 +29,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// Record initial states so cleanup restores what the owner actually had.
 const initialStates = {
   sw: await getState(ITEMS.switch),
   lvl: await getState(ITEMS.dimmer),
@@ -49,9 +37,6 @@ const initialStates = {
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
 const consoleErrors = []
-// Record the URL with the text: "Failed to load resource: 404" names nothing on its own, and a
-// failure nobody can act on is barely a failure. A resource that is not ours belongs to whatever
-// the server's own configuration references, not to the app.
 page.on('console', (m) => {
   if (m.type() !== 'error') return
   const url = m.location()?.url ?? ''
@@ -71,7 +56,6 @@ async function addWidget(name) {
 }
 
 async function pickItem(itemName) {
-  // role=combobox targets the ItemPicker input specifically (the icon field is also a .nh-picker)
   const input = page.locator('.nh-sheet--side .nh-picker input[role="combobox"]')
   await input.click()
   await input.fill(itemName)
@@ -81,7 +65,6 @@ async function pickItem(itemName) {
 }
 
 try {
-  // The suite's own base dashboard (the in-code demo no longer exists on empty namespaces).
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
@@ -116,9 +99,7 @@ try {
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
 
-  // ---------- build: add + configure all six ----------
   await addWidget('Chart')
-  // multi-series chart: items live in series cards now, added via "Add series"
   await page.click('.nh-sheet--side button:has-text("Add series")')
   await pickItem(ITEMS.dimmer)
 
@@ -143,12 +124,10 @@ try {
   const cellCount = await page.locator('.nh-cell').count()
   ok('all six widgets added (8+6 cells)', cellCount === 14, `cells=${cellCount}`)
 
-  // ---------- save (returns to run mode) ----------
   await page.click('button:has-text("Save")')
   await page.waitForSelector('[aria-label="Edit dashboard"]')
   await sleep(800)
 
-  // ---------- run mode: exercise widgets for real ----------
   await page.waitForSelector('.nh-chart canvas', { timeout: 15000 })
   ok('chart renders persistence data (canvas)', true)
 
@@ -194,7 +173,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup: wipe namespace, restore approved items ----------
 const list = await (await fetch(NS)).json()
 for (const c of list) {
   await fetch(NS + '/' + encodeURIComponent(c.uid), {

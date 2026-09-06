@@ -1,11 +1,3 @@
-/**
- * Header microphone button: listen, show the transcript live, send the final text to the
- * server's human-language interpreter, and toast its answer (HABPanel discarded the answer;
- * hearing "Ok" vs "I don't understand" is half the feature).
- *
- * Renders nothing when the browser cannot do speech recognition (non-Chromium, or a plain-HTTP
- * origin where the microphone is unavailable) or when the admin turned the button off.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getRootInfo } from '../api/items'
@@ -15,7 +7,6 @@ import { useConfigStore } from '../store/config'
 import { recognitionSupported, startRecognition } from './speech'
 import { errorText } from '../api/errors'
 
-/** The server's configured locale decides the recognition language (HABPanel semantics). */
 let localePromise: Promise<string> | null = null
 function recognitionLocale(): Promise<string> {
   localePromise ??= getRootInfo()
@@ -30,7 +21,6 @@ export function VoiceButton() {
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const stopRef = useRef<(() => void) | null>(null)
-  /** Whether the user wants to be listening - guards the async gap before recognition starts. */
   const wantRef = useRef(false)
 
   useEffect(() => () => stopRef.current?.(), [])

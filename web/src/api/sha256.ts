@@ -1,9 +1,5 @@
-/**
- * Minimal synchronous SHA-256 (FIPS 180-4), used ONLY where `crypto.subtle` does not exist:
- * browsers expose SubtleCrypto exclusively to secure contexts, and a LAN openHAB served over
- * plain HTTP is not one - without this fallback the PKCE login cannot even start there.
- * Verified against SubtleCrypto and the standard test vectors.
- */
+// only used where crypto.subtle is missing: a LAN openHAB over plain HTTP is not a secure context, and PKCE
+// still has to work there
 
 const K = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
@@ -17,7 +13,6 @@ const K = [
 const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n))
 
 export function sha256(data: Uint8Array): Uint8Array {
-  // pad: message + 0x80 + zeros + 64-bit big-endian bit length, to a multiple of 64 bytes
   const bitLen = data.length * 8
   const padded = new Uint8Array((((data.length + 8) >> 6) + 1) << 6)
   padded.set(data)

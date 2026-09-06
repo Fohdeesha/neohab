@@ -1,22 +1,8 @@
-/**
- * The theming contract: every design token a theme may set, described well enough that the theme
- * editor can build itself from this list and a person can understand what each one does.
- *
- * A token is a CSS custom property on the document root, named `--nh-<key>`. Widgets and chrome
- * only ever read tokens, so setting one restyles everything that uses it. A token a theme leaves
- * unset falls back to the base value in app.css, which is why the editor offers "Auto" on every
- * field rather than forcing a value.
- *
- * This file is the single source of truth. Adding a token here makes it appear in the theme
- * editor, in the exported/imported theme files and in the documentation table, with no other
- * change; see `docs/theming.md`.
- */
+// the theming contract: the editor and docs/theming.md are both built from this list
 
-/** Editor sections, in the order they are shown. */
 export const TOKEN_GROUPS = ['Core', 'Semantic', 'Chart palette', 'Instruments'] as const
 export type TokenGroup = (typeof TOKEN_GROUPS)[number]
 
-/** How the editor renders a token, and how its value is validated. */
 export type TokenKind = 'color' | 'length' | 'shadow' | 'unit'
 
 export interface TokenSpec {
@@ -24,22 +10,11 @@ export interface TokenSpec {
   group: TokenGroup
   label: string
   kind: TokenKind
-  /** One line explaining what setting it changes. Shown under the field. */
   hint: string
-  /** Value used when the theme leaves it unset, for the editor's placeholder and the docs. */
   fallback: string
 }
 
-/**
- * Every token, in editor order.
- *
- * The Core group is the original palette - the eight colours and the corner radius every theme
- * has always had. Everything below it existed as a working CSS variable long before it appeared
- * here; promoting them was the point, because a variable a person cannot discover is not a
- * feature they have.
- */
 export const TOKEN_SPECS: TokenSpec[] = [
-  /* ---------------------------------- Core ---------------------------------- */
   {
     key: 'bg',
     group: 'Core',
@@ -114,7 +89,6 @@ export const TOKEN_SPECS: TokenSpec[] = [
     hint: 'The drop shadow under a widget tile. `none` makes the design flat.'
   },
 
-  /* -------------------------------- Semantic -------------------------------- */
   {
     key: 'good',
     group: 'Semantic',
@@ -133,7 +107,6 @@ export const TOKEN_SPECS: TokenSpec[] = [
     hint: 'Text drawn on top of the accent colour (filled tiles, chips, badges). Left unset it is chosen automatically for contrast, which is usually what you want.'
   },
 
-  /* ------------------------------ Chart palette ------------------------------ */
   ...Array.from({ length: 8 }, (_, i) => ({
     key: `chart-${i + 1}`,
     group: 'Chart palette' as const,
@@ -146,7 +119,6 @@ export const TOKEN_SPECS: TokenSpec[] = [
         : `Colour of chart series ${i + 1}. Unset keeps the built-in palette’s own choice.`
   })),
 
-  /* ------------------------------- Instruments ------------------------------- */
   {
     key: 'rim-hi',
     group: 'Instruments',
@@ -207,14 +179,6 @@ export function tokensInGroup(group: TokenGroup): TokenSpec[] {
   return TOKEN_SPECS.filter((t) => t.group === group)
 }
 
-/**
- * Is this a value we can safely put in a CSS custom property?
- *
- * Stored configuration is untrusted input (a hand-edited backup, a shared theme file), and while
- * a custom property cannot break out of its own declaration, a value carrying a `;` or a comment
- * marker is a sign of something that was never meant to be a token. Length is capped for the same
- * reason. Rejected values are dropped, so the base stylesheet's own value applies.
- */
 export function isUsableTokenValue(value: unknown): value is string {
   return (
     typeof value === 'string' &&

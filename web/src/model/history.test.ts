@@ -110,7 +110,6 @@ describe('shared image bodies', () => {
 
 describe('entries', () => {
   it('drops the fields openHAB adds on every read', () => {
-    // Keeping props/timestamp would make every component look changed whenever it was rewritten.
     const e = toEntry({
       uid: 'dashboard:a',
       component: 'neohab:dashboard',
@@ -147,13 +146,6 @@ describe('mergeIndexes', () => {
     blobs: []
   })
 
-  /*
-   * Two tabs, or two writes in flight at once. Each read the index, each wrote a `snap:` component,
-   * and each then wrote back an index computed from its own stale read - so the second write won
-   * and the first tab's snapshot was left on the server named by nothing. Retention only prunes
-   * what the index lists, so it was never reclaimed either. The status log records three such
-   * orphans found on the live server.
-   */
   it('keeps snapshots another writer added while ours was in flight', () => {
     const mine = { version: 1, snapshots: [meta('300'), meta('100')], blobs: ['a'] }
     const theirs = { version: 1, snapshots: [meta('200'), meta('100')], blobs: ['b'] }

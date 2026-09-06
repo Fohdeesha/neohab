@@ -1,10 +1,3 @@
-/**
- * Shown when edit mode is requested without credentials. Three paths:
- *  - the standard openHAB login (OAuth2 code + PKCE redirect),
- *  - pasting an API token (kiosks / headless setups), stored locally, or
- *  - signing in to a reverse proxy in front of openHAB (openHAB Cloud, an nginx with basic auth),
- *    which is not an openHAB login at all: it only gets the requests through to the server.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
@@ -14,13 +7,7 @@ import { loadConfig } from '../store/config'
 import { errorText } from '../api/errors'
 import { notify } from '../store/notify'
 
-/**
- * Credentials have arrived by a path that does not reload the page (a pasted API token, proxy
- * credentials). Both the role and the configuration have to be re-established: on a server with
- * openHAB's implicit user role off, the boot-time load answered 401 and the app is sitting on an
- * empty configuration that only a fresh read can fill. The PKCE path needs none of this because
- * it comes back through a full page load.
- */
+// a pasted token does not reload the page, so the role and the configuration both have to be re-read
 function credentialsChanged(): void {
   void refreshAuthStatus()
   void loadConfig()
@@ -34,13 +21,7 @@ export function SignInSheet({
 }: {
   onClose: () => void
   onToken: () => void
-  /** Open with the reverse-proxy form already expanded (reached from Settings > Account). */
   initialProxy?: boolean
-  /**
-   * Why the sheet is open. 'view' is a server whose implicit user role is off, where signing in
-   * is what makes anything visible at all - telling that person "editing needs an administrator"
-   * describes a problem they do not have.
-   */
   reason?: 'edit' | 'view'
 }) {
   const { t } = useTranslation()
@@ -62,10 +43,7 @@ export function SignInSheet({
         <button
           type="button"
           className="nh-btn nh-btn--primary"
-          onClick={() =>
-            // never let this fail silently - a dead login button gives the user nothing to act on
-            authorize().catch((err) => notify(t('Sign-in failed: {{error}}', { error: errorText(err) })))
-          }>
+          onClick={() => authorize().catch((err) => notify(t('Sign-in failed: {{error}}', { error: errorText(err) })))}>
           {t('Log in with openHAB')}
         </button>
 

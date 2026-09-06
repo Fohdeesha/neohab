@@ -1,12 +1,3 @@
-/**
- * Widget palette.
- *
- * Tap a card and the widget lands at the first free spot; drag a card onto the grid and it lands
- * exactly where it is dropped (the grid previews the cell - see EditableGrid). While a drag is in
- * flight the sheet gets out of the way, since a bottom sheet covers the rows you are aiming at.
- * Dragging is offered only on the grid surface: the single-column stack has no cells to aim at,
- * so there a card is tap-to-add as before.
- */
 import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
@@ -15,7 +6,6 @@ import { listWidgetDefinitions } from '../widgets'
 import { addWidget, cancelPlacing, setPaletteOpen, startPlacing, useEditorStore } from '../store/editor'
 import { useConfigStore } from '../store/config'
 
-/** Movement past this many pixels turns a press on a card into a drag, matching the grid. */
 const DRAG_THRESHOLD_PX = 5
 
 export function PaletteSheet() {
@@ -23,11 +13,8 @@ export function PaletteSheet() {
   const customDefs = useConfigStore((s) => s.widgetDefs)
   const placing = useEditorStore((s) => s.placing)
   const canDrag = useGridEditSurface()
-  // The press that may become a drag. A ref: it changes on pointer events that must not
-  // re-render the palette mid-gesture.
   const pressRef = useRef<{ x: number; y: number; start: () => void } | null>(null)
   const definitions = listWidgetDefinitions()
-  // Custom widgets are template instances, so a dragged one is the size a tapped one would be.
   const templateSize = definitions.find((d) => d.type === 'template')?.defaultSize ?? { w: 3, h: 3 }
 
   const cardHandlers = (start: () => void) => {
@@ -45,8 +32,6 @@ export function PaletteSheet() {
           press.start()
         }
       },
-      // The grid's window-level handler owns the release once a drag has started; this only has
-      // to forget a press that never moved (that release is an ordinary click → tap-to-add).
       onPointerUp: () => {
         pressRef.current = null
       },

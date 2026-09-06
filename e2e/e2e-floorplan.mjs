@@ -1,23 +1,7 @@
-/**
- * Floor plan + lighting presets e2e: the plan image styling pipeline, live glows, marker
- * popups (color/dimmer controls), the preset bar (save/capture, activate, highlight), the
- * openHAB-scene storage (tags, actions, values), the status-item link and the wall-switch
- * bridge rule end to end, anonymous access (list + activate + status highlight, no editing),
- * the light-placement editor sheet, backup export carrying scenes, the refusal of a backup whose
- * "presets" would overwrite arbitrary rules, that a switch between presets holds steady while
- * the lights fade, unselecting a preset to switch its own lights off, the direction a light
- * throws its glow, and editing, renaming and deleting presets from the plan.
- *
- * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-fplan, -fplan2, -fplan3   (neohab:config)
- *   - one background:<id>, from the upload in section H (its uid is found by diffing)
- *   - rules nh-scene-nh-e2e-evening, nh-bridge-nh-scene-nh-e2e-evening,
- *     nh-scene-nh-e2e-settle-a and -settle-b, nh-scene-nh-e2e-managed and -doomed
- *   - managed test items nh_e2e_proxy and nh_e2e_glow  (never file-provided items)
- * The dimmer and color items are commanded (recorded and restored); rule uids are diffed
- * against a pre-run listing so a stray cannot survive unnoticed. Section H saves through the
- * app, so it DOES mint version-history restore points - clear them if the server is a live one.
- */
+// Floor plan + lighting presets e2e: the plan image styling pipeline, live glows, marker popups
+// (color/dimmer controls), the preset bar (save/capture, activate.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-fplan, -fplan2, -fplan3
+// (neohab:config), one background:<id>, from the upload in section H (its.
 import { launchChromium } from './lib/browser.mjs'
 import { readFile } from 'node:fs/promises'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
@@ -29,11 +13,9 @@ const SCENE_UID = 'nh-scene-nh-e2e-evening'
 const BRIDGE_UID = 'nh-bridge-' + SCENE_UID
 const SETTLE_A = 'nh-scene-nh-e2e-settle-a'
 const SETTLE_B = 'nh-scene-nh-e2e-settle-b'
-/** Section L edits this one and deletes that one through the manager. */
 const MGR_UID = 'nh-scene-nh-e2e-managed'
 const DOOMED_UID = 'nh-scene-nh-e2e-doomed'
 const PROXY_ITEM = 'nh_e2e_proxy'
-/** Unbound, so section I can replay a device's fade without a device. */
 const GLOW_ITEM = 'nh_e2e_glow'
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -50,7 +32,6 @@ async function itemState(name) {
 async function sendItem(name, value) {
   await fetch(itemUrl(name), { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: String(value) })
 }
-/** A state UPDATE, the way a binding reports one - no command, so no device is driven. */
 async function putState(name, value) {
   await fetch(itemUrl(name) + '/state', {
     method: 'PUT',
@@ -58,7 +39,6 @@ async function putState(name, value) {
     body: String(value),
   })
 }
-/** Poll until the item's state starts with `want` (device echoes may append decimals). */
 async function pollItem(name, want, tries = 20) {
   for (let i = 0; i < tries; i++) {
     const s = await itemState(name)
@@ -67,7 +47,6 @@ async function pollItem(name, want, tries = 20) {
   }
   return itemState(name)
 }
-/** Color devices quantize and settle slowly - resend until the state numerically agrees. */
 async function restoreColor(name, want) {
   const near = (a, b) => a.split(',').every((v, i) => Math.abs(Number(v) - Number(b.split(',')[i] ?? NaN)) <= 2)
   for (let i = 0; i < 4; i++) {
@@ -92,7 +71,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// A recognizable plan: white ground, dark room lines, 800x500 (aspect 1.6).
 const PLAN_SVG =
   `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500'>` +
   `<rect width='800' height='500' fill='#ffffff'/>` +
@@ -102,16 +80,12 @@ const PLAN_SVG =
   `</g></svg>`
 const PLAN_URI = 'data:image/svg+xml;base64,' + Buffer.from(PLAN_SVG).toString('base64')
 
-// A tiny real raster, for the upload path (the field re-encodes it through a canvas).
 const UPLOAD_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVQIW2P8z8Dwn4EIwDiqkL4KAWKgAxHi3jj1AAAAAElFTkSuQmCC',
   'base64'
 )
-/** The uploaded plan's component uid, discovered by diffing the namespace; deleted in cleanup. */
 let bgUid = null
 
-/** Read the page through a shape that cannot throw, so a missing feature fails its own
- * checks instead of aborting everything after it (the wait-that-never-resolves class). */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
 
 const browser = await launch()
@@ -120,9 +94,6 @@ const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => {
   if (m.type() !== 'error') return
-  // Record WHICH resource failed - "Failed to load resource" alone is a failure nobody can act
-  // on - and ignore the ones belonging to the user's own configuration: a real server carries
-  // custom widgets pointing at iconsets and hosts that no longer answer.
   const at = m.location?.()?.url
   if (!isAppResource(at)) return
   errs.push(m.text() + (at ? ' <- ' + at : ''))
@@ -141,7 +112,6 @@ const preRunRuleUids = await listRuleUids()
 let anonCtx = null
 
 try {
-  /* ---------------- seed ---------------- */
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
@@ -191,8 +161,6 @@ try {
   })
   ok('seed dashboard created', seed.status === 200 || seed.status === 201, 'status ' + seed.status)
 
-  // a second, unrelated dashboard - section H saves it to prove the background collector looks
-  // at every dashboard's widgets, not only the one being written
   await fetch(NS + '/' + encodeURIComponent(UID2), { method: 'DELETE', headers: AUTH }).catch(() => {})
   await fetch(NS, {
     method: 'POST',
@@ -211,7 +179,6 @@ try {
     }),
   })
 
-  // deterministic light states for the glow checks
   await sendItem(ITEMS.color, '0,100,100') // pure red, full brightness
   await sendItem(ITEMS.dimmer, '60')
   await pollItem(ITEMS.color, '0')
@@ -221,7 +188,6 @@ try {
   await page.waitForSelector('.nh-fplan', { timeout: 15000 }).catch(() => {})
   await sleep(1500) // SSE settle
 
-  /* ---------------- A. rendering ---------------- */
   const render = await probe(page, () => {
     const plans = document.querySelectorAll('.nh-fplan')
     const img = document.querySelector('.nh-fplan__img')
@@ -266,7 +232,6 @@ try {
   })
   ok('marker sits at its stored position', Math.abs((markerPos.xPct ?? 0) - 25) < 2, 'x=' + (markerPos.xPct ?? 'n/a'))
 
-  // a light going dark loses its glow but keeps its marker
   await sendItem(ITEMS.dimmer, '0')
   await sleep(1500)
   const dark = await probe(page, () => ({
@@ -278,7 +243,6 @@ try {
   await sendItem(ITEMS.dimmer, '60')
   await sleep(800)
 
-  /* ---------------- B. the tap popup ---------------- */
   const colorPosts = []
   await page.route(`**/rest/items/${ITEMS.color}`, async (route) => {
     if (route.request().method() === 'POST') colorPosts.push(route.request().postData())
@@ -294,7 +258,6 @@ try {
   ok('tapping the color light opens its picker popup', popup.open && popup.tracks === 3,
     `name="${popup.name}" tracks=${popup.tracks}`)
 
-  // keyboard-step the hue: the steps must coalesce into ONE command
   await page.focus('.nh-fplan__popup .nh-color__h')
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight')
   await sleep(900) // past the keyboard-commit debounce
@@ -313,7 +276,6 @@ try {
   ok('a dimmer light gets a slider popup', dimPopup.slider === true)
   await page.click('.nh-fplan__scrim', { position: { x: 5, y: 5 } })
 
-  /* ---------------- C. save a preset from current state ---------------- */
   await sendItem(ITEMS.color, '120,50,80')
   await sendItem(ITEMS.dimmer, '42')
   await pollItem(ITEMS.color, '120')
@@ -340,7 +302,6 @@ try {
   const actionsByItem = Object.fromEntries(
     (scene?.actions ?? []).map((a) => [a.configuration?.itemName, String(a.configuration?.command)])
   )
-  // the capture normalizes the LIVE state; devices quantize, so compare numerically
   const near = (got, want, tol) =>
     typeof got === 'string' &&
     got.split(',').length === want.split(',').length &&
@@ -369,7 +330,6 @@ try {
   const backTo = await pollItem(ITEMS.dimmer, '42')
   ok('activating the preset restores the lights', backTo === '42' || backTo.startsWith('42.'), 'dimmer=' + backTo)
 
-  /* ---------------- D. anonymous panel ---------------- */
   anonCtx = await browser.newContext({ viewport: { width: 1200, height: 900 } })
   const anon = await anonCtx.newPage()
   const anonErrs = []
@@ -399,7 +359,6 @@ try {
   ok('anonymous activation works (runnow is USER role)', anonAct === '42' || anonAct.startsWith('42.'),
     'dimmer=' + anonAct)
 
-  /* ---------------- E. status item + wall-switch bridge ---------------- */
   const mkItem = await fetch(itemUrl(PROXY_ITEM), {
     method: 'PUT',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -408,11 +367,8 @@ try {
   ok('managed proxy item created', mkItem.status === 200 || mkItem.status === 201, 'status ' + mkItem.status)
   await sendItem(PROXY_ITEM, 'OFF')
 
-  // real reload: the item catalog is loaded once per page load, and the proxy item must be in it
   await page.goto(APP + '#/settings')
   await page.reload()
-  // wait for the MANAGEABLE row (name as an input): the summaries render first and the
-  // admin full-load follows, so any-row is too early to drive the manager
   await page
     .waitForFunction(
       () => [...document.querySelectorAll('.nh-presetrow__name')].some((el) => el.tagName === 'INPUT'),
@@ -421,7 +377,6 @@ try {
     )
     .catch(() => {})
 
-  // find our row by the name input's live value (attribute selectors see only defaultValue)
   const rowByName = async (name) => {
     const rows = page.locator('.nh-presetrow')
     const n = await rows.count()
@@ -451,8 +406,6 @@ try {
   ok('renamed row still manageable', !!row2)
   if (row2) {
     await row2.locator('button:has-text("Wall switch")').click()
-    // TYPE a partial search, never fill: page.fill delivers the value in one event and an
-    // exact name auto-binds as typed, which together masked the pick-click being broken
     await page.click('.nh-presetrow__bridge input[role="combobox"]')
     await page.keyboard.type(PROXY_ITEM.slice(0, 8), { delay: 40 })
     await sleep(600)
@@ -462,8 +415,6 @@ try {
     }))
     ok('bridge picker: a typed partial search still picks by click', bridgePicked.value === PROXY_ITEM,
       'value=' + JSON.stringify(bridgePicked.value))
-    // short-timeout + catch: with a dead pick the checkbox stays disabled, and the REAL
-    // failures should be the assertions below, not a 30s abort here
     await page.click('.nh-presetrow__bridge input[type="checkbox"]', { timeout: 5000 }).catch(() => {})
     await page.click('.nh-presetrow__bridge .nh-btn--primary', { timeout: 5000 }).catch(() => {})
     await sleep(1500)
@@ -481,7 +432,6 @@ try {
     bridge ? 'ok' : 'absent')
   ok('bridge not tagged as a Scene', !!bridge && !(bridge.tags ?? []).includes('Scene'), (bridge?.tags ?? []).join(','))
 
-  // THE wall-switch proof: command the proxy item, the lights follow
   await sendItem(ITEMS.dimmer, '15')
   await sleep(600)
   await sendItem(PROXY_ITEM, 'ON')
@@ -489,8 +439,6 @@ try {
   ok('commanding the status item runs the preset (wall-switch path)', bridged === '42' || bridged.startsWith('42.'),
     'dimmer=' + bridged)
 
-  // anonymous highlight now follows the status item over SSE. Polled, never single-sampled:
-  // the tracker needs a connect + tracked-set roundtrip before the first state arrives.
   await anon.reload()
   await anon.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 15000 }).catch(() => {})
   const chipActive = (want) =>
@@ -509,10 +457,8 @@ try {
       .catch(() => false)
   ok('anonymous highlight follows the status item', await chipActive(true))
   await sendItem(PROXY_ITEM, 'OFF')
-  // meaningful only because the previous check required active=true first
   ok('…and drops live when it turns OFF', await chipActive(false))
 
-  /* ---------------- F. backup carries the presets; hostile files refused ---------------- */
   const dlPromise = page.waitForEvent('download', { timeout: 20000 }).catch(() => null)
   await page.click('section:has(h2:text-is("Backup")) button:has-text("Export configuration")')
   const download = await dlPromise
@@ -542,7 +488,6 @@ try {
     refusal.confirmOpen === false && /invalid presets/i.test(refusal.notice),
     refusal.notice.slice(0, 60))
 
-  /* ---------------- G. the light-placement sheet (edit mode, draft only) ---------------- */
   await page.goto(APP + '#/d/nh-e2e-fplan')
   await page.waitForSelector('.nh-fplan', { timeout: 15000 }).catch(() => {})
   await page.click('[aria-label="Edit dashboard"]')
@@ -565,16 +510,12 @@ try {
   ok('placement sheet opens with the plan and both lights', sheet.open && sheet.rows === 2 && sheet.editMarkers === 2,
     `rows=${sheet.rows} markers=${sheet.editMarkers}`)
 
-  // TYPE a lowercase partial search, then click the option - the way a person actually adds a
-  // light. page.fill masked a real bug twice over: it skips per-keystroke behaviour (the
-  // documented trap) AND an exact typed name auto-binds, hiding a dead pick-click entirely.
   await page.click('.nh-planedit__add input[role="combobox"]')
   await page.keyboard.type(ITEMS.switch.slice(0, 6).toLowerCase(), { delay: 40 })
   await sleep(600)
   await page.click(`.nh-picker__option:has-text("${ITEMS.switch}")`, { timeout: 5000 }).catch(() => {})
   const picked = await probe(page, () => ({
     value: document.querySelector('.nh-planedit__add input[role="combobox"]')?.value ?? '',
-    // direct child: the picker's own clear/toggle buttons sit deeper and are never disabled
     addEnabled: !document.querySelector('.nh-planedit__add > button')?.disabled,
   }))
   ok('a typed partial search still picks by click (the blur-race regression)',
@@ -607,14 +548,12 @@ try {
 
   await page.click('.nh-planedit__bar .nh-btn--primary') // Done
   await sleep(300)
-  // the sheet edits the DRAFT: exiting without saving must leave the server untouched
   await page.click('button:has-text("Exit")')
   await sleep(1000)
   const serverCfg = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
   const serverLights = serverCfg?.config?.widgets?.[0]?.config?.lights ?? []
   ok('sheet edits stay in the draft until Save', serverLights.length === 2, 'server lights=' + serverLights.length)
 
-  /* ---------------- H. the sheet fits, and an uploaded plan survives a save ---------------- */
   await page.goto(APP + '#/d/nh-e2e-fplan')
   await page.waitForSelector('.nh-fplan', { timeout: 15000 }).catch(() => {})
   await page.click('[aria-label="Edit dashboard"]')
@@ -636,23 +575,15 @@ try {
       btnW: Math.round(b.width),
     }
   })
-  // An <input> has no min-content narrower than its default width, so a picker beside a button
-  // pushes the button off the panel unless the picker's floor is released.
   ok('the Add button is not pushed off the panel',
     fits.overhang !== undefined && fits.overhang <= 0 && fits.sideOverflow <= 1 && fits.btnW > 0,
     `overhang=${fits.overhang}px panelOverflow=${fits.sideOverflow}px`)
   await page.click('.nh-planedit__bar .nh-btn--primary')
   await sleep(300)
 
-  // Upload a plan onto the widget that has none, then SAVE. The uploaded image is referenced
-  // only from inside the widget's config, which is exactly the reference the background
-  // collector used to miss - it deleted the image the moment the dashboard was saved.
   const bgBefore = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
   await page.click('.nh-grid--edit .nh-cell >> nth=2 >> .nh-cell__grip')
   await sleep(500)
-  // This widget stores no planStyle, so the select is showing whatever the defaults resolve to.
-  // A select with nothing selected renders blank, which reads as broken beside a plan that is
-  // plainly styled - the widget's default has to agree with the one the renderer applies.
   const panel = await probe(page, () => {
     const field = [...document.querySelectorAll('.nh-sheet .nh-field')].find(
       (f) => f.querySelector('.nh-field__label')?.textContent === 'Plan style'
@@ -671,18 +602,13 @@ try {
     const url = document.querySelector('.nh-sheet .nh-bgfield input[type="text"]')
     return {
       imgs: document.querySelectorAll('.nh-fplan__img').length,
-      // measured WITH an image set: that is when the row also carries a thumbnail and a clear
-      // button, which is the state that crushed the box to a few characters in the narrow panel
       urlW: url ? Math.round(url.getBoundingClientRect().width) : 0,
       thumb: !!document.querySelector('.nh-sheet .nh-bgfield__thumb'),
     }
   })
   const afterUpload = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
-  // ids are random: find the new component by diffing the namespace, never by guessing
   bgUid = afterUpload.find((u) => u.startsWith('background:') && !bgBefore.includes(u)) ?? null
   ok('uploading a plan image shows it and stores the upload', uploaded.imgs === 3 && !!bgUid, `imgs=${uploaded.imgs} uid=${bgUid}`)
-  // The background field is also used in the 720px Settings form; in the narrow widget panel
-  // everything on one line left the URL box a few characters wide.
   ok('the plan image field stays usable in the narrow settings panel',
     uploaded.thumb === true && uploaded.urlW >= 120, `thumb=${uploaded.thumb} url box ${uploaded.urlW}px`)
 
@@ -699,8 +625,6 @@ try {
     bgStillThere === 200 && savedRef === bgUid?.replace('background:', 'bg:') && shown.imgs === 3 && shown.empties === 0,
     `component=${bgStillThere} ref=${savedRef} imgs=${shown.imgs} empty=${shown.empties}`)
 
-  // ...and saving a DIFFERENT dashboard must not collect it either: the collector has to know
-  // about every dashboard's widgets, not just the one being written.
   await page.goto(APP + '#/d/nh-e2e-fplan2')
   await page.waitForSelector('.nh-dash', { timeout: 15000 }).catch(() => {})
   await page.click('[aria-label="Edit dashboard"]')
@@ -714,11 +638,6 @@ try {
   const bgAfterOther = (await fetch(NS + '/' + encodeURIComponent(bgUid ?? 'background:none'), { headers: AUTH })).status
   ok("saving another dashboard leaves the floor plan's image alone", bgAfterOther === 200, 'status ' + bgAfterOther)
 
-  /* ---------------- I. switching presets holds steady while the lights fade ---------------- */
-  // A light does not step to a commanded value: openHAB predicts it at once, the binding then
-  // echoes the channel's PRE-FADE readback, and the real value lands when the fade ends. The
-  // sequence below is the one a DMX strip actually produced on this server, replayed on an
-  // UNBOUND managed item so no device is involved and the timing is ours.
   await fetch(itemUrl(GLOW_ITEM), {
     method: 'PUT',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -770,17 +689,12 @@ try {
       },
     }),
   })
-  // start held at B, so tapping A is a real switch between two presets
   await putState(GLOW_ITEM, '330,81,70')
-  // A goto that only changes the hash is a same-document navigation: the app would keep the
-  // dashboard list and the scene list it loaded before this section created either of them.
   await page.goto(APP + '#/d/nh-e2e-fplan3')
   await page.reload()
   await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
   await sleep(2500)
 
-  // Scoped to this section's own two chips: the bar lists every scene on the server, and on a
-  // live one somebody else's preset may legitimately be held at the same moment.
   const chipState = (p) =>
     probe(p, () => {
       const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
@@ -794,14 +708,10 @@ try {
   ok('the preset currently held is the one highlighted', before.b === true && before.a === false,
     `A=${before.a} B=${before.b}`)
 
-  // Arm an in-page sampler BEFORE the click: polling over the wire costs a round trip a sample
-  // and would miss the whole window.
   await page.evaluate(() => {
     window.__tl = []
     const read = () => {
       const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
-      // Named in full, never by position or by a trailing character: the bar lists every scene
-      // on the server, and somebody else's may be held or released while this runs.
       const flag = (n) => {
         const c = chips.find((x) => x.textContent.trim() === n)
         return c && c.classList.contains('nh-chip--on') ? '+' : '-'
@@ -821,9 +731,7 @@ try {
     }, 8)
   })
   await sleep(120) // let the sampler record the state before the tap
-  // Never let a missing chip abort the section: the checks below must be what fails.
   await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
-  // the measured echo: the value being faded AWAY from, a mid-fade value, then the real one
   await sleep(400)
   await putState(GLOW_ITEM, '332.481,74.71900,69.804')
   await sleep(400)
@@ -837,7 +745,6 @@ try {
   })
 
   const tl = Array.isArray(timeline) ? timeline : []
-  // tl[0] is the state before the tap; everything after it should be one steady state.
   const aOn = tl.map((s) => s.startsWith('A+'))
   const bOn = tl.map((s) => s.includes('B+'))
   const changes = aOn.filter((v, i) => i > 0 && v !== aOn[i - 1]).length
@@ -847,8 +754,6 @@ try {
   ok('the preset being left goes dark and does not come back',
     bOn[0] === true && bOn.slice(1).every((v) => v === false),
     `B lit in ${bOn.filter(Boolean).length} of ${tl.length} states`)
-  // No colour is hardcoded: whatever the device reports mid-fade, the room must reach the new
-  // scene's colour once and hold it, rather than flashing back through the one being left.
   const glows = tl.map((s) => s.split('|')[1] ?? '')
   const afterTap = [...new Set(glows.slice(1))]
   ok('the glow changes to the new scene once and never flashes back',
@@ -858,22 +763,11 @@ try {
   ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
     `A=${settled.a} B=${settled.b}`)
 
-  /* ------- I2. a fade nobody here started is just as steady ------- */
-  // Section I covers a preset THIS panel activated, where the commanded value is known and can
-  // be held outright. The same lights fade the same way when a wall switch or an openHAB rule
-  // changes them, and then there is nothing to hold - the plan used to flash the room back
-  // through the colour being left, and blink the chip of a preset that momentarily matched.
-  // Start from rest. The rule holds the first value of a burst and shows what it settles at,
-  // so a sequence begun while an earlier window is still open would have its boundary land
-  // mid-fade - which is this suite's own doing, not something a house does.
   await putState(GLOW_ITEM, '288,55,40')
   await sleep(2200)
   await page.evaluate(() => {
     window.__g = []
     window.__gi = setInterval(() => {
-      // The whole colour, alpha included: a light mid-fade keeps its hue and loses its
-      // BRIGHTNESS, which the glow carries as alpha - read the rgb alone and a room going dark
-      // looks like no change at all.
       const g = [...document.querySelectorAll('.nh-fplan__glow')]
         .map((x) => (/rgba?\([^)]*\)/.exec(x.style.backgroundImage) || ['none'])[0])
         .join('|')
@@ -881,11 +775,6 @@ try {
     }, 8)
   })
   await sleep(150)
-  // the measured shape of one fade: the value asked for, the pre-fade echo, then the real one
-  // Order matters, and it is the measured one: the echoes land within ~60ms of each other and
-  // the NEAR-BLACK one is what stands for the second before the fade finishes. Put a bright
-  // value there instead and the near-black never gets a frame, which makes the check below
-  // pass on a build that flashes.
   await putState(GLOW_ITEM, '120,90,60')
   await sleep(60)
   await putState(GLOW_ITEM, '320,20,90')
@@ -899,10 +788,6 @@ try {
     return window.__g
   })) ?? []
   const glowMoves = Array.isArray(glowTl) ? glowTl.slice(1) : []
-  // Not "changes exactly once": the value a device settles at is a shade off the one it was
-  // sent, so the glow legitimately repaints by a degree of hue when the window closes. What
-  // must never happen is a VISIT somewhere else on the way - the colour being left, or the
-  // near-black readback. So: everything it shows is already the colour it ends on.
   const rgbaOf = (g) => (/rgba?\(([^)]*)\)/.exec(g) || [, ''])[1].split(',').map(Number)
   const sameGlow = (a, b) =>
     a.length === 4 && b.length === 4 && a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= 30) && Math.abs(a[3] - b[3]) <= 0.15
@@ -910,16 +795,12 @@ try {
   ok('a glow goes straight to the new colour, with nothing on the way',
     glowMoves.length > 0 && glowMoves.every((g) => sameGlow(rgbaOf(g), destination)),
     `${glowMoves.length} changes: ${glowTl.join(' > ')}`)
-  // The echo mid-fade is near-black, and the plan draws brightness as the glow's alpha - so a
-  // room that flashes through it shows up as the light going out and coming back.
   const alphaOf = (g) => Number((/,\s*([\d.]+)\)/.exec(g) || [, '1'])[1])
   const restingAlpha = alphaOf(glowTl[glowTl.length - 1] ?? '')
   ok('and never lets the light go out on the way',
     glowMoves.every((g) => alphaOf(g) > restingAlpha * 0.5),
     `resting ${restingAlpha}: ` + glowMoves.map((g) => alphaOf(g)).join(' > '))
 
-  /* ---------------- J. unselecting a preset turns its lights off ---------------- */
-  // The chips are the primary control on a wall panel, reached from across a room.
   const chipSize = await probe(page, () => {
     const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
       (x) => x.textContent.trim() === 'NH E2E Settle A'
@@ -935,13 +816,11 @@ try {
   ok('section I left the tapped preset holding its lights on', (await brightness()) > 0,
     'brightness=' + (await brightness()))
 
-  // Default: tapping the held preset runs it again, exactly as before the setting existed.
   await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
   await sleep(1500)
   ok('with the setting off, tapping the held preset leaves the lights on', (await brightness()) > 0,
     'brightness=' + (await brightness()))
 
-  // Now turn it on for this plan.
   const planCfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
   planCfg.config.widgets[0].config.presetToggleOff = true
   await fetch(NS + '/' + encodeURIComponent(UID3), {
@@ -960,15 +839,10 @@ try {
   const rightAfter = await chipState(page)
   ok('the highlight clears the moment it is tapped off', rightAfter.a === false, `A=${rightAfter.a}`)
   await sleep(1500)
-  // OFF on a Color item zeroes the brightness and keeps the hue, so the colour survives being
-  // switched back on - which is why the off command is OFF and not "0,0,0".
   const offState = await itemState(GLOW_ITEM)
   ok('tapping the held preset switches its lights off', Number(offState.split(',')[2]) === 0, 'state=' + offState)
-  // The exact value, so this cannot pass on a build where nothing was switched off at all.
   ok('the light keeps its colour so it comes back the same', offState === '288,55,0', 'state=' + offState)
 
-  // ...and tapping it again brings the preset back, so the chip really toggles. Asserting it
-  // was off first, or this passes for free on a build that never switched it off.
   const wasOff = await brightness()
   await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
   await sleep(1800)
@@ -976,18 +850,10 @@ try {
   ok('tapping it again runs the preset back on', wasOff === 0 && backOn.a === true && (await brightness()) > 0,
     `wasOff=${wasOff} A=${backOn.a} brightness=${await brightness()}`)
 
-  /* ---------------- K. a light can throw its glow one way ---------------- */
-  // Sections K and L drive UI that a build without these features does not have, so every
-  // interaction is guarded: an unguarded click on a missing element throws and takes every
-  // later check with it, which reports one failure where the discrimination run needs all of
-  // them. The assertions are what fail.
   const tap = (p, sel) => p.click(sel, { timeout: 8000 }).catch(() => {})
   const type = (p, sel, v) => p.fill(sel, v, { timeout: 8000 }).catch(() => {})
   const pick = (p, sel, v) => p.selectOption(sel, v, { timeout: 8000 }).catch(() => {})
 
-  // Measured as geometry, not as a gradient string: a half disc is the same radius as the
-  // omnidirectional glow, hung off the side the lamp throws towards, and that is what the
-  // browser can be asked about without depending on how it serialises a gradient.
   const glowBox = async () =>
     probe(page, () => {
       const layer = document.querySelector('.nh-fplan__layer')
@@ -996,7 +862,6 @@ try {
       const l = layer.getBoundingClientRect()
       const r = g.getBoundingClientRect()
       return {
-        // where the lamp is (the light sits at 50%/50% of the plan on this dashboard)
         lampX: l.left + l.width * 0.5,
         lampY: l.top + l.height * 0.5,
         left: r.left,
@@ -1045,7 +910,6 @@ try {
     approx(left.right, left.lampX) && approx(left.w, left.h / 2) && approx(left.top + left.h / 2, left.lampY),
     `right=${Math.round(left.right)} lamp=${Math.round(left.lampX)} box ${Math.round(left.w)}x${Math.round(left.h)}`)
 
-  // the editor offers it, and the plan under the editor follows the pick immediately
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, undefined, { timeout: 15000 }).catch(() => {})
   await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip')
@@ -1060,7 +924,6 @@ try {
       value: sel.value,
       options: [...sel.options].map((o) => o.value),
       blank: [...sel.options].some((o) => o.textContent.trim() === ''),
-      // the label box has to survive sharing its line with the new select
       labelW: label ? Math.round(label.getBoundingClientRect().width) : 0,
       overflow: document.querySelector('.nh-planedit__side').scrollWidth - document.querySelector('.nh-planedit__side').clientWidth,
     }
@@ -1089,7 +952,6 @@ try {
   await page.click('button:has-text("Exit")')
   await sleep(1000)
 
-  /* ---------------- L. managing presets from the plan ---------------- */
   for (const [uid, name, actions] of [
     [MGR_UID, 'NH E2E Managed', [
       { id: '1', type: 'core.ItemCommandAction', configuration: { itemName: ITEMS.dimmer, command: '30' } },
@@ -1117,8 +979,6 @@ try {
   await anon.reload()
   await anon.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 20000 }).catch(() => {})
   await sleep(800)
-  // The bar has to be listing presets before "no manage chip" means anything: on a panel with
-  // no bar at all, every negative check here passes for free.
   const anonBar2 = await probe(anon, () => ({
     chips: [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].map((c) => c.textContent.trim()),
   }))
@@ -1143,9 +1003,6 @@ try {
       viewH: window.innerHeight,
     }
   })
-  // Every grid cell is a size container, which makes it the containing block for fixed
-  // descendants: a sheet rendered inside the widget would be laid out to that tile and clipped
-  // by it, leaving a colour picker a couple of hundred pixels wide.
   ok('the manager gets the screen, not the widget it was opened from',
     list.sheetW === list.viewW && list.sheetH === list.viewH,
     `sheet ${list.sheetW}x${list.sheetH} viewport ${list.viewW}x${list.viewH}`)
@@ -1163,7 +1020,6 @@ try {
     return {
       cards: cards.length,
       names: cards.map(nameOf),
-      // the light's own kind of control, chosen from the value the scene stores
       colorPickers: document.querySelectorAll('.nh-pmgr__light .nh-color').length,
       sliders: document.querySelectorAll('.nh-pmgr__light .nh-slider__input').length,
       name: document.querySelector('.nh-pmgr__edit input[type="text"]')?.value ?? '',
@@ -1178,7 +1034,6 @@ try {
     (editor.names ?? []).join(','))
   ok('the wall-switch link is editable here too', editor.statusPicker === true)
 
-  // change what the preset sets the dimmer to, rename it, and drop the colour light
   await type(page, '.nh-pmgr__light:has(.nh-pmgr__lightname:text-is("Main")) .nh-slider__input', '55')
   await type(page, '.nh-pmgr__edit input[type="text"]', 'NH E2E Managed 2')
   await tap(page, '.nh-pmgr__light:has(.nh-pmgr__lightname:text-is("Bulb")) .nh-iconbtn')
@@ -1204,13 +1059,11 @@ try {
   ok('the scene is still a neohab scene after being rewritten',
     saved?.name === 'NH E2E Managed 2' && saved?.tags?.includes('Scene') && saved?.tags?.includes('neohab'),
     `name=${saved?.name} tags=${(saved?.tags ?? []).join(',')}`)
-  // Editing a preset must not touch the room: the values change, the lights do not.
   const dimmerAfterEdit = await itemState(ITEMS.dimmer)
   ok('editing a preset writes the value and commands no lights',
     saved?.name === 'NH E2E Managed 2' && dimmerAfterEdit === dimmerBeforeEdit,
     `saved=${saved?.name} dimmer ${dimmerBeforeEdit} -> ${dimmerAfterEdit}`)
 
-  // put the colour light back, from the plan
   await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Managed 2")) button:has-text("Edit")')
   await page.waitForSelector('.nh-pmgr__edit', { timeout: 10000 }).catch(() => {})
   const addable = await probe(page, () => ({
@@ -1223,10 +1076,6 @@ try {
   await tap(page, '.nh-pmgr__add button:has-text("Add")')
   await sleep(300)
 
-  // ...and link the status item in the same edit, so the wall-switch fields are proved to reach
-  // the scene rather than just to render. A typed partial search then a click: filling the exact
-  // name auto-binds it and would hide a dead picker entirely. The bridge box is left alone, so
-  // no rule is created and the item is never commanded.
   await tap(page, '.nh-pmgr__edit input[role="combobox"]')
   await page.keyboard.type(ITEMS.switch.slice(0, 6).toLowerCase(), { delay: 40 }).catch(() => {})
   await sleep(600)
@@ -1241,20 +1090,16 @@ try {
   await sleep(2000)
   const readded = await getRule(MGR_UID)
   const readdedColor = (readded?.actions ?? []).find((a) => a.configuration?.itemName === ITEMS.color)
-  // The link rides in the scene's own configuration AND a tag, because 4.x omits configuration
-  // from the summary a signed-out panel reads. Both, or the highlight silently does not exist there.
   ok('the wall-switch link the editor collected is written to the scene',
     readded?.configuration?.statusItem === ITEMS.switch &&
       (readded?.tags ?? []).includes(`neohab:status:${ITEMS.switch}:ON`),
     `configuration=${readded?.configuration?.statusItem} tags=${(readded?.tags ?? []).join(',')}`)
-  // Linking alone must not create the bridge rule: that box was deliberately left unticked.
   ok('linking an item does not build the bridge rule on its own',
     readded?.configuration?.statusItem === ITEMS.switch && (await getRule('nh-bridge-' + MGR_UID)) === null)
   ok('the added light is stored at the value it is set to right now',
     (readded?.actions ?? []).length === 2 && !!readdedColor && near(String(readdedColor.configuration.command), colorNow, 3),
     `stored=${readdedColor?.configuration?.command} live=${colorNow}`)
 
-  // deleting: the confirm has to be answered, and then the preset is gone from the bar too
   await tap(page, '.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Doomed")) button:has-text("Delete")')
   await sleep(200)
   const confirmShown = await page.locator('.nh-pmgr__row:has(.nh-pmgr__name:text-is("NH E2E Doomed")) button:has-text("Really delete")').count()
@@ -1274,9 +1119,6 @@ try {
   await tap(page, '.nh-pmgr__bar .nh-iconbtn')
   await sleep(800)
 
-  // A house with several presets wraps the chips onto two or three rows on a phone. The bar
-  // has to place itself by its own height: reserving one row puts the rest over the plan,
-  // hiding the lights the chips control.
   const phone = await anonCtx.newPage()
   await phone.setViewportSize({ width: 393, height: 850 })
   await phone.goto(APP + '#/d/nh-e2e-fplan')
@@ -1301,9 +1143,6 @@ try {
         }
       : {}
   })
-  // Two regimes, and the bar has to know which it is in: hang under the plan where the rows
-  // fit, and sit on the bottom of the widget where they do not. Anything between the two is a
-  // bar that guessed its own height and parked several rows of chips over the lights.
   const barFits = (stacked.room ?? 0) >= (stacked.barH ?? 0)
   ok('the chip bar places itself by how tall it really is',
     (stacked.rows ?? 0) >= 2 &&
@@ -1321,7 +1160,6 @@ try {
   ok('no page errors (main)', errs.length === 0, errs.slice(0, 3).join(' | '))
   ok('no page errors (anonymous)', anonErrs.length === 0, anonErrs.slice(0, 3).join(' | '))
 } finally {
-  /* ---------------- cleanup ---------------- */
   await anonCtx?.close().catch(() => {})
   await browser.close().catch(() => {})
   for (const uid of [UID, UID2, UID3, bgUid].filter(Boolean)) {
@@ -1336,7 +1174,6 @@ try {
   await sendItem(ITEMS.dimmer, initialDimmer).catch(() => {})
   await restoreColor(ITEMS.color, initialColor).catch(() => {})
 
-  // verify: nothing survived (rule diff against the pre-run listing, config, the item)
   const postRuleUids = await listRuleUids()
   const stray = postRuleUids.filter((u) => !preRunRuleUids.includes(u))
   ok('no stray rules left behind', stray.length === 0, stray.join(','))

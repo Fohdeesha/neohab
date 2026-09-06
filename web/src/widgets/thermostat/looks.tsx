@@ -1,15 +1,3 @@
-/**
- * The four looks of the thermostat, drawn from one view of its state.
- *
- * Every look is the same readings and the same two setpoint buttons arranged differently, so the
- * parts are written once (`Temp`, `StepButton`, `Glyph`) and each look is only its face. What a
- * press or a drag does lives in the widget, which hands the looks their handlers; nothing here
- * decides a value.
- *
- * Each face is a square: an SVG for the geometry (arc, ticks, markers, handle) with HTML laid over
- * it for the text and the buttons, so the words go through the catalogs and take the theme's
- * font, and the sizes follow the square through container units.
- */
 import type { PointerEvent, RefObject } from 'react'
 import { arcPath, polar } from '../dial/geometry'
 import { angleFor, rampColor, ticksOf } from './model'
@@ -21,7 +9,6 @@ export interface RingHandlers {
   onPointerMove: (e: PointerEvent<SVGSVGElement>) => void
   onPointerUp: () => void
   onPointerCancel: () => void
-  /** True while the setpoint is being dragged round the ring. */
   dragging: boolean
 }
 
@@ -31,17 +18,9 @@ export interface ThermoView {
   setpoint: { text: string; parts: TempParts; known: boolean }
   current: { text: string; parts: TempParts; known: boolean }
   unit?: string
-  /** The status line, already translated; undefined when there is nothing to say. */
   status?: string
-  /** Where the setpoint and the room's temperature sit on the scale, 0..1. */
   fraction: number
   currentFraction?: number
-  /**
-   * Colour the scale by temperature: cool at the bottom of the range, warm at the top. On for a
-   * face with no mode and nothing running, where the alternative is a ring of white ticks that
-   * says nothing; off where the face is already a solid heating or cooling colour, which is what
-   * the reference thermostats do and what white ticks are legible on.
-   */
   ramped: boolean
   arc: { start: number; sweep: number }
   atMin: boolean
@@ -50,17 +29,9 @@ export interface ThermoView {
   ring: RingHandlers
   mode: HvacMode
   activity: Activity
-  /** Accessible names and captions, already translated. */
   labels: { up: string; down: string; ambient: string; set: string; mode: string; current: string }
 }
 
-/* ------------------------------------------------------------------ *
- * Shared parts
- * ------------------------------------------------------------------ */
-
-/* Glyphs from Material Design Icons (Apache-2.0, bundled and attributed under icons/mdi), inlined
-   so they size in em with the text beside them and need no asset fetch. Keyed by values this
-   module chose itself - a bare index is fine here. */
 const GLYPHS: Record<'flame' | 'snow' | 'fan' | 'fanAuto' | 'thermometer' | 'leaf' | 'aux', string> = {
   flame:
     'M17.66 11.2C17.43 10.9 17.15 10.64 16.89 10.38C16.22 9.78 15.46 9.35 14.82 8.72C13.33 7.26 13 4.85 13.95 3C13 3.23 12.17 3.75 11.46 4.32C8.87 6.4 7.85 10.07 9.07 13.22C9.11 13.32 9.15 13.42 9.15 13.55C9.15 13.77 9 13.97 8.8 14.05C8.57 14.15 8.33 14.09 8.14 13.93C8.08 13.88 8.04 13.83 8 13.76C6.87 12.33 6.69 10.28 7.45 8.64C5.78 10 4.87 12.3 5 14.47C5.06 14.97 5.12 15.47 5.29 15.97C5.43 16.57 5.7 17.17 6 17.7C7.08 19.43 8.95 20.67 10.96 20.92C13.1 21.19 15.39 20.8 17.03 19.32C18.86 17.66 19.5 15 18.56 12.72L18.43 12.46C18.22 12 17.66 11.2 17.66 11.2M14.5 17.5C14.22 17.74 13.76 18 13.4 18.1C12.28 18.5 11.16 17.94 10.5 17.28C11.69 17 12.4 16.12 12.61 15.23C12.78 14.43 12.46 13.77 12.33 13C12.21 12.26 12.23 11.63 12.5 10.94C12.69 11.32 12.89 11.7 13.13 12C13.9 13 15.11 13.44 15.37 14.8C15.41 14.94 15.43 15.08 15.43 15.23C15.46 16.05 15.1 16.95 14.5 17.5H14.5Z',
@@ -83,7 +54,6 @@ export function Glyph({ name, className }: { name: GlyphName; className?: string
   )
 }
 
-/** The glyph that says what the system is doing, or what it is set to when nothing says. */
 export function activityGlyph(activity: Activity, mode: HvacMode): GlyphName | undefined {
   if (activity === 'heating') return 'flame'
   if (activity === 'cooling') return 'snow'
@@ -93,11 +63,6 @@ export function activityGlyph(activity: Activity, mode: HvacMode): GlyphName | u
   return undefined
 }
 
-/**
- * A temperature: its whole part, its fraction set apart so a look can raise or shrink it, and its
- * unit. `sep` keeps the decimal separator with the fraction (".5") for the looks that read as a
- * plain number; without it the fraction is a raised digit, the way a thermostat's ring prints it.
- */
 function Temp({ parts, unit, sep, className }: { parts: TempParts; unit?: string; sep: boolean; className: string }) {
   return (
     <span className={'nh-thermo__temp ' + className}>
@@ -110,11 +75,6 @@ function Temp({ parts, unit, sep, className }: { parts: TempParts; unit?: string
   )
 }
 
-/**
- * One of the two setpoint controls. A button with nowhere to go is dimmed and inert rather than
- * `disabled`: a disabled control swallows the pointer events the hold gesture on the cell above
- * needs, and the tile would stop answering a long press exactly when the setpoint is at a limit.
- */
 function StepButton({ view, dir, className }: { view: ThermoView; dir: 1 | -1; className?: string }) {
   const off = dir > 0 ? view.atMax : view.atMin
   return (
@@ -148,18 +108,12 @@ function ringProps(ring: RingHandlers) {
   }
 }
 
-/**
- * A radial tick between two radii at an angle, for the two dials. A colour is applied as an
- * inline STYLE, not as a `stroke` attribute: `.nh-thermo__tick` sets a stroke, and a stylesheet
- * always beats an attribute, so a ramped tick would have come out the ink colour.
- */
 function Tick({ angle, from, to, className, color }: { angle: number; from: number; to: number; className: string; color?: string }) {
   const a = polar(50, 50, from, angle)
   const b = polar(50, 50, to, angle)
   return <line className={className} x1={a.x} y1={a.y} x2={b.x} y2={b.y} style={color ? { stroke: color } : undefined} />
 }
 
-/** A marker's label just inside the ring at its angle, for the two dials. */
 function Mark({ angle, r, parts, className }: { angle: number; r: number; parts: TempParts; className: string }) {
   const p = polar(50, 50, r, angle)
   return (
@@ -174,15 +128,6 @@ function Mark({ angle, r, parts, className }: { angle: number; r: number; parts:
   )
 }
 
-/* ------------------------------------------------------------------ *
- * The looks
- * ------------------------------------------------------------------ */
-
-/**
- * Arc: a thick track round the face, filled to the setpoint in the mode's colour and carrying a
- * handle to drag; the room's temperature is a dot on the track and a small line under the big
- * setpoint. The two buttons sit in the gap at the bottom.
- */
 export function ArcLook({ view }: { view: ThermoView }) {
   const { arc } = view
   const R = 42
@@ -222,12 +167,6 @@ export function ArcLook({ view }: { view: ThermoView }) {
   )
 }
 
-/**
- * Dial: a solid disc in the mode's colour ringed by fine ticks, the ones between the room's
- * temperature and the setpoint lit brighter; the setpoint is the big number, the room's
- * temperature a longer tick with its figure beside it. The unit sits under the number and a
- * glyph under that says what the system is doing.
- */
 export function DialLook({ view }: { view: ThermoView }) {
   const { arc } = view
   const spAngle = angleFor(view.fraction, arc)
@@ -285,11 +224,6 @@ export function DialLook({ view }: { view: ThermoView }) {
   )
 }
 
-/**
- * Disc: the same solid disc hatched with a dense ring of short ticks right at its rim, the big
- * number's tenths raised as a small digit, and both the setpoint and the room's temperature
- * marked on the ring with their figures.
- */
 export function DiscLook({ view }: { view: ThermoView }) {
   const { arc } = view
   const spAngle = angleFor(view.fraction, arc)
@@ -347,11 +281,6 @@ export function DiscLook({ view }: { view: ThermoView }) {
   )
 }
 
-/**
- * Ring: a dark disc bordered by a thick ring in the mode's colour. The room's temperature is
- * the big reading under an AMBIENT caption; below a hairline, SET holds the setpoint between its
- * two buttons and MODE the glyph for what the system is doing.
- */
 export function RingLook({ view }: { view: ThermoView }) {
   const glyph = activityGlyph(view.activity, view.mode)
   return (

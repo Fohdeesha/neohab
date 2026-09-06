@@ -36,8 +36,6 @@ describe('the numeric scale', () => {
   })
 
   it('falls back rather than drawing a gauge full of NaN', () => {
-    // These three were the only values here still read raw: an unreadable min drew NaN arcs and
-    // a reading of "NaN", and a zero step divided by zero in the pointer snap.
     const bad = { min: 'abc', max: null, step: 0 } as unknown as Partial<DialConfig>
     const s = scaleOf(cfg(bad))
     expect(s).toEqual({ min: 0, max: 100, step: 1 })
@@ -125,12 +123,10 @@ describe('lighting', () => {
   it('spaces a full circle so the first and last do not coincide', () => {
     expect(ledFraction(0, 4, 360)).toBe(0)
     expect(ledFraction(3, 4, 360)).toBe(0.75)
-    // a partial arc puts the last one exactly at the end instead
     expect(ledFraction(3, 4, 180)).toBe(1)
   })
 
   it('lights a block by its midpoint, so no block lights one value early', () => {
-    // 4 blocks, midpoints at .125 .375 .625 .875
     const lit = (frac: number) => Array.from({ length: 4 }, (_, i) => blockLit(i, 4, frac, 0, false))
     expect(lit(0.2)).toEqual([true, false, false, false])
     expect(lit(0.4)).toEqual([true, true, false, false])
@@ -138,7 +134,6 @@ describe('lighting', () => {
   })
 
   it('lights exactly one reference block when zero sits on a block edge', () => {
-    // zero at .5 is the boundary between blocks 1 and 2 of 4; a midpoint-distance rule lit both
     const lit = Array.from({ length: 4 }, (_, i) => blockLit(i, 4, 0.5, 0.5, true))
     expect(lit.filter(Boolean)).toHaveLength(1)
   })
@@ -205,7 +200,6 @@ describe('pointer interaction', () => {
   })
 
   it('clamps an angle in the arc gap to whichever end is nearer', () => {
-    // a 270 arc starting at 0 leaves a gap from 270 to 360
     expect(angleToValue(190, 0, 100, 0, 270, 1, 0)).toBe(100)
     expect(angleToValue(260, 0, 100, 0, 270, 1, 0)).toBe(0)
   })
@@ -231,12 +225,9 @@ describe('history bars', () => {
   const t1 = 4000
 
   it('weighs each sample by how long it held, not by how often it was stored', () => {
-    // A dimmer that logs 100 fade points in the first 2% of a bucket must not swamp the value
-    // that held for the rest of it.
     const burst = Array.from({ length: 100 }, (_, i) => ({ time: t0 + i, value: 100 }))
     const held = [{ time: t0 + 100, value: 0 }]
     const bars = historyBars([...burst, ...held], t0, t1, 1)
-    // one bucket normalises to 0.5, so check the weighting through a two-bucket split instead
     const two = historyBars([...burst, ...held, { time: 2000, value: 100 }], t0, t1, 2)
     expect(two[0]!).toBeLessThan(two[1]!)
     expect(bars).toHaveLength(1)
@@ -291,12 +282,6 @@ describe('historyPeriodMs', () => {
     expect(historyPeriodMs({ item: 'x', historyPeriod: 'nonsense' })).toBe(HISTORY_PERIODS['24h'])
   })
 
-  /*
-   * Stored widget configuration, so the key is not one this code chose. A bare index finds an
-   * `Object.prototype` member, which is not nullish, so the `??` fallback never fires and
-   * `Date.now() - <function>` is NaN - `new Date(NaN).toISOString()` then throws inside the
-   * history fetch, the surrounding try swallows it, and the sparkline silently never appears.
-   */
   it('falls back for a window named after an Object.prototype member', () => {
     for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
       expect(historyPeriodMs({ item: 'x', historyPeriod: key })).toBe(HISTORY_PERIODS['24h'])

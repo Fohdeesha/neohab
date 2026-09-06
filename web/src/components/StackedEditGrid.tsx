@@ -1,10 +1,3 @@
-/**
- * Narrow-viewport (phone) edit surface: the same single-column stack as the runtime grid,
- * with drag-to-reorder via each widget's handle. The first reorder pins an explicit
- * stackOrder on the dashboard; until then the stack follows the grid's row order. Widget
- * position/size on the wide grid is still edited on a wide viewport - here the handle only
- * moves widgets up and down, with a line showing where the drop lands.
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard } from '../model/dashboard'
@@ -30,14 +23,12 @@ import { CellHandle } from './CellHandle'
 import { useCoarsePointer } from './useCoarsePointer'
 import { WidgetHost } from './WidgetHost'
 
-/** Touch hold that starts a multi-selection (mirrors the wide grid). */
 const LONG_PRESS_MS = 500
 
 interface DragState {
   id: string
   startY: number
   dy: number
-  /** Insertion position among the non-dragged rows. */
   insertPos: number
 }
 
@@ -47,10 +38,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const [drag, setDrag] = useState<DragState | null>(null)
-  // The text-scale floor is the device's as well as the row's (see textFloor).
   const coarse = useCoarsePointer()
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
-  // Touch long-press → multi-select, matching the wide grid.
   const longPressRef = useRef<number | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClickRef = useRef(false)
@@ -62,9 +51,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     }
     longPressStart.current = null
   }
-  // A press interrupted by an unmount - a route change, Save, or the viewport crossing back over
-  // STACK_BELOW - would otherwise fire its long-press into an editor that is no longer there.
-  // The wide grid does the same; the two surfaces are deliberately kept in step.
+  // a press interrupted by an unmount would otherwise fire its hold into an editor that is gone
   useEffect(() => () => clearLongPress(), [])
 
   const onOverlayClick = (id: string) => (e: React.MouseEvent) => {
@@ -96,7 +83,6 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
   }
 
-  /** How many non-dragged rows the pointer is below (midpoint rule) = insertion position. */
   const insertPosFor = (clientY: number, dragId: string): number => {
     let pos = 0
     for (const w of ordered) {
@@ -114,8 +100,6 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    // Selection waits for the drop, as on the wide grid: opening the settings sheet over the
-    // stack mid-drag would cover the rows being dragged between.
     setDrag({ id, startY: e.clientY, dy: 0, insertPos: insertPosFor(e.clientY, id) })
   }
 
@@ -128,9 +112,6 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     if (!drag) return
     const from = ordered.findIndex((w) => w.id === drag.id)
     setDrag(null)
-    // Selection on drop: a no-move press on the handle is a click on the widget, so it behaves
-    // exactly like a body click (Ctrl toggles, Shift adds, plain replace-selects - matching the
-    // wide grid). A real reorder keeps a multi-selection intact when the widget belongs to it.
     const clickLike = Math.abs(drag.dy) <= 5
     if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
     else if (clickLike && e.shiftKey) addToSelection(drag.id)
@@ -145,7 +126,6 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
     updateDashboardMeta({ stackOrder: ids })
   }
 
-  // Drop indicator: rendered before the insertPos-th non-dragged row (or after the last).
   let nonDragged = 0
 
   return (

@@ -2,11 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { resolveStateIcon, stateMatches, type StateIconConfig } from './stateIcon'
 
 describe('stateMatches', () => {
-  /**
-   * HABPanel toggle semantics: active exactly when the raw state EQUALS the command. An
-   * isOn()-style heuristic inverts an imported button at an intermediate rollershutter position,
-   * which is how a half-stopped garage door ended up sending "open" when it meant "close".
-   */
   it('is exact, but tolerant of how a number was written', () => {
     expect(stateMatches('ON', 'ON')).toBe(true)
     expect(stateMatches('100', '100.0')).toBe(true)
@@ -57,7 +52,6 @@ describe('resolveStateIcon', () => {
 
   it('lets a rule fill in only what it sets, the rest falling through', () => {
     const c: StateIconConfig = { ...base, stateIcons: [{ state: 'ON', color: '#f00' }] }
-    // only the colour was given, so the icon still comes from the active slot
     expect(resolveStateIcon(c, true, 'ON')).toEqual({ icon: 'mdi:bulb-on', color: '#f00' })
   })
 

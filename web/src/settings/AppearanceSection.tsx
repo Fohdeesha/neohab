@@ -1,11 +1,3 @@
-/**
- * Appearance: the theme picker, the custom-theme editor, and the per-device presentation choices
- * that sit beside it (background, sidebar, language, text size).
- *
- * The theme cards set the SHARED theme, and the select below them pins one for this device only.
- * Those two disagreeing is the normal case for a wall panel, so anything here that says "current"
- * means the theme actually on screen, not the shared setting.
- */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { collectUnusedBackgrounds, saveSettings, useConfigStore } from '../store/config'
@@ -29,7 +21,6 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
   const canEdit = useEditingAllowed()
   const [editing, setEditing] = useState<Theme | null>(null)
 
-  // The theme on screen, which is what "current" means to the person looking at it.
   const activeTheme = useActiveTheme()
 
   const choose = async (id: string) => {
@@ -44,18 +35,10 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
     if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
-  /**
-   * Start a theme from the colours of the one on screen. Its stylesheet is not copied: a
-   * structural theme's CSS is full of colours written directly into it that would not follow the
-   * tokens being edited, so a copy looks broken for reasons nothing on screen explains. The
-   * editor offers that copy explicitly instead, and says what it costs.
-   */
+  // the stylesheet is not copied: a structural theme's CSS is full of colours written into it, which would fight
+  // the tokens you are about to change
   const newFromCurrent = () => {
     const id = 'custom-' + Math.random().toString(36).slice(2, 8)
-    // `accent-ink` is derived from the accent unless a theme pins it, and the built-ins pin it
-    // for the specific accent they ship with. Carrying that pin into a copy would silently
-    // disable the automatic choice for a theme whose accent is about to become something else -
-    // and leave unreadable text with nothing on screen explaining it.
     const { 'accent-ink': _pinnedInk, ...tokens } = activeTheme.tokens
     setEditing({ id, name: t('My theme'), scheme: activeTheme.scheme, tokens })
   }

@@ -14,11 +14,6 @@ import { looksPartial, validatePartialBundle, type PartialBundle, type PartialIm
 import { downloadJson } from '../components/download'
 import { errorText } from '../api/errors'
 
-/**
- * Confirmation card for a single-dashboard / widget / theme file. A copy never touches anything
- * that is already here; overwrite is only offered when something would actually be replaced, and
- * says exactly how much.
- */
 function PartialImportCard({
   state,
   busy,
@@ -35,8 +30,6 @@ function PartialImportCard({
   const kindLabel = plan.kind === 'dashboard' ? t('Dashboard') : plan.kind === 'widgetdef' ? t('Custom widget') : t('Theme')
   const deps = plan.dependencies.length
   const conflicts = plan.conflicts.length
-  // Everything in the file is already here, byte for byte: there is nothing an import could do,
-  // so offering one would be a dead end that reports "nothing to import" after the round trip.
   const nothingToDo = plan.primary.status === 'identical' && plan.dependencies.every((d) => d.status === 'identical')
 
   return (
@@ -106,8 +99,6 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       onNotice(t('Import failed: that file is not valid JSON.'))
       return
     }
-    // One import button for both kinds of file: a single dashboard/widget/theme is offered as a
-    // copy or an overwrite, a whole-configuration backup as merge or replace.
     if (looksPartial(parsed)) {
       const invalid = validatePartialBundle(parsed)
       if (invalid) {

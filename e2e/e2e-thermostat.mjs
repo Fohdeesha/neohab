@@ -1,19 +1,7 @@
-/**
- * Thermostat widget e2e: the room's temperature and the setpoint, buttons and a draggable ring
- * for the setpoint, and a row of buttons for the mode, the fan and auxiliary heat, in four looks.
- *
- * Every command in this suite goes to managed items it creates itself, bound to nothing, so the
- * commands are real (the state comes back over the live stream exactly as a device's would) and
- * nothing in the house moves. The count of them is one of the checks: a run of quick presses has
- * to cost the setpoint item ONE command carrying the last value, and the two items the widget
- * only reads must never receive one.
- *
- * SAFE with a live config. Creates and deletes exactly:
- *   - dashboard:nh-e2e-thermostat                                       (neohab:config)
- *   - managed items nh_e2e_thcur, nh_e2e_thset, nh_e2e_thmode, nh_e2e_thfan, nh_e2e_thaux,
- *     nh_e2e_thstat, nh_e2e_thcurc, nh_e2e_thsetc, nh_e2e_thnull
- * Enters edit mode once and leaves without saving; touches no other item.
- */
+// Thermostat widget e2e: the room's temperature and the setpoint, buttons and a draggable ring for the
+// setpoint, and a row of buttons for the mode.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-thermostat (neohab:config), managed
+// items nh_e2e_thcur, nh_e2e_thset, nh_e2e_thmode.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
@@ -27,13 +15,10 @@ const STAT = 'nh_e2e_thstat'
 const CURC = 'nh_e2e_thcurc'
 const SPC = 'nh_e2e_thsetc'
 const NULLI = 'nh_e2e_thnull'
-/* Pinned at the two ends of a 50-90 scale, so a dial's figures land on the ring's first and last
-   tick - which is where the buttons are, and is the case that was reported. */
 const LOW = 'nh_e2e_thlow'
 const HIGH = 'nh_e2e_thhigh'
 const ITEMS_MADE = [CUR, SP, MODE, FAN, AUX, STAT, CURC, SPC, NULLI, LOW, HIGH]
 
-/* The widget's default colours, as computed styles report them. */
 const HEAT = 'rgb(242, 106, 27)'
 const COOL = 'rgb(31, 140, 238)'
 
@@ -51,7 +36,6 @@ const getState = (n) =>
     .then((r) => r.json())
     .then((j) => j.state)
     .catch(() => null)
-/** The item's state once it reads `want`, or whatever it reads when the wait runs out. */
 const waitState = async (n, want, ms = 4000) => {
   const until = Date.now() + ms
   let s = null
@@ -69,7 +53,6 @@ const makeItem = (n, type, label) =>
     body: JSON.stringify({ type, name: n, label }),
   })
 
-/** Read the page through a shape that cannot throw, so a missing feature fails its own checks. */
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
@@ -87,8 +70,6 @@ const thermo = (label, look, config) => ({
   type: 'thermostat',
   config: { label, look, ...config },
 })
-// The dashboard's rows are 28px with a 6px gap, so a tile h rows tall is 34h - 6 px: a "3" here
-// is 300px, a "2" 198px and a "1" 96px.
 const at = (w, x, y, wd, h) => ({ ...w, layout: { lg: { x, y: y * 3, w: wd, h: h * 3 } } })
 
 const WIDGETS = [
@@ -98,7 +79,6 @@ const WIDGETS = [
   at(thermo('Ring', 'ring', full), 9, 0, 3, 3),
   at(thermo('Bare', 'arc', { currentItem: CUR, setpointItem: SP, unit: '°F' }), 0, 3, 2, 2),
   at(thermo('Unknown', 'arc', { currentItem: CUR, setpointItem: NULLI, unit: '°F' }), 2, 3, 2, 2),
-  // Stored configuration is untrusted input: every field here is the wrong shape.
   {
     id: 'w-hostile',
     type: 'thermostat',
@@ -109,16 +89,8 @@ const WIDGETS = [
   at(thermo('Narrow', 'dial', { currentItem: CURC, setpointItem: SPC }), 9, 3, 1, 2),
   at(thermo('Colors', 'arc', { ...full, heatColor: '#e0603c' }), 10, 3, 2, 2),
   at(thermo('Own range', 'arc', { currentItem: CUR, setpointItem: SP, min: 60, max: 80, step: 0.5, unit: '°F' }), 0, 5, 2, 2),
-  // Wide enough for the mode buttons to carry their words: six columns at this viewport.
   at(thermo('Wide', 'arc', full), 2, 5, 6, 2),
-  // Both readings pinned to the ends of the scale, so each dial draws a figure beside the first
-  // and the last tick of its ring - beside the two buttons. Neither has a mode or a status item,
-  // so the face is neutral and its ring is coloured by temperature.
-  // A second ring, smaller: its plate is a circle, so how much room the row below the rule has
-  // depends on the size of the face, and one tile could pass while another does not.
   at(thermo('Ring small', 'ring', { currentItem: CUR, setpointItem: SP, modeItem: MODE, unit: '°F' }), 8, 5, 2, 2),
-  // Big enough to draw the figures on the rim, which is the point of them: a smaller face sheds
-  // those, and then there is nothing for the buttons to be under.
   at(thermo('Ends disc', 'disc', { currentItem: HIGH, setpointItem: LOW, min: 50, max: 90, step: 1, unit: '°F' }), 0, 7, 3, 3),
   at(thermo('Ends dial', 'dial', { currentItem: HIGH, setpointItem: LOW, min: 50, max: 90, step: 1, unit: '°F' }), 3, 7, 3, 3),
 ]
@@ -135,7 +107,6 @@ page.on('console', (m) => {
   errs.push(m.text() + (url ? ' <- ' + url : ''))
 })
 page.on('dialog', (d) => d.accept().catch(() => {}))
-// Commands are REAL - the items are unbound - but every one is recorded.
 await page.route('**/rest/items/**', (r) => {
   const req = r.request()
   if (req.method() === 'POST') posts.push({ item: decodeURIComponent(req.url().split('/rest/items/')[1] ?? ''), body: req.postData() ?? '' })
@@ -204,7 +175,6 @@ const styleOf = (label, selector, props) =>
     },
     { l: label, selector, props }
   )
-/** The square face's box on screen, for pointer maths. */
 const square = (label) =>
   probe(
     page,
@@ -215,14 +185,12 @@ const square = (label) =>
     },
     label
   )
-/** A point on the arc look's ring at the angle a setpoint fraction sits at (135 + f * 270). */
 const ringPoint = (sq, fraction, radius = 0.42) => {
   const a = ((135 + fraction * 270) * Math.PI) / 180
   return { x: sq.x + sq.w / 2 + sq.w * radius * Math.cos(a), y: sq.y + sq.h / 2 + sq.h * radius * Math.sin(a) }
 }
 
 try {
-  /* ---------------- seed ---------------- */
   await makeItem(CUR, 'Number', 'NH E2E Thermostat Room F')
   await makeItem(SP, 'Number', 'NH E2E Thermostat Setpoint F')
   await makeItem(MODE, 'String', 'NH E2E Thermostat Mode')
@@ -244,8 +212,6 @@ try {
   await putState(SPC, '21.5')
   await putState(LOW, '50')
   await putState(HIGH, '90')
-  // A re-created item is not a blank one: persistence restores the state the last run left it
-  // with. "No value yet" has to be established, not assumed.
   await putState(NULLI, 'NULL')
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
@@ -263,7 +229,6 @@ try {
   await page.waitForSelector('.nh-thermo', { timeout: 20000 }).catch(() => {})
   await sleep(1500)
 
-  /* ---------------- A. every tile renders ---------------- */
   const roots = await probe(page, () => [...document.querySelectorAll('.nh-thermo')].map((s) => s.className))
   ok('every thermostat tile renders', Array.isArray(roots) && roots.length === WIDGETS.length, `${roots?.length} of ${WIDGETS.length}`)
   ok(
@@ -274,11 +239,8 @@ try {
   const errTiles = await probe(page, () => document.querySelectorAll('.nh-widget--error').length)
   ok('no tile fell back to the error boundary', errTiles === 0, 'error tiles=' + errTiles)
 
-  /* ---------------- B. the readings ---------------- */
   const arc = await waitFor('Arc', (r) => r.sp === '72')
   ok('the arc reads the setpoint to its step, with its unit', arc?.sp === '72' && arc?.frac === null && arc?.unit === '°F', JSON.stringify(arc))
-  // At the setpoint's precision: a Fahrenheit thermostat stepping by 1 reads the room to whole
-  // degrees, as the item's own default pattern does.
   ok("the room's temperature reads under it, with the unit", arc?.cur === '68 °F', JSON.stringify(arc))
   ok('the status item says what the system is doing', arc?.status === 'Heating', JSON.stringify(arc))
   ok('the mode, fan and aux buttons show what each item holds', arc?.heat === true && arc?.cool === false && arc?.fanAuto === true && arc?.fanOn === false && arc?.aux === false, JSON.stringify(arc))
@@ -290,16 +252,11 @@ try {
     const d = w?.querySelector('.nh-thermo__curdot')
     return { cx: h ? Number(h.getAttribute('cx')) : null, cy: h ? Number(h.getAttribute('cy')) : null, dot: !!d }
   })
-  // 72 in 50-90 is 0.55 of the way round a 270-degree arc from 135 degrees: the handle sits at
-  // 283.5 degrees, which is (59.8, 9.2) on a 100-unit face at radius 42.
   ok('the handle sits where the setpoint is on the scale, and the room has its dot', handle && Math.abs(handle.cx - 59.8) < 1 && Math.abs(handle.cy - 9.2) < 1 && handle.dot, JSON.stringify(handle))
-  // Checked before the mode is switched below, since this tile follows the same mode item.
   const colored = await styleOf('Colors', '.nh-thermo__fill', ['stroke'])
   ok("a heating colour of the widget's own takes over from the default", colored?.stroke === 'rgb(224, 96, 60)', JSON.stringify(colored))
 
   const disc = await waitFor('Disc', (r) => r.sp === '21')
-  // The room at 19.5 beside a setpoint stepping by 0.5 reads 19.5, whatever the item's default
-  // pattern rounds it to.
   ok('the disc sets the tenths apart as a raised digit', disc?.sp === '21' && disc?.frac === '5', JSON.stringify(disc))
   const marks = await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Disc')
@@ -319,10 +276,6 @@ try {
   const dial = await reading('Dial')
   ok('the dial reads the setpoint big with the unit under it', dial?.sp === '21' && dial?.frac === '5', JSON.stringify(dial))
 
-  /* A face with no mode and nothing running colours its ring by temperature: cool at the bottom
-     of the scale, warm at the top. A face that IS heating or cooling is a solid colour with white
-     ticks, which is what the reference thermostats do - so both are asserted, and the second is
-     what stops the first from being applied everywhere. */
   const ticksOf2 = (label) =>
     probe(
       page,
@@ -330,7 +283,6 @@ try {
         const parse = (s) => {
           const m = /rgba?\(([^)]+)\)/.exec(s)
           if (m) return m[1].split(/[ ,/]+/).filter(Boolean).slice(0, 3).map(Number)
-          // Chromium serialises a computed color-mix as color(srgb r g b), on 0..1
           const c = /color\(srgb ([^)]+)\)/.exec(s)
           if (c) return c[1].trim().split(/[ /]+/).slice(0, 3).map((v) => Math.round(Number(v) * 255))
           return null
@@ -347,7 +299,6 @@ try {
   const solid = await ticksOf2('Disc')
   const cool = (c) => c && c[2] - c[0] > 80
   const warm = (c) => c && c[0] - c[2] > 80
-  // A ramp, not two colours: the middle has to be its own colour, away from both ends.
   const apart = (a, b) => a && b && Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2])) > 40
   ok(
     'a face with no mode colours its ring by temperature, cool at the bottom of the scale and warm at the top',
@@ -377,7 +328,6 @@ try {
     JSON.stringify(ring)
   )
 
-  /* ---------------- C. stepping the setpoint ---------------- */
   const before = postsTo(SP).length
   await tile('Arc').locator('.nh-thermo__btn--up').click({ timeout: 5000 }).catch(() => {})
   await sleep(80)
@@ -399,9 +349,6 @@ try {
   const burst = postsTo(SP).slice(before3)
   ok('and cost the item exactly one command, carrying the last value', burst.length === 1 && burst[0].body === '70', JSON.stringify(burst))
 
-  // A value this control commanded a moment ago is HELD for the optimistic layer's settle
-  // window (8s) before a differing live state takes over, so the state set here reaches the
-  // reading only once that window closes, and the wait allows for it.
   await putState(SP, '90')
   const atMax = await waitFor('Arc', (r) => r.sp === '90', 12000)
   ok('at the maximum the up button is dimmed and marked disabled', atMax?.upOff === true && atMax?.upAria === 'true' && atMax?.downOff === false, JSON.stringify(atMax))
@@ -410,12 +357,9 @@ try {
   await sleep(700)
   ok('and pressing it sends nothing', postsTo(SP).length === beforeMax && (await reading('Arc'))?.sp === '90', 'posts=' + (postsTo(SP).length - beforeMax))
 
-  /* ---------------- D. dragging the ring ---------------- */
   const sq = await square('Arc')
   const beforeDrag = postsTo(SP).length
   if (sq) {
-    // From the handle (90 is the top of the scale, 1.0 round) down the ring to a quarter of the
-    // way round, which is 60 on a 50-90 scale.
     const from = ringPoint(sq, 1)
     const to = ringPoint(sq, 0.25)
     await page.mouse.move(from.x, from.y)
@@ -436,7 +380,6 @@ try {
   const dragPosts = postsTo(SP).slice(beforeDrag)
   ok('releasing sends the value under the pointer, once', dragPosts.length === 1 && dragPosts[0].body === '60' && (await getState(SP)) === '60', JSON.stringify(dragPosts))
 
-  // A press on the face inside the ring is not a drag: it moves nothing and sends nothing.
   const beforeCentre = postsTo(SP).length
   if (sq) {
     await page.mouse.move(sq.x + sq.w / 2, sq.y + sq.h / 2)
@@ -447,15 +390,10 @@ try {
   }
   ok('a press on the face inside the ring commands nothing', postsTo(SP).length === beforeCentre && (await reading('Arc'))?.sp === '60', 'posts=' + (postsTo(SP).length - beforeCentre))
 
-  /* ---------------- E. the mode, the fan and aux ---------------- */
   await tile('Arc').locator('.nh-thermo__mbtn--cool').click({ timeout: 5000 }).catch(() => {})
   const cooled = await waitFor('Arc', (r) => r.cool === true && r.tone === 'nh-thermo--cool')
   const modePosts = postsTo(MODE)
-  // The tile flips the moment the press lands (the optimistic layer), which is before the
-  // command has reached the item, so the item's state is waited for rather than read once.
   ok('pressing Cool commands the mode item with the cool command', modePosts.length === 1 && modePosts[0].body === 'COOL' && (await waitState(MODE, 'COOL')) === 'COOL', JSON.stringify(modePosts))
-  // The colour takes a 300ms transition to arrive; sampled straight after the class flips it
-  // reads a colour half way between the two.
   await sleep(450)
   const coolFill = await styleOf('Arc', '.nh-thermo__fill', ['stroke'])
   ok('and the arc turns to the cooling colour with Cool lit', cooled?.cool === true && cooled?.heat === false && coolFill?.stroke === COOL, JSON.stringify({ cooled, coolFill }))
@@ -476,7 +414,6 @@ try {
   const auxOff = await waitFor('Arc', (r) => r.aux === false)
   ok('and pressing it again switches it off', postsTo(AUX).length === 2 && postsTo(AUX)[1].body === 'OFF' && auxOff?.aux === false && (await waitState(AUX, 'OFF')) === 'OFF', JSON.stringify(postsTo(AUX)))
 
-  /* ---------------- F. the status item ---------------- */
   await putState(STAT, 'idle')
   const idle = await waitFor('Arc', (r) => r.status === 'Idle')
   ok('a status of idle reads Idle', idle?.status === 'Idle', JSON.stringify(idle))
@@ -486,13 +423,10 @@ try {
   ok('a status of cooling reads Cooling and colours a mode-less disc blue', cooling?.status === 'Cooling' && discCool?.tone === 'nh-thermo--cool', JSON.stringify({ status: cooling?.status, disc: discCool?.tone }))
   await putState(STAT, 'heating')
 
-  /* ---------------- G. an item with no value yet, and a widget with nothing but temperatures ---------------- */
   const unknown = await reading('Unknown')
   ok('a setpoint with no state reads a dash with both buttons live and no handle', unknown?.sp === '-' && !unknown?.upOff && !unknown?.downOff, JSON.stringify(unknown))
   const noHandle = await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Unknown')
-    // The track has to be there for "no handle" to mean anything: on a build with no widget at
-    // all there is no handle either.
     return { track: !!w?.querySelector('.nh-thermo__track'), handle: !!w?.querySelector('.nh-thermo__handle'), fill: !!w?.querySelector('.nh-thermo__fill') }
   })
   ok('and draws its track but neither a handle nor a fill for it', noHandle && noHandle.track && !noHandle.handle && !noHandle.fill, JSON.stringify(noHandle))
@@ -505,10 +439,8 @@ try {
   })
   ok('a widget with only the two temperatures draws no button row, no status and a neutral face', bare && !bare.bar && !bare.status && /nh-thermo--neutral/.test(bare.tone ?? ''), JSON.stringify(bare))
   const own = await reading('Own range')
-  // Its step of 0.5 reads the setpoint to one decimal, which the arc look keeps with its point.
   ok('a widget with its own range uses it', own?.sp === '60' && own?.frac === '.0', JSON.stringify(own))
 
-  /* ---------------- H. hostile configuration ---------------- */
   const hostile = await reading('Hostile')
   ok('a configuration of the wrong shape everywhere still renders on the defaults', hostile && !hostile.error && hostile.sp !== null, JSON.stringify(hostile))
   const hostileLook = await probe(page, () => {
@@ -517,7 +449,6 @@ try {
   })
   ok('and as the arc, which is what a new widget starts as', /nh-thermo--arc/.test(hostileLook), hostileLook)
 
-  /* ---------------- J. sizes, and nothing drawn outside its tile ---------------- */
   const sizes = await probe(page, () => {
     const find = (l) => [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
     const px = (el) => (el ? parseFloat(getComputedStyle(el).fontSize) : null)
@@ -546,19 +477,14 @@ try {
   })
   ok('in a three-by-three tile the setpoint is big and the buttons finger-sized', sizes && sizes.sp >= 40 && sizes.btn >= 34, JSON.stringify(sizes))
   ok("the status line, the room's temperature and the ring's captions read at the tile's text size or more", sizes && sizes.status >= 15 && sizes.cur >= 15 && sizes.caption >= 15, JSON.stringify(sizes))
-  // The words need about 27em of tile; at this viewport a three-column tile is 17em and a
-  // six-column one 36em, so the one keeps its glyphs alone and the other its words.
   ok(
     'the mode buttons carry their words in a tile with the width for them, and only the glyphs in one without',
-    // A span inside a flex button computes as `block`, so what is asserted is shown or not.
     sizes && sizes.wideText !== null && sizes.wideText !== 'none' && sizes.mbtnText === 'none' && sizes.wideRoot > 27 * 16 && sizes.arcRoot < 27 * 16,
     JSON.stringify({ wide: sizes?.wideText, wideRoot: sizes?.wideRoot, arc: sizes?.mbtnText, arcRoot: sizes?.arcRoot })
   )
   ok('a short tile drops the button row and keeps the setpoint', sizes && sizes.shortBar === 'none' && sizes.shortSp !== 'none', JSON.stringify({ bar: sizes?.shortBar, sp: sizes?.shortSp }))
   ok("a one-column dial drops the rim's figures and keeps a readable setpoint", sizes && sizes.narrowMark === 'none' && sizes.narrowSp >= 15, JSON.stringify({ mark: sizes?.narrowMark, sp: sizes?.narrowSp }))
 
-  // A "nothing spills" check passes for free on a page with nothing on it, so it also counts
-  // what it scanned and requires every tile to have been there.
   const spill = await probe(page, () => {
     const out = []
     let scanned = 0
@@ -581,8 +507,6 @@ try {
     spill && spill.scanned === WIDGETS.length && spill.spills.length === 0,
     `scanned ${spill?.scanned} of ${WIDGETS.length}` + (spill?.spills.length ? ': ' + spill.spills.slice(0, 4).join(' | ') : '')
   )
-  // The parts must not draw over each other either: the number over a button, a button over the
-  // arc's track ends, the rim's figures over the number.
   const overlap = await probe(page, () => {
     const R = (el) => el.getBoundingClientRect()
     const hits = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1
@@ -610,10 +534,6 @@ try {
     `${overlap?.readings} readings, ${overlap?.others} parts` + (overlap?.defects.length ? ': ' + overlap.defects.join(' | ') : '')
   )
 
-  /* The two reports, as measurements. A dial's buttons sit in the gap its ring leaves, and what
-     the gap has to clear is not only the ticks but the FIGURE a value at either end of the scale
-     puts beside the ring's last tick - which is why two of the tiles have their setpoint pinned
-     to the bottom of the scale and their room to the top. */
   const dials = await probe(page, () => {
     const R = (el) => el.getBoundingClientRect()
     const hits = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
@@ -657,16 +577,8 @@ try {
     `${dials?.tiles} dials, ${dials?.ends} with a value at each end, ${dials?.parts} ring parts` +
       (dials?.clashes.length ? ': ' + dials.clashes.join(' | ') : '')
   )
-  // 24px is the floor and it is deliberate: it is the largest a button can be on a face that
-  // still draws figures on its rim (measured - a bigger one at a 180px face reaches the figure
-  // at the end of the scale). Below that size the figures are shed and the buttons take the room
-  // back, which is why the smallest is found on a middling face rather than the smallest one.
   ok('and stay big enough to press', dials && dials.smallest >= 24, `smallest ${dials?.smallest}px (${dials?.smallestAt})`)
 
-  /* The ring look draws everything on a PLATE inside a thick rim, so a part that reaches past the
-     rim's inner edge is drawn under the ring - which is what the setpoint's two buttons were
-     doing. The rim is a circle of 46 units stroked 5 wide on a 100-unit face, so its inner edge
-     is at 43.5. */
   const ringFit = await probe(page, () => {
     const out = []
     let tiles = 0
@@ -686,9 +598,6 @@ try {
         const b = el.getBoundingClientRect()
         if (b.width < 1 || b.height < 1) continue
         parts++
-        // A button is a CIRCLE, so its box corners stick out past anything you can see of it and
-        // measuring those would report a part that is drawn well inside the rim. Its own radius
-        // is the honest reach; everything else really is a box.
         const round = getComputedStyle(el).borderRadius.startsWith('50%')
         const far = round
           ? Math.hypot(b.left + b.width / 2 - cx, b.top + b.height / 2 - cy) + b.width / 2
@@ -711,7 +620,6 @@ try {
     `${ringFit?.tiles} rings, ${ringFit?.parts} parts` + (ringFit?.out.length ? ': ' + ringFit.out.join(' | ') : '')
   )
 
-  /* ---------------- K. the settings panel ---------------- */
   await page.locator('[aria-label="Edit dashboard"]').first().click({ timeout: 5000 }).catch(() => {})
   await page.waitForSelector('.nh-cell', { timeout: 10000 }).catch(() => {})
   await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("Arc"))').first().click({ timeout: 5000 }).catch(() => {})
@@ -731,7 +639,6 @@ try {
   await sleep(400)
   const heatCmdBare = await field('Heat command').count()
   const styleBare = await field('Style').count()
-  // The panel has to be open on the widget for "no field" to mean anything.
   ok('and hide where the item is not', heatCmdBare === 0 && styleBare === 1, JSON.stringify({ heatCmdBare, styleBare }))
   const wasEditing = await probe(page, () => !!document.querySelector('.nh-grid--edit'))
   await page.locator('button:has-text("Exit")').first().click({ timeout: 5000 }).catch(() => {})
@@ -739,7 +646,6 @@ try {
   const editing = await probe(page, () => !!document.querySelector('.nh-grid--edit'))
   ok('leaving the editor without saving', wasEditing === true && editing === false, `was=${wasEditing} now=${editing}`)
 
-  /* ---------------- L. the detail sheet offers the widget's own controls ---------------- */
   const target = tile('Arc')
   await target.scrollIntoViewIfNeeded().catch(() => {})
   const b = await target.boundingBox().catch(() => null)
@@ -762,7 +668,6 @@ try {
   await page.locator('.nh-detail__head button', { hasText: '‹' }).first().click({ timeout: 5000 }).catch(() => {})
   await sleep(400)
   await page.locator('.nh-detail__pickrow', { hasText: CUR }).first().click({ timeout: 5000 }).catch(() => {})
-  // The pane fetches the item and then shows its facts; polled rather than sampled once.
   let sensor = null
   for (let i = 0; i < 40 && !(sensor && sensor.value); i++) {
     await sleep(150)
@@ -772,9 +677,6 @@ try {
         const panel = document.querySelector('.nh-detail__panel')
         if (!panel) return null
         const text = panel.textContent ?? ''
-        // The State row's own text: the sheet shows the item as the server formats it, which for
-        // a plain Number is "68". (Read from the row, not the panel's text: the list renders as
-        // "State68" with no word boundary before the digits.)
         const state = panel.querySelector('.nh-detail__facts dd')?.textContent ?? ''
         return { onItem: text.includes(cur), range: !!panel.querySelector('input[type="range"]'), buttons: panel.querySelectorAll('.nh-quickbtns button').length, value: /^68(\.3)?( .*)?$/.test(state), state }
       },
@@ -785,8 +687,6 @@ try {
   await page.keyboard.press('Escape').catch(() => {})
   await sleep(300)
 
-  /* ---------------- M. what was never commanded ---------------- */
-  // ...while the ones it commands did, or this would pass on a build that commands nothing.
   ok(
     'the two items the widget only reads never received a command',
     postsTo(SP).length >= 3 && postsTo(MODE).length > 0 && postsTo(CUR).length === 0 && postsTo(STAT).length === 0 && postsTo(CURC).length === 0,
@@ -796,7 +696,6 @@ try {
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
-  /* ---------------- cleanup ---------------- */
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   for (const item of ITEMS_MADE) await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const left = await fetch(NS, { headers: AUTH })

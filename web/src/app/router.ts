@@ -1,8 +1,3 @@
-/**
- * Minimal hash router. Routes: `#/` (home), `#/d/:id` (dashboard), `#/settings`,
- * `#/c/:dashboardId/:widgetId` (one chart, full screen, with calendar navigation) and
- * `#/log/:dashboardId/:widgetId` (one log widget, full screen).
- */
 import { useSyncExternalStore } from 'react'
 
 export type Route =
@@ -12,19 +7,8 @@ export type Route =
   | { name: 'chart'; dashboard: string; widget: string }
   | { name: 'log'; dashboard: string; widget: string }
 
-/**
- * One path segment as the app meant it, or the raw segment when it cannot be decoded.
- *
- * `decodeURIComponent` throws `URIError` on a stray `%` - and `#/d/100%` is a hash a person can
- * type, a bookmark can hold and a chat client can produce by mangling a link. `navigate()` always
- * encodes, so the app itself never writes one, which is exactly why this went unseen. It matters
- * because `useRoute()` runs during App's own render: the throw unmounts the whole tree, and a
- * blank page has no way back to a working route.
- *
- * Keeping the raw text is the right answer rather than a diagnostic: an id that decodes to
- * nothing sensible matches no dashboard, which is already a screen that says so and offers a way
- * home.
- */
+// decodeURIComponent throws on a stray %, and this runs during App's own render - which is a blank page with
+// no way back
 function decodeSegment(segment: string): string {
   try {
     return decodeURIComponent(segment)
@@ -34,7 +18,6 @@ function decodeSegment(segment: string): string {
 }
 
 export function parseHash(hash: string): Route {
-  // Tolerate a query suffix (`#/d/x?kiosk=on`): parameters are not part of the route.
   const path = hash.replace(/^#/, '').split('?')[0] || '/'
   if (path === '/settings') return { name: 'settings' }
   const chart = /^\/c\/([^/]+)\/(.+)$/.exec(path)

@@ -1,32 +1,17 @@
-/**
- * The three weather looks. Pure presentation: everything drawn here comes out of the
- * WeatherView, so the looks never know (or care) which data source produced it.
- */
 import { Icon } from '../../components/Icon'
 import { ghostFor, isSegmentable } from '../common/format'
 import { meteoIcon, type DayColumn, type HourColumn, type WeatherView } from './model'
 
 export interface LookProps {
   view: WeatherView
-  /** Icon drawing style ('fill' | 'line'), straight from config. */
   iconStyle: unknown
   t: (s: string) => string
   showHourly: boolean
   showDaily: boolean
   details: { feels: boolean; humidity: boolean; wind: boolean; precip: boolean }
-  /**
-   * The drawing's size in px, for a surface with more room than a tile. The Icon component sets
-   * width and height inline, so this has to be a prop: CSS cannot make it BIGGER without
-   * `!important`. Left out, every look draws at its tile size.
-   */
   heroIconSize?: number
 }
 
-/**
- * The current temperature, number and unit set apart - and the number carries the same
- * segment-display metadata the value widget has, so LCD Console draws it in DSEG with the
- * unlit-segment ghost. Inert in every other theme.
- */
 function TempText({ view }: { view: WeatherView }) {
   const seg = isSegmentable(view.temp.num)
   return (
@@ -39,7 +24,6 @@ function TempText({ view }: { view: WeatherView }) {
   )
 }
 
-/** One forecast column, hour or day: label on top, drawing, then the reading(s). */
 interface StripCol {
   key: string
   label: string
@@ -59,11 +43,6 @@ export const dayCol = (d: DayColumn): StripCol => ({
   prob: d.precipProb
 })
 
-/**
- * A row of forecast columns. Exported because the detail sheet lays the same columns out its own
- * way - twelve hours as two rows of six, and the week centred beneath them - while the columns
- * themselves stay the ones the tile draws, so a change to a column shows up in both.
- */
 export function Strip({
   cols,
   iconStyle,
@@ -95,7 +74,6 @@ export function Strip({
   )
 }
 
-/** The labelled readings row under the hero: feels-like, humidity, wind, precipitation. */
 function DetailsRow({ view, t, details }: Pick<LookProps, 'view' | 't' | 'details'>) {
   const rows: { key: string; label: string; value: string }[] = []
   if (details.feels && view.feels !== undefined) rows.push({ key: 'feels', label: t('Feels like'), value: view.feels })
@@ -115,13 +93,6 @@ function DetailsRow({ view, t, details }: Pick<LookProps, 'view' | 't' | 'detail
   )
 }
 
-/**
- * Hero: the big reading and drawing, the details, then the forecast strips there is room for.
- *
- * The reading and the details share one wrapping row, so a cell with width to spare puts the
- * details BESIDE the reading and fills its box, and a narrow one drops them underneath - decided
- * by the space each actually needs rather than by a width query, so it holds at any cell size.
- */
 export function HeroLook({ view, iconStyle, t, showHourly, showDaily, details, heroIconSize = 76 }: LookProps) {
   return (
     <div className="nh-weather nh-weather--hero">
@@ -146,7 +117,6 @@ export function HeroLook({ view, iconStyle, t, showHourly, showDaily, details, h
   )
 }
 
-/** Compact row: drawing, temperature, condition and today's range in one line. */
 export function CompactLook({ view, iconStyle }: LookProps) {
   return (
     <div className="nh-weather nh-weather--compact">
@@ -164,7 +134,6 @@ export function CompactLook({ view, iconStyle }: LookProps) {
   )
 }
 
-/** Forecast strip: the columns are the widget; current conditions small at the left edge. */
 export function StripLook({ view, iconStyle, t, showCurrent, stripOf }: LookProps & { showCurrent: boolean; stripOf: unknown }) {
   const hours = stripOf === 'hours' && view.hours.length > 0
   const cols = hours ? view.hours.map(hourCol) : view.days.map(dayCol)

@@ -7,14 +7,11 @@ import { mixedContent, safeUrl } from '../../model/url'
 interface ImageConfig {
   url: string
   label?: string
-  /** Refresh interval in seconds (0 = never). Useful for camera snapshots. */
   refresh?: number
 }
 
 function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   const { t } = useTranslation()
-  // A timestamp rather than a counter: a counter restarts at 0 on every mount, so returning to
-  // a dashboard re-requests a URL the browser already has cached and shows the stale frame.
   const [cacheBust, setCacheBust] = useState(0)
 
   useEffect(() => {
@@ -23,8 +20,6 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
     return () => clearInterval(id)
   }, [config.refresh])
 
-  // Same allow-list the frame and the template engine use, so one stored URL cannot be a picture
-  // here and something else there.
   const url = safeUrl(config.url)
   if (!url) {
     return (
@@ -34,8 +29,6 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
     )
   }
 
-  // Chromium upgrades a mixed-content image to https and blocks it when the upgrade fails, so
-  // an http:// picture on an https page is a broken image with no explanation anywhere.
   if (mixedContent(url)) {
     return (
       <WidgetFrame label={config.label} center>

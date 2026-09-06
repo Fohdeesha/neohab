@@ -1,25 +1,17 @@
-/**
- * The theme editor's two guardrails, in a real browser: the stylesheet checker that reports what
- * a custom theme gets wrong as it is typed, and the copy-from source following the theme this
- * device is actually showing rather than the shared setting.
- *
- * Safe-additive: this suite creates one theme component of its own and deletes it, drives the
- * theme through the per-device override so the shared `settings` component is never written, and
- * commands nothing.
- */
+// The theme editor's two guardrails, in a real browser: the stylesheet checker that reports what a custom
+// theme gets wrong as it is typed.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const del = (uid) => fetch(`${NS}/${encodeURIComponent(uid)}`, { method: 'DELETE', headers: AUTH }).catch(() => {})
 const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
 
-/** The suites use whichever Chromium-family browser this machine has. */
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
       return await launchChromium({ channel, headless: true })
     } catch {
-      /* try the next one */
+      // try the next one
     }
   }
   return launchChromium({ headless: true })
@@ -38,7 +30,6 @@ const check = (ok, name, detail = '') => {
   }
 }
 
-/** Read a value from the page without letting a missing element abort the run. */
 const probe = async (page, fn, fallback = null) => page.evaluate(fn).catch(() => fallback)
 
 async function main() {
@@ -50,11 +41,9 @@ async function main() {
     ([token]) => {
       try {
         localStorage.setItem('neohab:apiToken', token)
-        // Pin the default theme: this suite asserts what the editor does, not what whichever
-        // theme the server happens to share does to it.
         localStorage.setItem('neohab:themeOverride', 'dark')
       } catch {
-        /* sandboxed frame */
+        // sandboxed frame
       }
     },
     [TOKEN]
@@ -67,14 +56,12 @@ async function main() {
     await page.goto(`${APP}#/settings`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-themes', { timeout: 20000 })
 
-    /* ---------------- the copy-from source follows this device ---------------- */
     console.log('\n== the theme this device is showing ==')
     const newBtn = page.locator('button:has-text("New theme from")')
     await newBtn.waitFor({ timeout: 10000 })
     const label = await newBtn.textContent()
     check(/neohab Dark/.test(label ?? ''), 'the new-theme button names the theme on screen', label ?? '')
 
-    // Switch this device to a theme that carries a stylesheet; the shared setting is untouched.
     await page.selectOption('#nh-set-devicetheme', 'swiss')
     await page.waitForFunction(
       () => /Swiss Sheet/.test(document.querySelector('button.nh-btn--ghost')?.textContent ?? ''),
@@ -88,7 +75,6 @@ async function main() {
     )
     check(note === true, 'the screen says the highlighted card is the shared theme, not this one')
 
-    /* ---------------- the stylesheet checker ---------------- */
     console.log('\n== the stylesheet checker ==')
     await newBtn.click()
     await page.waitForSelector('#theme-css', { timeout: 10000 })
@@ -114,15 +100,10 @@ async function main() {
       check(found.some((t) => expected.test(t ?? '')), `reports ${name}`, JSON.stringify(found))
     }
 
-    // Ordered after a case that reports something, so "reports nothing" cannot pass simply
-    // because there is no checker on the page at all.
     await page.fill('#theme-css', 'body { font-family: serif; }')
     await page.waitForTimeout(200)
     check((await issues()).length === 0, 'and says nothing about a stylesheet that breaks no rule')
 
-    // border-image depends on the radius token, so it has to react to a token edit too. The
-    // draft was copied from Swiss Sheet, whose radius is already 0px - so the corner has to be
-    // rounded first, or neither of these two checks can fail.
     await page.fill('#tok-radius', '12px')
     await page.fill('#theme-css', '.nh-x { border-image: linear-gradient(red, blue) 1; }')
     await page.waitForTimeout(200)
@@ -134,7 +115,6 @@ async function main() {
     const after = await issues()
     check(!after.some((t) => /border-image/.test(t ?? '')), 'and stops once the radius token is 0px', JSON.stringify(after))
 
-    /* ---------------- the preview really is live ---------------- */
     console.log('\n== live preview ==')
     await page.fill('#theme-css', '')
     await page.fill('#tok-bg', '#123456')
@@ -147,12 +127,8 @@ async function main() {
     const restored = await probe(page, () => getComputedStyle(document.documentElement).getPropertyValue('--nh-bg').trim())
     check(restored !== '#123456', 'and closing puts the real theme back', String(restored))
 
-    /* ---------------- the way back from a theme that broke the app ---------------- */
     console.log('\n== the ?theme= escape hatch ==')
 
-    // A theme that genuinely locks you out: it hides the controls on the very screen you would
-    // use to undo it. This is the scenario the hatch exists for, so the suite builds it for real
-    // rather than asserting on a harmless one.
     const hostile = {
       uid: UID,
       component: 'neohab:theme',
@@ -173,7 +149,6 @@ async function main() {
     })
     check(seeded.status === 200, 'seeded a theme that hides the settings controls', String(seeded.status))
 
-    // Pin it on this device only - the shared setting is never touched.
     const hostilePage = await ctx.newPage()
     await hostilePage.addInitScript(() => localStorage.setItem('neohab:themeOverride', 'nh-e2e-rules'))
     await hostilePage.goto(`${APP}#/settings`, { waitUntil: 'domcontentloaded' })
@@ -199,8 +174,6 @@ async function main() {
     check(rescued.bg === '#0f1317', 'loading with the default theme, not the broken one', String(rescued.bg))
     check(rescued.notice === true, 'and says why the theme looks different')
 
-    // Not persisted: the override is still the device's, so reloading without the parameter is
-    // back where it was. A hatch that stuck would silently reconfigure the device.
     await hostilePage.goto(`${APP}#/settings`, { waitUntil: 'domcontentloaded' })
     await hostilePage.waitForTimeout(1200)
     const stillBroken = await hostilePage
@@ -209,7 +182,6 @@ async function main() {
     check(stillBroken === '#220000', 'the parameter is not persisted', String(stillBroken))
     await hostilePage.close()
 
-    /* ---------------- the docs link the editor offers ---------------- */
     console.log('\n== the documentation link ==')
     const res = await page.request.get(`${BASE}/neohab/docs/theming.html`)
     check(res.status() === 200, 'docs/theming.html is served by the add-on', String(res.status()))
@@ -219,7 +191,6 @@ async function main() {
 
     check(errors.length === 0, 'no console errors', errors.slice(0, 3).join(' | '))
   } finally {
-    // Cleanup: only ever this suite's own component, by exact uid.
     await del(UID)
     const strays = (await listUids()).filter((u) => u.includes('nh-e2e-rules'))
     check(strays.length === 0, 'left nothing behind', strays.join(', '))

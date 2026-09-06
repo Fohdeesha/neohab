@@ -1,19 +1,5 @@
-/**
- * Assembly theme + the widget hooks it rides on.
- *
- * Covers: the Assembly theme itself (bundled Poppins, glass tiles with backdrop blur and
- * hairline mint borders, the lit green page, the whole-tile active-button treatment, header
- * icon chips, panel-group hairlines, glass masthead, dashed + tile), the solid-arc band films
- * (--nh-band-light / --nh-band-shade: present and lit under Assembly, present but fully
- * transparent under the default theme - the inert-by-default contract), the dial's
- * "Maximum beside the value" reading ("30 / 58"), and the dial's new header icon.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-assembly and deletes exactly it.
- * The theme is applied through the per-device override, so `settings` is never written. The
- * dimmer is commanded via REST only (recorded first, restored at the end); the seeded toggle
- * button binds the switch item with command == its CURRENT state, so it lights from SSE alone
- * and nothing is ever clicked.
- */
+// Assembly theme + the widget hooks it rides on.
+// SAFE with a live config: creates only dashboard:nh-e2e-assembly and deletes exactly it.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -72,8 +58,6 @@ async function newPage(theme) {
   return page
 }
 
-/** Evaluate without letting a missing element abort the run (pre-feature builds must fail
-    their own checks, not everything after the first). */
 const probe = async (page, fn, arg) => {
   try {
     return (await page.evaluate(fn, arg)) ?? {}
@@ -81,7 +65,6 @@ const probe = async (page, fn, arg) => {
     return { probeError: String(e && e.message).slice(0, 100) }
   }
 }
-/** Poll a probe until pred holds or the budget runs out; returns the last value either way. */
 async function poll(page, fn, pred, ms = 8000) {
   const t0 = Date.now()
   let last
@@ -98,11 +81,9 @@ const initialDimmer = await itemState(ITEMS.dimmer)
 const switchState = await itemState(ITEMS.switch)
 
 try {
-  // a value well inside 0..58 so the arc has a span and both films exist
   await sendItem(ITEMS.dimmer, 30)
   await sleep(700)
 
-  // ---------- seed ----------
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
@@ -118,7 +99,6 @@ try {
         rowHeight: 'match',
         gap: 12,
         widgets: [
-          // explicit band color, to prove the film design leaves the band's own paint alone
           w('g1', 'dial', 0, 0, 2, 2, {
             item: ITEMS.dimmer, label: 'LP - 1', icon: 'mdi:chart-arc', style: 'arc', readOnly: true,
             showMax: true, min: 0, max: 58, step: 1, arcStart: 215, arcSweep: 290, color: '#2196f3',
@@ -131,7 +111,6 @@ try {
             item: ITEMS.switch, label: 'Zone A', icon: 'mdi:robot-industrial', iconSize: 40,
             toggle: true, command: switchState,
           }),
-          // media + caption: the zone-card layout; its icon must be suppressed by the media
           w('b3', 'button', 6, 2, 2, 1, {
             label: 'Zone C', command: 'noop', icon: 'mdi:factory', caption: 'Vision line',
             imageUrl:
@@ -150,12 +129,10 @@ try {
   })
   ok('seed dashboard', seed.status === 200, 'status=' + seed.status)
 
-  // ---------- Assembly theme, dashboard ----------
   const page = await newPage('assembly')
   await page.goto(`${BASE}/neohab/index.html#/d/${ID}`, { waitUntil: 'load', timeout: 60000 })
   const arcs = await poll(page, () => document.querySelectorAll('.nh-dial--arc').length, (n) => n === 2)
   ok('two arc gauges render', arcs === 2, 'count=' + JSON.stringify(arcs))
-  // the reading arrives over SSE; wait for it before reading center text
   await poll(page, () => document.querySelector('.nh-gauge__value')?.textContent ?? '', (t) => String(t).includes('30'))
 
   ok('token: --nh-primary is the board green',
@@ -202,7 +179,6 @@ try {
   ok('the hall backdrop is a body layer', String(body.bgi ?? '').includes('assembly-hall.jpg'), String(body.bgi).slice(0, 80))
   ok('hall backdrop served from the jar', body.hallFetch === true)
 
-  // ---------- band films ----------
   const films = await probe(page, () => {
     const g1 = [...document.querySelectorAll('.nh-dial--arc')][0]
     const band = g1?.querySelector('.nh-gauge__band')
@@ -237,7 +213,6 @@ try {
   ok('open face: sector transparent', (rgba(films.face)?.[3] ?? 1) === 0, String(films.face))
   ok('open face: center disc transparent', (rgba(films.center)?.[3] ?? 1) === 0, String(films.center))
 
-  // ---------- showMax + dial header icon ----------
   const center = await probe(page, () => {
     const dials = [...document.querySelectorAll('.nh-dial--arc')]
     const cells = dials.map((d) => d.closest('.nh-widget'))
@@ -257,12 +232,10 @@ try {
   ok('dial without icon has none', center.icon2 === false)
   ok('header icon sits on a green chip', String(center.chip1).includes('gradient'), String(center.chip1).slice(0, 60))
 
-  // ---------- buttons: the zone-card treatment ----------
   const btn = await poll(page, () => {
     const active = document.querySelector('.nh-button--active')
     if (!active) return {}
     const tile = active.closest('.nh-widget')
-    // the icon-carrying resting button (b2) - the media button (b3) has no icon by design
     const rest = [...document.querySelectorAll('.nh-button')].find(
       (b) => !b.classList.contains('nh-button--active') && !b.querySelector('.nh-button__media')
     )
@@ -275,7 +248,6 @@ try {
       activeIcon: getComputedStyle(active.querySelector('.nh-icon--mdi')).backgroundColor,
     }
   }, (r) => !!r.tileBorder)
-  // zone-card media + caption on the active button (b1 carries imageUrl + caption)
   const media = await probe(page, () => {
     const withMedia = document.querySelector('.nh-button__media')?.closest('.nh-button')
     const plain = [...document.querySelectorAll('.nh-button')].find((b) => !b.querySelector('.nh-button__media'))
@@ -303,7 +275,6 @@ try {
   ok('resting mono icon takes the green cast', near(rgba(btn.restIcon), [140, 225, 161], 16), String(btn.restIcon))
   ok('active mono icon is full primary', near(rgba(btn.activeIcon), [64, 211, 100], 12), String(btn.activeIcon))
 
-  // ---------- group frame + masthead ----------
   const chrome = await probe(page, () => {
     const g = document.querySelector('.nh-group')
     const bar = document.querySelector('.nh-dash__bar')
@@ -317,7 +288,6 @@ try {
   ok('masthead is glass', String(chrome.barBf ?? '').includes('blur'), String(chrome.barBf))
   await page.close()
 
-  // ---------- Home: tiles + the + tile ----------
   const home = await newPage('assembly')
   await home.goto(`${BASE}/neohab/index.html#/`, { waitUntil: 'load', timeout: 60000 })
   await poll(home, () => document.querySelectorAll('.nh-tile').length, (n) => n > 0)
@@ -335,11 +305,9 @@ try {
     JSON.stringify([tiles.plusStyle, tiles.plusBg]))
   await home.close()
 
-  // ---------- default theme: hooks present but INERT ----------
   const dark = await newPage('dark')
   await dark.goto(`${BASE}/neohab/index.html#/d/${ID}`, { waitUntil: 'load', timeout: 60000 })
   await poll(dark, () => document.querySelectorAll('.nh-dial--arc').length, (n) => n === 2)
-  // the band (and its films) only exist once the live value arrives - wait for it here too
   await poll(dark, () => document.querySelectorAll('.nh-gauge__bandlight').length, (n) => n >= 1)
   const inert = await probe(dark, () => {
     const g1 = [...document.querySelectorAll('.nh-dial--arc')][0]
@@ -385,7 +353,6 @@ try {
 
   ok('no console/page errors', errs.length === 0, errs.slice(0, 4).join(' | '))
 } finally {
-  // ---------- cleanup: exactly this suite's component, and the dimmer it drove ----------
   const del = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
   const listing = await (await fetch(NS, { headers: AUTH })).json()
   const mine = listing.filter((c) => c.uid === UID)

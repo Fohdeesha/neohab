@@ -1,13 +1,5 @@
-/**
- * Geometry and formatting shared by the two dial renderers.
- *
- * Split out of the widget so the ring gauge and the classic arc can each live in a file of their
- * own without either importing the other. Everything here is pure trigonometry and formatting;
- * the model that decides what is lit, coloured or in alarm is in `gauge.ts`.
- */
 import { useEffect, useRef, useState } from 'react'
 
-/** Classic arc geometry: 270° sweep starting at 135° (7:30 position), like a volume knob. */
 export const START = 135
 export const SWEEP = 270
 
@@ -25,10 +17,6 @@ export function arcPath(cx: number, cy: number, r: number, fromDeg: number, toDe
 
 export const TWEEN_MS = 450
 
-/**
- * Eased follow of a changing live value, so the LED ring sweeps to a new reading instead of
- * jumping. Disabled (returns the target directly) while the user is dragging.
- */
 export function useTweened(target: number, enabled: boolean): number {
   const [shown, setShown] = useState(target)
   const shownRef = useRef(shown)

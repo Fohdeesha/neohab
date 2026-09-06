@@ -8,7 +8,6 @@ describe('parseColor', () => {
     expect(parseColor('#F80')).toEqual({ r: 255, g: 136, b: 0 })
     expect(parseColor('rgb(18, 52, 86)')).toEqual({ r: 18, g: 52, b: 86 })
     expect(parseColor('rgba(18 52 86 / 0.5)')).toEqual({ r: 18, g: 52, b: 86 })
-    // alpha digits are read and ignored: what is behind the colour is not knowable here
     expect(parseColor('#11223344')).toEqual({ r: 17, g: 34, b: 51 })
   })
 
@@ -31,9 +30,7 @@ describe('contrast', () => {
   it('matches the WCAG reference points', () => {
     expect(relativeLuminance({ r: 255, g: 255, b: 255 })).toBeCloseTo(1, 5)
     expect(relativeLuminance({ r: 0, g: 0, b: 0 })).toBeCloseTo(0, 5)
-    // black on white is the maximum the formula can produce
     expect(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 })).toBeCloseTo(21, 4)
-    // and it does not care which way round the pair is given
     expect(contrastRatio({ r: 255, g: 255, b: 255 }, { r: 0, g: 0, b: 0 })).toBeCloseTo(21, 4)
     expect(contrastRatio({ r: 10, g: 10, b: 10 }, { r: 10, g: 10, b: 10 })).toBeCloseTo(1, 5)
   })
@@ -54,10 +51,6 @@ describe('contrast', () => {
 })
 
 describe('readableInk', () => {
-  /**
-   * The whole point of the token: a filled tile used to hardcode white, which is right for a
-   * mid-to-dark accent and unreadable on a light one.
-   */
   it('picks white on dark accents and dark ink on light ones', () => {
     expect(readableInk('#0b78c2')).toBe('#ffffff') // the light theme's blue
     expect(readableInk('#1d242c')).toBe('#ffffff')

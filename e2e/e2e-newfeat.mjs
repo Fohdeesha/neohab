@@ -1,6 +1,5 @@
-// New-features suite: stacked (phone) drag-reorder + icons on switch/selection widgets.
-// SAFE-ADDITIVE: only creates nh-e2e-* components and deletes exactly those; restores the
-// approved switch item's state. Never wipes the namespace (live config safe).
+// New-features suite: stacked (phone) drag-reorder, and icons on switch/selection widgets.
+// SAFE with a live config: creates only nh-e2e-* components, deletes exactly those, restores item state.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -49,7 +48,6 @@ const browser = await launch()
 const consoleErrors = []
 
 try {
-  // ================= Part 1: stacked drag-reorder (phone) =================
   const st1 = await restPost(STACK_UID, 'neohab:dashboard', {
     version: 1,
     id: 'nh-e2e-stack',
@@ -81,13 +79,11 @@ try {
   )
   ok('run mode stacks in grid order', runOrder.join(',') === 'AAA,BBB,CCC', runOrder.join(','))
 
-  // enter edit mode -> stacked edit surface with reorder handles
   await phone.click('[aria-label="Edit dashboard"]')
   await phone.waitForSelector('.nh-grid--stackedit', { timeout: 10000 })
   ok('phone edit mode shows the stacked surface', true)
   ok('rows have drag handles', (await phone.locator('.nh-grid--stackedit .nh-cell__handle').count()) === 3)
 
-  // drag CCC's handle above AAA
   const cells = phone.locator('.nh-grid--stackedit .nh-cell')
   const handleC = phone.locator('.nh-grid--stackedit .nh-cell:has-text("CCC") .nh-cell__handle')
   const boxC = await handleC.boundingBox()
@@ -105,7 +101,6 @@ try {
   )
   ok('drag reorders the stack', editOrder.join(',') === 'CCC,AAA,BBB', editOrder.join(','))
 
-  // undo / redo
   await phone.keyboard.press('Control+z')
   await sleep(200)
   const afterUndo = await phone.$$eval('.nh-grid--stackedit .nh-cell .nh-widget__body', (els) =>
@@ -119,7 +114,6 @@ try {
   )
   ok('redo reapplies the reorder', afterRedo.join(',') === 'CCC,AAA,BBB', afterRedo.join(','))
 
-  // save -> stackOrder persisted
   await phone.click('button:has-text("Save")')
   await sleep(1500)
   const saved = await restGet(NS + '/' + encodeURIComponent(STACK_UID))
@@ -129,7 +123,6 @@ try {
     JSON.stringify(saved.body?.config?.stackOrder)
   )
 
-  // Save returned to run mode; it uses the pinned order, grid rects untouched
   await phone.waitForSelector('.nh-grid--stacked', { timeout: 10000 })
   const runOrder2 = await phone.$$eval('.nh-grid--stacked .nh-widget__body', (els) =>
     els.map((e) => e.textContent?.trim())
@@ -138,7 +131,6 @@ try {
   const rects = saved.body?.config?.widgets?.map((w) => w.layout?.lg?.y)
   ok('grid rects unchanged by reorder', JSON.stringify(rects) === JSON.stringify([0, 2, 4]), JSON.stringify(rects))
 
-  // desktop grid still renders by rects (AAA on top)
   const desk = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   desk.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
   await desk.goto(APP + '#/d/nh-e2e-stack', { waitUntil: 'domcontentloaded' })
@@ -147,7 +139,6 @@ try {
   ok('desktop grid unaffected by stack order', deskFirst?.trim() === 'AAA', deskFirst ?? '')
   await desk.close()
 
-  // reset: dashboard settings offers "reset stack order", clearing the pin
   await phone.click('[aria-label="Edit dashboard"]')
   await phone.waitForSelector('.nh-grid--stackedit', { timeout: 10000 })
   await phone.click('[aria-label="Dashboard settings"]')
@@ -164,7 +155,6 @@ try {
   ok('reset clears persisted stackOrder', savedReset.body?.config?.stackOrder === undefined)
   await phone.close()
 
-  // ================= Part 2: icons on switch + selection =================
   const st2 = await restPost(ICONS_UID, 'neohab:dashboard', {
     version: 1,
     id: 'nh-e2e-wicons',
@@ -216,7 +206,6 @@ try {
     .evaluate((el) => el.classList.contains('nh-selection__btn--active'))
   ok('selection highlights current state (OFF)', offActive)
 
-  // flip ON via REST -> switch tints its icon with the primary color
   await sendCmd(SWITCH_ITEM, 'ON')
   await sleep(2000)
   const uiOn = await page.$eval('.nh-switch', (el) => el.classList.contains('nh-switch--on'))
@@ -235,7 +224,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup: delete exactly the suite's components, restore item ----------
 for (const uid of [STACK_UID, ICONS_UID]) {
   const st = await restDelete(uid)
   ok(`cleanup: ${uid} deleted`, st === 200 || st === 404, `status=${st}`)

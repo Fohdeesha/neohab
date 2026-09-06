@@ -23,16 +23,6 @@ describe('hsbToRgb', () => {
     expect(hsbToRgb({ h: 0, s: 0, b: 100 })).toEqual([255, 255, 255])
   })
 
-  /*
-   * A live Color item state cannot be negative - openHAB's HSBType.validateValue enforces
-   * 0 <= h < 360 - but a PRESET COMMAND is not an item state. A scene rule's action is editable
-   * in Main UI, writable by any script and carried verbatim by a backup, and
-   * `isImportableSceneRule` validates the uid and the tag without ever looking at the commands.
-   *
-   * The wrap is what makes this safe: `Math.floor(-10 / 60) % 6` is -1, so the segment table was
-   * indexed at -1, destructuring `undefined` threw, and the throw reached `dropUnconfirmed`
-   * inside a `setTimeout`, where nothing catches it.
-   */
   it('wraps a hue outside 0-360 instead of throwing', () => {
     expect(() => hsbToRgb({ h: -10, s: 50, b: 50 })).not.toThrow()
     expect(hsbToRgb({ h: -120, s: 100, b: 100 })).toEqual([0, 0, 255])
@@ -76,7 +66,6 @@ describe('hsbToCss and sameColor', () => {
   })
 
   it('compares a hostile stored command against a live state without throwing', () => {
-    // The floor plan's preset highlight, and store/settling's dropUnconfirmed.
     expect(() => sameColor(parseHsb('-10,50,50'), parseHsb('120,50,50'))).not.toThrow()
     expect(sameColor(parseHsb('-120,100,100'), parseHsb('240,100,100'))).toBe(true)
   })

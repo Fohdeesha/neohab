@@ -1,23 +1,5 @@
-/**
- * Ember theme + compass widget + accent tiles + theme-driven chart palette.
- *
- * Covers: the compass widget (bearing from a live item, cardinal text, pointer rotation,
- * degrees/rose/color options, unconfigured state), the universal "Tile accent" setting
- * (filled/tinted derived from the ACTIVE theme's tokens, editor field, draft preview),
- * the --nh-chart-<n> palette override (builtin colors without it, the theme's accent with
- * it), the Ember theme itself (card, tokens, stylesheet, default label centering with an
- * explicit per-widget "Left" still winning), the stat-tile anatomy (a formatted state
- * splits into number + raised unit; Ember's huge value, mixed-case labels, flat borderless
- * buttons whose ACTIVE state paints the whole tile as the accent plate, the full-accent
- * compass ring, the quiet chart tools).
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-ember and deletes exactly it. The
- * `settings` component is snapshotted first and restored VERBATIM (choosing a theme writes
- * it). The dimmer is commanded via REST only (recorded and restored); the compass is
- * display-only, the seeded toggle button is never clicked (its active state comes from its
- * command matching the live state), and nothing in the app is tapped that could command a
- * device. The optional `formatted` item is only ever read.
- */
+// Ember theme + compass widget + accent tiles + theme-driven chart palette.
+// SAFE with a live config: creates only dashboard:nh-e2e-ember and deletes exactly it.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, FORMATTED_ITEM } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
@@ -49,14 +31,12 @@ function launch() {
 const rgb = (s) => {
   let m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(s ?? '')
   if (m) return [Number(m[1]), Number(m[2]), Number(m[3])]
-  // Chromium serializes color-mix results as color(srgb r g b) with 0..1 floats
   m = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(s ?? '')
   if (m) return [0, 1, 2].map((i) => Math.round(Number(m[i + 1]) * 255))
   return null
 }
 const near = (a, b, tol = 6) => a && b && a.every((v, i) => Math.abs(v - b[i]) <= tol)
 
-/** Count near-orange / near-blue pixels on the first canvas inside a locator's element. */
 const samplePlot = (sel) => {
   const canvas = document.querySelector(sel)
   if (!canvas) return null
@@ -76,7 +56,6 @@ const samplePlot = (sel) => {
 
 const browser = await launch()
 const errs = []
-// null when the server has no settings component yet - cleanup then deletes rather than writes
 const settingsBefore = await getSettings()
 const initialDimmer = await itemState(ITEMS.dimmer)
 
@@ -102,7 +81,6 @@ try {
   await sendItem(ITEMS.dimmer, 90)
   await sleep(800)
 
-  // ---------- seed ----------
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
@@ -136,8 +114,6 @@ try {
             config: { item: ITEMS.temperature, label: 'Trend', period: '24h', picker: false },
             layout: { lg: { x: 0, y: 4, w: 6, h: 2 } },
           },
-          // never clicked: active comes from the command matching the live state (the dimmer
-          // is driven to 0 before the Ember section), inactive from one that cannot match
           { id: 'w-btnon', type: 'button', config: { item: ITEMS.dimmer, label: 'OnBtn', command: '0', toggle: true }, layout: { lg: { x: 0, y: 6, w: 2, h: 1 } } },
           { id: 'w-btnoff', type: 'button', config: { item: ITEMS.dimmer, label: 'OffBtn', command: '87654', toggle: true }, layout: { lg: { x: 2, y: 6, w: 2, h: 1 } } },
           ...(FORMATTED_ITEM
@@ -149,8 +125,6 @@ try {
   })
   ok('seeded ' + UID, seed.status === 200, 'status=' + seed.status)
 
-  // ---------- A: the neohab Dark baseline (device override pins it, so the server's own
-  // theme choice cannot skew these) ----------
   const pa = await newPage('dark')
   await pa.goto(APP + '#/d/nh-e2e-ember', { waitUntil: 'domcontentloaded' })
   await pa.waitForSelector('.nh-gcell', { timeout: 20000 }).catch(() => {})
@@ -158,7 +132,6 @@ try {
   ok('compass renders', (await pa.locator('#w-comp svg.nh-compass, .nh-gcell svg.nh-compass').count()) >= 2,
     'count=' + (await pa.locator('svg.nh-compass').count()))
 
-  // accent under the default theme derives from ITS tokens (primary #38b6ff)
   const fillBgA = rgb(await pa.locator('.nh-acc-filled .nh-widget').first().evaluate((el) => getComputedStyle(el).backgroundColor).catch(() => ''))
   ok('filled tile = active theme primary (dark: blue)', near(fillBgA, [56, 182, 255]), JSON.stringify(fillBgA))
   const tintBgA = rgb(await pa.locator('.nh-acc-tinted .nh-widget').first().evaluate((el) => getComputedStyle(el).backgroundColor).catch(() => ''))
@@ -173,7 +146,6 @@ try {
   const plotA = await pa.evaluate(samplePlot, '.nh-chartwrap canvas')
   ok('chart uses the built-in palette (blue trace, no orange)', plotA && plotA.blue > 50 && plotA.orange < 10, JSON.stringify(plotA))
 
-  // ---------- compass behavior (dimmer is at 90) ----------
   const cardinalOf = (id) => pa.locator(`.nh-gcell:has(svg.nh-compass) >> nth=${id}`)
   await pa.waitForFunction(() => {
     const t = document.querySelectorAll('.nh-compass__cardinal')
@@ -186,22 +158,14 @@ try {
   ok('degrees line shown when asked', (await pa.locator('.nh-compass__deg').count()) === 1 &&
     (await pa.locator('.nh-compass__deg').textContent()) === '90°',
     await pa.locator('.nh-compass__deg').textContent().catch(() => 'none'))
-  // 8 since the LCD-console batch: N/E/S/W plus smaller NE/SE/SW/NW diagonals
   ok('rose letters only when asked', (await pa.locator('.nh-compass__rose').count()) === 8)
   const customFill = await pa.locator('.nh-gcell:has(.nh-compass__rose) .nh-compass__cardinal').getAttribute('fill', { timeout: 4000 }).catch(() => null)
   ok('explicit color reaches the cardinal (attribute, not class)', customFill === '#00ff88', customFill ?? 'none')
   const emptyText = await pa.locator('.nh-compass__empty').textContent().catch(() => '')
   ok('unconfigured compass explains itself', emptyText === 'No item configured', emptyText)
 
-  // ---------- stat-tile anatomy: a server-formatted state splits into number + unit
-  // (theme-independent; the formatted item is only ever read) ----------
   if (FORMATTED_ITEM) {
     const fmtState = await (await fetch(itemUrl(FORMATTED_ITEM), { headers: AUTH })).json()
-    // The unit the server appends is whatever follows the format spec in the pattern - except
-    // on a unit-of-measurement item, where the pattern's tail is the placeholder `%unit%` and
-    // the server substitutes the item's real unit into the state itself ("21.5 °C"). Take it
-    // from the state in that case. Still the SERVER's answer either way, never the app's, or
-    // the check would be comparing the app against itself.
     const pattern = fmtState.stateDescription?.pattern ?? ''
     const patternTail = pattern.replace(/^\s*%[\d.,+\-# ]*[a-zA-Z]/, '').replace(/%%/g, '%').trim()
     const unitWanted =
@@ -230,7 +194,6 @@ try {
   ok('live update swings the pointer to N', xform0 === 'rotate(0 50 50)', xform0 ?? 'none')
   await pa.close()
 
-  // ---------- B: Ember from the Settings card (no device override - the click must apply) ----------
   const pb = await newPage(null)
   await pb.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await pb.waitForSelector('.nh-theme__pick', { timeout: 20000 }).catch(() => {})
@@ -244,7 +207,6 @@ try {
   ok('--nh-chart-1 pinned to the accent',
     (await pb.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--nh-chart-1').trim())) === '#f2681f')
 
-  // ---------- Ember on the dashboard ----------
   await pb.goto(APP + '#/d/nh-e2e-ember', { waitUntil: 'domcontentloaded' })
   await pb.waitForSelector('.nh-gcell', { timeout: 20000 }).catch(() => {})
   const fillBgB = rgb(await pb.locator('.nh-acc-filled .nh-widget').first().evaluate((el) => getComputedStyle(el).backgroundColor).catch(() => ''))
@@ -267,7 +229,6 @@ try {
   const ringWidth = await pb.locator('.nh-compass__ring').first().evaluate((el) => getComputedStyle(el).strokeWidth).catch(() => '')
   ok('Ember thickens the compass ring', ringWidth === '3.2px', ringWidth)
 
-  // ---------- Ember's stat-tile anatomy ----------
   const labelXform = await pb.locator('.nh-gcell:has(.nh-widget__labeltext:text-is("Plain")) .nh-widget__label')
     .evaluate((el) => getComputedStyle(el).textTransform).catch(() => '')
   ok('Ember labels keep their typed case', labelXform === 'none', labelXform)
@@ -281,7 +242,6 @@ try {
     .evaluate((el) => getComputedStyle(el).alignSelf).catch(() => '')
   ok('Ember raises the unit beside the number', unitAlign === 'flex-start', unitAlign)
 
-  // ---------- flat buttons + the whole-tile active plate (nothing is ever clicked) ----------
   await pb.waitForFunction(() => {
     const on = [...document.querySelectorAll('.nh-button--active')]
     return on.some((b) => b.textContent.includes('OnBtn'))
@@ -301,7 +261,6 @@ try {
     .evaluate((el) => getComputedStyle(el).backgroundColor).catch(() => '')
   ok('the active button itself stays transparent on the plate', onBtnBg === 'rgba(0, 0, 0, 0)', onBtnBg)
 
-  // ---------- quiet chart tools ----------
   const expandOpacity = await pb.locator('.nh-chart__expand').first()
     .evaluate((el) => getComputedStyle(el).opacity).catch(() => '')
   ok('Ember dims the chart expand affordance', expandOpacity === '0.45', expandOpacity)
@@ -311,7 +270,6 @@ try {
   const plotB = await pb.evaluate(samplePlot, '.nh-chartwrap canvas')
   ok('the same chart re-renders in the accent (orange trace, no blue)', plotB && plotB.orange > 50 && plotB.blue < 10, JSON.stringify(plotB))
 
-  // ---------- the Tile accent field in the editor ----------
   await pb.click('[aria-label="Edit dashboard"]')
   await pb.waitForSelector('.nh-grid--edit')
   await pb.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
@@ -320,9 +278,6 @@ try {
   await pb.waitForSelector('.nh-sheet--side')
   const accSel = pb.locator('.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Tile accent")) select')
   ok('Tile accent offered for any widget', (await accSel.count()) === 1)
-  // "None" is the absence of an accent, so it is the empty value and clears the key rather than
-  // storing a word meaning nothing - like every other "unset" choice in this form. What matters
-  // is that the field reads None and the tile carries no accent class.
   ok('accent shows None by default', (await accSel.inputValue().catch(() => 'x')) === '')
   ok(
     'the None option is the one selected',
@@ -340,7 +295,6 @@ try {
   ok('Exit discarded the accent experiment', storedVal && storedVal.config.accent === undefined, JSON.stringify(storedVal?.config?.accent))
   await pb.close()
 
-  // ---------- console health ----------
   const realErrs = errs.filter((e) => !/ERR_INTERNET_DISCONNECTED/.test(e))
   ok('no console/page errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } catch (err) {

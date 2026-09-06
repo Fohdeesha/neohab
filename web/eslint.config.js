@@ -28,9 +28,7 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Unused arguments prefixed with _ are a deliberate signature, not an oversight.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      // The widget registry is genuinely heterogeneous; `any` there is contained and documented.
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },

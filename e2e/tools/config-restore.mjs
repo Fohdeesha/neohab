@@ -1,14 +1,3 @@
-/**
- * Restores a snapshot taken with config-snapshot.mjs and verifies the result content-matches it:
- * `node tools/config-restore.mjs snapshot.json`.
- *
- * Covers every neohab namespace (`neohab:config`, and the version history in `neohab:history`
- * and `neohab:historydata`); a bare array is accepted as a configuration-only snapshot from
- * before the history existed.
- *
- * Numbers are normalized before comparing (the server's JSON round-trip echoes 1 as 1.0)
- * and the server-managed timestamp is ignored.
- */
 import { readFileSync } from 'node:fs'
 import { ALL_NS, AUTH } from '../lib/target.mjs'
 
@@ -60,8 +49,6 @@ for (const [kind, url] of ALL_NS) {
     }
   }
 
-  // verify: every snapshot component exists with identical content (timestamp excluded,
-  // numbers normalized so 1 == 1.0), and nothing else is left behind
   const live = await (await fetch(url, { headers: AUTH })).json()
   const liveByUid = new Map(live.map((c) => [c.uid, c]))
   for (const c of want) {

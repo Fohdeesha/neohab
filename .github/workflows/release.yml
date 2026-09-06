@@ -1,15 +1,10 @@
 name: Release
 
-# Cutting a release is deliberate: push a tag whose version matches pom.xml
-#
+# Push a tag whose version matches pom.xml and this builds the jar and attaches it to a release:
 #   git tag -a v1.1.0 -m "neohab 1.1.0" && git push origin v1.1.0
 #
-# and this builds the add-on jar and attaches it to a GitHub release of the same name.
-#
-# A tag-triggered run uses the workflow file FROM THE TAGGED COMMIT, so a tag only produces a
-# release if this file exists at that commit - move the tag forward if it does not. Running it
-# by hand against an existing tag does the same thing and replaces the attached jar, which is
-# the way to redo a release whose build failed.
+# A tag-triggered run uses the workflow file FROM THE TAGGED COMMIT, so the tag has to sit on a
+# commit that has this file. Running it by hand against an existing tag redoes a failed release.
 
 on:
   push:
@@ -71,8 +66,7 @@ jobs:
         id: jar
         run: |
           jar="$(ls target/org.openhab.ui.neohab-*.jar)"
-          # A jar whose frontend failed to pack still installs, and then serves nothing at all -
-          # so never publish one without checking the web app and the bundle headers are in it.
+          # a jar whose frontend failed to pack still installs, and then serves nothing at all
           if ! unzip -l "$jar" | grep -q 'web/index.html'; then
             echo '::error::the built jar contains no frontend'
             exit 1
@@ -81,8 +75,33 @@ jobs:
             echo '::error::the built jar is not the neohab OSGi bundle'
             exit 1
           fi
+          # a truncated download installs happily and then behaves like a broken add-on
+          ( cd "$(dirname "$jar")" && sha256sum "$(basename "$jar")" > "$(basename "$jar").sha256" )
           echo "path=$jar" >> "$GITHUB_OUTPUT"
-          echo "Publishing $(basename "$jar") ($(du -h "$jar" | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Publishing $(basename "$jar") ($(du -h "$jar" | cut -f1))"
+            echo ''
+            echo '```'
+            cat "$jar.sha256"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # this version's CHANGELOG.md section as the release body, falling back to generated notes
+      - name: Take the release notes from the changelog
+        id: notes
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          if [ -f CHANGELOG.md ] && awk -v v="## $version" '$0 == v {found=1} END {exit !found}' CHANGELOG.md; then
+            awk -v v="## $version" '
+              $0 == v { inside = 1; next }
+              inside && /^## / { exit }
+              inside { print }
+            ' CHANGELOG.md > release-notes.md
+            echo 'from=changelog' >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::CHANGELOG.md has no '## $version' section - falling back to generated notes"
+            echo 'from=generated' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish the release
         env:
@@ -90,13 +109,18 @@ jobs:
         run: |
           tag='${{ steps.version.outputs.tag }}'
           jar='${{ steps.jar.outputs.path }}'
-          if gh release view "$tag" >/dev/null 2>&1; then
-            # Re-run against a tag that already has a release: replace the jar, keep the notes.
-            gh release upload "$tag" "$jar" --clobber
+          if [ '${{ steps.notes.outputs.from }}' = 'changelog' ]; then
+            notes=(--notes-file release-notes.md)
           else
-            gh release create "$tag" "$jar" \
+            notes=(--generate-notes)
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Re-run against a tag that already has a release: replace the assets, keep the notes.
+            gh release upload "$tag" "$jar" "$jar.sha256" --clobber
+          else
+            gh release create "$tag" "$jar" "$jar.sha256" \
               --title 'neohab ${{ steps.version.outputs.version }}' \
-              --generate-notes \
+              "${notes[@]}" \
               ${{ steps.version.outputs.prerelease == 'true' && '--prerelease' || '' }}
           fi
           gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

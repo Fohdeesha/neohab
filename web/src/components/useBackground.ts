@@ -1,8 +1,3 @@
-/**
- * The background image behind a surface: the dashboard's own `background` when set, else the
- * global one from settings. Returns a ready-to-apply style, or undefined so themed surfaces
- * stay exactly as they were when no background is configured.
- */
 import type { CSSProperties } from 'react'
 import type { Dashboard } from '../model/dashboard'
 import { cssUrl } from './download'

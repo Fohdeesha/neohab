@@ -126,8 +126,10 @@ See [`docs/theming.md`](docs/theming.md). If you are adding a theme, the cross-t
 
 Match the file you are editing. Beyond that:
 
-- Comments explain **why**, not what. The codebase is full of them because most of the non-obvious
-  code here is non-obvious for a reason worth writing down.
+- Comments are rare and short. A comment earns its place by saying **why** something is the way it
+  is, in a sentence, where the code cannot say it and getting it wrong would break something
+  quietly. Anything that restates the code, or narrates how a bug was found, belongs in the commit
+  message instead.
 - Write like a person, not like a generator. Plain words, varied sentence length, no em dashes
   (a plain `-` is fine), no filler adjectives. That applies to docs, comments, commit messages and
   UI strings alike.

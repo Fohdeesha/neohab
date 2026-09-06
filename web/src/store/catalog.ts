@@ -1,7 +1,3 @@
-/**
- * Item catalog for editor pickers: the full item list (names, types, labels), fetched once per
- * session on first use. Not used by the runtime dashboard, which only tracks visible items.
- */
 import { create } from 'zustand'
 import { getItems } from '../api/items'
 import type { Item } from '../api/types'

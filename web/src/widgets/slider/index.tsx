@@ -1,17 +1,3 @@
-/**
- * Slider: one numeric item on a track you drag.
- *
- * Five styles and two orientations, both settings, so a dashboard can carry a plain slider beside
- * a gradient fader without either being a different widget. The plain style is the theme's own
- * range control and is what this widget has always drawn - it keeps the `.nh-slider` markup the
- * detail sheet and the floor plan's popup share, so a theme that restyles the control restyles
- * all three. The other four are built from parts this stylesheet owns.
- *
- * The behaviour is the same whichever style is drawn, and it is the widget's rather than a
- * style's: the press stages a value and the release sends it, a hold recognised in between takes
- * the gesture and sends nothing, arrow keys coalesce into one command, and the value that was
- * sent is held on screen until the device confirms it.
- */
 import { useState } from 'react'
 import type { ComponentType, CSSProperties } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
@@ -27,14 +13,6 @@ import type { FaderView } from './looks'
 import { boundsOf, orientOf, readingOf, sliderFloor, styleOf, tintedOf } from './model'
 import type { SliderConfig, SliderStyle } from './model'
 
-/**
- * Gradient and taper share an arrangement and differ in what the fill is made of. Typed as a
- * Record over the styles, so adding one stops compiling here until it has somewhere to be drawn.
- *
- * Not `LOOKS`: the stepper declares a table of that name whose keys are open (`Record<string,
- * ...>`), and the source scan for bare-index reads is cross-file by identifier, so sharing the
- * name would make this read look like the bug that scan exists to catch.
- */
 const STYLE_LOOKS: Record<Exclude<SliderStyle, 'plain'>, ComponentType<{ view: FaderView }>> = {
   gradient: TrackLook,
   taper: TrackLook,
@@ -44,15 +22,11 @@ const STYLE_LOOKS: Record<Exclude<SliderStyle, 'plain'>, ComponentType<{ view: F
 
 function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   const state = ctx.getItem(config.item)
-  // Guarded at the read: an imported `max: "abc"` or a `step: 0` reaches a range input as NaN and
-  // makes it inert, and this is the same scale the detail sheet's control is built from.
   const scale = numericScale(config.min, config.max, config.step)
   const { min, max, step } = scale
   const style = styleOf(config.style)
   const vertical = orientOf(config.orient) === 'vertical'
 
-  // While dragging, show the local value; after a commit, hold it until the device confirms
-  // (or diverges after the settle window) so slow/quantizing devices don't snap the slider back.
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
   const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
@@ -60,9 +34,6 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
 
   const commit = (v: number) => {
     setDrag(null)
-    // Pressing the track jumps the thumb there before anyone knows whether this is a tap or a
-    // hold. Nothing has been sent yet, so a hold that was recognised in the meantime simply ends
-    // here: the draft is already back, and the item is left alone.
     if (holdTookGesture()) return
     optimistic.commit(v)
     if (!ctx.editing) {
@@ -71,14 +42,8 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
   }
   const commitOn = useKeyboardCommit(commit)
 
-  // The digits the step resolves, like the dial and like this widget's own control in the detail
-  // sheet: a slider set to a 0.5 step and reading whole numbers is throwing away the digit it was
-  // configured to resolve.
   const reading = readingOf(value, step, config.unit)
 
-  // One input, whichever style places it. A vertical range is the browser's own: `writing-mode`
-  // plus `direction: rtl` puts the minimum at the bottom and makes ArrowUp raise the value, which
-  // is why the styles need no pointer handling of their own.
   const input = (
     <input
       type="range"
@@ -115,8 +80,6 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
           'nh-fader nh-fader--' +
           style +
           (vertical ? ' nh-fader--v' : ' nh-fader--h') +
-          // A tile given an accent colour has the style rebuilt in that colour; without one the
-          // colours it was drawn in stand.
           (tintedOf(config.accentColor) ? ' nh-fader--tinted' : '')
         }
         style={{ '--fd-f': String(view.fraction) } as CSSProperties}>
@@ -132,11 +95,7 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
   description: 'Set a numeric or dimmer item',
   defaultSize: { w: 6, h: 3 },
   hasHeader: true,
-  // A stacked phone row has no other floor: a vertical fader with no travel is not a control, and
-  // the bubble's badge rides above the track rather than beside it.
   minPixelHeight: (c) => sliderFloor(styleOf(c.style), orientOf(c.orient)),
-  // Every select's default is carried here as well as in its reader: a select whose value
-  // resolves to nothing renders blank, and the registry check for that reads this.
   defaultConfig: () => ({ item: '', style: 'gradient', orient: 'horizontal', min: 0, max: 100, step: 1 }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },
@@ -170,8 +129,6 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
-  // The reported bug: a popup that offered 0-100 for a slider set to 2000-6500 K, and commanded
-  // whatever that track landed on. It is this widget's scale, wherever the control is drawn.
   controlFor: (c, item) => (item === c.item ? rangeControl(numericScale(c.min, c.max, c.step), c.unit) : undefined),
   Component: SliderWidget
 }

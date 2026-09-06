@@ -25,30 +25,8 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.http.whiteboard.propertytypes.HttpWhiteboardFilterPattern;
 
 /**
- * Tells browsers how long they may keep each part of the web app.
- *
- * Static resources are served by the HTTP whiteboard, which answers with an ETag and a
- * Last-Modified but no Cache-Control at all. A browser is then free to apply "heuristic
- * freshness" and reuse what it has without asking - so after dropping a new add-on jar into
- * {@code addons/}, a returning user kept getting the OLD {@code index.html}, which names the
- * previous build's content-hashed bundle, which was also still cached. The upgrade appeared to
- * do nothing until a hard refresh, which is not something a user should have to know about.
- *
- * Two rules, which is all it takes:
- *
- * <ul>
- * <li><b>The entry points</b> ({@code index.html}, the web manifest, the service worker) must be
- * revalidated every time. {@code no-cache} does not mean "do not store" - the browser still
- * caches them and still sends the ETag, so the usual answer is a 304 with no body. The cost is
- * one conditional request; the benefit is that a new build is picked up immediately.</li>
- * <li><b>Everything under {@code assets/}</b> carries a content hash in its file name, so a
- * given URL can never change meaning. Those are marked immutable for a year, which is what the
- * hashing is for and is strictly better than the heuristic guess they were getting.</li>
- * </ul>
- *
- * Anything else (icons, fonts, the bundled documentation) is left alone deliberately: the
- * browser's own heuristics are fine for files that change only when the add-on does, and a
- * long explicit cache would make them stale across an upgrade for no gain.
+ * Tells browsers how long they may keep each part of the web app. Without it the whiteboard
+ * sends no Cache-Control at all, so a returning user kept the old index.html after an upgrade.
  *
  * @author Jon Sands - Initial contribution
  */
@@ -57,10 +35,8 @@ import org.osgi.service.http.whiteboard.propertytypes.HttpWhiteboardFilterPatter
 @NonNullByDefault
 public class NeohabCacheFilter implements Filter {
 
-    /** Revalidate every time: cheap (a 304), and the only way an upgrade is noticed at once. */
     private static final String REVALIDATE = "no-cache";
 
-    /** Content-hashed file names can never change meaning, so they never need revalidating. */
     private static final String IMMUTABLE = "public, max-age=31536000, immutable";
 
     @Override
@@ -75,15 +51,9 @@ public class NeohabCacheFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    /**
-     * The Cache-Control for one request path, or null to leave the response as it is.
-     *
-     * Package-private rather than private so the rule can be exercised directly; it is the part
-     * with the decisions in it, and the rest of this class is plumbing.
-     */
+    // package-private so the rule itself can be tested
     static @Nullable String cacheControlFor(String uri) {
-        // A path can carry a query string and can be requested with or without the trailing
-        // file name, so compare on the last segment rather than on the whole thing.
+        // a path can carry a query string, so compare on the last segment
         String path = uri;
         int query = path.indexOf('?');
         if (query >= 0) {

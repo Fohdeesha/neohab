@@ -1,21 +1,3 @@
-/**
- * Edit-mode grid: same geometry as the runtime Grid, plus selection, drag (via the handle
- * strip), and resize (corner handle) using pointer events - one code path for mouse and touch.
- *
- * Interaction model: the dragged widget follows the pointer with a CSS transform while a
- * placeholder shows the snapped target cell; green = free, red = occupied. Dropping on an
- * occupied spot reverts, unless the drag has *dwelled* there long enough to arm a bump - see
- * BUMP_DWELL_MS. Grid layout edits need the full grid, so they require a wide viewport; narrow
- * screens edit the single-column stack instead (settings, add/remove, drag-to-reorder - see
- * StackedEditGrid).
- *
- * Selection: a plain click selects one widget (opening its settings); Ctrl/Cmd-click toggles a
- * widget in/out of a multi-selection and Shift-click adds to it; touch long-press starts a
- * multi-selection; and a mouse drag from ANYWHERE that is not a handle - widget bodies included,
- * because a dense dashboard has next to no bare background - draws a rubber-band box selecting
- * everything it touches (widgets move only by their handle strip, so a body-drag is unambiguous).
- * A multi-selection drives batch copy/cut/delete from the toolbar (see DashboardView).
- */
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect } from '../model/dashboard'
@@ -59,13 +41,8 @@ import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
 import { useGridEditSurface } from './useEditSurface'
 
-/**
- * How long a move must rest on an occupied target before the widgets there are bumped aside.
- * Dragging across the grid crosses plenty of widgets on the way; only stopping on one means it.
- */
 const BUMP_DWELL_MS = 400
 
-/** Touch hold that starts a multi-selection. */
 const LONG_PRESS_MS = 500
 
 interface DragState {
@@ -74,44 +51,30 @@ interface DragState {
   startRect: Rect
   startX: number
   startY: number
-  /** Live pixel offset applied to the dragged widget. */
   dx: number
   dy: number
-  /** Snapped target rect + validity, shown as the placeholder. */
   target: Rect
   valid: boolean
-  /** Armed bump: where the widgets in the way go if this drop lands. Null until the dwell. */
   bump: BumpPlan | null
 }
 
-/** Rubber-band selection box, in container-local pixels. Exists only once the pointer has
- * moved past MARQUEE_THRESHOLD_PX - before that the press is a potential click (see pending). */
 interface MarqueeState {
   startX: number
   startY: number
   curX: number
   curY: number
-  /** Shift/Ctrl/Cmd held at the start: add the enclosed widgets to the existing selection. */
   additive: boolean
 }
 
-/**
- * A mouse press that may become either a click (selection) or a marquee (if it moves). Held in
- * a ref, not state: it changes on pointer events that must not re-render the grid.
- */
 interface PendingMarquee {
   clientX: number
   clientY: number
   additive: boolean
-  /** Started on a widget overlay (vs bare grid background). A bare-background click clears the
-   * selection; a widget click's selection is handled by the overlay's own click handler. */
   fromWidget: boolean
 }
 
-/** Movement past this many pixels turns a press into a marquee instead of a click. */
 const MARQUEE_THRESHOLD_PX = 5
 
-/** Arrow keys, as one grid cell of movement (or one cell of size, with Shift). */
 const ARROW_STEPS: Record<string, { x: number; y: number }> = {
   ArrowLeft: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 },
@@ -121,7 +84,6 @@ const ARROW_STEPS: Record<string, { x: number; y: number }> = {
 
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
 
-/** Pixel bounding box (left/top/right/bottom) of a grid rect at the given cell metrics. */
 function pixelBox(r: Rect, colWidth: number, rowHeight: number, gap: number) {
   const left = r.x * (colWidth + gap)
   const top = r.y * (rowHeight + gap)
@@ -143,26 +105,18 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const bp = useEditorStore((s) => s.bp)
   const placing = useEditorStore((s) => s.placing)
-  // Editing the tablet layout works on the projection: that breakpoint's rects and column count
-  // sit in the lg slots, so the drag, bump and free-spot maths below need no special case. The
-  // store writes every rect back into the breakpoint it came from.
   const dashboard = projectDashboard(draft, bp)
   const [placeTarget, setPlaceTarget] = useState<{ rect: Rect; valid: boolean } | null>(null)
   const containerWidth = useContainerWidth(containerRef)
-  // The text-scale floor is the device's as well as the row's (see textFloor).
   const coarse = useCoarsePointer()
   const gridSurface = useGridEditSurface()
   const dwellRef = useRef<number | null>(null)
-  // Touch long-press → multi-select. One press at a time; the ref survives re-renders.
   const longPressRef = useRef<number | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClickRef = useRef(false)
-  // A mouse press that may become a click or a marquee, depending on movement. Must be
-  // declared with the other hooks: the stacked-surface early return below skips later code.
+  // declared up here with the other hooks: the stacked-surface early return below skips later code
   const pendingRef = useRef<PendingMarquee | null>(null)
-  // The dwell fires 400ms after the render that armed it, by which time an undo, a redo or a
-  // settings edit may have replaced the draft. The plan must be made against the current
-  // dashboard, not the one that was on screen when the pointer stopped moving.
+  // the dwell fires 400ms later, so plan against the current draft rather than the one that was on screen
   const dashRef = useRef(dashboard)
   dashRef.current = dashboard
   const { gap, colWidth, rowHeight } = cellMetrics(dashboard, containerWidth)
@@ -188,11 +142,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     []
   )
 
-  /**
-   * Palette drag-to-place. The press began on a palette card, so those pointer events are not
-   * ours: follow them at window level, preview the drop cell, and place on release. A release
-   * outside the grid (or on an occupied cell) cancels instead of guessing a spot.
-   */
   useEffect(() => {
     if (!placing) {
       setPlaceTarget(null)
@@ -233,22 +182,11 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   }, [placing])
 
   if (gridSurface !== true) {
-    // The phone surface edits the stack itself (and its order), which has no breakpoints.
-    // Phones edit the stack they actually see: reorder + settings, not grid geometry.
-    // (See useEditSurface for why this is keyed on the viewport rather than the container.)
     return <StackedEditGrid dashboard={draft} />
   }
 
-  /**
-   * How many drawn pixels one layout pixel is.
-   *
-   * While a settings panel is docked the grid is laid out at its full run-mode width and zoomed
-   * to fit what is left (see editZoom), so that the editor shows what a save will produce.
-   * Pointer coordinates arrive in drawn pixels while everything below - cell metrics, rects,
-   * the marquee, the drag preview's own transform - works in layout pixels, so they are
-   * converted here. `offsetWidth` is the layout width, `getBoundingClientRect` the drawn one,
-   * and their ratio is the zoom in effect, whatever put it there. 1 when nothing is zoomed.
-   */
+  // pointer coordinates are drawn pixels, everything else is layout pixels; their ratio is the zoom, and 1 when
+  // nothing is zoomed
   const pointerScale = (): number => {
     const el = containerRef.current
     if (!el || !el.offsetWidth) return 1
@@ -256,7 +194,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     return drawn > 0 ? drawn / el.offsetWidth : 1
   }
 
-  /** Pixel size of one grid cell (content, excluding gap), measured live. */
   const cellSize = (): { w: number; h: number } => {
     const el = containerRef.current
     const m = cellMetrics(dashboard, el ? el.clientWidth : 0)
@@ -270,9 +207,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    // Selection waits for the drop: selecting opens the settings panel, and the panel changes
-    // the zoom the grid is drawn at. Doing that under a live pointer would change the scale the
-    // drag is being measured against half way through, landing the widget on the wrong column.
+    // selection waits for the drop: opening the panel changes the zoom the drag is measured against
     const startRect = rectOf(widget)
     setDrag({
       id,
@@ -288,7 +223,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     })
   }
 
-  /** The dwell elapsed: work out who moves where, and turn the drop green if anyone can. */
   const armBump = () => {
     dwellRef.current = null
     setDrag((d) => {
@@ -298,8 +232,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       return { ...d, bump: plan, valid: true }
     })
   }
-
-  /* -------------------------------- selection (per widget) -------------------------------- */
 
   const onWidgetClick = (id: string) => (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -315,9 +247,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const onWidgetPointerDown = (id: string) => (e: React.PointerEvent) => {
     suppressClickRef.current = false // clear any stale flag from a press whose click never fired
     if (e.pointerType === 'mouse') {
-      // A mouse press on a widget body is a potential marquee start (widgets only move by
-      // their handle, so a body-drag is unambiguous, and dense dashboards have no bare
-      // background to start one from). No movement = a normal click, handled by onWidgetClick.
       if (e.button === 0) {
         pendingRef.current = {
           clientX: e.clientX,
@@ -343,23 +272,14 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
   }
 
-  /**
-   * Keyboard editing.
-   *
-   * Everything else here is pointer-driven, which left the editor unusable without one. Arrows
-   * move a widget a cell at a time and Shift+arrows resize it - through the same `setWidgetRect`
-   * a drag uses, so the overlap rules, the clamping and the single-undo-entry behaviour are
-   * identical. A move that would overlap is simply refused, exactly as a drop on an occupied
-   * cell is.
-   */
   const onCellKeyDown = (id: string) => (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       selectWidget(id)
       return
     }
-    // No standard key is named `constructor`, but the guard below is `if (!step) return` and a
-    // function is truthy, so a bare index would put a NaN rect into the dashboard. Free to close.
+    // no key is called `constructor`, but a function is truthy and the guard below is `if (!step)`, so a bare
+    // index would store a NaN rect
     const step = lookup(ARROW_STEPS, e.key)
     if (!step) return
     const widget = dashRef.current.widgets.find((w) => w.id === id)
@@ -372,8 +292,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     setWidgetRect(id, next)
   }
 
-  /* ------------------------------------- marquee ------------------------------------- */
-
   const toLocal = (clientX: number, clientY: number): { x: number; y: number } => {
     const rect = containerRef.current!.getBoundingClientRect()
     const k = pointerScale()
@@ -384,8 +302,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   }
 
   const onGridPointerDown = (e: React.PointerEvent) => {
-    // A press on the bare grid background (cells stop propagation of their own paths: handle,
-    // resize and delete all stopPropagation; the overlay records its own pending above).
     if (e.target !== containerRef.current) return
     if (e.button !== 0 && e.pointerType === 'mouse') return
     pendingRef.current = {
@@ -411,10 +327,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     setSelection(m.additive ? [...new Set([...current, ...hit])] : hit)
   }
 
-  /* --------------------------------- unified pointer flow --------------------------------- */
-
   const onPointerMove = (e: React.PointerEvent) => {
-    // Promote a pending press to a marquee once it has clearly moved (and is not a drag).
     const pend = pendingRef.current
     if (pend && !marquee && !drag) {
       if (Math.abs(e.clientX - pend.clientX) > MARQUEE_THRESHOLD_PX || Math.abs(e.clientY - pend.clientY) > MARQUEE_THRESHOLD_PX) {
@@ -439,8 +352,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     const cellsX = Math.round(dx / (cw + gap))
     const cellsY = Math.round(dy / (ch + gap))
 
-    // Everything the target derives from is fixed for the life of the drag, so the captured
-    // `drag` is safe to read here even if a render is pending.
     const target = clampRect(
       drag.mode === 'move'
         ? { ...drag.startRect, x: drag.startRect.x + cellsX, y: drag.startRect.y + cellsY }
@@ -449,15 +360,10 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     )
     const overlaps = overlapsAny(dashboard, target, drag.id)
 
-    // The dwell timer runs per target cell: moving to a new occupied cell restarts it, holding
-    // still leaves it running, and it never starts where there is nothing to bump.
     if (!sameRect(target, drag.target)) {
       clearDwell()
       if (drag.mode === 'move' && overlaps) dwellRef.current = window.setTimeout(armBump, BUMP_DWELL_MS)
     }
-    // An armed bump belongs to the cell it was planned for, so leaving that cell drops it.
-    // Compared against the live state, not the captured one: the timer may have armed a bump
-    // between this event and the last render, and that must not be thrown away.
     setDrag((d) => {
       if (!d) return d
       const bump = sameRect(target, d.target) ? d.bump : null
@@ -470,9 +376,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     pendingRef.current = null
     if (marquee) {
       finishMarquee(marquee)
-      // A release over the widget the marquee started on still fires a click there; that click
-      // must not replace the selection the marquee just made. Cleared on the next tick so a
-      // stale flag can never swallow a later, unrelated click.
       suppressClickRef.current = true
       window.setTimeout(() => {
         suppressClickRef.current = false
@@ -480,18 +383,12 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       return
     }
     if (pend && !pend.fromWidget) {
-      // A bare click on empty background clears the selection (modifier held = keep adding).
       if (!pend.additive) clearSelection()
       return
     }
     clearDwell()
     if (!drag) return
     if (drag.valid) setWidgetRect(drag.id, drag.target, drag.bump ?? undefined)
-    // Selection on drop. A no-move press on the handle strip is just a click on the widget, so
-    // it behaves exactly like a body click - Ctrl toggles, Shift adds, plain replace-selects
-    // (even out of a multi-selection: a bare click always means "just this one"). Only a real
-    // move preserves an existing multi-selection the dragged widget belongs to; otherwise the
-    // drop selects the moved widget (opening its settings panel).
     const clickLike = Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX && Math.abs(e.clientY - drag.startY) <= MARQUEE_THRESHOLD_PX
     if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
     else if (clickLike && e.shiftKey) addToSelection(drag.id)
@@ -511,7 +408,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   }
 
   if (containerWidth === 0) {
-    // First paint: width unknown, render the container alone and lay out next frame.
     return <div ref={containerRef} className="nh-grid nh-grid--edit" />
   }
 
@@ -584,13 +480,10 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       ) : null}
 
       {widgetsOf(dashboard).map((widget) => {
-        // An armed bump previews itself: the widgets it moves render where the drop puts them.
         const bumpedTo = drag?.bump?.get(widget.id)
         const r = bumpedTo ?? rectOf(widget)
         const isDragging = drag?.id === widget.id
         const isSelected = selectedIds.includes(widget.id)
-        // A widget hidden somewhere still has to be visible HERE, or there would be no way to
-        // select it and un-hide it. Dimmed, with the surfaces it is hidden on named on the handle.
         const hiddenOn = hiddenSurfaces(widget)
         return (
           <div
@@ -614,8 +507,6 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
                 '--nh-labelalign': widgetLabelAlign(widget),
                 '--nh-cellaccent': widgetAccentColor(widget),
                 '--nh-accent-ink': widgetAccentInk(widget),
-                // A move follows the pointer; a resize stretches the box in place (its top-left
-                // is anchored) while the placeholder shows the snapped result.
                 transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
                 width: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dx}px))` : undefined,
                 height: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dy}px))` : undefined

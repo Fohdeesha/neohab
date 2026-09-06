@@ -1,21 +1,5 @@
 import { bareAndNewTile, squareControls, tightCellInsets } from './shared'
 
-/**
- * Swiss Sheet - a telemetry board in the International Typographic Style.
- *
- * Nothing is boxed. A widget is its content on the page, and a named one sits under a 2px rule
- * with its name as a small lowercase caption flush with the rule's left end; readings are set
- * bold, captions dim. Controls are the small outlined buttons of a control panel, and an active
- * one is a solid plate in the text colour with the page colour as ink. Bars and rings are flat
- * grey tracks with a fill in the text colour. The page is a plain field with no texture, no
- * gradient and no shadow anywhere, and the one red is kept for the brand: the title mark, the
- * sidebar's current row and the `bad` reading.
- *
- * Every colour derives from the tokens, which is what lets this one stylesheet serve both the
- * dark and the light variant. It bundles no font: Helvetica is the Swiss face, and the system
- * stack resolves to it, to Arial or to their metric twins everywhere. This is the stylesheet to
- * copy when starting a theme of your own.
- */
 export const SWISS_CSS = `:root {
   --sw-line: color-mix(in srgb, var(--nh-text) 45%, transparent);
 }

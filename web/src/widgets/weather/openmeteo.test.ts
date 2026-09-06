@@ -15,8 +15,6 @@ describe('forecastUrl', () => {
   })
 
   it('names a weather model only when it is one the service has', () => {
-    // Models genuinely disagree - the whole point of offering the choice - but an id the service
-    // does not know is an HTTP 400, which is no weather at all.
     expect(forecastUrl(42.33, -83.05, 'metric')).not.toContain('models=')
     expect(forecastUrl(42.33, -83.05, 'metric', '')).not.toContain('models=')
     expect(forecastUrl(42.33, -83.05, 'metric', 'ecmwf_ifs025')).toContain('models=ecmwf_ifs025')
@@ -94,7 +92,6 @@ describe('getForecast cache', () => {
     const [a, b] = await Promise.all([getForecast(10.0001, 20, 'metric', 60_000), getForecast(10.0001, 20, 'metric', 60_000)])
     expect(f).toHaveBeenCalledTimes(1)
     expect(a).toBe(b)
-    // fresh enough: a later call answers from the cache without fetching again
     const c = await getForecast(10.0001, 20, 'metric', 60_000)
     expect(f).toHaveBeenCalledTimes(1)
     expect(c).toBe(a)
@@ -118,12 +115,8 @@ describe('getForecast cache', () => {
   })
 
   it('keeps different weather models apart', async () => {
-    // Same place, same units, different model: sharing the cache entry would hand one widget
-    // the other's forecast, which is the disagreement the setting exists to resolve.
     const f = okFetch()
     vi.stubGlobal('fetch', f)
-    // coordinates of its own: the cache is module-level, so a place another test uses would
-    // answer from it and prove nothing
     await getForecast(16, 26, 'metric', 60_000)
     await getForecast(16, 26, 'metric', 60_000, 'ecmwf_ifs025')
     await getForecast(16, 26, 'metric', 60_000, 'gfs_seamless')

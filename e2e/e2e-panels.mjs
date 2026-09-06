@@ -1,34 +1,6 @@
-/**
- * Every widget's settings panel, checked as a class rather than one widget at a time.
- *
- * The panel is a fixed 391px column on a desktop, and a control that does not fit is not a
- * cosmetic problem: it is a control the user cannot reach. Both of these shipped in the floor
- * plan and both were reported rather than caught -
- *
- *   - the placement sheet's "Add" button was pushed off the panel's right edge, because the item
- *     picker wraps an <input>, whose min-content size is its default width, and a flex item is
- *     floored at that;
- *   - the plan image field was crushed to a few characters, because the row that is comfortable
- *     in the 720px Settings form has no room for everything on one line here.
- *
- * A select with nothing selected renders BLANK (SettingsPanel adds an empty placeholder row when
- * no option matches), which reads as broken; the schema half of that rule is a unit check, and
- * this is the rendered half - it also covers the universal fields the panel appends itself.
- *
- * The widget list comes from the palette, so a widget added later is covered without touching
- * this file.
- *
- * The last section asks the same question about what a widget DRAWS: one of every type in a
- * short tile, and nothing may be painted outside it. That is the registry form of a report about
- * two widgets ("terribly cropped instead of shrank" in a landscape phone's row), and asking it
- * across the palette found a third - the media player's transport, three fixed circles wanting
- * 192px in a row that gives them 135.
- *
- * SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-panels and
- * dashboard:nh-e2e-panelfit, saves NOTHING through the app (so no restore point is minted), and
- * commands nothing - the palette widgets are added unconfigured, and the short-tile ones are
- * bound so they render a control but are never clicked, with commands intercepted besides.
- */
+// Every widget's settings panel, checked as a class rather than one widget at a time.
+// SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-panels and
+// dashboard:nh-e2e-panelfit, saves NOTHING through the app (so no restore point is.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
@@ -50,11 +22,6 @@ async function launch() {
   return launchChromium({ headless: true })
 }
 
-/**
- * Runs IN THE PAGE. Reports every control in the settings panel that is outside the panel's
- * content box, too narrow to use, or - for a select - showing an empty row because nothing it
- * offers matches the value in effect.
- */
 const measurePanel = (min) => {
   const panel = document.querySelector('.nh-sheet')
   if (!panel) return null
@@ -76,8 +43,6 @@ const measurePanel = (min) => {
     if (r.right > inner.right + 1 || r.left < inner.left - 1) {
       clipped.push(`${label(el)} (${Math.round(r.left)}..${Math.round(r.right)} vs ${Math.round(inner.left)}..${Math.round(inner.right)})`)
     }
-    // a box you type into has to be wide enough to read; checkboxes, colour swatches and icon
-    // buttons are meant to be small
     const typed =
       el.tagName === 'TEXTAREA' ||
       el.tagName === 'SELECT' ||
@@ -96,9 +61,6 @@ const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => {
   if (m.type() !== 'error') return
-  // Name the resource - "Failed to load resource" alone is a failure nobody can act on - and
-  // ignore the ones that belong to the user's own configuration. The palette lists their custom
-  // widgets, whose icons legitimately point at iconsets and hosts this server does not have.
   const at = m.location?.()?.url
   if (!isAppResource(at)) return
   errs.push(m.text() + (at ? ' <- ' + at : ''))
@@ -130,7 +92,6 @@ try {
   await page.waitForSelector('.nh-editbar, .nh-dash__bar', { timeout: 15000 }).catch(() => {})
   await sleep(600)
 
-  // the palette IS the registry's own list, so this covers widgets added later too
   await page.click('[aria-label="Add widget"], button:has-text("+") >> nth=0')
   await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
   const names = await page.$$eval('.nh-palette .nh-palette__card .nh-palette__name', (els) => els.map((e) => e.textContent.trim()))
@@ -149,7 +110,6 @@ try {
   }
 
   for (const name of names) {
-    // add this widget, then open its panel by clicking the new cell's handle
     await page.click('[aria-label="Add widget"], button:has-text("+") >> nth=0').catch(() => {})
     await page.waitForSelector('.nh-palette__card', { timeout: 8000 }).catch(() => {})
     await page.click(`.nh-palette__card:has(.nh-palette__name:text-is(${JSON.stringify(name)}))`, { timeout: 8000 }).catch(() => {})
@@ -164,9 +124,6 @@ try {
     inspected++
     record(name, m)
 
-    // A field's chrome can GROW with its value: the background field adds a thumbnail and a
-    // clear button once an image is set, and that is the state in which it was crushed to a few
-    // characters. An empty panel would have looked fine, so fill it and measure again.
     const bg = page.locator('.nh-sheet .nh-bgfield input[type="text"]')
     if (await bg.count()) {
       await bg.first().fill('https://example.invalid/plan.png')
@@ -176,18 +133,6 @@ try {
     }
   }
 
-  /*
-   * A widget's number field, typed into a digit at a time.
-   *
-   * It committed on every keystroke, so typing 150 into the min-50 Text size field applied 1,
-   * then 15, then 150 - and since every reader clamps, the widget visibly jumped to HALF SIZE
-   * on the first digit and back. Clicking away halfway left that 1 in the draft, where every
-   * later reader has to keep guarding it. `page.fill()` cannot see any of this: it delivers the
-   * whole value in one event, which is the one case that always worked.
-   *
-   * The field is found by its range rather than its label, so the check does not depend on the
-   * language the browser asks for.
-   */
   {
     await page.click('[aria-label="Add widget"], button:has-text("+") >> nth=0').catch(() => {})
     await page.waitForSelector('.nh-palette__card', { timeout: 8000 }).catch(() => {})
@@ -218,8 +163,6 @@ try {
         scales.push(await scaleOf())
       }
       ok('a number field can be typed into a digit at a time', seen.join(',') === '1,15,150', seen.join(','))
-      // "1" and "15" are below the field's own minimum of 50. Committing them made the widget
-      // render at the clamped floor of 0.5 while the user was still typing.
       ok(
         'a half-typed value below the minimum is not applied',
         scales[0] !== '0.5' && scales[1] !== '0.5',
@@ -235,18 +178,11 @@ try {
   ok('no select renders blank', offenders.blank.length === 0, offenders.blank.slice(0, 4).join(' | '))
   ok('the settings panel never scrolls sideways', offenders.overflow.length === 0, offenders.overflow.slice(0, 4).join(' | '))
 
-  // the draft is thrown away: this suite must not write a dashboard full of unconfigured widgets
   await page.click('button:has-text("Exit")').catch(() => {})
   await sleep(800)
   const stored = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
   ok('nothing was saved to the server', (stored?.config?.widgets ?? []).length === 0, 'widgets=' + (stored?.config?.widgets ?? []).length)
 
-  // ---- and the rendered half of the same question: does any widget draw outside its tile? ----
-  // A weather panel and a clock were reported "terribly cropped instead of shrank" in a landscape
-  // phone's short row. Which raises the registry question rather than the widget one, and asking
-  // it found a fifth: the media player's transport is three fixed circles wanting 192px, and that
-  // row gives them 135. Seeded at the reported geometry - 11 columns, gap 4, square cells, so a
-  // 2x1 tile is about 153x75 - with one of every type that has something to draw.
   const FIT_UID = 'dashboard:nh-e2e-panelfit'
   const FIT_TYPES = [
     ['switch', { item: ITEMS.switch, label: 'Switch' }],
@@ -292,8 +228,6 @@ try {
   ok('short-tile dashboard created', fitSeed.ok, String(fitSeed.status))
 
   const fitPage = await browser.newPage({ viewport: { width: 885, height: 600 } })
-  // Nothing here may reach a device: every widget is bound to an item so it renders its control,
-  // and none of them is clicked, but the interception is what makes that a guarantee.
   await fitPage.route('**/rest/items/*', (r) => (r.request().method() === 'POST' ? r.abort() : r.continue()))
   await fitPage.addInitScript((t) => {
     try {
@@ -309,12 +243,6 @@ try {
     [...document.querySelectorAll('.nh-gcell')].map((cell) => {
       const body = cell.querySelector('.nh-widget__body')
       const cr = cell.getBoundingClientRect()
-      // Per element, not the body's scrollHeight: a shed element is still in the DOM at zero size
-      // and a scrolling list legitimately extends past its own box, so only something with a real
-      // size, painted past the body's edge, is a widget drawing outside its tile.
-      // Inside a scrolling box, content past the edge is what scrolling is FOR: the selection's
-      // grid and the weather's strips both hold more than they show on purpose. Asked of the
-      // computed style rather than a list of class names, so a scroller added later is covered.
       const scrolls = (el) => {
         for (let p = el.parentElement; p && p !== body.parentElement; p = p.parentElement) {
           const o = getComputedStyle(p)
@@ -330,7 +258,6 @@ try {
               ...[...body.querySelectorAll('*')]
                 .map((e) => {
                   const q = e.getBoundingClientRect()
-                  // A shed element is still in the DOM at zero size; it is not being drawn.
                   if (q.width < 2 || q.height < 2) return 0
                   if (scrolls(e)) return 0
                   const br = body.getBoundingClientRect()
@@ -344,7 +271,6 @@ try {
   )
   const list = Array.isArray(tiles) ? tiles : []
   ok('every short tile rendered', list.length === FIT_TYPES.length, `${list.length} of ${FIT_TYPES.length}`)
-  // The precondition: these really are the short tiles the report was about.
   ok(
     'and they really are the reported geometry',
     list.length > 0 && list.every((t) => t.h < 90 && t.w < 200),

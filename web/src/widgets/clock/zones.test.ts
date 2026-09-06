@@ -1,10 +1,3 @@
-/**
- * The clock's zone handling.
- *
- * Every instant here is written as UTC and every zone is named explicitly, so these say the same
- * thing on a machine in Indiana and one in Berlin - which is the whole point of the feature and
- * would otherwise be the first thing to rot in CI.
- */
 import { describe, expect, it } from 'vitest'
 import {
   deviceZone,
@@ -22,9 +15,7 @@ import {
   zoneShortName
 } from './zones'
 
-/** A summer instant, so the northern zones below are on daylight saving. */
 const SUMMER = new Date('2026-08-24T04:30:00Z')
-/** ...and a winter one, to prove an offset is read at the instant rather than cached. */
 const WINTER = new Date('2026-01-15T04:30:00Z')
 
 describe('zone names', () => {
@@ -35,7 +26,6 @@ describe('zone names', () => {
   })
 
   it('keeps the middle segment of a three-part id', () => {
-    // Ten Argentinian cities and ten Indiana ones would otherwise be told apart by nothing.
     expect(zoneCity('America/Argentina/Salta')).toBe('Argentina / Salta')
     expect(zoneCity('America/Indiana/Indianapolis')).toBe('Indiana / Indianapolis')
   })
@@ -54,8 +44,6 @@ describe('the zone list', () => {
   })
 
   it('includes plain UTC, which the browser does not list', () => {
-    // `Intl.supportedValuesOf` returns only region/city ids, so the one zone somebody running
-    // servers is most likely to pick is the one that has to be added.
     expect(options.some((o) => o.value === 'UTC')).toBe(true)
   })
 
@@ -70,7 +58,6 @@ describe('the zone list', () => {
   })
 
   it('offers only zones it can actually format in', () => {
-    // A select whose options throw when chosen is worse than no select.
     const bad = options.filter((o) => !isValidZone(o.value)).map((o) => o.value)
     expect(bad).toEqual([])
   })
@@ -110,18 +97,14 @@ describe('the wall clock in a zone', () => {
       minute: 30,
       second: 0
     })
-    // The same instant, the previous evening in New York.
     expect(zoneParts(SUMMER, 'America/New_York')).toMatchObject({ day: 24, hour: 0, minute: 30 })
   })
 
   it('calls midnight hour zero, not twenty-four', () => {
-    // `hour12: false` has historically rendered it as 24 under en-US, which the analog face would
-    // draw as an hour hand at noon.
     expect(zoneParts(new Date('2026-08-24T00:00:30Z'), 'UTC').hour).toBe(0)
   })
 
   it('rolls the date over when the zone does, not when this machine does', () => {
-    // 11pm in New York is already tomorrow in London.
     const evening = new Date('2026-08-24T03:00:00Z')
     expect(zoneParts(evening, 'America/New_York')).toMatchObject({ day: 23, hour: 23 })
     expect(zoneParts(evening, 'Europe/London')).toMatchObject({ day: 24, hour: 4 })
@@ -147,8 +130,6 @@ describe('offsets', () => {
   })
 
   it('is not thrown off by the milliseconds in the instant', () => {
-    // The formatted fields carry whole seconds, so the fraction has to be taken off first or it
-    // lands in the rounding.
     for (const ms of [0, 1, 499, 500, 999]) {
       const at = new Date(Date.UTC(2026, 7, 24, 4, 30, 0, ms))
       expect(zoneOffsetMinutes(at, 'Asia/Kolkata'), String(ms)).toBe(330)
@@ -172,7 +153,6 @@ describe('the tile caption', () => {
 
   it('uses what the language calls the zone', () => {
     expect(zoneLabelText(SUMMER, 'America/New_York', 'en', 'short', undefined)).toBe('EDT')
-    // Not every zone has letters in every language, and inventing some would be worse.
     expect(zoneLabelText(SUMMER, 'Asia/Tokyo', 'en', 'short', undefined)).toBe(zoneShortName(SUMMER, 'Asia/Tokyo', 'en'))
   })
 
@@ -186,7 +166,6 @@ describe('the tile caption', () => {
   })
 
   it('falls back to the city when the text is empty', () => {
-    // Picking "Your own text" and typing nothing is a reasonable way to ask for "Tokyo".
     for (const empty of ['', '   ', undefined, null, 42]) {
       expect(zoneLabelText(SUMMER, 'Asia/Tokyo', 'en', 'custom', empty), JSON.stringify(empty)).toBe('Tokyo')
     }
@@ -208,7 +187,6 @@ describe('the extra zones a sheet lists', () => {
   })
 
   it('drops anything it could not format, rather than throwing while the sheet renders', () => {
-    // Stored lists are untrusted input: a hand edit, an import, a backup from another browser.
     expect(extraZones([{ zone: 'Not/AZone' }, { zone: 42 }, null, 'Asia/Tokyo', {}, []])).toEqual([])
     expect(extraZones('Asia/Tokyo')).toEqual([])
     expect(extraZones(undefined)).toEqual([])

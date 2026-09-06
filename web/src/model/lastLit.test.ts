@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { FULL_BRIGHTNESS, LIT_CAP, litOf, noteLit, parseLit, serialiseLit } from './lastLit'
 import { emptyMap } from './lookup'
 
-/*
- * openHAB item names are `[a-zA-Z_][a-zA-Z0-9_]*` (ItemUtil.isValidItemName), so every one of
- * these is a name somebody can really give a colour lamp - and this map is keyed by exactly that.
- */
 const HOSTILE = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']
 
 const from = (entries: Record<string, number>): Record<string, number> => {
@@ -24,13 +20,8 @@ describe('litOf', () => {
     expect(FULL_BRIGHTNESS).toBe(100) // openHAB's own answer for ON, so the fallback matches it
   })
 
-  // GUARD, not a discriminator: two independent defences already cover this, so it passes on a
-  // build with either one removed. `lookup()` is the structural one and the prototype-free map is
-  // the other, and the scale check below is what would catch a function arriving here. Kept
-  // because it is the shape of the bug, and it says here that it cannot fail on its own.
   it('falls back for an item named after an Object.prototype member', () => {
     for (const name of HOSTILE) expect(litOf(emptyMap<number>(), name)).toBe(FULL_BRIGHTNESS)
-    // The one that has teeth: whatever a bad read hands back, it is not a brightness.
     expect(litOf({ lamp: (() => 40) as unknown as number }, 'lamp')).toBe(FULL_BRIGHTNESS)
   })
 
@@ -52,7 +43,6 @@ describe('noteLit', () => {
 
   it('ignores anything that is not a brightness worth restoring', () => {
     const map = emptyMap<number>()
-    // Zero above all: a dark lamp is the state we are trying to undo, never the one to remember.
     for (const bad of [0, -1, 101, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(noteLit(map, 'lamp', bad)).toBe(map)
     }
@@ -60,7 +50,6 @@ describe('noteLit', () => {
   })
 
   it('returns the same map when nothing changed', () => {
-    // A fading strip reports a burst of identical states; the store reads this to skip the work.
     const map = noteLit(emptyMap<number>(), 'lamp', 40)
     expect(noteLit(map, 'lamp', 40)).toBe(map)
     expect(noteLit(map, 'lamp', 41)).not.toBe(map)
@@ -102,7 +91,6 @@ describe('parseLit', () => {
   })
 
   it('is an empty memory for anything it cannot read', () => {
-    // localStorage holds whatever anything ever put there, including a half-written value.
     for (const raw of [null, undefined, '', 'not json', '[]', '"a string"', '42', 'null', '{"a":']) {
       expect(Object.keys(parseLit(raw))).toHaveLength(0)
     }

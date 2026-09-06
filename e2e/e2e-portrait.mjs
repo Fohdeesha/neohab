@@ -1,14 +1,7 @@
-/**
- * Portrait/stacked text sizing: stacked rows size their text from the room the row actually
- * has (stackedTextScale) instead of the grid's desktop-proportional scale, which used to sit
- * pinned at its 0.8 floor on every phone and render tiny text in a roomy full-width row.
- *
- * Also guards that nothing else moved: the wide-grid path (landscape phone, laptop, desktop)
- * must keep the exact scale formula it had before.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-portrait{,-tight} (deleted afterwards,
- * cleanup guarded), reads the server's own dashboards strictly read-only, commands nothing.
- */
+// Portrait/stacked text sizing: stacked rows size their text from the room the row actually has
+// (stackedTextScale) instead of the grid's desktop-proportional.
+// SAFE with a live config: creates only dashboard:nh-e2e-portrait{,-tight} (deleted afterwards, cleanup
+// guarded), reads the server's own dashboards strictly read-only.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -24,7 +17,6 @@ const btn = (id, label, x, y, w = 1, h = 1, iconSize = 36) => ({
   layout: { lg: { x, y, w, h } },
 })
 
-// Roomy stack: 8 columns -> ~156px stacked rows on a phone.
 const ROOMY = {
   uid: 'dashboard:nh-e2e-portrait',
   component: 'neohab:dashboard',
@@ -46,8 +38,6 @@ const ROOMY = {
   },
 }
 
-// Tight stack: 36 columns -> ~32px rows, the shape whose text must stay at the floor. Mixed
-// heights prove the scale is per row, and the color widget's minPixelHeight floor lifts its own.
 const TIGHT = {
   uid: 'dashboard:nh-e2e-portrait-tight',
   component: 'neohab:dashboard',
@@ -67,9 +57,6 @@ const TIGHT = {
   },
 }
 
-/** The scale rule under test for a TOUCH screen, mirrored from web/src/model/layout.ts. (Under a
- * mouse the grid's floor is the room the row has, 1 from 100px rows easing to 0.8 at 85px; the
- * regression guard below covers that side.) */
 const wantScale = (iconscale, cellHeight) => Math.max(Math.max(0.8, iconscale), Math.min(1, cellHeight / 96))
 
 for (const d of [ROOMY, TIGHT]) {
@@ -78,7 +65,6 @@ for (const d of [ROOMY, TIGHT]) {
   ok('seed: ' + d.uid, r.ok, 'status=' + r.status)
 }
 
-/** Per-cell geometry + text metrics, plus ink-level clipping checks. */
 const readCells = (page) =>
   page.evaluate(() => {
     const grid = document.querySelector('.nh-grid')
@@ -97,7 +83,6 @@ const readCells = (page) =>
           hClipped: label.scrollWidth > label.clientWidth + 1,
           vClipped: label.scrollHeight > label.clientHeight + 0.5,
           inkBelow: rects.length ? Math.max(...rects.map((x) => x.bottom)) - lr.bottom : 0,
-          // label ink must stay inside the cell it belongs to
           spills: rects.length ? Math.max(...rects.map((x) => x.bottom)) > cr.bottom + 0.5 : false,
         }
       }
@@ -119,15 +104,11 @@ const readCells = (page) =>
     }
   })
 
-// A phone is a TOUCH context: the text-scale floor is chosen by the pointer, not the width, so
-// this suite's phones emulate a finger and only the regression guard asks for a mouse.
 const open = async (browser, width, height, route, { touch = true } = {}) => {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, ...(touch ? { hasTouch: true } : {}) })
   await ctx.addInitScript((t) => {
     try {
       localStorage.setItem('neohab:apiToken', t)
-      // this suite asserts the app's DEFAULT geometry; the server's global theme belongs to
-      // the user (it was `assembly` when this line was added), so pin the default per device
       localStorage.setItem('neohab:themeOverride', 'dark')
     } catch {}
   }, TOKEN)
@@ -150,7 +131,6 @@ const open = async (browser, width, height, route, { touch = true } = {}) => {
 const browser = await launchBrowser()
 
 try {
-  /* ---------- portrait phones + portrait tablet: full-size text in roomy rows ---------- */
   for (const vp of [
     { name: 'phone-360', width: 360, height: 800 },
     { name: 'phone-393', width: 393, height: 851 },
@@ -186,7 +166,6 @@ try {
     await ctx.close()
   }
 
-  /* ---------- the fix itself: text is bigger than it used to be, and matches desktop ---------- */
   {
     const { ctx, page } = await open(browser, 393, 851, 'nh-e2e-portrait')
     const phone = await readCells(page)
@@ -208,7 +187,6 @@ try {
     )
   }
 
-  /* ---------- tight stack: short rows keep the floor, tall rows do not ---------- */
   {
     const { ctx, page, errors } = await open(browser, 393, 851, 'nh-e2e-portrait-tight')
     const m = await readCells(page)
@@ -227,9 +205,6 @@ try {
     await ctx.close()
   }
 
-  /* ---------- REGRESSION GUARD: the wide grid follows its own rule ----------
-     max(floor, iconscale), where the floor is 0.8 under a finger and, under a mouse, the room
-     the row has: 1 from 100px rows, easing to 0.8 at 85px. */
   for (const vp of [
     { name: 'phone-landscape-915', width: 915, height: 411, touch: true },
     { name: 'laptop-1366', width: 1366, height: 768, touch: false },
@@ -258,7 +233,6 @@ try {
     ok(`${vp.name}: console clean`, errors.length === 0, errors.join(' | '))
     await ctx.close()
   }
-  // The two ends of the range still differ the way they did before the change.
   {
     const a = await open(browser, 915, 411, 'nh-e2e-portrait', { touch: true })
     const land = await readCells(a.page)
@@ -270,7 +244,6 @@ try {
     ok('2560 still grows past 1.0 with its icons', parseFloat(wide.gridScale) > 1 && wide.cells[0].font > 16, `${wide.gridScale} ${wide.cells[0].font}px`)
   }
 
-  /* ---------- the phone EDIT surface scales the same way ---------- */
   {
     const { ctx, page, errors } = await open(browser, 393, 851, 'nh-e2e-portrait')
     await page.click('button[aria-label="Edit dashboard"]')
@@ -288,17 +261,10 @@ try {
     await ctx.close()
   }
 
-  /* ---------- whatever real dashboards live on this server, portrait, read-only ----------
-     Zero clicks - these only render and measure. Routes are the dashboard id, which is not
-     necessarily the display name. Derived from the live namespace (never hardcoded: the
-     server's dashboards come and go), capped so a dashboard-heavy server stays quick. */
   const liveDash = (await (await fetch(NS)).json())
     .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-'))
     .sort((a, b) => (b.config.widgets?.length ?? 0) - (a.config.widgets?.length ?? 0))
     .slice(0, 8)
-  // A dashboard's authored Text size (percent) multiplies the automatic scale everywhere
-  // (dashTextScale in model/layout.ts) - live dashboards may carry one, so the expected
-  // scale must include it or a user setting reads as an app regression.
   const authoredScale = new Map(
     liveDash.map((c) => {
       const v = Number(c.config?.textSize)
@@ -320,9 +286,6 @@ try {
         ' authored=' + authored
     )
     ok(`real "${id}": no page errors`, pageErrors.length === 0, pageErrors.join(' | '))
-    // Resource 404s here can be the server's own data, not our code: imported HABPanel custom
-    // widgets often pull stylesheets or icons that no longer exist (or LAN hosts this machine
-    // cannot resolve). Assert only that nothing under /neohab (our own bundle+assets) fails.
     const ours = resource404.filter((u) => u.includes('/neohab/'))
     ok(`real "${id}": every neohab asset loaded`, ours.length === 0, ours.join(' | '))
     await ctx.close()

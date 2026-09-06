@@ -1,16 +1,6 @@
-/**
- * Chart aggregation / heatmap / full-screen view e2e.
- *
- * Covers: grouping the history into buckets (per day, and by hour of day) changes what is plotted
- * and labels a categorical axis with names rather than numbers; bars draw as filled rectangles
- * rather than a line; heatmap mode replaces the plot with a canvas matrix; the ⤢ button opens the
- * full-screen chart route; that view navigates calendar windows (day/week/month/year, previous and
- * next, "next" refused at the present) and refetches per window; and the settings panel offers the
- * new fields, hiding the ones a heatmap makes meaningless.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-agg, deletes exactly that, and commands
- * NOTHING - it only reads the history of the configured temperature item.
- */
+// Chart aggregation / heatmap / full-screen view e2e.
+// SAFE with a live config: creates only dashboard:nh-e2e-agg, deletes exactly that, and commands NOTHING, it
+// only reads the history of the configured temperature item.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -70,16 +60,9 @@ page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => void d.accept())
 await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-/**
- * Instrument the canvas so the suite can see WHAT was drawn, not just that something was: bars
- * are fillRect calls, a line is a path. Also record every persistence request, to prove the
- * calendar view refetches per window with the right range.
- */
 await ctx.addInitScript(() => {
   const w = window
   w.__draw = { seg: 0, curve: 0, rects: 0, fills: 0, texts: [] }
-  // uPlot builds its series through Path2D (the canvas context only draws its axes and grid), so
-  // that is where line segments and bars have to be counted; the heatmap fills rects directly.
   const P = Path2D.prototype
   const lineTo = P.lineTo
   P.lineTo = function (...a) {
@@ -102,7 +85,6 @@ await ctx.addInitScript(() => {
     if (a[2] > 2 && a[3] > 2) w.__draw.fills++
     return fillRect.apply(this, a)
   }
-  // axis tick labels are canvas text, not DOM - this is the only way to read them
   const fillText = proto.fillText
   proto.fillText = function (...a) {
     if (typeof a[0] === 'string' && a[0].trim() !== '') w.__draw.texts.push(a[0])
@@ -133,13 +115,11 @@ const resetCounters = () =>
     window.__draw = { seg: 0, curve: 0, rects: 0, fills: 0, texts: [] }
     window.__history = []
   })
-/** Everything uPlot painted as text: axis ticks, threshold labels. */
 const canvasTexts = () => page.evaluate(() => window.__draw.texts)
 
 try {
   ok('the target has a temperature item to read', typeof ITEM === 'string' && ITEM.length > 0, String(ITEM))
 
-  /* ------------------------- raw history still works ------------------------- */
   ok('seed raw chart', await seed({}))
   await open()
   await waitPlot()
@@ -150,7 +130,6 @@ try {
   ok('with a start and an end time', /starttime=/.test(rawUrls[0] ?? '') && /endtime=/.test(rawUrls[0] ?? ''), String(rawUrls[0]).slice(-90))
   ok('and no boundary sample when not grouping', !/boundary=true/.test(rawUrls[0] ?? ''), String(rawUrls[0]).slice(-60))
 
-  /* ------------------------- group by day ------------------------- */
   ok('seed grouped chart', await seed({ groupBy: 'day', series: [{ item: ITEM, aggregate: 'average' }] }))
   await open()
   await waitPlot()
@@ -158,10 +137,8 @@ try {
   ok('grouping asks for the boundary sample', /boundary=true/.test(dayUrls[0] ?? ''), String(dayUrls[0]).slice(-70))
   const dayDraw = await draw()
   ok('a grouped chart still draws', dayDraw.curve + dayDraw.seg > 0, JSON.stringify(dayDraw))
-  // 7 days of buckets: far fewer points than the raw series it came from
   ok('grouping reduces the point count', dayDraw.curve < rawDraw.curve, `${dayDraw.curve} vs ${rawDraw.curve}`)
 
-  /* ------------------------- bars ------------------------- */
   ok('seed bars', await seed({ groupBy: 'day', series: [{ item: ITEM, aggregate: 'max', kind: 'bar' }] }))
   await open()
   await waitPlot()
@@ -170,7 +147,6 @@ try {
   ok('and not as a curve', barDraw.curve === 0, String(barDraw.curve))
   await page.screenshot({ path: 'shot-chart-bars.png' })
 
-  /* ------------------------- categorical axis ------------------------- */
   ok('seed hour-of-day', await seed({ groupBy: 'hourOfDay', series: [{ item: ITEM, aggregate: 'average' }] }))
   await open()
   await waitPlot()
@@ -185,21 +161,18 @@ try {
   ok('a day-of-week axis is labelled with weekday names', dowTicks.some((s) => /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(s.trim())), dowTicks.slice(0, 12).join(','))
   await page.screenshot({ path: 'shot-chart-dow.png' })
 
-  /* ------------------------- heatmap ------------------------- */
   ok('seed heatmap', await seed({ mode: 'heatmap', period: '30d', series: [{ item: ITEM, aggregate: 'average' }] }))
   await open()
   await waitPlot()
   ok('heatmap mode renders its own canvas', (await page.locator('.nh-heatmap__canvas').count()) === 1)
   ok('and no uPlot chart', (await page.locator('.u-over').count()) === 0)
   const heatDraw = await draw()
-  // 7 x 24 cells, minus any that have no data
   ok('the matrix draws many cells', heatDraw.fills >= 100, JSON.stringify({ ...heatDraw, texts: heatDraw.texts.length }))
   ok('the heatmap names the weekdays', heatDraw.texts.some((s) => /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/.test(s)), heatDraw.texts.slice(0, 10).join(','))
   await page.screenshot({ path: 'shot-chart-heatmap.png' })
   ok('the canvas is labelled for screen readers', (await page.locator('.nh-heatmap__canvas').getAttribute('aria-label'))?.includes('hour') === true, String(await page.locator('.nh-heatmap__canvas').getAttribute('aria-label')))
   ok('no legend in heatmap mode', (await page.locator('.nh-chart__legend').count()) === 0)
 
-  /* ------------------------- full-screen view ------------------------- */
   ok('seed for expanding', await seed({ groupBy: 'none', series: [{ item: ITEM }] }))
   await open()
   await waitPlot()
@@ -213,7 +186,6 @@ try {
   ok('it starts on the rolling range', (await page.locator('.nh-chip--on').first().textContent()) === 'Rolling', String(await page.locator('.nh-chip--on').first().textContent()))
   ok('the rolling range offers period chips', (await page.locator('.nh-chartview__nav .nh-chart__chip').count()) >= 4)
 
-  // calendar navigation
   await resetCounters()
   await page.click('.nh-chartview__units .nh-chip:has-text("Month")')
   await page.waitForSelector('.nh-chartview__label', { timeout: 10000 })
@@ -251,7 +223,6 @@ try {
   await page.waitForSelector('.nh-widget', { timeout: 15000 })
   ok('Back returns to the dashboard', /#\/d\/nh-e2e-agg/.test(page.url()), page.url())
 
-  /* ------------------------- deep link and a stale link ------------------------- */
   await page.goto(APP + `#/c/${DASH}/w-chart`, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-chartview', { timeout: 20000 })
@@ -261,7 +232,6 @@ try {
   await page.waitForSelector('.nh-dash__empty', { timeout: 20000 })
   ok('a stale link explains itself', /no longer on this dashboard/.test((await page.textContent('.nh-dash__empty')) ?? ''), String(await page.textContent('.nh-dash__empty')))
 
-  /* ------------------------- settings panel ------------------------- */
   await open()
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 15000 })
@@ -275,7 +245,6 @@ try {
   ok('and a draw-as', (await page.locator('.nh-chartcard__cell:has-text("Draw as") select').count()) >= 1)
   ok('a full-screen toggle is offered', (await page.locator('.nh-field:has-text("Full-screen button") input[type="checkbox"]').count()) === 1)
 
-  // heatmap hides what it cannot use
   await labelled('Chart type').selectOption('heatmap')
   await sleep(400)
   ok('a heatmap hides the group-by', (await labelled('Group by').count()) === 0)

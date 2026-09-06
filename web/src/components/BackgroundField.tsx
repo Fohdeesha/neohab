@@ -1,9 +1,3 @@
-/**
- * Shared background-image control: a URL box, an upload button and a clear button, with a
- * small live preview. Used by Settings (the global default) and the dashboard settings panel
- * (the per-dashboard override); uploads become `background:<id>` components and the field's
- * value a `bg:<id>` reference, so backups carry the image itself.
- */
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { saveBackground, useConfigStore } from '../store/config'
@@ -61,7 +55,6 @@ export function BackgroundField({
             !uploaded
               ? t('Image URL, or upload one')
               : // an uploaded reference whose component is gone: say so rather than describing
-                // an image that is not there
                 !resolved
                 ? t('The uploaded image is missing - upload another')
                 : (uploadedBytes ?? 0) >= 1024 * 1024

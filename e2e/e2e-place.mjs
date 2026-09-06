@@ -1,16 +1,7 @@
-/**
- * Palette drag-to-place e2e.
- *
- * Covers: dragging a palette card onto the grid previews the exact target cell (named, and red
- * when occupied), the palette steps aside while the drag is in flight, the drop lands the widget
- * at that cell rather than at the first free spot, an occupied cell or a release outside the grid
- * cancels without adding anything, one undo removes a placed widget, Save persists the dropped
- * rect, tapping a card still adds at the first free spot, and the phone (stacked) surface offers
- * no drag at all.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-place, deletes exactly that, and
- * commands NOTHING (clock/label widgets only).
- */
+// Palette drag-to-place e2e. Covers: dragging a palette card onto the grid previews the exact target cell
+// (named, and red when occupied).
+// SAFE with a live config: creates only dashboard:nh-e2e-place, deletes exactly that, and commands NOTHING
+// (clock/label widgets only).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
@@ -37,7 +28,6 @@ const get = async (u) => {
   return r.ok ? r.json() : null
 }
 
-/** Two widgets in the top-left corner, so the first free spot is nowhere near where we drop. */
 const seed = async () => {
   await del(UID)
   const r = await fetch(NS, {
@@ -69,13 +59,10 @@ await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t
 
 const enterEdit = async () => {
   await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
-  // a goto that only changes the hash is a same-document navigation, so the app would keep the
-  // configuration it loaded before this suite re-seeded the dashboard
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-widget', { timeout: 20000 })
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 15000 })
-  // the edit grid paints empty for one frame
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 15000 })
 }
 const openPalette = async () => {
@@ -83,14 +70,6 @@ const openPalette = async () => {
   await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
 }
 const cellCount = () => page.$$eval('.nh-cell', (els) => els.length)
-/**
- * Centre of grid cell (col,row), in page coordinates, from the live grid geometry.
- *
- * The gap and the row height come from the computed style, which is in LAYOUT pixels, while the
- * box is where the grid is actually DRAWN - and those diverge as soon as a settings panel is
- * docked, because the editor then lays the grid out at its full run-mode width and zooms it to
- * fit what is left. The ratio between the two is that zoom, and 1 when there is none.
- */
 const cellPoint = async (col, row) =>
   page.evaluate(
     ({ col, row }) => {
@@ -123,7 +102,6 @@ const dropInfo = () =>
   })
 const card = (name) => page.locator('.nh-palette__card', { hasText: new RegExp('^' + name) }).first()
 
-/** Press a palette card and move to a point in steps, leaving the button held. */
 const dragCardTo = async (name, point) => {
   const box = await card(name).boundingBox()
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
@@ -136,7 +114,6 @@ const dragCardTo = async (name, point) => {
 try {
   ok('seed dashboard', await seed())
 
-  /* --------------------------- drag onto an empty cell --------------------------- */
   await enterEdit()
   await openPalette()
   ok('palette explains the drag on a wide screen', (await page.locator('.nh-palette__hint').count()) === 1)
@@ -166,7 +143,6 @@ try {
   ok('the palette closed after the drop', (await page.locator('.nh-palette__card').count()) === 0)
   ok('the settings panel opened for it', (await page.locator('.nh-sheet--side').count()) === 1)
 
-  /* --------------------------- undo is one step --------------------------- */
   await page.click('[aria-label="Undo"]')
   await page.waitForFunction((n) => document.querySelectorAll('.nh-cell').length === n, before, { timeout: 10000 })
   ok('one undo removes the placed widget', (await cellCount()) === before)
@@ -174,7 +150,6 @@ try {
   await page.waitForFunction((n) => document.querySelectorAll('.nh-cell').length === n + 1, before, { timeout: 10000 })
   ok('redo puts it back', (await cellCount()) === before + 1)
 
-  /* --------------------------- Save persists the dropped rect --------------------------- */
   await page.click('button:has-text("Save")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
   const saved = await get(UID)
@@ -183,7 +158,6 @@ try {
   ok('with the rect it was dropped at', added?.layout.lg.x === 7 && added?.layout.lg.y === 3, JSON.stringify(added?.layout.lg))
   ok('its type is the dragged one', added?.type === 'value', String(added?.type))
 
-  /* --------------------------- an occupied cell refuses --------------------------- */
   await seed()
   await enterEdit()
   await openPalette()
@@ -197,10 +171,6 @@ try {
   ok('the palette stays open after a refused drop', (await page.locator('.nh-palette__card').count()) > 0)
   ok('the palette is no longer stepped aside', (await page.locator('.nh-sheet--collapsed').count()) === 0)
 
-  /* ------------------- a drop lands where it is pointed, panel or no panel ------------------- */
-  // With a widget selected the settings panel is docked, and the editor then draws the grid
-  // zoomed out rather than reflowing it into the narrower space - so every pointer coordinate
-  // the placement maths sees is in drawn pixels while the cells it snaps to are in layout ones.
   await page.locator('.nh-cell').first().locator('.nh-cell__overlay').click()
   await page.waitForSelector('.nh-sheet--side', { timeout: 10000 })
   await sleep(400)
@@ -223,14 +193,12 @@ try {
     return { col: cs.gridColumnStart, row: cs.gridRowStart }
   })
   ok('and the widget lands there', zoomPlaced?.col === '10' && zoomPlaced?.row === '3', JSON.stringify(zoomPlaced))
-  // back to a clean two-widget board for the sections below
   await page.click('button:has-text("Exit")')
   await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 })
   await seed()
   await enterEdit()
   await openPalette()
 
-  /* --------------------------- releasing off the grid cancels --------------------------- */
   const offGrid = await page.evaluate(() => {
     const bar = document.querySelector('.nh-dash__bar').getBoundingClientRect()
     return { x: bar.left + bar.width / 2, y: bar.top + bar.height / 2 }
@@ -241,7 +209,6 @@ try {
   await sleep(400)
   ok('releasing off the grid adds nothing', (await cellCount()) === 2, String(await cellCount()))
 
-  /* --------------------------- tapping still adds at the first free spot --------------------------- */
   await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
   await card('Clock').click()
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length === 3, null, { timeout: 10000 })
@@ -253,7 +220,6 @@ try {
   ok('a tap adds at the first free spot', tapped.col === '5' && tapped.row === '1', JSON.stringify(tapped))
   await page.click('button:has-text("Exit")')
 
-  /* --------------------------- phones: no drag surface --------------------------- */
   await page.setViewportSize({ width: 393, height: 850 })
   await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-widget', { timeout: 20000 })

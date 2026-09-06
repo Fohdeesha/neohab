@@ -1,22 +1,3 @@
-/**
- * Log widget: the server's openhab.log or its events.log, as it happens, on a dashboard tile.
- *
- * Entries come over the log websocket openHAB's own Main UI viewer reads (see model.ts for the
- * feed and its two protocols), shared between every log tile on the page through `store/logs`.
- * A tile is a filter over that one buffer: which file, a minimum level, logger patterns, a text
- * the message must contain, and how many lines to keep. Holding the tile opens the same log full
- * screen, with a search box and the filters as chips.
- *
- * Pause is the one control the tile carries itself, at the top right of the name row: reading a
- * line that is scrolling away is the thing a log makes hard, and having to open the whole log
- * full screen to stop it is a poor answer. It freezes what the tile shows while the socket keeps
- * collecting, exactly as the full-screen viewer's does, so resuming catches up rather than losing
- * what happened meanwhile. Pausing one tile leaves the others running: each is its own view.
- *
- * openHAB 5 hands the log to administrators only; 4.3 hands it to whoever its user role admits.
- * The widget asks for it either way and shows what happened: a device the server refuses while it
- * is not signed in as an administrator is told so, with the sign-in one tap away.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -45,21 +26,15 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
   const status = useLogsStore((s) => s.status)
   const admin = useIsAdmin()
   const [signIn, setSignIn] = useState(false)
-  // Paused shows the snapshot taken when the button was pressed; the socket carries on filling
-  // the shared buffer behind it, so resuming shows what happened rather than a gap.
   const [paused, setPaused] = useState(false)
   const [frozen, setFrozen] = useState<LogEntry[]>([])
   const entries = paused ? frozen : live
 
   const { source, minLevel, loggers, contains } = config
-  // Rebuilt only when a filter setting moves: the logger patterns compile to regexes.
   const filter = useMemo(() => filterOf({ source, minLevel, loggers, contains }), [source, minLevel, loggers, contains])
   const keep = keepOf(config.keep)
   const shown = useMemo(() => lastMatching(entries, filter, keep), [entries, filter, keep])
 
-  // A socket that never opened, on a device that is not signed in as an administrator, is a
-  // refusal in all likelihood - and the remedy is the sign-in, so that is what is offered. An
-  // administrator whose socket never opened has a server problem instead, and is told that.
   const needsSignIn = status === 'refused' && !admin
   const empty =
     status === 'connecting' || status === 'idle'
@@ -68,10 +43,6 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
         ? t('Waiting for log entries…')
         : t('Nothing matches the filters yet.')
 
-  // Not offered where there is nothing to pause: a device the server refuses sees the sign-in
-  // notice and no lines at all. Passing it always would also draw a name row on a tile whose
-  // name is hidden, which is the right trade for a working control and the wrong one for a dead
-  // button. Where the tile is showing a log, the row is worth its ~1.05em.
   const pause = needsSignIn ? undefined : (
     <button
       type="button"
@@ -114,10 +85,7 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
   )
 }
 
-/**
- * Two bars, or a triangle. Drawn rather than typed: the unicode pause and play characters are
- * font-dependent, and several platforms answer the triangle with an emoji.
- */
+// drawn rather than typed: the unicode pause and play glyphs are font-dependent
 function PauseGlyph({ paused }: { paused: boolean }) {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -140,8 +108,7 @@ export const logWidget: WidgetDefinition<LogConfig> = {
   defaultSize: { w: 6, h: 3 },
   minPixelHeight: 120,
   hasHeader: true,
-  // Every select's default is carried here as well as in its reader (model.ts): a select whose
-  // value resolves to nothing renders blank, and the registry check for that reads this.
+  // every select's default is carried here as well as in its reader, because the registry check reads this one
   defaultConfig: () => ({
     source: 'openhab',
     minLevel: 'all',

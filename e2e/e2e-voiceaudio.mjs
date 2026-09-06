@@ -1,13 +1,7 @@
-/**
- * Voice & audio e2e: the Settings section, the TTS speech item (spoken on change, primed at
- * boot, per-device mute), the web-audio sink (synthetic SSE events, replay de-dupe, the
- * stop signal, per-device off), and the mic button's honest absence on a plain-HTTP origin.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-voice (deleted), patches the
- * `settings` component and restores it VERBATIM, commands only the configured dimmer item
- * (initial state recorded and restored). Audio playback is fully synthetic - the SSE stream
- * and the audio file are route-injected, nothing real plays and no rule runs.
- */
+// Voice & audio e2e: the Settings section, the TTS speech item (spoken on change, primed at boot, per-device
+// mute), the web-audio sink (synthetic SSE events.
+// SAFE with a live config: creates only dashboard:nh-e2e-voice (deleted), patches the `settings` component
+// and restores it VERBATIM, commands only the configured dimmer.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
@@ -32,7 +26,6 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-// ---------- snapshots ----------
 const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
@@ -41,7 +34,6 @@ console.log(`snapshot: settings ${settingsOrig ? 'present' : 'absent'}, ${dimmer
 const browser = await launch()
 
 try {
-  // seed a minimal dashboard (for the header mic-button check)
   await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -55,7 +47,6 @@ try {
     }),
   })
 
-  // ---------- section 1: Settings UI ----------
   {
     const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
     const errs = []
@@ -69,10 +60,6 @@ try {
     ok('speak toggle present and on by default', await page.isChecked('#nh-set-speak'))
     ok('per-device voice select present', (await page.locator('#nh-set-voice').count()) === 1)
     ok('Test voice button present', (await page.locator('button:has-text("Test voice")').count()) === 1)
-    // Speech recognition needs a Chromium browser AND a secure context, so an insecure origin
-    // must say why rather than offering a button that cannot work. Over TLS there is nothing to
-    // explain, and the notice must be gone: two right answers, and the check is which one the
-    // target gets.
     const unavailable = await page.locator('text=Voice input (the microphone button) is not available here').count()
     ok(
       HTTPS
@@ -84,7 +71,6 @@ try {
     ok('speech item picker present (admin)', (await page.locator('#nh-set-speechitem').count()) === 1)
     ok('voice button toggle present (admin)', (await page.locator('#nh-set-voicebtn').count()) === 1)
 
-    // The header mic follows the same rule; the pencil is there either way.
     await page.goto(APP + '#/d/nh-e2e-voice', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 })
     const mic = await page.locator('[aria-label="Voice command"]').count()
@@ -98,9 +84,7 @@ try {
     await page.close()
   }
 
-  // ---------- section 2: TTS speech item ----------
   {
-    // point the shared speech item at the dimmer (restored verbatim afterwards)
     const wrote = await patchSettings(settingsOrig, { speechItem: dimmer })
     ok('speech item configured', wrote.ok, `${wrote.status} (server had settings: ${!!settingsOrig})`)
 
@@ -123,7 +107,6 @@ try {
     ok('state change spoken aloud', spoken.some((s) => s.includes(String(target1))), JSON.stringify(spoken))
     await page.close()
 
-    // per-device mute
     const page2 = await browser.newPage({ viewport: { width: 1200, height: 800 } })
     await page2.addInitScript((t) => {
       try {
@@ -143,14 +126,12 @@ try {
     await page2.close()
   }
 
-  // ---------- section 3: web-audio sink (synthetic) ----------
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
     let audioFetches = 0
     let sseServed = 0
     let mode = 'play' // flipped to 'stop' after the first play is observed
 
-    // tiny valid WAV (44-byte header + 4 samples of silence)
     const wav = Buffer.concat([
       Buffer.from('RIFF'), Buffer.from([36 + 8, 0, 0, 0]), Buffer.from('WAVEfmt '),
       Buffer.from([16, 0, 0, 0, 1, 0, 1, 0, 0x40, 0x1f, 0, 0, 0x80, 0x3e, 0, 0, 2, 0, 16, 0]),
@@ -184,19 +165,16 @@ try {
     ok('audio event plays the served stream', (await page.evaluate(() => window.__plays.length)) === 1)
     ok('stream fetched exactly once', audioFetches === 1, `fetches=${audioFetches}`)
 
-    // let the SSE stream be re-delivered with the SAME url; the replay must not replay audio
     const seen = sseServed
     await sleep(4000)
     ok('SSE stream was re-delivered (reconnects happen)', sseServed > seen, `served=${sseServed}`)
     ok('replayed event de-duplicated (still one play)', (await page.evaluate(() => window.__plays.length)) === 1)
 
-    // stop signal
     mode = 'stop'
     await page.waitForFunction(() => window.__pauses > 0, undefined, { timeout: 20000 }).catch(() => {})
     ok('empty-URL event stops playback', (await page.evaluate(() => window.__pauses)) > 0)
     await page.close()
 
-    // per-device audio off: the event stream is never even opened
     const page2 = await browser.newPage({ viewport: { width: 1200, height: 800 } })
     let sseHits = 0
     await page2.route((url) => url.pathname === '/rest/events' && (url.search || '').includes('webaudio'), async (route) => {
@@ -221,7 +199,6 @@ try {
   await browser.close()
 }
 
-// ---------- cleanup (always) ----------
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 const settingsBack = await restoreSettings(settingsOrig)
 ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)

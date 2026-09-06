@@ -1,13 +1,3 @@
-/**
- * Editing one preset: its name, what it sets each light to, which lights it covers, and the
- * wall-switch link. The values are edited directly - a scene's stored "H,S,B" gets the same
- * colour picker the light itself does - so a preset can be corrected without first setting the
- * whole room and capturing it again.
- *
- * Nothing here commands a device: every control writes into the draft, and Save writes the
- * scene. Lights the preset covers that are NOT on this plan are shown and editable too, so
- * saving from here can never quietly drop them.
- */
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PresetBridgeFields } from '../../components/PresetBridgeFields'
@@ -27,7 +17,6 @@ export function PresetEdit({
 }: {
   preset: Preset
   bridged: boolean
-  /** The plan's own lights: the source for "add a light", and for nicer labels. */
   planLights: FloorplanLight[]
   busy: boolean
   onCancel: () => void
@@ -41,9 +30,6 @@ export function PresetEdit({
   const [bridge, setBridge] = useState(bridged)
   const [adding, setAdding] = useState('')
 
-  // The states are read here rather than through the widget's context: a preset may set lights
-  // that are not on this plan, and the widget only ever tracks its own. Ref-counted, so the
-  // overlap with the plan's own subscription costs nothing.
   const itemsKey = JSON.stringify([...new Set([...lights.map((l) => l.item), ...planLights.map((l) => l.item)])])
   const itemNames = useMemo(() => JSON.parse(itemsKey) as string[], [itemsKey])
   useEffect(() => subscribeItems(itemNames), [itemNames])
@@ -51,8 +37,6 @@ export function PresetEdit({
 
   const labelFor = (item: string) => planLights.find((l) => l.item === item)?.label ?? item
   const currentOf = (item: string) => commandForState(states[item]?.type, states[item]?.state)
-  // Addressed by row, not by item name: a hand-written scene may command the same item twice,
-  // and each of those rows has to edit its own action rather than both at once.
   const setCommand = (i: number, command: string) => setLights((ls) => ls.map((l, n) => (n === i ? { ...l, command } : l)))
 
   const absent = planLights.filter((l) => !lights.some((x) => x.item === l.item))
@@ -138,8 +122,6 @@ export function PresetEdit({
         <button
           type="button"
           className="nh-btn nh-btn--primary"
-          // A cleared value would store an action that commands the item nothing at all, so the
-          // way out is to give it one or to drop the light - not to save it half-written.
           disabled={busy || name.trim() === '' || lights.some((l) => l.command.trim() === '')}
           onClick={() =>
             onSave(
@@ -160,7 +142,6 @@ export function PresetEdit({
   )
 }
 
-/** The control that fits one stored value. Every command stays editable, whatever its shape. */
 function ValueControl({ command, onChange }: { command: string; onChange: (v: string) => void }) {
   const { t } = useTranslation()
   const kind = commandKind(command)
@@ -168,11 +149,7 @@ function ValueControl({ command, onChange }: { command: string; onChange: (v: st
   if (kind === 'color') {
     const hsb = parseHsb(command)
     return (
-      <ColorSliders
-        hsb={hsb}
-        // The wheel wraps: openHAB's HSBType rejects 360, so the track's top end is red at 0.
-        onInput={(next) => onChange(`${Math.round(next.h) % 360},${Math.round(next.s)},${Math.round(next.b)}`)}
-      />
+      <ColorSliders hsb={hsb} onInput={(next) => onChange(`${Math.round(next.h) % 360},${Math.round(next.s)},${Math.round(next.b)}`)} />
     )
   }
 

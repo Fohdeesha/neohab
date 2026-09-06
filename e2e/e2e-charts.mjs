@@ -1,13 +1,7 @@
-/**
- * Chart-v2 e2e: multi-series, palette colors, legend toggling, crosshair tooltip, period
- * chips + refetch, drag-zoom + reset, threshold band pixels, legacy single-item configs,
- * live SSE appending without refetch, and the series/threshold settings editors.
- *
- * SAFE with a live config: creates only dashboard:nh-e2e-charts and deletes exactly that in
- * cleanup (guarded, runs even if a section throws). Commands ONLY the dimmer item (approved),
- * records its initial state and restores it. the temperature item / the switch item are
- * read via persistence history only, never commanded.
- */
+// Chart-v2 e2e: multi-series, palette colors, legend toggling, crosshair tooltip, period chips + refetch,
+// drag-zoom + reset, threshold band pixels.
+// SAFE with a live config: creates only dashboard:nh-e2e-charts and deletes exactly that in cleanup
+// (guarded, runs even if a section throws).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -35,13 +29,7 @@ page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => {
-  // Pin the default theme: the server's global theme is the user's own choice, and a theme
-  // may legitimately re-pin chart palette slots (--nh-chart-<n>) - this suite asserts the
-  // BUILT-IN palette order, so it must not inherit whatever theme the server happens to run.
   try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
-  // Frame probe: a live append redraws its own canvas with exactly one more path segment.
-  // Pixel comparison can't see it - the drop lands in the same pixel column as the fill's
-  // closing edge at the plot border - so count segments per frame, attributed per canvas.
   window.__frames = []
   const cr = CanvasRenderingContext2D.prototype.clearRect
   CanvasRenderingContext2D.prototype.clearRect = function (...a) {
@@ -60,19 +48,16 @@ await page.addInitScript((t) => {
   }
 }, TOKEN)
 
-// count persistence fetches (period switch refetches; live appends must NOT)
 let persistCount = 0
 const persistUrls = []
 page.on('request', (r) => {
   if (r.url().includes('/rest/persistence/items/')) { persistCount++; persistUrls.push(r.url()) }
 })
 
-// DOM cell order == widgets array order
 const CELL = { multi: 0, legacy: 1, nothresh: 2, thresh: 3, y2only: 4, decim: 5, tt: 6, picked: 7 }
 const chartSel = (i) => `.nh-gcell:nth-child(${i + 1}) .nh-chart`
 const cellSel = (i) => `.nh-gcell:nth-child(${i + 1})`
 
-/** Alpha-weighted average color of a block at the center of a chart canvas. */
 const sampleCanvas = (sel) =>
   page.$eval(sel + ' canvas', (c) => {
     const ctx = c.getContext('2d')
@@ -91,7 +76,6 @@ const sampleCanvas = (sel) =>
 const canvasHash = (sel) => page.$eval(sel + ' canvas', (c) => c.toDataURL().length + ':' + c.toDataURL().slice(-80))
 
 try {
-  // ---------- seed ----------
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -158,7 +142,6 @@ try {
               picker: false,
               live: false,
               series: [{ item: ITEMS.temperature, label: 'T', axis: 'y2', color: '#d55181', fill: 0, width: 1 }],
-              // full-plot band: with no left axis the band must start at the canvas's left edge
               thresholds: [{ from: -100000, to: 100000, axis: 'y2', color: '#e34948' }],
             },
             layout: { lg: { x: 0, y: 10, w: 6, h: 4 } },
@@ -183,13 +166,6 @@ try {
               period: '24h',
               picker: false,
               live: false,
-              // The same item twice ON PURPOSE. The tooltip lists only the series with a sample
-              // at the snapped index, and two ITEMS almost never share exact timestamps on real
-              // persistence: rrd4j quantizes each archive to its own grid, and inmemory stamps
-              // each item's everyMinute write ~1ms apart, so the union x-axis interleaves and a
-              // cross-item two-row tooltip is a fixture-alignment lottery. One item's history
-              // drawn twice shares every timestamp by construction, on any server, which is what
-              // makes "two rows" a deterministic assertion about the tooltip code itself.
               series: [
                 { item: ITEMS.dimmer, label: 'A', fill: 0 },
                 { item: ITEMS.dimmer, label: 'B', fill: 0, width: 1 },
@@ -200,7 +176,6 @@ try {
           {
             id: 'w-picked',
             type: 'chart',
-            // An author who chose their own ranges gets those, and no others.
             config: {
               label: 'Picked',
               period: '24h',
@@ -222,13 +197,11 @@ try {
   await page.waitForSelector(chartSel(CELL.tt) + ' canvas', { timeout: 20000 })
   await sleep(700)
 
-  // ---------- multi-series: legend, palette, chips ----------
   const keys = page.locator(cellSel(CELL.multi) + ' .nh-chart__key')
   ok('legend shows 3 series', (await keys.count()) === 3, String(await keys.count()))
   const dotColors = await page.$$eval(cellSel(CELL.multi) + ' .nh-chart__key .nh-chart__dot', (els) =>
     els.map((e) => getComputedStyle(e).backgroundColor)
   )
-  // dark theme palette slots 1..3
   ok(
     'auto palette colors assigned in order',
     JSON.stringify(dotColors) === JSON.stringify(['rgb(57, 135, 229)', 'rgb(0, 131, 0)', 'rgb(213, 81, 129)']),
@@ -245,7 +218,6 @@ try {
     (await page.locator(cellSel(CELL.nothresh) + ' .nh-chart__chips').count()) === 0
   )
 
-  // ---------- which ranges the chips offer ----------
   const chipsOf = (i) => page.$$eval(cellSel(i) + ' .nh-chart__chip', (els) => els.map((e) => e.textContent.trim()))
   const defaultChips = await chipsOf(CELL.multi)
   ok(
@@ -264,7 +236,6 @@ try {
     JSON.stringify(pickedChips) === JSON.stringify(['1h', '24h']),
     pickedChips.join(' ')
   )
-  // Picking another range must not strand you: the default has to keep a chip of its own.
   await page.click(cellSel(CELL.picked) + ' .nh-chart__chip:has-text("1h")')
   await sleep(1200)
   const afterPick = await chipsOf(CELL.picked)
@@ -276,14 +247,6 @@ try {
   await page.click(cellSel(CELL.picked) + ' .nh-chart__chip:has-text("24h")')
   await sleep(1200)
 
-  // ---------- tooltip ----------
-  // Polled, with the cursor re-nudged each round: a hover that fires before the series have
-  // been applied lists nothing, and under battery load a single 300ms sample caught exactly
-  // that frame. The cap keeps the assertion able to fail. The checks run on the tooltip cell,
-  // which draws one item as two series (see the seed) so a two-row tooltip is reachable on
-  // every persistence shape - across ITEMS the timestamps rarely coincide, by design.
-  // the cell sits below the fold; a mouse.move to coordinates outside the viewport is
-  // silently inert, so scroll it into view and measure the box AFTER the scroll
   const ttCanvas = await page.$(chartSel(CELL.tt) + ' canvas')
   await ttCanvas.scrollIntoViewIfNeeded()
   const ttBox = await ttCanvas.boundingBox()
@@ -302,10 +265,8 @@ try {
   await sleep(250)
   ok('tooltip hides when the pointer leaves', (await page.locator(cellSel(CELL.tt) + ' .nh-chart__tt--show').count()) === 0)
 
-  // ---------- legend toggling ----------
   await keys.nth(1).click()
   ok('legend click marks series off', (await keys.nth(1).getAttribute('class')).includes('nh-chart__key--off'))
-  // hiding a series removes its tooltip row - driven on the tooltip cell's own legend
   const ttKeys = page.locator(cellSel(CELL.tt) + ' .nh-chart__key')
   await ttKeys.nth(1).click()
   await ttCanvas.scrollIntoViewIfNeeded()
@@ -319,7 +280,6 @@ try {
   await keys.nth(1).click()
   ok('legend click re-shows series', !(await keys.nth(1).getAttribute('class')).includes('nh-chart__key--off'))
 
-  // ---------- period switch refetches with the right window ----------
   const before7d = persistCount
   await page.click(cellSel(CELL.multi) + ' .nh-chart__chip:text-is("7d")')
   await sleep(1500)
@@ -336,7 +296,6 @@ try {
   await page.click(cellSel(CELL.multi) + ' .nh-chart__chip:text-is("24h")')
   await sleep(1200)
 
-  // ---------- drag-zoom + reset ----------
   const zbox = await (await page.$(chartSel(CELL.multi) + ' canvas')).boundingBox()
   await page.mouse.move(zbox.x + zbox.width * 0.45, zbox.y + zbox.height * 0.5)
   await page.mouse.down()
@@ -349,10 +308,8 @@ try {
   await sleep(600)
   ok('reset chip clears the zoom', (await page.locator(cellSel(CELL.multi) + ' .nh-chart__chip--reset').count()) === 0)
 
-  // ---------- legacy single-item config renders ----------
   ok('legacy {item} config renders a chart', (await page.locator(chartSel(CELL.legacy) + ' canvas').count()) === 1)
 
-  // ---------- threshold band drawn ----------
   const plain = await sampleCanvas(chartSel(CELL.nothresh))
   const banded = await sampleCanvas(chartSel(CELL.thresh))
   ok(
@@ -361,16 +318,9 @@ try {
     `plain r=${plain.r.toFixed(1)} banded r=${banded.r.toFixed(1)} b=${banded.b.toFixed(1)}`
   )
 
-  // ---------- y2-only chart: no phantom left axis ----------
-  // The full-plot band must reach the canvas's left edge; a phantom 0..1 left axis would
-  // leave a transparent ~45px gutter there instead.
   await page.waitForSelector(chartSel(CELL.y2only) + ' canvas')
-  // Red-minus-blue, alpha-weighted: the band is red; a phantom axis leaves either nothing or
-  // gray-blue tick text there (negative delta), so only the fixed build scores positive.
   const leftStrip = await page.$eval(chartSel(CELL.y2only) + ' canvas', (c) => {
     const ctx = c.getContext('2d')
-    // x 30-40: inside the band once the phantom axis is gone (its ~25px default gutter ends
-    // before that), but inside the ~50px axis gutter (empty or gray-blue text) when it isn't.
     const d = ctx.getImageData(30, Math.floor(c.height * 0.35), 10, Math.floor(c.height * 0.25)).data
     let s = 0
     for (let i = 0; i < d.length; i += 4) s += (d[i] - d[i + 2]) * (d[i + 3] / 255)
@@ -378,7 +328,6 @@ try {
   })
   ok('y2-only chart has no phantom left axis (band reaches left edge)', leftStrip > 3, `r-b=${leftStrip.toFixed(2)}`)
 
-  // ---------- chips placement: inline beside a wide chart's name, stacked when narrow ----------
   ok(
     'wide chart parks chips beside its name',
     (await page.locator(cellSel(CELL.multi) + ' .nh-widget__label .nh-chart__chips').count()) === 1
@@ -389,18 +338,12 @@ try {
       (await page.locator(cellSel(CELL.legacy) + ' .nh-chartwrap .nh-chart__chips').count()) === 1
   )
 
-  // ---------- decimation caps rendered points ----------
   const decimPid = await page.$eval(chartSel(CELL.decim) + ' canvas', (c) => c.__pid)
   const decimSegs = await page.evaluate(
     (p) => window.__frames.filter((f) => f.pid === p).map((f) => f.segs),
     decimPid
   )
   const decimLast = decimSegs[decimSegs.length - 1]
-  // averaging emits ONE point per time bucket (~200 for minute data) - the old min/max
-  // collapsed flat buckets to ~105 segments, so the >150 floor discriminates the algorithms.
-  // It can only discriminate when there is something to decimate, so establish that rather than
-  // assume it: a server whose history is sparser than maxPoints draws every point it has and
-  // would fail a check that was never about it.
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
   const raw = await fetch(`${BASE}/rest/persistence/items/${ITEMS.dimmer}?starttime=${since}`, { headers: AUTH })
     .then((r) => (r.ok ? r.json() : null))
@@ -412,7 +355,6 @@ try {
     ok('maxPoints averages the series down (~200 buckets)', decimLast > 150 && decimLast < 300, `segs=${decimLast} of ${raw} raw`)
   }
 
-  // ---------- live SSE append (no refetch) ----------
   await page.mouse.move(10, 10)
   await sleep(600)
   const target = Number(initialLevel) > 50 ? '15' : '85'
@@ -435,7 +377,6 @@ try {
   await sendCmd(ITEMS.dimmer, initialLevel)
   await sleep(800)
 
-  // ---------- picked period survives entering edit mode ----------
   await page.click(cellSel(CELL.multi) + ' .nh-chart__chip:has-text("12h")')
   await sleep(2500)
   ok(
@@ -443,7 +384,6 @@ try {
     (await page.locator(cellSel(CELL.multi) + ' .nh-chart__chip--on:has-text("12h")').count()) === 1
   )
 
-  // ---------- settings editors ----------
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
@@ -454,17 +394,14 @@ try {
   await page.locator('.nh-cell').nth(CELL.multi).locator('.nh-cell__overlay').click()
   await page.waitForSelector('.nh-sheet--side')
   const cards = page.locator('.nh-sheet--side .nh-chartcard')
-  // 3 series cards + 1 threshold card
   ok('settings show 3 series + 1 threshold cards', (await cards.count()) === 4, String(await cards.count()))
   ok('y2 axis fields appear when a series uses the right axis', (await page.locator('.nh-sheet--side label:has-text("Right Y axis min")').count()) === 1)
   const labelInput = page.locator('.nh-sheet--side .nh-chartcard').first().locator('input[placeholder="Label (optional)"]')
   await labelInput.fill('LVL')
   await sleep(400)
-  // edit mode renders .nh-cell cells, not the run-mode .nh-gcell
   const firstKey = await page.locator(`.nh-cell:nth-child(${CELL.multi + 1}) .nh-chart__key`).first().textContent()
   ok('series label edit live-previews in the legend', firstKey?.trim() === 'LVL', firstKey ?? '')
 
-  // add a series to the single-series chart -> legend appears in preview
   await page.locator('.nh-cell').nth(CELL.nothresh).locator('.nh-cell__overlay').click()
   await sleep(300)
   await page.click('.nh-sheet--side button:has-text("Add series")')
@@ -479,15 +416,12 @@ try {
     (await page.locator(`.nh-cell:nth-child(${CELL.nothresh + 1}) .nh-chart__legend`).count()) === 1
   )
 
-  // ---------- choosing which ranges the chips offer ----------
   const rangeSel = '.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Ranges offered")) .nh-multisel'
   const rangeChips = () =>
     page.$$eval(rangeSel + ' button', (els) =>
       els.map((e) => ({ id: e.textContent.trim(), on: e.getAttribute('aria-pressed') === 'true' }))
     )
 
-  // Guarded: on a build without the field these would each time out and abort every check after
-  // them, so the assertions below would never get to say what is actually missing.
   await page.locator('.nh-cell').nth(CELL.multi).locator('.nh-cell__overlay').click({ timeout: 8000 }).catch(() => {})
   await sleep(400)
   const asDrawn = await rangeChips()
@@ -518,7 +452,6 @@ try {
     previewed.join(' ')
   )
 
-  // discard everything; server config must be untouched
   await page.click('button:has-text("Exit")')
   await sleep(700)
   const comp = await (await fetch(NS + '/' + UID, { headers: AUTH })).json()
@@ -530,18 +463,10 @@ try {
     JSON.stringify(stored?.config?.series?.[0])
   )
 
-  // ---------- console health ----------
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 
   await page.screenshot({ path: 'shot-charts.png', fullPage: false })
 
-  /* ---------- a server with no usable persistence service ----------
-     Last, because it routes the persistence endpoint away and every earlier section wants the
-     real one. The body is exactly what openHAB 4.3.7 answers when asked for history from a
-     service it cannot query (measured; 5.x uses a different STATUS for the same thing, which is
-     why the app matches the message instead). A chart used to call this "Could not load
-     history", which describes a fault rather than a missing prerequisite - and a fresh openHAB
-     has no persistence add-on at all, so it is the first thing many people would see. */
   {
     await page.route('**/rest/persistence/items/**', (route) =>
       route.fulfill({
@@ -550,15 +475,10 @@ try {
         body: JSON.stringify({ error: { message: 'Persistence service not queryable: nosuchservice', 'http-code': 400 } }),
       })
     )
-    // the admin-only service list: an empty one means "nothing installed"
     await page.route('**/rest/persistence', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
     )
-    // reload, not goto: the page is already on this hash, and a goto that only changes the
-    // fragment is a same-document navigation - nothing would refetch and the charts would sit
-    // there still showing the data they loaded before the routes existed
     await page.reload({ waitUntil: 'domcontentloaded' })
-    // caught so a build without the notice fails these checks rather than aborting the suite
     await page.waitForSelector('.nh-histnotice, .nh-chart__status', { timeout: 20000 }).catch(() => {})
     await sleep(1500)
     const notice = await page.evaluate(() => {
@@ -574,7 +494,6 @@ try {
     })
     ok('no persistence: says a persistence service is needed', notice.present, 'head=' + notice.head)
     ok('no persistence: not reported as an ordinary fault', !notice.stillSaysFault)
-    // "mentions no add-on" must not be satisfiable by there being no notice at all
     ok(
       'no persistence: names no particular add-on',
       notice.detail.length > 20 && !/rrd4j|influx|mapdb|jdbc/i.test(notice.head + notice.detail),
@@ -588,7 +507,6 @@ try {
   ok('run completed', false, String(err))
 } finally {
   await browser.close()
-  // ---------- cleanup (always) ----------
   const del = await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
   const gone = (await fetch(NS + '/' + UID, { headers: AUTH })).status === 404
   ok('cleanup: suite dashboard deleted', (del.ok || del.status === 404) && gone, `del=${del.status}`)
