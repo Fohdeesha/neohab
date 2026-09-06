@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.ui.bundles</groupId>
   <artifactId>org.openhab.ui.neohab</artifactId>
-  <version>1.24.0</version>
+  <version>1.25.0</version>
   <packaging>jar</packaging>
 
   <name>neohab</name>
@@ -58,10 +58,8 @@
       <version>1.1.1</version>
       <scope>provided</scope>
     </dependency>
-    <!-- for the cache-header filter; the same artifact openHAB itself compiles the API against,
-         so what we build on is exactly what the runtime provides. The transitive Tomcat API is
-         excluded because it declares the same JavaServlet contract, which bnd refuses to
-         resolve between - openHAB's own BOM excludes it for that reason too. -->
+    <!-- for the cache-header filter. The Tomcat API is excluded because it declares the same
+         JavaServlet contract, which bnd then refuses to resolve between. -->
     <dependency>
       <groupId>org.apache.felix</groupId>
       <artifactId>org.apache.felix.http.servlet-api</artifactId>

@@ -7,6 +7,8 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.25.0
+
 - neohab has a logo: the name in Poppins with a doorway for its n and its windows lit in the
   openHAB orange. It is the wordmark on the home screen, the favicon, the app icon and the tile
   on openHAB's start page.
