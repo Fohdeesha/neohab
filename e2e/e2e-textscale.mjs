@@ -202,6 +202,16 @@ try {
         if (l.scrollWidth > l.clientWidth + 1) out.ellipsised.push(l.textContent)
         if (l.scrollHeight > l.clientHeight + 0.5) out.clipped.push(l.textContent)
       }
+      // a scrolling list lays its rows outside its own box on purpose and clips them, so they
+      // cannot paint over anything - only unclipped content counts as an overlap
+      // strictly below the body: the body clips too, and testing it would exempt everything
+      const clipped = (el, body) => {
+        for (let p = el.parentElement; p && p !== body; p = p.parentElement) {
+          const o = getComputedStyle(p).overflowY
+          if (o === 'auto' || o === 'scroll' || o === 'hidden') return true
+        }
+        return false
+      }
       for (const cell of document.querySelectorAll('.nh-gcell')) {
         const wl = cell.querySelector('.nh-widget__label')
         const body = cell.querySelector('.nh-widget__body')
@@ -209,7 +219,7 @@ try {
         const lr = wl.getBoundingClientRect()
         for (const k of body.querySelectorAll('*')) {
           const kr = k.getBoundingClientRect()
-          if (kr.height > 0 && kr.top < lr.bottom - 1 && kr.bottom > lr.top + 1) out.overlaps++
+          if (kr.height > 0 && kr.top < lr.bottom - 1 && kr.bottom > lr.top + 1 && !clipped(k, body)) out.overlaps++
         }
       }
       return out

@@ -74,6 +74,12 @@ item's initial state first and restores it in cleanup, even when checks fail.
 - The battery: `npm run battery` (or `node run.mjs`) runs every safe-additive suite in sequence
   and summarizes. It prints the server, its openHAB version and the served bundle at both ends of
   the run, so a log always says what it was about.
+- **One at a time is deliberate.** Running suites concurrently was tried on 2026-09-06 and taken
+  out again: most of them read the whole namespace to work out what they created or to check they
+  cleaned up, so a second suite's components land in the middle of that. `e2e-generate` found
+  another suite's dashboards inside 90 seconds of the first attempt. Making it safe needs each
+  suite to say for itself that it can share a server, and to be shown doing it, rather than the
+  runner guessing from the source.
 
 ### More than one server
 

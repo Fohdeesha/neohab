@@ -230,7 +230,13 @@ try {
   const whole = await dialText('Whole')
   ok('step 0.1 dial shows one decimal', /^\d+\.\d$/.test(tenths), String(tenths))
   ok('step 1 dial shows no decimal', /^\d+$/.test(whole), String(whole))
-  ok('both dials agree on the value', Math.round(parseFloat(tenths)) === parseInt(whole, 10), `${tenths} vs ${whole}`)
+  // both readings are already rounded for display, so they may legitimately differ by half a
+  // step - re-rounding the tenths would disagree with itself whenever the item sits near x.5
+  ok(
+    'both dials agree on the value',
+    Math.abs(parseFloat(tenths) - parseInt(whole, 10)) <= 0.5 + 1e-9,
+    `${tenths} vs ${whole}`
+  )
 
   const layoutOf = () =>
     page.evaluate(() => {
