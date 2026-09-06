@@ -125,6 +125,10 @@ ${wholeTileActive({ plate: 'var(--nh-primary)', border: 'var(--nh-primary)' })}/
 .nh-chart__expand:hover {
   opacity: 1;
 }
+/* The log console's level tag takes the accent, like every other readout on this panel. */
+.nh-log__level {
+  color: var(--nh-primary);
+}
 /* instrument faces sit directly on the tile; the compass wears the full accent */
 .nh-compass__ring {
   stroke: var(--nh-primary);

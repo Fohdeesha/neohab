@@ -24,6 +24,7 @@ import { useActiveTheme } from '../../themes/active'
 import { defTemplate, mergedSettingValues, type CustomWidgetDef } from '../../model/widgetdef'
 import type { Scope } from '../../template/evaluator'
 import { JsWidget } from './JsWidget'
+import { errorText } from '../../api/errors'
 
 interface TemplateConfig {
   label?: string
@@ -70,7 +71,7 @@ function buildScope(opts: {
       numericState: live?.numericState,
       unit: live?.unit,
       type: live?.type ?? meta?.type,
-      label: meta?.label,
+      label: meta?.label
     }
   }
   const groupItems = (filter: (i: { groupNames?: string[]; tags?: string[] }) => boolean) =>
@@ -93,7 +94,7 @@ function buildScope(opts: {
       void commandItem(item, String(value ?? ''))
     },
     itemsInGroup: (group: unknown) => groupItems((i) => Array.isArray(i.groupNames) && i.groupNames.includes(String(group))),
-    itemsWithTag: (tag: unknown) => groupItems((i) => Array.isArray(i.tags) && i.tags.includes(String(tag))),
+    itemsWithTag: (tag: unknown) => groupItems((i) => Array.isArray(i.tags) && i.tags.includes(String(tag)))
   })
 }
 
@@ -101,9 +102,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
   const widgetDefs = useConfigStore((s) => s.widgetDefs)
   const activeTheme = useActiveTheme()
 
-  const def: CustomWidgetDef | undefined = config.customwidget
-    ? widgetDefs.find((d) => d.id === config.customwidget)
-    : undefined
+  const def: CustomWidgetDef | undefined = config.customwidget ? widgetDefs.find((d) => d.id === config.customwidget) : undefined
   const missingDef = Boolean(config.customwidget) && !def
   const template = def ? defTemplate(def) : (config.template ?? '')
   const values = def ? mergedSettingValues(def, config.config) : (config.config ?? {})
@@ -148,7 +147,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
       config: values,
       label,
       editing: ctx.editing,
-      theme: activeTheme.tokens as unknown as Record<string, string>,
+      theme: activeTheme.tokens as unknown as Record<string, string>
     })
     try {
       const frag = engine.renderTemplate(engine.compileTemplate(template), scope)
@@ -157,7 +156,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
       shadow.replaceChildren(style, frag)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorText(err))
     }
     const next = [...recorded].sort().join('\n')
     if (next !== depsKey) setDeps(next ? next.split('\n') : [])
@@ -201,9 +200,9 @@ export const templateWidget: WidgetDefinition<TemplateConfig> = {
   defaultConfig: () => ({ template: '' }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
-    { key: 'template', type: 'multiline', label: 'Template (HTML)', placeholder: '<div>{{itemState(\'MyItem\')}}</div>' },
+    { key: 'template', type: 'multiline', label: 'Template (HTML)', placeholder: "<div>{{itemState('MyItem')}}</div>" },
     { key: 'nobackground', type: 'boolean', label: 'No card background' },
-    { key: 'dontwrap', type: 'boolean', label: 'Fill the cell (no frame)' },
+    { key: 'dontwrap', type: 'boolean', label: 'Fill the cell (no frame)' }
   ],
-  Component: TemplateWidget,
+  Component: TemplateWidget
 }

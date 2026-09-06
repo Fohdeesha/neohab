@@ -35,7 +35,7 @@ const ROSE: [number, string, boolean][] = [
   [180, 'S', false],
   [225, 'SW', true],
   [270, 'W', false],
-  [315, 'NW', true],
+  [315, 'NW', true]
 ]
 
 function roseXY(deg: number, r: number): { x: number; y: number } {
@@ -84,12 +84,7 @@ function CompassWidget({ config, ctx }: WidgetProps<CompassConfig>) {
           ? ROSE.map(([deg, letter, minor]) => {
               const p = roseXY(deg, 29.5)
               return (
-                <text
-                  key={letter}
-                  className={'nh-compass__rose' + (minor ? ' nh-compass__rose--minor' : '')}
-                  x={p.x}
-                  y={p.y}
-                >
+                <text key={letter} className={'nh-compass__rose' + (minor ? ' nh-compass__rose--minor' : '')} x={p.x} y={p.y}>
                   {letter}
                 </text>
               )
@@ -119,14 +114,11 @@ function CompassWidget({ config, ctx }: WidgetProps<CompassConfig>) {
             class - a class rule would beat the attribute and pin it grey */}
         <text
           className={
-            'nh-compass__cardinal' +
-            (center ? ' nh-compass__cardinal--sub' : '') +
-            (bearing === null ? ' nh-compass__cardinal--empty' : '')
+            'nh-compass__cardinal' + (center ? ' nh-compass__cardinal--sub' : '') + (bearing === null ? ' nh-compass__cardinal--empty' : '')
           }
           x="50"
           y={center ? 70 : config.showDegrees && bearing !== null ? 47 : 50}
-          fill={bearing !== null ? ink : undefined}
-        >
+          fill={bearing !== null ? ink : undefined}>
           {bearing !== null ? cardinalFor(bearing) : '-'}
         </text>
         {!center && config.showDegrees && bearing !== null ? (
@@ -154,25 +146,25 @@ export const compassWidget: WidgetDefinition<CompassConfig> = {
       key: 'centerItem',
       type: 'item',
       label: 'Center item',
-      hint: 'A second reading shown big in the middle of the face - wind speed beside wind direction.',
+      hint: 'A second reading shown big in the middle of the face - wind speed beside wind direction.'
     },
     {
       key: 'centerUnit',
       type: 'text',
       label: 'Center unit suffix',
-      showIf: (c) => Boolean(c.centerItem),
+      showIf: (c) => Boolean(c.centerItem)
     },
     {
       key: 'showDegrees',
       type: 'boolean',
       label: 'Show degrees',
       hint: 'The numeric bearing under the cardinal name.',
-      showIf: (c) => !c.centerItem,
+      showIf: (c) => !c.centerItem
     },
     { key: 'rose', type: 'boolean', label: 'Show cardinal letters' },
-    { key: 'color', type: 'color', label: 'Color' },
+    { key: 'color', type: 'color', label: 'Color' }
   ],
   itemKeys: (c) => (c.centerItem ? [c.item, c.centerItem] : [c.item]),
   canCommand: () => false,
-  Component: CompassWidget,
+  Component: CompassWidget
 }

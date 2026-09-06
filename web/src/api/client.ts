@@ -8,9 +8,16 @@ import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
 import { ohUrl } from './base'
 
 export class ApiError extends Error {
+  /**
+   * `message` is the technical line (`PUT /rest/... -> 401: Authentication required`), which is
+   * what belongs in a log or a diagnostics report. `detail` is the server's own words with that
+   * prefix stripped, so a notice can say what happened without reading like a stack trace - see
+   * `errorText` in ./errors.
+   */
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public detail = ''
   ) {
     super(message)
     this.name = 'ApiError'
@@ -30,8 +37,8 @@ async function errorDetail(res: Response): Promise<string> {
   try {
     const text = await res.text()
     const json = JSON.parse(text) as { error?: { message?: string } }
-    if (json.error?.message) return ': ' + json.error.message
-    return text ? ': ' + text.slice(0, 200) : ''
+    if (json.error?.message) return json.error.message
+    return text ? text.slice(0, 200) : ''
   } catch {
     return ''
   }
@@ -70,7 +77,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
   }
   if (!res.ok) {
-    throw new ApiError(res.status, `${opts.method ?? 'GET'} ${path} -> ${res.status}${await errorDetail(res)}`)
+    const detail = await errorDetail(res)
+    throw new ApiError(res.status, `${opts.method ?? 'GET'} ${path} -> ${res.status}${detail ? ': ' + detail : ''}`, detail)
   }
 
   if (res.status === 204) return undefined as T
@@ -81,9 +89,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
-    request<T>(path, { ...opts, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
-    request<T>(path, { ...opts, method: 'PUT', body }),
-  delete: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'DELETE' }),
+  post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'POST', body }),
+  put: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'PUT', body }),
+  delete: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'DELETE' })
 }

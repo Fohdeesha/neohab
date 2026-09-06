@@ -16,15 +16,12 @@ import {
   effectiveThresholds,
   isPeriod,
   periodMs,
-  type ChartConfig,
+  type ChartConfig
 } from './model'
 
 describe('effectiveSeries', () => {
   it('keeps the configured series', () => {
-    expect(effectiveSeries({ series: [{ item: 'A' }, { item: 'B', label: 'Bee' }] })).toEqual([
-      { item: 'A' },
-      { item: 'B', label: 'Bee' },
-    ])
+    expect(effectiveSeries({ series: [{ item: 'A' }, { item: 'B', label: 'Bee' }] })).toEqual([{ item: 'A' }, { item: 'B', label: 'Bee' }])
   })
 
   it('falls back to the legacy single item', () => {

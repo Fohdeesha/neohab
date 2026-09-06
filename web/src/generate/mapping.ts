@@ -43,7 +43,7 @@ export const GENERATED_SIZES: Record<string, { w: number; h: number }> = {
   player: { w: 3, h: 1 },
   chart: { w: 6, h: 3 },
   timeline: { w: 6, h: 2 },
-  label: { w: 12, h: 1 },
+  label: { w: 12, h: 1 }
 }
 
 export function sizeFor(type: string): { w: number; h: number } {
@@ -78,7 +78,7 @@ const PROPERTY_ICONS: Record<string, string> = {
   Ultraviolet: 'weather-sunny-alert',
   Vibration: 'vibrate',
   ColorTemperature: 'temperature-kelvin',
-  Pressure: 'gauge',
+  Pressure: 'gauge'
 }
 
 /** Icons for equipment, used when a point carries no property of its own. */
@@ -135,7 +135,7 @@ const EQUIPMENT_ICONS: Record<string, string> = {
   Oven: 'toaster-oven',
   Refrigerator: 'fridge',
   WashingMachine: 'washing-machine',
-  Window: 'window-closed',
+  Window: 'window-closed'
 }
 
 /** Icons for locations, used for the generated dashboard's Home tile. */
@@ -175,7 +175,7 @@ const LOCATION_ICONS: Record<string, string> = {
   Garden: 'flower',
   Patio: 'table-chair',
   Porch: 'home-roof',
-  Terrace: 'umbrella-beach',
+  Terrace: 'umbrella-beach'
 }
 
 const mdi = (name: string | undefined): string | undefined => (name ? 'mdi:' + name : undefined)
@@ -202,9 +202,7 @@ export function baseType(item: Item): string {
 /** Command/state options an item declares, as the selection widget's `CMD=Label` lines. */
 function optionLines(item: Item): string | null {
   const options =
-    item.commandDescription?.commandOptions?.map((o) => ({ value: o.command, label: o.label })) ??
-    item.stateDescription?.options ??
-    []
+    item.commandDescription?.commandOptions?.map((o) => ({ value: o.command, label: o.label })) ?? item.stateDescription?.options ?? []
   if (options.length < 2) return null
   return options.map((o) => `${o.value}=${o.label ?? o.value}`).join('\n')
 }
@@ -240,7 +238,7 @@ export function widgetChoices(item: Item, suggested: string): string[] {
     Player: ['player', 'value'],
     Contact: ['value', 'timeline'],
     DateTime: ['value'],
-    Location: ['value'],
+    Location: ['value']
   }
   const list = lookup(byType, type) ?? ['value']
   return [suggested, ...list.filter((t) => t !== suggested)]
@@ -272,7 +270,7 @@ export function configFor(
         ...base,
         item: item.name,
         ...bounds,
-        ...(type === 'dial' && readOnly ? { readOnly: true } : {}),
+        ...(type === 'dial' && readOnly ? { readOnly: true } : {})
       }
     }
     case 'selection':
@@ -303,7 +301,7 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
   const make = (widget: string, note?: SuggestNote): Suggestion => ({
     type: widget,
     config: configFor(widget, item, { label, icon, readOnly }),
-    note,
+    note
   })
   const control = (widget: string): Suggestion => (readOnly ? make('value', 'readonly') : make(widget))
 

@@ -11,8 +11,9 @@ import tseslint from 'typescript-eslint'
  * `eslint-disable` comments scattered through this codebase were written against. A suppression
  * that no linter ever evaluates documents a decision nobody is checking.
  *
- * Formatting is deliberately NOT enforced here; there is no Prettier config and no reformatting
- * pass, so a contributor's diff stays about what they changed.
+ * Formatting is not enforced here either, but it IS enforced: `oxfmt` owns it, configured in
+ * `.oxfmtrc.json` and checked by `npm run format:check`. Keeping the two apart means a lint failure
+ * is always about a real mistake, and a formatting failure is always fixable with one command.
  */
 export default tseslint.config(
   { ignores: ['dist', 'public', 'coverage'] },

@@ -2,7 +2,7 @@
  * Icons + intuitive color picker e2e. SAFE with a live config: adds only the nh-icons-test
  * dashboard, deletes it afterwards, restores item states. No wipe.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const results = []
@@ -50,9 +50,9 @@ await fetch(NS, {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } })

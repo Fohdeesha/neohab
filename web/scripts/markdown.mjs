@@ -12,8 +12,7 @@
  * lists, fenced code, tables, horizontal rules, and inline code / bold / links.
  */
 
-const escapeHtml = (s) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /**
  * A private-use character, used to park code spans while the rest of the line is marked up.

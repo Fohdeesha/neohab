@@ -37,7 +37,7 @@ const defaults = (): KioskSettings => ({
   kiosk: false,
   screensaver: 'off',
   screensaverMinutes: 10,
-  wakeLock: false,
+  wakeLock: false
 })
 
 function readStored(): KioskSettings {
@@ -69,7 +69,7 @@ interface KioskState {
 
 export const useKioskStore = create<KioskState>(() => ({
   settings: readStored(),
-  sessionKiosk: urlKioskOverride(),
+  sessionKiosk: urlKioskOverride()
 }))
 
 export function setKioskSettings(patch: Partial<KioskSettings>): void {

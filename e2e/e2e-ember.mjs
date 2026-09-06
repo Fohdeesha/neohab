@@ -18,7 +18,7 @@
  * command matching the live state), and nothing in the app is tapped that could command a
  * device. The optional `formatted` item is only ever read.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, FORMATTED_ITEM } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
@@ -41,9 +41,9 @@ async function sendItem(name, value) {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const rgb = (s) => {

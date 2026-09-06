@@ -7,15 +7,7 @@
  * rows. Getting that wrong makes every average quietly wrong.
  */
 import { describe, expect, it } from 'vitest'
-import {
-  aggregateSeries,
-  calendarLabel,
-  calendarWindow,
-  categoryLabels,
-  heatmapMatrix,
-  isCategorical,
-  windowIsCurrent,
-} from './aggregate'
+import { aggregateSeries, calendarLabel, calendarWindow, categoryLabels, heatmapMatrix, isCategorical, windowIsCurrent } from './aggregate'
 
 /** Seconds since the epoch for a local wall-clock time, since the buckets are local. */
 const at = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).getTime() / 1000

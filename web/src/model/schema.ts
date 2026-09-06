@@ -19,14 +19,7 @@
  * Pure and dependency-free, so the rules can be exercised without a browser or a server.
  */
 
-import {
-  BACKGROUND_PREFIX,
-  DASHBOARD_PREFIX,
-  ICON_PREFIX,
-  SETTINGS_UID,
-  THEME_PREFIX,
-  WIDGETDEF_PREFIX,
-} from './components'
+import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, SETTINGS_UID, THEME_PREFIX, WIDGETDEF_PREFIX } from './components'
 
 export type ComponentKind = 'dashboard' | 'theme' | 'widgetdef' | 'icon' | 'background' | 'settings'
 
@@ -43,7 +36,7 @@ export const SCHEMA_VERSIONS: Record<ComponentKind, number> = {
   widgetdef: 1,
   icon: 1,
   background: 1,
-  settings: 1,
+  settings: 1
 }
 
 /** One step up. Takes a config at version N and returns it at N+1. Must not mutate its input. */
@@ -62,7 +55,7 @@ export const MIGRATIONS: Record<ComponentKind, Migration[]> = {
   widgetdef: [],
   icon: [],
   background: [],
-  settings: [],
+  settings: []
 }
 
 /** Which kind a component uid names, or null for anything that is not ours. */
@@ -118,8 +111,7 @@ export function migrateConfig(
   const from = versionOf(config)
   if (from > expected) return { status: 'future', from, expected }
 
-  const base: Record<string, unknown> =
-    config && typeof config === 'object' ? { ...(config as Record<string, unknown>) } : {}
+  const base: Record<string, unknown> = config && typeof config === 'object' ? { ...(config as Record<string, unknown>) } : {}
   if (from === expected) return { status: 'ok', config: base, from, migrated: false }
 
   // Steps are applied in order, one version at a time, and the version field is advanced with

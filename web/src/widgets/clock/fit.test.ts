@@ -15,11 +15,7 @@ function resolve(css: string, em: number, w: number, h: number): number {
   const m = /^min\((\d*\.?\d+)em, max\((\d+)px, calc\(\(100cqh - (\d+)px\) \* (\d*\.?\d+)\)\), (\d*\.?\d+)cqw\)$/.exec(css)
   if (!m) throw new Error('unparseable cap: ' + css)
   const [, emSize, floor, chrome, share, cqw] = m
-  return Math.min(
-    Number(emSize) * em,
-    Math.max(Number(floor), (h - Number(chrome)) * Number(share)),
-    (Number(cqw) / 100) * w
-  )
+  return Math.min(Number(emSize) * em, Math.max(Number(floor), (h - Number(chrome)) * Number(share)), (Number(cqw) / 100) * w)
 }
 
 describe('clock size cap', () => {
@@ -106,7 +102,7 @@ describe('line shares', () => {
       ['time', 'zone'],
       ['time', 'zone', 'date'],
       ['dateOnly'],
-      ['zone', 'dateOnly'],
+      ['zone', 'dateOnly']
     ]
     for (const present of combinations) {
       const h = 200

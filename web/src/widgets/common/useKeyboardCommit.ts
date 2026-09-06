@@ -23,6 +23,6 @@ export function useKeyboardCommit<T>(commit: (value: T) => void) {
       if (!STEP_KEYS.has(key)) return
       window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => commit(value), KEYBOARD_COMMIT_DELAY)
-    },
+    }
   }
 }

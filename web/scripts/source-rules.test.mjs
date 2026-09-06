@@ -79,7 +79,7 @@ const OPEN_TABLE = /^(?:export )?const ([A-Za-z_$][\w$]*) *: *(?:Partial<)?Recor
 const TABLE_ALLOWED = new Set([
   // `Object.keys(PERIODS)`, so every key is one of the table's own.
   'widgets/chart/model.ts PERIODS[a]',
-  'widgets/chart/model.ts PERIODS[b]',
+  'widgets/chart/model.ts PERIODS[b]'
 ])
 
 describe('tables indexed by a key this code did not choose', () => {

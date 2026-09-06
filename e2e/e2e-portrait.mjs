@@ -9,10 +9,10 @@
  * SAFE with a live config: creates only dashboard:nh-e2e-portrait{,-tight} (deleted afterwards,
  * cleanup guarded), reads the server's own dashboards strictly read-only, commands nothing.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
-const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await chromium.launch({ channel: c, headless: true }) } catch {} } return chromium.launch({ headless: true }) }
+const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })

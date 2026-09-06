@@ -9,7 +9,7 @@
  * SAFE with a live config: records the namespace before each creation and deletes exactly what
  * appeared, so nothing else is touched. No item commands at all.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const results = []
@@ -57,9 +57,9 @@ const MODEL_ITEMS = [
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const errs = []
@@ -160,7 +160,14 @@ try {
     await page.locator('.nh-gen__list .nh-gen__row').first().locator('input').check()
     const firstName = clusters[0].name
     await page.locator('.nh-gen__mode input').nth(1).check()
-    ok('naming a single dashboard is required', await page.$eval('.nh-gen__footer button.nh-btn--primary', (b) => b.disabled))
+    // The name is optional, and the placeholder is the name that will really be used. A button
+    // sitting disabled with nothing saying why is what this used to be.
+    ok('an unnamed single dashboard can still be reviewed', !(await page.$eval('.nh-gen__footer button.nh-btn--primary', (b) => b.disabled)))
+    ok(
+      'and the placeholder is the name it would take',
+      (await page.$eval('#nh-gen-name', (e) => e.placeholder)) === firstName,
+      await page.$eval('#nh-gen-name', (e) => e.placeholder)
+    )
     await page.fill('#nh-gen-name', 'nh-e2e-gen-one')
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
@@ -262,7 +269,7 @@ try {
     for (const i of [0, 1, 2]) await page.locator('.nh-gen__list .nh-gen__row').nth(i).locator('input').check()
     await page.fill('#nh-gen-pickname', 'nh-e2e-gen-pick')
     await sleep(100)
-    ok('picking items and naming it enables the next step', !(await page.$eval('.nh-gen__footer button.nh-btn--primary', (b) => b.disabled)))
+    ok('picking items enables the next step', !(await page.$eval('.nh-gen__footer button.nh-btn--primary', (b) => b.disabled)))
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
     ok('review shows the picked items', (await page.$$eval('.nh-gen__cluster .nh-gen__row', (e) => e.length)) === 3)

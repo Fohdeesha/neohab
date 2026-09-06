@@ -35,13 +35,13 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
   const choose = async (id: string) => {
     onNotice(null)
     const err = await saveSettings({ theme: id })
-    if (err) onNotice(t('Theme applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Theme applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
   const toggleSidebarSetting = async (on: boolean) => {
     onNotice(null)
     const err = await saveSettings({ sidebar: on })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
   /**
@@ -78,8 +78,16 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
 
         {/* The cards set the SHARED theme - panel configuration, so view-only devices do not
             get them. Their own way to a different look is the per-device select below. */}
+        {/* Which of these travel and which stay here. Two kinds of setting sat next to each other
+            with nothing saying so, and the theme cards are the ones that change what everybody
+            else sees. */}
         {canEdit ? (
           <>
+            <p className="nh-settings__text">
+              {t(
+                'Shared with every device: the theme, the background image and the sidebar. The rest of this section is this device’s own.'
+              )}
+            </p>
             <div className="nh-themes">
               {listThemes(customThemes).map((theme) => (
                 <div key={theme.id} className={'nh-theme' + (settings.theme === theme.id ? ' nh-theme--active' : '')}>
@@ -98,16 +106,14 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
                         className="nh-theme__export"
                         aria-label={t('Export theme {{name}}', { name: theme.name })}
                         title={t('Export this theme as a file')}
-                        onClick={() => void exportComponent('theme', theme.id, onNotice)}
-                      >
+                        onClick={() => void exportComponent('theme', theme.id, onNotice)}>
                         ⭳
                       </button>
                       <button
                         type="button"
                         className="nh-theme__edit"
                         aria-label={t('Edit theme {{name}}', { name: theme.name })}
-                        onClick={() => setEditing(structuredClone(theme))}
-                      >
+                        onClick={() => setEditing(structuredClone(theme))}>
                         ✎
                       </button>
                     </>
@@ -121,7 +127,7 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
             {activeTheme.id !== settings.theme ? (
               <p className="nh-settings__text">
                 {t('The highlighted theme is the shared one. This device is showing “{{name}}” instead, set below.', {
-                  name: activeTheme.name,
+                  name: activeTheme.name
                 })}
               </p>
             ) : null}
@@ -145,7 +151,7 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
               onChange={async (ref) => {
                 onNotice(null)
                 const err = await saveSettings({ background: ref })
-                if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+                if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
                 void collectUnusedBackgrounds()
               }}
             />
@@ -189,18 +195,14 @@ export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) =
           step={5}
           hint={
             <span className="nh-field__hint">
-              {t(
-                'Scales dashboard text on this device only - other devices and the dashboards themselves are unchanged. 100 = normal.'
-              )}
+              {t('Scales dashboard text on this device only - other devices and the dashboards themselves are unchanged. 100 = normal.')}
             </span>
           }
           onCommit={setDeviceTextSize}
         />
       </section>
 
-      {editing ? (
-        <ThemeEditor theme={editing} onChange={setEditing} onClose={() => setEditing(null)} onNotice={onNotice} />
-      ) : null}
+      {editing ? <ThemeEditor theme={editing} onChange={setEditing} onClose={() => setEditing(null)} onNotice={onNotice} /> : null}
     </>
   )
 }

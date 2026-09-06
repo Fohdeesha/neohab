@@ -53,7 +53,7 @@ export function PaletteSheet() {
       onPointerCancel: () => {
         pressRef.current = null
         cancelPlacing()
-      },
+      }
     }
   }
 
@@ -67,10 +67,7 @@ export function PaletteSheet() {
             type="button"
             className="nh-palette__card"
             onClick={() => addWidget(def.type)}
-            {...cardHandlers(() =>
-              startPlacing({ type: def.type, name: t(def.name), w: def.defaultSize.w, h: def.defaultSize.h })
-            )}
-          >
+            {...cardHandlers(() => startPlacing({ type: def.type, name: t(def.name), w: def.defaultSize.w, h: def.defaultSize.h }))}>
             <span className="nh-palette__name">{t(def.name)}</span>
             <span className="nh-palette__desc">{def.description ? t(def.description) : null}</span>
           </button>
@@ -88,8 +85,7 @@ export function PaletteSheet() {
                   type="button"
                   className="nh-palette__card"
                   onClick={() => addWidget('template', overrides)}
-                  {...cardHandlers(() => startPlacing({ type: 'template', configOverrides: overrides, name: def.name, ...templateSize }))}
-                >
+                  {...cardHandlers(() => startPlacing({ type: 'template', configOverrides: overrides, name: def.name, ...templateSize }))}>
                   <span className="nh-palette__name">{def.name}</span>
                   <span className="nh-palette__desc">{def.kind === 'js' ? t('JavaScript widget') : t('Template widget')}</span>
                 </button>

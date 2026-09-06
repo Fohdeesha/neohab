@@ -116,14 +116,36 @@ export function tokenInCustomHeader(): boolean {
   return document.cookie.includes('X-OPENHAB-AUTH-HEADER')
 }
 
+/**
+ * localStorage, for code that must not throw when it is unavailable.
+ *
+ * A browser told to block site data throws SecurityError on the mere `localStorage` reference,
+ * and these readers are on paths that run during render (`isLoggedIn` decides whether editing
+ * affordances are drawn). The rest of the app already guards its own storage this way; these were
+ * the last bare ones.
+ */
+function readLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeLocal(key: string, value: string | null): void {
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch {
+    /* storage blocked: the credential lasts for this page only, which still works */
+  }
+}
+
 // Main UI's token is not ours to delete when it turns out to be dead; just stop using it.
 let mainUiRefreshDead = false
 
 export function getRefreshToken(): string | null {
-  return (
-    localStorage.getItem(STORAGE_REFRESH) ??
-    (mainUiRefreshDead ? null : localStorage.getItem(MAINUI_REFRESH))
-  )
+  return readLocal(STORAGE_REFRESH) ?? (mainUiRefreshDead ? null : readLocal(MAINUI_REFRESH))
 }
 
 /**
@@ -131,15 +153,15 @@ export function getRefreshToken(): string | null {
  * expire client-side. Intended for kiosk devices and headless setups.
  */
 export function getApiToken(): string | null {
-  return localStorage.getItem(STORAGE_API_TOKEN)
+  return readLocal(STORAGE_API_TOKEN)
 }
 
 export function setApiToken(token: string): void {
-  localStorage.setItem(STORAGE_API_TOKEN, token.trim())
+  writeLocal(STORAGE_API_TOKEN, token.trim())
 }
 
 export function clearApiToken(): void {
-  localStorage.removeItem(STORAGE_API_TOKEN)
+  writeLocal(STORAGE_API_TOKEN, null)
 }
 
 export function isLoggedIn(): boolean {
@@ -208,9 +230,7 @@ async function makePkce(): Promise<{ verifier: string; challenge: string }> {
   const bytes = new TextEncoder().encode(verifier)
   // SubtleCrypto only exists in secure contexts; a LAN openHAB over plain HTTP is not one,
   // and the login button must work there too - fall back to the bundled SHA-256.
-  const digest = crypto.subtle
-    ? new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-    : sha256(bytes)
+  const digest = crypto.subtle ? new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)) : sha256(bytes)
   return { verifier, challenge: base64url(digest) }
 }
 
@@ -228,7 +248,7 @@ export async function authorize(): Promise<void> {
     scope: 'admin',
     code_challenge_method: 'S256',
     code_challenge: challenge,
-    state,
+    state
   })
   window.location.href = ohUrl('/auth') + '?' + params.toString()
 }
@@ -237,20 +257,20 @@ async function requestToken(body: Record<string, string>): Promise<void> {
   const res = await fetch(ohUrl('/rest/auth/token'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(body).toString(),
+    body: new URLSearchParams(body).toString()
   })
   if (!res.ok) {
     // A rejected refresh token is dead for good (revoked/expired session) - forget it so we
     // don't retry a doomed refresh before every request from now on.
     if (body.grant_type === 'refresh_token' && (res.status === 400 || res.status === 401)) {
-      localStorage.removeItem(STORAGE_REFRESH)
+      writeLocal(STORAGE_REFRESH, null)
     }
     throw new Error('Token request failed: ' + res.status)
   }
   const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number }
   accessToken = data.access_token
   accessTokenExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000
-  if (data.refresh_token) localStorage.setItem(STORAGE_REFRESH, data.refresh_token)
+  if (data.refresh_token) writeLocal(STORAGE_REFRESH, data.refresh_token)
 }
 
 /**
@@ -274,7 +294,7 @@ export async function completeLogin(): Promise<boolean> {
     client_id: redirectUri(),
     redirect_uri: redirectUri(),
     code,
-    code_verifier: verifier,
+    code_verifier: verifier
   })
   return true
 }
@@ -292,7 +312,7 @@ export async function getAccessToken(): Promise<string | null> {
   refreshInFlight ??= requestToken({
     grant_type: 'refresh_token',
     client_id: redirectUri(),
-    refresh_token: refresh,
+    refresh_token: refresh
   }).finally(() => {
     refreshInFlight = null
   })
@@ -301,31 +321,76 @@ export async function getAccessToken(): Promise<string | null> {
     await refreshInFlight
     return accessToken
   } catch {
-    if (refresh === localStorage.getItem(MAINUI_REFRESH)) mainUiRefreshDead = true
+    if (refresh === readLocal(MAINUI_REFRESH)) mainUiRefreshDead = true
     return null
   }
 }
 
 /**
- * Sign out on this device.
+ * Sign out on this device, and end the session on the server.
  *
  * Main UI's refresh token is not ours to delete - it belongs to the other UI on this origin -
  * but continuing to fall back to it would mean "Sign out" left the device signed in, with admin
  * rights, and the Account screen still reporting a session. So it is disowned for this page
  * instead: the token stays where Main UI put it, and nothing here uses it again.
+ *
+ * The revocation has to carry credentials: core's `deleteSession` answers 401 outright when the
+ * request has no principal, so posting the refresh token on its own logged the user out locally
+ * and left the session alive in their openHAB account for its full life. The access token (and
+ * any proxy credentials) are therefore read BEFORE the local state is cleared, and the request is
+ * sent with them.
  */
-export function logout(): void {
-  const refresh = localStorage.getItem(STORAGE_REFRESH)
+export async function logout(): Promise<void> {
+  const refresh = readLocal(STORAGE_REFRESH)
+  // Everything the revocation needs, read before the local state is thrown away.
+  const live = accessToken && Date.now() < accessTokenExpiry ? accessToken : null
+  const proxy = basicCredentials
+
+  // Signed out here and now, whatever the server says next.
   accessToken = null
   accessTokenExpiry = 0
   mainUiRefreshDead = true
   clearBasicCredentials()
-  localStorage.removeItem(STORAGE_REFRESH)
-  if (refresh) {
-    void fetch(ohUrl('/rest/auth/logout'), {
+  writeLocal(STORAGE_REFRESH, null)
+  if (!refresh) return
+
+  try {
+    // An access token that expired while the panel sat idle is the common case on a wall panel,
+    // and revoking needs a live one - so mint one from the refresh token we are about to revoke.
+    const token = live ?? (await mintAccessToken(refresh, proxy))
+    const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
+    if (proxy) headers.set('Authorization', 'Basic ' + basicToken(proxy.id, proxy.password))
+    if (token) {
+      if (tokenInCustomHeader() || proxy) headers.set('X-OPENHAB-TOKEN', token)
+      else headers.set('Authorization', 'Bearer ' + token)
+    }
+    await fetch(ohUrl('/rest/auth/logout'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ refresh_token: refresh }).toString(),
+      headers,
+      body: new URLSearchParams({ refresh_token: refresh }).toString()
     })
+  } catch {
+    /* offline, or the session was already gone - the device is signed out either way */
   }
+}
+
+/**
+ * One access token from a refresh token, without touching the module's own state - `logout` has
+ * already cleared it and must not put a fresh token back.
+ */
+async function mintAccessToken(refresh: string, proxy: BasicCredentials | null): Promise<string | null> {
+  const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
+  if (proxy) headers.set('Authorization', 'Basic ' + basicToken(proxy.id, proxy.password))
+  const res = await fetch(ohUrl('/rest/auth/token'), {
+    method: 'POST',
+    headers,
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: redirectUri(),
+      refresh_token: refresh
+    }).toString()
+  })
+  if (!res.ok) return null
+  const data = (await res.json()) as { access_token?: string }
+  return data.access_token ?? null
 }

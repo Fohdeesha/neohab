@@ -19,7 +19,7 @@ import {
   categoryLabels,
   heatmapMatrix,
   windowIsCurrent,
-  type CalendarUnit,
+  type CalendarUnit
 } from '../widgets/chart/aggregate'
 import { loadChartData } from '../widgets/chart/data'
 import { DEFAULT_MAX_POINTS, PERIOD_CHIPS, periodMs, type ChartConfig } from '../widgets/chart/model'
@@ -52,15 +52,11 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
   const resolved = resolveChart(config)
   // Only the units, and only for the series on screen: subscribing to the whole state map
   // re-rendered this view on every item change in the installation, to read a handful of strings.
-  const units = useItemsStore(
-    useShallow((s) => resolved.series.map((series) => s.states[series.item]?.unit))
-  )
+  const units = useItemsStore(useShallow((s) => resolved.series.map((series) => s.states[series.item]?.unit)))
 
   const nowMs = Date.now()
   const window =
-    unit === 'rolling'
-      ? { from: nowMs / 1000 - periodMs(period) / 1000, to: nowMs / 1000 }
-      : calendarWindow(unit, offset, nowMs)
+    unit === 'rolling' ? { from: nowMs / 1000 - periodMs(period) / 1000, to: nowMs / 1000 } : calendarWindow(unit, offset, nowMs)
   // Only the *choice* goes in the dependency list: a rolling window recomputed on every render
   // would refetch forever.
   const windowKey = unit === 'rolling' ? `rolling:${period}` : `${unit}:${offset}`
@@ -96,7 +92,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         groupBy: resolved.heatmap ? 'none' : resolved.groupBy,
         service: resolved.service,
         maxPoints: resolved.heatmap ? 0 : (resolved.maxPoints ?? DEFAULT_MAX_POINTS),
-        signal: ctrl.signal,
+        signal: ctrl.signal
       })
       if (disposed || !hostRef.current) return
 
@@ -113,7 +109,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
             host: hostRef.current,
             weekdays: categoryLabels('dayOfWeek'),
             formatValue: (v) => fmtValue(0, v),
-            title: t('Heatmap of {{name}} by hour and weekday', { name: resolved.series[0].label }),
+            title: t('Heatmap of {{name}} by hour and weekday', { name: resolved.series[0].label })
           })
         }
         heatRef.current.setData(matrix)
@@ -141,7 +137,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
           formatValue: fmtValue,
           onZoom: () => {
             /* zooming inside the window is uPlot's own; nothing to refetch */
-          },
+          }
         })
       }
       plotRef.current.setData(tables)
@@ -204,8 +200,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
             onClick={() => {
               setUnit('rolling')
               setOffset(0)
-            }}
-          >
+            }}>
             {t('Rolling')}
           </button>
           {UNITS.map((u) => (
@@ -216,8 +211,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
               onClick={() => {
                 setUnit(u)
                 setOffset(0)
-              }}
-            >
+              }}>
               {u === 'day' ? t('Day') : u === 'week' ? t('Week') : u === 'month' ? t('Month') : t('Year')}
             </button>
           ))}
@@ -232,8 +226,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
                 key={c}
                 type="button"
                 className={'nh-chart__chip' + (c === period ? ' nh-chart__chip--on' : '')}
-                onClick={() => setPeriod(c)}
-              >
+                onClick={() => setPeriod(c)}>
                 {c}
               </button>
             ))}
@@ -245,8 +238,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
               className="nh-iconbtn"
               aria-label={t('Previous')}
               title={t('Previous')}
-              onClick={() => setOffset(offset - 1)}
-            >
+              onClick={() => setOffset(offset - 1)}>
               ◀
             </button>
             <span className="nh-chartview__label">{calendarLabel(unit, window)}</span>
@@ -256,8 +248,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
               aria-label={t('Next')}
               title={t('Next')}
               disabled={atPresent}
-              onClick={() => setOffset(offset + 1)}
-            >
+              onClick={() => setOffset(offset + 1)}>
               ▶
             </button>
             {offset !== 0 ? (
@@ -273,11 +264,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         <div className={'nh-chart' + (resolved.heatmap ? ' nh-heatmap' : '')} ref={hostRef}>
           {status !== 'ready' ? (
             <span className="nh-chart__status">
-              {status === 'loading'
-                ? t('Loading history…')
-                : status === 'empty'
-                  ? t('No history data')
-                  : t('Could not load history')}
+              {status === 'loading' ? t('Loading history…') : status === 'empty' ? t('No history data') : t('Could not load history')}
             </span>
           ) : null}
         </div>

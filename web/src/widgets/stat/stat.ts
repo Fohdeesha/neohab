@@ -10,7 +10,7 @@ export const STAT_PERIODS: Record<string, number> = {
   '1h': 3600_000,
   '24h': 24 * 3600_000,
   '7d': 7 * 24 * 3600_000,
-  '30d': 30 * 24 * 3600_000,
+  '30d': 30 * 24 * 3600_000
 }
 
 export function statPeriodMs(period: string | undefined): number {

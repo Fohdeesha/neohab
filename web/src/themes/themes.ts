@@ -26,7 +26,7 @@ const CSS_MODULES = {
   ember: () => import('./css/ember').then((m) => m.EMBER_CSS),
   lcd: () => import('./css/lcd').then((m) => m.LCD_CSS),
   ops: () => import('./css/ops').then((m) => m.OPS_CSS),
-  assembly: () => import('./css/assembly').then((m) => m.ASSEMBLY_CSS),
+  assembly: () => import('./css/assembly').then((m) => m.ASSEMBLY_CSS)
 }
 
 export type BuiltinCssId = keyof typeof CSS_MODULES
@@ -80,8 +80,8 @@ export const BUILTIN_THEMES: Theme[] = [
       'text-dim': '#8a94a0',
       primary: '#38b6ff',
       brand: '#e35a2b',
-      radius: '12px',
-    },
+      radius: '12px'
+    }
   },
   {
     id: 'light',
@@ -96,8 +96,8 @@ export const BUILTIN_THEMES: Theme[] = [
       'text-dim': '#5d6874',
       primary: '#0b78c2',
       brand: '#d94e20',
-      radius: '12px',
-    },
+      radius: '12px'
+    }
   },
   {
     id: 'oled',
@@ -112,8 +112,8 @@ export const BUILTIN_THEMES: Theme[] = [
       'text-dim': '#7d8894',
       primary: '#38b6ff',
       brand: '#e35a2b',
-      radius: '12px',
-    },
+      radius: '12px'
+    }
   },
   {
     id: 'swiss',
@@ -136,9 +136,9 @@ export const BUILTIN_THEMES: Theme[] = [
       bad: '#e2382a',
       'chart-1': '#f2f2f2',
       'chart-2': '#e2382a',
-      'chart-3': '#9aa1ab',
+      'chart-3': '#9aa1ab'
     },
-    cssModule: 'swiss',
+    cssModule: 'swiss'
   },
   {
     id: 'swiss-light',
@@ -159,9 +159,9 @@ export const BUILTIN_THEMES: Theme[] = [
       bad: '#d02b1e',
       'chart-1': '#111111',
       'chart-2': '#d02b1e',
-      'chart-3': '#9aa1ab',
+      'chart-3': '#9aa1ab'
     },
-    cssModule: 'swiss',
+    cssModule: 'swiss'
   },
   {
     id: 'ember',
@@ -179,9 +179,9 @@ export const BUILTIN_THEMES: Theme[] = [
       radius: '10px',
       // the accent leads the chart palette, so a single-series chart is an orange trace
       'chart-1': '#f2681f',
-      'accent-ink': '#ffffff',
+      'accent-ink': '#ffffff'
     },
-    cssModule: 'ember',
+    cssModule: 'ember'
   },
   {
     id: 'lcd',
@@ -204,9 +204,9 @@ export const BUILTIN_THEMES: Theme[] = [
       'chart-3': '#ff45d8',
       'chart-4': '#ffd23c',
       // the console plates are bright neon: dark glyphs on them, as on the real thing
-      'accent-ink': '#000000',
+      'accent-ink': '#000000'
     },
-    cssModule: 'lcd',
+    cssModule: 'lcd'
   },
   {
     id: 'ops',
@@ -238,9 +238,9 @@ export const BUILTIN_THEMES: Theme[] = [
       'rim-lo': 'color-mix(in srgb, var(--nh-primary) 42%, #000000)',
       'face-hi': 'color-mix(in srgb, var(--nh-primary) 13%, transparent)',
       'face-lo': 'color-mix(in srgb, var(--nh-primary) 3%, transparent)',
-      'accent-ink': '#ffffff',
+      'accent-ink': '#ffffff'
     },
-    cssModule: 'ops',
+    cssModule: 'ops'
   },
   {
     id: 'assembly',
@@ -267,9 +267,9 @@ export const BUILTIN_THEMES: Theme[] = [
       'band-light': '0.5',
       'band-shade': '0.28',
       // the vivid green is light enough that white would wash out on it
-      'accent-ink': '#06130a',
+      'accent-ink': '#06130a'
     },
-    cssModule: 'assembly',
+    cssModule: 'assembly'
   },
   {
     id: 'aqua',
@@ -284,8 +284,8 @@ export const BUILTIN_THEMES: Theme[] = [
       'text-dim': '#8899aa',
       primary: '#0db9f0',
       brand: '#0db9f0',
-      radius: '2px',
-    },
+      radius: '2px'
+    }
   },
 
   /* ------------------------- the rest of HABPanel's set -------------------------
@@ -314,8 +314,8 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#ff3333',
       brand: '#ff3333',
       radius: '0px',
-      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
-    },
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)'
+    }
   },
   {
     id: 'material-dark',
@@ -331,8 +331,8 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#0db9f0',
       brand: '#0db9f0',
       radius: '2px',
-      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
-    },
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)'
+    }
   },
   {
     id: 'paleblue',
@@ -351,8 +351,8 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#13738f',
       brand: '#13738f',
       radius: '8px',
-      shadow: 'none',
-    },
+      shadow: 'none'
+    }
   },
   {
     id: 'translucent',
@@ -370,8 +370,8 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#0db9f0',
       brand: '#0db9f0',
       radius: '0px',
-      shadow: 'none',
-    },
+      shadow: 'none'
+    }
   },
   {
     id: 'madras',
@@ -392,8 +392,8 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#d96b00',
       brand: '#d96b00',
       radius: '3px',
-      shadow: '0 1px 8px rgba(0, 0, 0, 0.5)',
-    },
+      shadow: '0 1px 8px rgba(0, 0, 0, 0.5)'
+    }
   },
   {
     id: 'orange-tree',
@@ -410,9 +410,9 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#ff7b00',
       brand: '#ff7b00',
       radius: '3px',
-      shadow: '0 1px 8px rgba(0, 0, 0, 0.8)',
-    },
-  },
+      shadow: '0 1px 8px rgba(0, 0, 0, 0.8)'
+    }
+  }
 ]
 
 /** Ids that belong to a built-in and may not be taken by a custom theme. */
@@ -481,9 +481,15 @@ export function applyTheme(theme: Theme): void {
   // A built-in's stylesheet is a separate chunk. Clear the previous theme's first: showing one
   // theme's structure under another's colours is worse than a frame of plain layout.
   injectCss(undefined)
-  void themeCss(theme).then((css) => {
-    if (gen === applyGeneration) injectCss(css)
-  })
+  void themeCss(theme)
+    .then((css) => {
+      if (gen === applyGeneration) injectCss(css)
+    })
+    .catch(() => {
+      // The chunk is gone, which after an add-on upgrade means this tab is holding the previous
+      // build's index. UpdateNotice hears the same failure and offers the reload; here the theme
+      // simply stays at its tokens rather than raising an unhandled rejection.
+    })
 }
 
 /**
@@ -540,11 +546,7 @@ export function urlThemeOverride(): Theme | null {
  * `dark` must not silently replace the one people know. Unknown ids fall back to the default.
  */
 export function resolveTheme(id: string | undefined, customThemes: Theme[]): Theme {
-  return (
-    BUILTIN_THEMES.find((t) => t.id === id) ??
-    customThemes.find((t) => t.id === id) ??
-    BUILTIN_THEMES[0]
-  )
+  return BUILTIN_THEMES.find((t) => t.id === id) ?? customThemes.find((t) => t.id === id) ?? BUILTIN_THEMES[0]
 }
 
 /** Built-ins first, then custom themes that do not shadow one, for the theme picker. */

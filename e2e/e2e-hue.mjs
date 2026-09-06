@@ -10,7 +10,7 @@
  * guarded cleanup. Commands only the color item (an approved test item), restores its exact
  * recorded state.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-hue'
@@ -43,7 +43,7 @@ try {
   })
   ok('seed dashboard created', seedRes.ok, 'HTTP ' + seedRes.status)
 
-  browser = await chromium.launch({ channel: 'msedge', headless: true })
+  browser = await launchChromium({ channel: 'msedge', headless: true })
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 

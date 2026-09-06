@@ -15,8 +15,8 @@ const dashboardWithFloorPlan = {
   name: 'Home',
   widgets: [
     { id: 'w1', type: 'clock', config: {} },
-    { id: 'w2', type: 'floorplan', config: { image: 'bg:plan1', lights: [{ id: 'l1', item: 'Lamp' }] } },
-  ],
+    { id: 'w2', type: 'floorplan', config: { image: 'bg:plan1', lights: [{ id: 'l1', item: 'Lamp' }] } }
+  ]
 }
 
 describe('collectBackgroundRefs', () => {
@@ -29,11 +29,7 @@ describe('collectBackgroundRefs', () => {
   })
 
   it('walks arrays of dashboards and collects every reference once', () => {
-    const refs = collectBackgroundRefs([
-      { background: 'bg:a' },
-      dashboardWithFloorPlan,
-      { widgets: [{ config: { image: 'bg:a' } }] },
-    ])
+    const refs = collectBackgroundRefs([{ background: 'bg:a' }, dashboardWithFloorPlan, { widgets: [{ config: { image: 'bg:a' } }] }])
     expect([...refs].sort()).toEqual(['a', 'plan1'])
   })
 
@@ -49,7 +45,7 @@ describe('collectBackgroundRefs', () => {
       n: 4,
       b: true,
       nothing: null,
-      missing: undefined,
+      missing: undefined
     })
     expect([...refs]).toEqual([])
   })
@@ -72,14 +68,9 @@ describe('collectBackgroundRefs', () => {
       image: 'bg:direct',
       lights: [{ id: 'l1', item: 'Lamp', icon: 'bg:inrow' }],
       series: [{ style: { fill: 'bg:nested' } }],
-      tabs: [[{ background: 'bg:deep' }]],
+      tabs: [[{ background: 'bg:deep' }]]
     }
-    expect([...collectBackgroundRefs({ widgets: [{ config }] })].sort()).toEqual([
-      'deep',
-      'direct',
-      'inrow',
-      'nested',
-    ])
+    expect([...collectBackgroundRefs({ widgets: [{ config }] })].sort()).toEqual(['deep', 'direct', 'inrow', 'nested'])
   })
 })
 

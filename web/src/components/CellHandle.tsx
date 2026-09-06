@@ -16,7 +16,7 @@ export function CellHandle({
   id,
   type,
   hiddenOn = [],
-  onDragStart,
+  onDragStart
 }: {
   id: string
   type: string
@@ -32,8 +32,7 @@ export function CellHandle({
       {hiddenOn.length > 0 ? (
         <span
           className="nh-cell__hidden"
-          title={t('Hidden on {{list}}', { list: hiddenOn.map((sfc) => t(SURFACE_LABEL[sfc])).join(', ') })}
-        >
+          title={t('Hidden on {{list}}', { list: hiddenOn.map((sfc) => t(SURFACE_LABEL[sfc])).join(', ') })}>
           ◌
         </span>
       ) : null}
@@ -47,8 +46,7 @@ export function CellHandle({
         onClick={(e) => {
           e.stopPropagation()
           removeWidget(id)
-        }}
-      >
+        }}>
         ✕
       </button>
     </div>

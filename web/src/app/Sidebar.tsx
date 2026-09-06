@@ -18,7 +18,6 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
-import { useEditorStore } from '../store/editor'
 import { closeSidebar, setSidebarPinned, toggleSidebar, useSidebarLayout } from '../store/sidebar'
 import { useKioskMode } from '../store/kiosk'
 import { navigate, useRoute } from './router'
@@ -54,9 +53,9 @@ export function Sidebar() {
   if (!enabled) return null
 
   const go = (to: Parameters<typeof navigate>[0]) => {
-    // Navigating away drops an unsaved draft (the editor resets on route change), and from here
-    // that is one stray click away - so ask first rather than silently discarding the work.
-    if (useEditorStore.getState().dirty && !window.confirm(t('Discard all unsaved changes?'))) return
+    // An unsaved draft is asked about by the editor itself, on any route change (see
+    // DashboardView) - browser Back and a bookmark deserve the same question as a link here, and
+    // two places asking meant two dialogs for one click.
     if (!pinned) closeSidebar()
     navigate(to)
   }
@@ -71,22 +70,17 @@ export function Sidebar() {
           Closing on the click rather than the press keeps it in place for the whole gesture, so
           nothing underneath sees any part of it. */}
       {open && !pinned ? (
-        <div
-          className={'nh-side__scrim' + (layout.canPush ? '' : ' nh-side__scrim--dim')}
-          onClick={closeSidebar}
-        />
+        <div className={'nh-side__scrim' + (layout.canPush ? '' : ' nh-side__scrim--dim')} onClick={closeSidebar} />
       ) : null}
       <aside
         className={'nh-side' + (open ? ' nh-side--open' : '') + (layout.canPush ? '' : ' nh-side--overlay')}
         aria-label={t('Dashboards')}
-        aria-hidden={!open}
-      >
+        aria-hidden={!open}>
         <nav className="nh-side__list">
           <button
             type="button"
             className={'nh-side__item nh-side__item--home' + (route.name === 'home' ? ' nh-side__item--active' : '')}
-            onClick={() => go({ name: 'home' })}
-          >
+            onClick={() => go({ name: 'home' })}>
             <span className="nh-side__glyph" aria-hidden="true">
               ⌂
             </span>
@@ -102,8 +96,7 @@ export function Sidebar() {
                 key={d.id}
                 type="button"
                 className={'nh-side__item' + (d.id === activeDashboard ? ' nh-side__item--active' : '')}
-                onClick={() => go({ name: 'dashboard', id: d.id })}
-              >
+                onClick={() => go({ name: 'dashboard', id: d.id })}>
                 {d.icon ? (
                   <Icon icon={d.icon} size={22} className="nh-side__icon" />
                 ) : (
@@ -122,8 +115,7 @@ export function Sidebar() {
               onClick={() => setSidebarPinned(!pinned)}
               aria-pressed={pinned}
               aria-label={pinned ? t('Unpin sidebar') : t('Pin sidebar open')}
-              title={pinned ? t('Unpin sidebar') : t('Pin sidebar open')}
-            >
+              title={pinned ? t('Unpin sidebar') : t('Pin sidebar open')}>
               {/* One icon in both states: the dim/lit styling says whether it is pinned, where a
                   swap to pin-off would read as "currently unpinned" rather than "click to unpin". */}
               <Icon icon="mdi:pin" size={20} />
@@ -132,8 +124,7 @@ export function Sidebar() {
           <button
             type="button"
             className={'nh-side__item nh-side__foot-settings' + (route.name === 'settings' ? ' nh-side__item--active' : '')}
-            onClick={() => go({ name: 'settings' })}
-          >
+            onClick={() => go({ name: 'settings' })}>
             <span className="nh-side__glyph" aria-hidden="true">
               ⚙
             </span>
@@ -177,8 +168,7 @@ export function SidebarTrigger({ className = 'nh-iconbtn' }: { className?: strin
       className={className + ' nh-side__trigger'}
       onClick={toggleSidebar}
       aria-label={t('Dashboards')}
-      title={t('Dashboards')}
-    >
+      title={t('Dashboards')}>
       ☰
     </button>
   )

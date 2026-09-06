@@ -13,15 +13,7 @@ import { updateWidgetConfig } from '../store/editor'
 import { listStreams } from '../widgets/camera/discover'
 import type { CameraSourceKind } from '../widgets/camera/model'
 
-export function CameraStreamField({
-  field,
-  widget,
-  value,
-}: {
-  field: SettingField
-  widget: WidgetInstance
-  value: unknown
-}) {
+export function CameraStreamField({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
   const [found, setFound] = useState<string[] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -48,7 +40,9 @@ export function CameraStreamField({
         ? t('Enter the server address first.')
         : result.reason === 'bad-response'
           ? t('That address answered, but not with a camera list.')
-          : t('Could not read the camera list. The server may be unreachable, or may not allow this page to read it - go2rtc needs api: {origin: "*"} for that. Type the camera name instead.')
+          : t(
+              'Could not read the camera list. The server may be unreachable, or may not allow this page to read it - go2rtc needs api: {origin: "*"} for that. Type the camera name instead.'
+            )
     )
   }
 
@@ -76,8 +70,7 @@ export function CameraStreamField({
               key={name}
               type="button"
               className={'nh-camerafield__pick' + (name === value ? ' nh-camerafield__pick--on' : '')}
-              onClick={() => updateWidgetConfig(widget.id, field.key, name)}
-            >
+              onClick={() => updateWidgetConfig(widget.id, field.key, name)}>
               {name}
             </button>
           ))}

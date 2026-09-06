@@ -20,7 +20,7 @@
  * commandable), snapshots the `settings` component first and restores it VERBATIM, and fails
  * hard if any context ever POSTs to /rest/items.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 import { getSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
 
@@ -35,9 +35,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /** New page in its own context; tracks probe requests, item POSTs and console errors. */
@@ -142,6 +142,15 @@ try {
   // NOT :has-text("HABPanel") - the built-in "Aqua (HABPanel classic)" theme card would match.
   ok('anon: HABPanel import hidden', (await anon.page.locator('section:has(h2:text-is("Migrate from HABPanel"))').count()) === 0)
   ok('anon: shared theme cards hidden (they write panel config)', (await anon.page.locator('.nh-theme__pick').count()) === 0)
+  // About's persistence row is admin-only, so asking as a visitor only ever bought a 401 in the
+  // console on every visit to this screen. The row says it does not know, which it already did.
+  await sleep(1200)
+  ok('anon: Settings makes no admin probe either', anon.track.probes.length === 0, String(anon.track.probes.length))
+  ok(
+    'anon: the persistence row says an administrator is needed',
+    /administrator/i.test((await anon.page.locator('.nh-about dd').nth(3).textContent().catch(() => '')) ?? ''),
+    (await anon.page.locator('.nh-about dd').nth(3).textContent().catch(() => '')) ?? ''
+  )
   ok('anon: per-device theme select still there', (await anon.page.locator('#nh-set-devicetheme').count()) === 1)
   ok('anon: no "New theme"', (await anon.page.locator('button:has-text("New theme")').count()) === 0)
   ok('anon: sidebar toggle hidden', (await anon.page.locator('#nh-set-sidebar').count()) === 0)

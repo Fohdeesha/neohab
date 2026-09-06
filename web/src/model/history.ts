@@ -124,7 +124,7 @@ export function toEntry(c: RawComponent): SnapshotEntry {
   const entry: SnapshotEntry = {
     uid: c.uid,
     component: c.component,
-    config: (c.config ?? {}) as Record<string, unknown>,
+    config: (c.config ?? {}) as Record<string, unknown>
   }
   if (Array.isArray(c.tags) && c.tags.length > 0) entry.tags = c.tags
   return entry
@@ -206,10 +206,7 @@ export function shouldCapture(opts: {
  * Retention: keep the newest `limit`, and report which snapshot ids fall off so their components
  * can be deleted. The list is newest-first.
  */
-export function applyRetention(
-  snapshots: SnapshotMeta[],
-  limit: number
-): { keep: SnapshotMeta[]; drop: SnapshotMeta[] } {
+export function applyRetention(snapshots: SnapshotMeta[], limit: number): { keep: SnapshotMeta[]; drop: SnapshotMeta[] } {
   if (limit <= 0) return { keep: [], drop: snapshots }
   return { keep: snapshots.slice(0, limit), drop: snapshots.slice(limit) }
 }
@@ -236,7 +233,7 @@ export function mergeIndexes(mine: HistoryIndex, theirs: HistoryIndex): HistoryI
     // Ids are `String(Date.now())`, so a numeric sort is chronological. Falls back to comparing
     // as text for anything that is not a number, which keeps the order stable either way.
     snapshots: [...snapshots.values()].sort((a, b) => Number(b.id) - Number(a.id) || b.id.localeCompare(a.id)),
-    blobs: [...new Set([...(mine?.blobs ?? []), ...(theirs?.blobs ?? [])])],
+    blobs: [...new Set([...(mine?.blobs ?? []), ...(theirs?.blobs ?? [])])]
   }
 }
 

@@ -36,6 +36,34 @@ if (!BASE) {
 
 export const APP = BASE + '/neohab/index.html'
 export const NS = BASE + '/rest/ui/components/neohab:config'
+
+/**
+ * Testing against an HTTPS target.
+ *
+ * openHAB's own certificate is self-signed, so both halves of the harness refuse it by default:
+ * Node's fetch (which every seed, read and cleanup runs on) rejects with a certificate error, and
+ * the browser will not navigate. Accepting it is a decision about the TEST BOX, not about the app,
+ * so it is made once, here, from the target's own address rather than by each suite.
+ *
+ * The browser flag rather than a per-context `ignoreHTTPSErrors`: a context option would have to
+ * be threaded through every `newPage()` in 62 suites, and it would still leave the page an
+ * INSECURE context - so a service worker never registers and the PWA half could not be tested at
+ * all. The flag makes the origin trusted, which is what a real deployment with a real certificate
+ * gets.
+ */
+export const HTTPS = BASE.startsWith('https:')
+/**
+ * The scheme for a fixture address on a host that deliberately never answers.
+ *
+ * Several suites frame or stream one to watch what a widget does when nothing arrives. The
+ * scheme is incidental to that, but not to the browser: an `http://` subresource in an https
+ * page is refused as mixed content before the widget gets a chance, so a hardcoded one turns
+ * those checks into a mixed-content test by accident. Following the page's own scheme keeps
+ * each check about what it was written for; e2e-https covers mixed content deliberately.
+ */
+export const UNREACHABLE = HTTPS ? 'https://' : 'http://'
+export const LAUNCH_ARGS = HTTPS ? ['--ignore-certificate-errors'] : []
+if (HTTPS) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 /**
  * The version history's own namespaces: the index, and the snapshots plus shared image bodies.
  * Separate from the configuration, and just as much a user's data - the snapshot/wipe/restore

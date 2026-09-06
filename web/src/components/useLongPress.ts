@@ -203,6 +203,6 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
     onPointerCancel: endPress,
     onPointerLeave: endPress,
     onContextMenu,
-    onClickCapture,
+    onClickCapture
   }
 }

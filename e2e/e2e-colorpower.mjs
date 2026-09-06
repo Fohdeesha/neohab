@@ -15,7 +15,7 @@
  *   - managed item nh_e2e_pwr       (never a file-provided item)
  * Commands nothing else.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-colorpower'
@@ -54,10 +54,10 @@ async function stateSettles(want, ms = 5000) {
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /**
@@ -342,7 +342,7 @@ try {
     'powered=' + pwr?.count + ' hostile=' + hostile?.count
   )
 
-  /* Jon's placement: in the top box that shows the colour, at its right-hand end. */
+  /* Where they were asked for: in the top box that shows the color, at its right-hand end. */
   const inside =
     pwr?.boxes?.length === 2 &&
     pwr.swatchBox &&
@@ -804,7 +804,13 @@ try {
     beforeRefusal?.pressed?.[1] === 'true' && refused?.pressed?.[1] === 'true',
     'before=' + JSON.stringify(beforeRefusal?.pressed) + ' after=' + JSON.stringify(refused?.pressed)
   )
-  ok('and says the command was refused', /400/.test(toast ?? ''), JSON.stringify(toast))
+  // In words: an HTTP status in a toast says nothing to the person who pressed the button, so the
+  // notice names the item and what happened and carries no bare code.
+  ok(
+    'and says the command was refused',
+    /would not take/.test(toast ?? '') && toast.includes(ITEM) && !/\b400\b/.test(toast ?? ''),
+    JSON.stringify(toast)
+  )
   await page.unroute('**/rest/items/' + ITEM)
   // The notice is a deliberate one, not a defect, so it does not count against the console check.
   errs.length = 0

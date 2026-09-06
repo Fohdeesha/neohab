@@ -71,9 +71,7 @@ export function useWeather(config: Record<string, unknown>): WeatherSource {
   const refreshMs = clampInt(config.refreshMinutes, 5, 120, REFRESH_DEFAULT_MIN) * 60_000
   // Anything else stored here is ignored rather than sent: an unknown model is an HTTP 400
   // from Open-Meteo, which is no weather at all.
-  const model = (FORECAST_MODELS as readonly string[]).includes(String(config.model ?? ''))
-    ? String(config.model ?? '')
-    : ''
+  const model = (FORECAST_MODELS as readonly string[]).includes(String(config.model ?? '')) ? String(config.model ?? '') : ''
 
   const [data, setData] = useState<WeatherData | null>(null)
   const [failed, setFailed] = useState(false)

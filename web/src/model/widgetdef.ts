@@ -59,10 +59,7 @@ export function coerceSettingValue(setting: WidgetDefSetting, value: unknown): u
 }
 
 /** Instance settings merged over definition defaults, all coerced. */
-export function mergedSettingValues(
-  def: CustomWidgetDef,
-  instanceValues: Record<string, unknown> | undefined
-): Record<string, unknown> {
+export function mergedSettingValues(def: CustomWidgetDef, instanceValues: Record<string, unknown> | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const s of defSettings(def)) {
     const raw = instanceValues?.[s.id] !== undefined ? instanceValues[s.id] : s.default

@@ -41,7 +41,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     showTickLabels: true,
     centerShows: 'outer',
     historyPeriod: '24h',
-    historyStyle: 'bars',
+    historyStyle: 'bars'
   }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },
@@ -59,8 +59,8 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
         { value: 'ticks', label: 'Tick ring' },
         { value: 'arc', label: 'Solid arc' },
         { value: 'blocks', label: 'Blocks' },
-        { value: '3d', label: '3D' },
-      ],
+        { value: '3d', label: '3D' }
+      ]
     },
     { key: 'min', type: 'number', label: 'Minimum' },
     { key: 'max', type: 'number', label: 'Maximum' },
@@ -71,7 +71,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'Maximum beside the value',
       showIf: ring,
-      hint: 'Draws the reading over its scale maximum: "39 / 58".',
+      hint: 'Draws the reading over its scale maximum: "39 / 58".'
     },
     { key: 'readOnly', type: 'boolean', label: 'Read-only gauge' },
     { key: 'ledCount', type: 'number', label: 'Segments', min: 8, max: 200, showIf: segmented },
@@ -82,7 +82,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       min: 30,
       max: 360,
       showIf: ring,
-      hint: '360 is a full circle, 180 a half gauge.',
+      hint: '360 is a full circle, 180 a half gauge.'
     },
     {
       key: 'arcStart',
@@ -91,21 +91,21 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       min: 0,
       max: 359,
       showIf: ring,
-      hint: 'Measured clockwise from 12 o’clock.',
+      hint: 'Measured clockwise from 12 o’clock.'
     },
     {
       key: 'bidirectional',
       type: 'boolean',
       label: 'Fill from zero (bidirectional)',
       showIf: ring,
-      hint: 'Lights from zero - or the range midpoint - toward the value.',
+      hint: 'Lights from zero - or the range midpoint - toward the value.'
     },
     {
       key: 'color',
       type: 'color',
       label: 'Color',
       showIf: ring,
-      hint: 'Used when no color stop matches; clear it to follow the theme.',
+      hint: 'Used when no color stop matches; clear it to follow the theme.'
     },
     { key: 'severity', type: 'gaugeseverity', label: 'Color stops', showIf: ring },
     {
@@ -113,7 +113,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'Name inside the face',
       showIf: ring,
-      hint: 'Draws the Name above the reading instead of in the tile header.',
+      hint: 'Draws the Name above the reading instead of in the tile header.'
     },
     { key: 'bloom', type: 'boolean', label: 'Center glow', showIf: ring },
     { key: 'hideUnlit', type: 'boolean', label: 'Hide unlit LEDs', showIf: segmented },
@@ -127,7 +127,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'Alarm pulse',
       showIf: ring,
-      hint: 'The center glow pulses while the value is inside the alarm range.',
+      hint: 'The center glow pulses while the value is inside the alarm range.'
     },
     { key: 'alarmFrom', type: 'number', label: 'Alarm from', showIf: ringAlarm },
     { key: 'alarmTo', type: 'number', label: 'Alarm to', showIf: ringAlarm },
@@ -136,7 +136,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'History chart',
       showIf: ring,
-      hint: 'A small chart of recent history under the value, from persistence.',
+      hint: 'A small chart of recent history under the value, from persistence.'
     },
     {
       key: 'historyStyle',
@@ -144,9 +144,9 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       label: 'History style',
       options: [
         { value: 'bars', label: 'Bars' },
-        { value: 'line', label: 'Sparkline' },
+        { value: 'line', label: 'Sparkline' }
       ],
-      showIf: ringHistory,
+      showIf: ringHistory
     },
     {
       key: 'historyPeriod',
@@ -157,9 +157,9 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
         { value: '6h', label: '6h' },
         { value: '12h', label: '12h' },
         { value: '24h', label: '24h' },
-        { value: '7d', label: '7d' },
+        { value: '7d', label: '7d' }
       ],
-      showIf: ringHistory,
+      showIf: ringHistory
     },
     {
       key: 'item2',
@@ -167,7 +167,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       label: 'Second item (inner ring)',
       itemTypes: ['Dimmer', 'Number'],
       showIf: ring,
-      hint: 'Set an item to draw a second, inner ring - the dual gauge.',
+      hint: 'Set an item to draw a second, inner ring - the dual gauge.'
     },
     { key: 'min2', type: 'number', label: 'Inner minimum', showIf: ringInner },
     { key: 'max2', type: 'number', label: 'Inner maximum', showIf: ringInner },
@@ -182,15 +182,15 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       label: 'Big center value',
       options: [
         { value: 'outer', label: 'Outer item' },
-        { value: 'inner', label: 'Inner item' },
+        { value: 'inner', label: 'Inner item' }
       ],
-      showIf: ringInner,
-    },
+      showIf: ringInner
+    }
   ],
   itemKeys: (c) => [
     c.item,
     ...(typeof c.item2 === 'string' && c.item2 !== '' ? [c.item2] : []),
-    ...(Array.isArray(c.markers) ? c.markers : []).map((m) => m?.item).filter((s): s is string => typeof s === 'string' && s !== ''),
+    ...(Array.isArray(c.markers) ? c.markers : []).map((m) => m?.item).filter((s): s is string => typeof s === 'string' && s !== '')
   ],
   // "Read-only gauge" is the author saying this tile is an instrument, not a control - so the
   // detail sheet must not hand out the slider the tile itself refuses to be.
@@ -203,5 +203,5 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     if (item === c.item2) return rangeControl(scaleOf(c, 'inner'), c.unit2)
     return undefined
   },
-  Component: DialWidget,
+  Component: DialWidget
 }

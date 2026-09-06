@@ -24,6 +24,8 @@ const WIPE_CYCLE = ['e2e-history', 'e2e', 'e2e-editor', 'e2e-widgets', 'e2e-sett
 
 const SAFE_SUITES = [
   'e2e-corners',
+  'e2e-launch',
+  'e2e-https',
   'e2e-editfix',
   'e2e-copypaste',
   'e2e-lassoarea',
@@ -47,6 +49,7 @@ const SAFE_SUITES = [
   'e2e-stepper',
   'e2e-slider',
   'e2e-thermostat',
+  'e2e-log',
   'e2e-clocktime',
   'e2e-cmdfail',
   'e2e-charts',

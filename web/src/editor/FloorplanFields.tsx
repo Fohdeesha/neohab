@@ -19,18 +19,10 @@ import {
   lightsOf,
   newLightId,
   type FloorplanConfig,
-  type FloorplanLight,
+  type FloorplanLight
 } from '../widgets/floorplan/model'
 
-export function PlanImageField({
-  field,
-  widget,
-  value,
-}: {
-  field: SettingField
-  widget: WidgetInstance
-  value: unknown
-}) {
+export function PlanImageField({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
   const id = `f-${widget.id}-${field.key}`
   return (
@@ -80,12 +72,11 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
     widgetId: widget.id,
     getItem: (n) => states[n],
     sendCommand: async () => false,
-    editing: true,
+    editing: true
   }
 
   const setLights = (next: FloorplanLight[]) => updateWidgetConfig(widget.id, 'lights', next)
-  const patchLight = (id: string, patch: Partial<FloorplanLight>) =>
-    setLights(lights.map((l) => (l.id === id ? { ...l, ...patch } : l)))
+  const patchLight = (id: string, patch: Partial<FloorplanLight>) => setLights(lights.map((l) => (l.id === id ? { ...l, ...patch } : l)))
 
   const addLight = () => {
     if (!pickItem) return
@@ -118,9 +109,7 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
       <div className="nh-planedit__body">
         <div className="nh-planedit__plan">
           <PlanCanvas config={config} ctx={ctx} onPlanPointerDown={placeSelected}>
-            {() => (
-              <DragMarkers lights={lights} sel={sel} onSelect={setSel} onMove={(id, x, y) => patchLight(id, { x, y })} />
-            )}
+            {() => <DragMarkers lights={lights} sel={sel} onSelect={setSel} onMove={(id, x, y) => patchLight(id, { x, y })} />}
           </PlanCanvas>
         </div>
         <aside className="nh-planedit__side">
@@ -133,11 +122,7 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
           <div className="nh-planedit__list">
             {lights.length === 0 ? <p className="nh-planedit__none">{t('No lights on this plan yet.')}</p> : null}
             {lights.map((l) => (
-              <div
-                key={l.id}
-                className={'nh-planedit__row' + (sel === l.id ? ' nh-planedit__row--sel' : '')}
-                onClick={() => setSel(l.id)}
-              >
+              <div key={l.id} className={'nh-planedit__row' + (sel === l.id ? ' nh-planedit__row--sel' : '')} onClick={() => setSel(l.id)}>
                 <div className="nh-planedit__rowline">
                   <span className="nh-planedit__item" title={l.item}>
                     {l.item}
@@ -150,8 +135,7 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
                       e.stopPropagation()
                       setLights(lights.filter((x) => x.id !== l.id))
                       if (sel === l.id) setSel(null)
-                    }}
-                  >
+                    }}>
                     ✕
                   </button>
                 </div>
@@ -171,8 +155,7 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
                     onChange={(e) => {
                       const dir = glowDirectionOf(e.target.value)
                       patchLight(l.id, { glowDir: dir === 'all' ? undefined : dir })
-                    }}
-                  >
+                    }}>
                     {GLOW_DIRECTION_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {t(o.label)}
@@ -194,7 +177,7 @@ function DragMarkers({
   lights,
   sel,
   onSelect,
-  onMove,
+  onMove
 }: {
   lights: FloorplanLight[]
   sel: string | null
@@ -208,7 +191,7 @@ function DragMarkers({
     if (!layer || layer.width <= 0 || layer.height <= 0) return null
     return {
       x: Math.round(Math.min(100, Math.max(0, ((e.clientX - layer.left) / layer.width) * 100)) * 10) / 10,
-      y: Math.round(Math.min(100, Math.max(0, ((e.clientY - layer.top) / layer.height) * 100)) * 10) / 10,
+      y: Math.round(Math.min(100, Math.max(0, ((e.clientY - layer.top) / layer.height) * 100)) * 10) / 10
     }
   }
 
@@ -220,9 +203,7 @@ function DragMarkers({
           <button
             key={l.id}
             type="button"
-            className={
-              'nh-fplan__marker nh-fplan__marker--edit' + (sel === l.id ? ' nh-fplan__marker--sel' : '')
-            }
+            className={'nh-fplan__marker nh-fplan__marker--edit' + (sel === l.id ? ' nh-fplan__marker--sel' : '')}
             style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
             title={l.label ?? l.item}
             aria-label={l.label ?? l.item}

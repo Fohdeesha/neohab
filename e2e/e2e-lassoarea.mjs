@@ -9,7 +9,7 @@
  * SAFE with a live config: creates only dashboard:nh-e2e-lasso and deletes exactly that uid in
  * cleanup (guarded). NO item commands anywhere - seeded widgets are clocks/labels only.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-lasso'
@@ -20,9 +20,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const VP = { width: 1400, height: 950 }

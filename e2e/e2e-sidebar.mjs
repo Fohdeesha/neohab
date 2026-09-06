@@ -12,11 +12,11 @@
  * SAFE: creates only nh-e2e-sb* components, exact-uid cleanup, restores the real settings
  * component, commands nothing and clicks no real device control.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
-const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await chromium.launch({ channel: c, headless: true }) } catch {} } return chromium.launch({ headless: true }) }
+const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -477,7 +477,12 @@ try {
       await d.dismiss() // stay put
     })
     await page.locator('.nh-side__item', { hasText: 'ZZE2E Beta' }).click()
-    await page.waitForTimeout(500)
+    // The question is asked after the navigation commits, so the address goes to B and comes
+    // back. Wait for it to settle rather than guessing at how long a dialog round trip takes:
+    // sampling at a fixed 500ms read it mid-flight the first time this ran under load.
+    // Read from the driver, never with an in-page evaluation: a page showing a modal dialog runs
+    // no JavaScript, so waiting inside it deadlocks against the dismiss that is about to happen.
+    for (let i = 0; i < 40 && !page.url().endsWith('#/d/nh-e2e-sb-a'); i++) await page.waitForTimeout(200)
     ok('navigating away from an unsaved draft asks first', asked)
     ok('dismissing the prompt stays on the dashboard', page.url().endsWith('#/d/nh-e2e-sb-a'), page.url())
     await ctx.close()

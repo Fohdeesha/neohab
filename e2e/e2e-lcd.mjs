@@ -18,7 +18,7 @@
  * (value/clock/label/compass) and nothing in the app is clicked except editor chrome on the
  * suite's own dashboard. The dimmer/switch/decimal items are only ever read.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, DECIMAL_ITEM } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-lcd'
@@ -32,10 +32,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const rgb = (s) => {

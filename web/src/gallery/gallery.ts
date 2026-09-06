@@ -45,9 +45,7 @@ function validIndex(value: unknown): GalleryIndex | null {
   const v = value as GalleryIndex | null
   if (!v || typeof v !== 'object' || !Array.isArray(v.widgets)) return null
   if (v.formatVersion !== 1) return null
-  const widgets = v.widgets.filter(
-    (w) => w && typeof w.id === 'string' && typeof w.name === 'string' && typeof w.file === 'string'
-  )
+  const widgets = v.widgets.filter((w) => w && typeof w.id === 'string' && typeof w.name === 'string' && typeof w.file === 'string')
   return { formatVersion: 1, name: typeof v.name === 'string' ? v.name : undefined, widgets }
 }
 
@@ -95,6 +93,6 @@ export async function loadGalleryWidget(entry: GalleryEntry, indexUrl: string): 
     template: kind === 'template' ? raw.template : undefined,
     script: kind === 'js' ? raw.script : undefined,
     settings: Array.isArray(raw.settings) ? raw.settings : [],
-    source: 'gallery',
+    source: 'gallery'
   }
 }

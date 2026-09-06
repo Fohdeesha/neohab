@@ -48,7 +48,7 @@ export const CLOCK_LINES = {
   zone: { em: 0.7, lh: 1.3 },
   date: { em: 0.9, lh: 1.35 },
   /** The date when it IS the reading, rather than a caption under the time. */
-  dateOnly: { em: 1.1, lh: 1.35 },
+  dateOnly: { em: 1.1, lh: 1.35 }
 } as const
 
 export type ClockLine = keyof typeof CLOCK_LINES

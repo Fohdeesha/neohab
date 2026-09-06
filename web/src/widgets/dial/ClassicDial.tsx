@@ -62,8 +62,7 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
       iconSize={config.iconSize}
       iconState={state?.state}
       iconColor={config.iconColor}
-      center
-    >
+      center>
       <svg
         ref={svgRef}
         className={'nh-dial' + (config.readOnly ? ' nh-dial--readonly' : '')}
@@ -71,12 +70,9 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}
-      >
+        onPointerCancel={() => setDrag(null)}>
         <path className="nh-dial__track" d={arcPath(50, 50, 38, START, START + SWEEP)} />
-        {fraction > 0 ? (
-          <path className="nh-dial__fill" d={arcPath(50, 50, 38, START, START + Math.max(0.01, fraction * SWEEP))} />
-        ) : null}
+        {fraction > 0 ? <path className="nh-dial__fill" d={arcPath(50, 50, 38, START, START + Math.max(0.01, fraction * SWEEP))} /> : null}
         {config.readOnly ? null : <circle className="nh-dial__knob" cx={knobPos.x} cy={knobPos.y} r="6" />}
         <text className="nh-dial__value" x="50" y="52" textAnchor="middle">
           {value.toFixed(decimals)}

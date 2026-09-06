@@ -24,7 +24,7 @@ function ZoneSelect({
   id,
   value,
   placeholder,
-  onChange,
+  onChange
 }: {
   id?: string
   value: string
@@ -59,15 +59,7 @@ function ZoneSelect({
  * have been 419 options assembled while the app booted, on every dashboard, for a control almost
  * nobody opens - measured at 45ms, most of it collating strings that are ASCII identifiers.
  */
-export function TimeZoneField({
-  widget,
-  field,
-  value,
-}: {
-  widget: WidgetInstance
-  field: SettingField
-  value: unknown
-}) {
+export function TimeZoneField({ widget, field, value }: { widget: WidgetInstance; field: SettingField; value: unknown }) {
   const { t } = useTranslation()
   const id = `f-${widget.id}-${field.key}`
   return (
@@ -107,8 +99,7 @@ export function ClockZonesField({ widget, field }: { widget: WidgetInstance; fie
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove zone {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>

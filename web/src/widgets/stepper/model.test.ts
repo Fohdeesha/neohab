@@ -20,7 +20,7 @@ import {
   snapToStep,
   stepIndex,
   stepNumber,
-  wrapOf,
+  wrapOf
 } from './model'
 import { stepperWidget } from './index'
 
@@ -105,7 +105,7 @@ describe('stepping a number', () => {
     expect(atLimit(undefined, -1, pct)).toBe(false)
   })
 
-  it('snaps to the step\'s decimals and no more', () => {
+  it("snaps to the step's decimals and no more", () => {
     expect(snapToStep(72.30000000000001, 0.1)).toBe(72.3)
     expect(snapToStep(72.34, 1)).toBe(72)
     expect(snapToStep(72.34, 5)).toBe(72)
@@ -141,13 +141,18 @@ describe('stepping a list', () => {
   const inputs = [
     { command: 'HDMI1', label: 'Apple TV' },
     { command: 'HDMI2', label: 'Xbox' },
-    { command: 'TV', label: 'Aerial' },
+    { command: 'TV', label: 'Aerial' }
   ]
 
   it('finds the current choice, tolerating a numeric echo', () => {
     expect(choiceIndex('HDMI2', inputs)).toBe(1)
     expect(choiceIndex('64.0', [{ command: '64', label: 'On' }])).toBe(0)
-    expect(choiceIndex('1.0', [{ command: '0', label: 'a' }, { command: '1', label: 'b' }])).toBe(1)
+    expect(
+      choiceIndex('1.0', [
+        { command: '0', label: 'a' },
+        { command: '1', label: 'b' }
+      ])
+    ).toBe(1)
     expect(choiceIndex('nope', inputs)).toBe(-1)
     expect(choiceIndex(undefined, inputs)).toBe(-1)
     expect(choiceIndex(null, inputs)).toBe(-1)
@@ -182,11 +187,11 @@ describe('stepping a list', () => {
       type: 'String',
       state: 'A',
       commandDescription: { commandOptions: [{ command: 'A', label: 'Alpha' }, { command: 'B' }] },
-      stateDescription: { options: [{ value: 'S', label: 'State' }] },
+      stateDescription: { options: [{ value: 'S', label: 'State' }] }
     }
     expect(itemChoices(item)).toEqual([
       { command: 'A', label: 'Alpha' },
-      { command: 'B', label: 'B' },
+      { command: 'B', label: 'B' }
     ])
     expect(itemChoices({ ...item, commandDescription: undefined })).toEqual([{ command: 'S', label: 'State' }])
     expect(itemChoices(undefined)).toEqual([])
@@ -197,7 +202,7 @@ describe('stepping a list', () => {
       name: 'x',
       type: 'String',
       state: 'A',
-      commandDescription: { commandOptions: [null, { command: 7 }, { command: 'ok', label: '' }] as never },
+      commandDescription: { commandOptions: [null, { command: 7 }, { command: 'ok', label: '' }] as never }
     }
     expect(itemChoices(junk)).toEqual([{ command: 'ok', label: 'ok' }])
   })
@@ -212,7 +217,7 @@ describe('the glyph on a button', () => {
     expect(glyphFor('auto', 'list', 'horizontal', -1)).toEqual({ shape: 'chevron', dir: 'left' })
   })
 
-  it('points a chosen shape along the look\'s axis', () => {
+  it("points a chosen shape along the look's axis", () => {
     expect(glyphFor('triangle', 'number', 'vertical', -1)).toEqual({ shape: 'triangle', dir: 'down' })
     expect(glyphFor('arrow', 'list', 'horizontal', 1)).toEqual({ shape: 'arrow', dir: 'right' })
     expect(glyphFor('chevron', 'number', 'horizontal', -1)).toEqual({ shape: 'chevron', dir: 'left' })

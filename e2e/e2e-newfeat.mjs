@@ -1,7 +1,7 @@
 // New-features suite: stacked (phone) drag-reorder + icons on switch/selection widgets.
 // SAFE-ADDITIVE: only creates nh-e2e-* components and deletes exactly those; restores the
 // approved switch item's state. Never wipes the namespace (live config safe).
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const SWITCH_ITEM = ITEMS.switch
@@ -35,10 +35,10 @@ const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const STACK_UID = 'dashboard:nh-e2e-stack'

@@ -10,14 +10,9 @@ import {
   type ExportBundle,
   type ImportMode
 } from '../store/config'
-import {
-  looksPartial,
-  validatePartialBundle,
-  type PartialBundle,
-  type PartialImportMode,
-  type PartialPlan
-} from '../model/partial'
+import { looksPartial, validatePartialBundle, type PartialBundle, type PartialImportMode, type PartialPlan } from '../model/partial'
 import { downloadJson } from '../components/download'
+import { errorText } from '../api/errors'
 
 /**
  * Confirmation card for a single-dashboard / widget / theme file. A copy never touches anything
@@ -28,7 +23,7 @@ function PartialImportCard({
   state,
   busy,
   onRun,
-  onCancel,
+  onCancel
 }: {
   state: { bundle: PartialBundle; plan: PartialPlan }
   busy: boolean
@@ -37,22 +32,20 @@ function PartialImportCard({
 }) {
   const { t } = useTranslation()
   const { plan } = state
-  const kindLabel =
-    plan.kind === 'dashboard' ? t('Dashboard') : plan.kind === 'widgetdef' ? t('Custom widget') : t('Theme')
+  const kindLabel = plan.kind === 'dashboard' ? t('Dashboard') : plan.kind === 'widgetdef' ? t('Custom widget') : t('Theme')
   const deps = plan.dependencies.length
   const conflicts = plan.conflicts.length
   // Everything in the file is already here, byte for byte: there is nothing an import could do,
   // so offering one would be a dead end that reports "nothing to import" after the round trip.
-  const nothingToDo =
-    plan.primary.status === 'identical' && plan.dependencies.every((d) => d.status === 'identical')
+  const nothingToDo = plan.primary.status === 'identical' && plan.dependencies.every((d) => d.status === 'identical')
 
   return (
     <div className="nh-settings__importchoice">
       <p className="nh-settings__text">
-        {t('{{kind}} “{{name}}” from a file, with {{count}} thing(s) it references.', {
+        {t('{{kind}} “{{name}}” from a file, with {{count}} things it references.', {
           kind: kindLabel,
           name: plan.name,
-          count: deps,
+          count: deps
         })}
       </p>
       <p className="nh-settings__text">
@@ -98,7 +91,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
     try {
       downloadJson('neohab-config.json', await buildExportBundle(withBackgrounds))
     } catch (err) {
-      onNotice(t('Export failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Export failed: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -125,7 +118,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       try {
         setPendingPartial({ bundle, plan: await planPartialImportOnServer(bundle) })
       } catch (err) {
-        onNotice(t('Import failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+        onNotice(t('Import failed: {{error}}', { error: errorText(err) }))
       }
       return
     }
@@ -143,8 +136,8 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
     if (
       mode === 'overwrite' &&
       !window.confirm(
-        t('Overwrite {{count}} existing item(s) with this file? The version history keeps a restore point.', {
-          count: pendingPartial.plan.conflicts.length,
+        t('Overwrite {{count}} existing items with this file? The version history keeps a restore point.', {
+          count: pendingPartial.plan.conflicts.length
         })
       )
     ) {
@@ -159,12 +152,12 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
           ? t('Nothing to import - that file matches what you already have.')
           : result.renamed.length > 0
             ? t('Imported as a copy: {{name}}.', { name: result.primaryUid.slice(result.primaryUid.indexOf(':') + 1) })
-            : t('Imported {{count}} item(s).', { count: result.written })
+            : t('Imported {{count}} items.', { count: result.written })
       )
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} - are you signed in as an administrator?', {
-          error: err instanceof Error ? err.message : String(err),
+        t('Import failed: {{error}}', {
+          error: errorText(err)
         })
       )
     } finally {
@@ -174,10 +167,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
 
   const runImport = async (mode: ImportMode) => {
     if (!pending) return
-    if (
-      mode === 'replace' &&
-      !window.confirm(t('Replace the entire configuration with this backup? This cannot be undone.'))
-    ) {
+    if (mode === 'replace' && !window.confirm(t('Replace the entire configuration with this backup? This cannot be undone.'))) {
       return
     }
     setBusy(true)
@@ -187,8 +177,8 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
       onNotice(mode === 'replace' ? t('Backup imported.') : t('Backup merged into the current configuration.'))
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} - are you signed in as an administrator?', {
-          error: err instanceof Error ? err.message : String(err),
+        t('Import failed: {{error}}', {
+          error: errorText(err)
         })
       )
     } finally {
@@ -208,12 +198,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
         <>
           <label className="nh-field nh-field--row" htmlFor="nh-export-bg">
             <span className="nh-field__label">{t('Include background images')}</span>
-            <input
-              id="nh-export-bg"
-              type="checkbox"
-              checked={withBackgrounds}
-              onChange={(e) => setWithBackgrounds(e.target.checked)}
-            />
+            <input id="nh-export-bg" type="checkbox" checked={withBackgrounds} onChange={(e) => setWithBackgrounds(e.target.checked)} />
           </label>
           <p className="nh-settings__text">
             {t(
@@ -241,7 +226,9 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
           }}
         />
       </div>
-      {pendingPartial ? <PartialImportCard state={pendingPartial} busy={busy} onRun={runPartialImport} onCancel={() => setPendingPartial(null)} /> : null}
+      {pendingPartial ? (
+        <PartialImportCard state={pendingPartial} busy={busy} onRun={runPartialImport} onCancel={() => setPendingPartial(null)} />
+      ) : null}
       {pending ? (
         <div className="nh-settings__importchoice">
           <p className="nh-settings__text">
@@ -249,7 +236,7 @@ export function BackupSection({ onNotice }: { onNotice: (m: string | null) => vo
               'Backup contains {{dashboards}} dashboard(s), {{components}} components. Merge keeps your current configuration and overwrites only what the backup also contains; replace deletes everything first.',
               {
                 dashboards: pending.components.filter((c) => c.uid.startsWith('dashboard:')).length,
-                components: pending.components.length,
+                components: pending.components.length
               }
             )}
           </p>

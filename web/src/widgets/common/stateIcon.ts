@@ -70,13 +70,13 @@ export function resolveStateIcon(c: StateIconConfig, active: boolean, state?: st
     if (rule && (rule.icon || rule.color)) {
       return {
         icon: rule.icon || (active && c.iconActive) || c.icon || undefined,
-        color: rule.color || (active && c.iconColorActive) || c.iconColor || undefined,
+        color: rule.color || (active && c.iconColorActive) || c.iconColor || undefined
       }
     }
   }
   return {
     icon: (active && c.iconActive) || c.icon || undefined,
-    color: (active && c.iconColorActive) || c.iconColor || undefined,
+    color: (active && c.iconColorActive) || c.iconColor || undefined
   }
 }
 
@@ -86,5 +86,5 @@ export const STATE_ICON_SETTINGS: SettingField[] = [
   { key: 'iconActive', type: 'icon', label: 'Icon when active' },
   { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
   { key: 'iconColorActive', type: 'color', label: 'Icon color when active' },
-  { key: 'stateIcons', type: 'stateicons', label: 'Per-state icons' },
+  { key: 'stateIcons', type: 'stateicons', label: 'Per-state icons' }
 ]

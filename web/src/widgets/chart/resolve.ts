@@ -67,9 +67,7 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
     mode: s.mode === 'linear' ? ('linear' as const) : s.mode === 'step' ? ('step' as const) : ('smooth' as const),
     points: s.points === true,
     kind: s.kind === 'bar' ? ('bar' as const) : ('line' as const),
-    aggregate: (AGGREGATE_FUNCTIONS.includes(s.aggregate as AggregateFunction)
-      ? s.aggregate
-      : 'average') as AggregateFunction,
+    aggregate: (AGGREGATE_FUNCTIONS.includes(s.aggregate as AggregateFunction) ? s.aggregate : 'average') as AggregateFunction
   }))
   const thresholds = effectiveThresholds(config)
     .map((th: ChartThreshold) => ({
@@ -77,7 +75,7 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
       to: numOpt(th.to),
       axis: th.axis === 'y2' ? ('y2' as const) : ('y' as const),
       color: th.color || '#d03b3b',
-      label: th.label,
+      label: th.label
     }))
     .filter((th) => th.from !== undefined || th.to !== undefined)
   const groupBy: GroupBy = (config.groupBy as GroupBy) ?? 'none'
@@ -93,7 +91,7 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
     y2Min: numOpt(config.y2Min),
     y2Max: numOpt(config.y2Max),
     maxPoints: numOpt(config.maxPoints),
-    service: config.service || undefined,
+    service: config.service || undefined
   }
 }
 

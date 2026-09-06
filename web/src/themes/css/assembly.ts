@@ -172,7 +172,7 @@ ${wholeTileActive({
   extra: `  box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
     0 0 20px -6px color-mix(in srgb, var(--nh-primary) 50%, transparent),
-    0 14px 30px -20px rgba(0, 0, 0, 0.85);`,
+    0 14px 30px -20px rgba(0, 0, 0, 0.85);`
 })}/* A button carrying an illustration is a zone card: media on top, title and dim caption
    bottom-left, the reference's left-column layout. */
 .nh-button:has(.nh-button__media) {
@@ -220,6 +220,14 @@ ${wholeTileActive({
 }
 .nh-value__text {
   font-weight: 600;
+}
+/* The log console: the level tag in the board's green, the pill the same solid green plate with
+   dark ink as every other active chip. */
+.nh-log__level {
+  color: var(--nh-primary);
+}
+.nh-log__jump {
+  color: var(--nh-accent-ink, #06130a);
 }
 /* Photo and video slots keep a soft dark vignette inside their rounded inset. */
 .nh-camera__host {

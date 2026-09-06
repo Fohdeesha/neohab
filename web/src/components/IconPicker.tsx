@@ -15,6 +15,7 @@ import { CLASSIC_ICONS } from './classicIcons'
 import { saveCustomIcon, useConfigStore } from '../store/config'
 import { slugifyIconId } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from './iconUpload'
+import { errorText } from '../api/errors'
 
 interface IconPickerProps {
   id: string
@@ -35,10 +36,10 @@ interface PackEntry {
 const TAB_PACKS: Partial<Record<Tab, [file: string, prefix: string][]>> = {
   color: [
     ['fluent-index.json', 'fluent'],
-    ['fc-index.json', 'fc'],
+    ['fc-index.json', 'fc']
   ],
   mono: [['mdi-index.json', 'mdi']],
-  weather: [['meteo-index.json', 'meteo']],
+  weather: [['meteo-index.json', 'meteo']]
 }
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -46,7 +47,7 @@ const TAB_LABELS: Record<Tab, string> = {
   mono: 'Mono',
   weather: 'Weather',
   oh: 'openHAB',
-  custom: 'Custom',
+  custom: 'Custom'
 }
 
 const SEARCH_HINTS: Record<Tab, string> = {
@@ -54,7 +55,7 @@ const SEARCH_HINTS: Record<Tab, string> = {
   mono: 'Search ~7,000 icons…',
   weather: 'Search ~450 weather icons…',
   oh: 'Search the classic set…',
-  custom: 'Search your icons…',
+  custom: 'Search your icons…'
 }
 
 const loadedIndexes = new Map<string, PackEntry[]>()
@@ -74,7 +75,7 @@ function loadIndex(file: string, prefix: string): Promise<void> {
             return {
               ref: prefix + ':' + name,
               label: name,
-              search: pipe === -1 ? name : name + ' ' + row.slice(pipe + 1),
+              search: pipe === -1 ? name : name + ' ' + row.slice(pipe + 1)
             }
           })
         )
@@ -226,10 +227,9 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
       await saveCustomIcon({ version: 1, id: idSlug, name, ...processed })
       select('custom:' + idSlug)
     } catch (err) {
-      setUploadError(
-        (err instanceof Error ? err.message : String(err)) +
-          (/40[13]/.test(String(err)) ? ' ' + t('- sign in as an administrator to upload icons.') : '')
-      )
+      // errorText already turns a 401 or 403 into "sign in as an openHAB administrator", which is
+      // what the sniff on the message text used to be doing by hand and less reliably.
+      setUploadError(errorText(err))
     } finally {
       setUploading(false)
     }
@@ -261,8 +261,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
             e.preventDefault()
             if (open) close()
             else openList()
-          }}
-        >
+          }}>
           ▾
         </button>
       </div>
@@ -271,16 +270,14 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
         <div
           className="nh-iconpicker__pop"
           ref={popRef}
-          style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
-        >
+          style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}>
           <div className="nh-iconpicker__tabs">
             {(Object.keys(TAB_LABELS) as Tab[]).map((tb) => (
               <button
                 key={tb}
                 type="button"
                 className={'nh-iconpicker__tab' + (tab === tb ? ' nh-iconpicker__tab--on' : '')}
-                onClick={() => setTab(tb)}
-              >
+                onClick={() => setTab(tb)}>
                 {t(TAB_LABELS[tb])}
               </button>
             ))}
@@ -291,8 +288,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
                 onClick={() => {
                   onChange('')
                   close()
-                }}
-              >
+                }}>
                 {t('Remove icon')}
               </button>
             ) : null}
@@ -304,16 +300,17 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
             value={query}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && close()}
+            // preventDefault marks the press as handled, so the sheet this picker sits in does
+            // not close on the same Escape that shut the popup.
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape') return
+              e.preventDefault()
+              close()
+            }}
           />
           {tab === 'custom' ? (
             <div className="nh-iconpicker__upload">
-              <button
-                type="button"
-                className="nh-btn nh-btn--ghost"
-                disabled={uploading}
-                onClick={() => fileRef.current?.click()}
-              >
+              <button type="button" className="nh-btn nh-btn--ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
                 {uploading ? t('Uploading…') : t('Upload icon…')}
               </button>
               <span className="nh-iconpicker__uploadhint">{t('PNG, JPG, GIF, WebP, BMP or SVG')}</span>
@@ -334,21 +331,13 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           <div className="nh-iconpicker__grid">
             {!packsReady ? <span className="nh-picker__empty">{t('Loading icon library…')}</span> : null}
             {matches.map((entry) => (
-              <button
-                key={entry.ref}
-                type="button"
-                className="nh-iconpicker__cell"
-                title={entry.label}
-                onClick={() => select(entry.ref)}
-              >
+              <button key={entry.ref} type="button" className="nh-iconpicker__cell" title={entry.label} onClick={() => select(entry.ref)}>
                 <Icon icon={entry.ref} size={26} />
               </button>
             ))}
             {matches.length === 0 && packsReady ? (
               <span className="nh-picker__empty">
-                {tab === 'custom' && customIcons.length === 0
-                  ? t('No custom icons yet - upload one above')
-                  : t('No matching icons')}
+                {tab === 'custom' && customIcons.length === 0 ? t('No custom icons yet - upload one above') : t('No matching icons')}
               </span>
             ) : null}
           </div>

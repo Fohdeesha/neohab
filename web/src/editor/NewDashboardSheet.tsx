@@ -1,12 +1,12 @@
 /**
  * Create a new empty dashboard: display name → URL-safe id, persisted to the server
- * immediately (the way here is gated like the edit pencil: administrators, or anyone once
- * anonymous editing is allowed - in which case the server may still refuse the save, and the
- * error below says so).
+ * immediately. The way here is gated like the edit pencil (administrators), but the server is
+ * what actually decides, so a refusal is reported rather than assumed away.
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
+import { errorText } from '../api/errors'
 import { createDashboard, slugifyDashboardId } from '../model/dashboard'
 import { saveDashboard, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
@@ -30,7 +30,7 @@ export function NewDashboardSheet({ onClose, onGenerate }: { onClose: () => void
       navigate({ name: 'dashboard', id: dashboard.id })
     } catch (err) {
       setBusy(false)
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorText(err))
     }
   }
 
@@ -50,15 +50,8 @@ export function NewDashboardSheet({ onClose, onGenerate }: { onClose: () => void
             }}
           />
         </label>
-        {error ? (
-          <p className="nh-form__error">{t('Could not create: {{error}} - are you signed in as an administrator?', { error })}</p>
-        ) : null}
-        <button
-          type="button"
-          className="nh-btn nh-btn--primary"
-          disabled={!name.trim() || busy}
-          onClick={() => void create()}
-        >
+        {error ? <p className="nh-form__error">{t('Could not create: {{error}}', { error })}</p> : null}
+        <button type="button" className="nh-btn nh-btn--primary" disabled={!name.trim() || busy} onClick={() => void create()}>
           {busy ? t('Creating…') : t('Create dashboard')}
         </button>
         {onGenerate ? (

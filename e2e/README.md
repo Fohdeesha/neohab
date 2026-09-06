@@ -102,6 +102,34 @@ for:
   keeps: the in-memory service holds 512 entries per item, so resolution and window trade off
   against each other, and different checks want different ones.
 
+### Over HTTPS
+
+A target whose `baseUrl` starts with `https:` runs the same suites over TLS. Nothing else changes
+in a target file, and openHAB already listens on 8443:
+
+```
+NEOHAB_E2E_TARGET=/path/to/target.oh5-https.json node run.mjs
+```
+
+`lib/target.mjs` notices the scheme and answers with the two things a self-signed certificate
+needs: `--ignore-certificate-errors` for the browser (`LAUNCH_ARGS`, applied by every suite
+through `lib/browser.mjs`) and `NODE_TLS_REJECT_UNAUTHORIZED=0` for the fetches the harness itself
+makes. The browser flag rather than a per-context `ignoreHTTPSErrors`, deliberately: the flag
+makes the origin a **secure context**, so the service worker registers, the wake lock is offered
+and `crypto.subtle` exists, which is the whole point of running over TLS. A context option would
+load the page and leave all three untestable.
+
+Worth knowing before you read the results:
+
+- **`e2e-https` is the suite about TLS itself** and self-skips on an http target, so it is inert
+  in an ordinary run. It covers the secure-context capabilities, the item-state stream over TLS,
+  the PKCE challenge on the SubtleCrypto path (the http suites exercise the bundled fallback
+  instead), the service worker and its precache, and mixed content.
+- **Drop the `camera` block from an HTTPS target.** The usual fixture is a plain-HTTP go2rtc, and
+  an https page may not load it at all, so the camera suite's live-video sections would fail on
+  mixed content rather than on a defect. Without the block they self-skip, and `e2e-https` asserts
+  the mixed-content behaviour on purpose.
+
 ## Safety model: read before running against a server you care about
 
 The suites fall into two classes.
@@ -138,6 +166,15 @@ so the suite cannot invent one.
   items, which cannot be written through the REST API at all. Its last section saves through the
   app, so unlike most safe-additive suites it does mint version-history restore points.
 
+`e2e-launch.mjs` drives the screens people meet when something is wrong: a configuration that
+cannot be read, a server that shows nothing without an account, a save the server refuses, an
+upgrade under an open tab. Every one of those is produced by answering the app's own requests
+locally, so the server is never reconfigured and nothing is written by a refused save. It creates
+`dashboard:nh-e2e-launch` and `dashboard:nh-e2e-launch-empty` and deletes both by exact uid; it
+commands nothing. Like `e2e-audit2` it does leave version-history restore points behind: the
+refused save is refused at the configuration namespace, and the history capture that runs before
+every write is a different namespace and goes through.
+
 `e2e-fade.mjs` replays what a DMX strip reports while it fades - the sequences were taken from a
 real server's `events.log` - onto two managed items it creates itself (`nh_e2e_fadecol`,
 `nh_e2e_fadedim`, both bound to nothing), so no device is driven and the timing belongs to the
@@ -163,6 +200,16 @@ itself (`nh_e2e_thcur`, `nh_e2e_thset`, `nh_e2e_thmode`, `nh_e2e_thfan`, `nh_e2e
 `nh_e2e_thstat`, `nh_e2e_thcurc`, `nh_e2e_thsetc`, `nh_e2e_thnull`, all bound to nothing), so its
 commands are real and reach no device. It enters edit mode once to inspect the settings panel and
 leaves without saving. The dashboard and all nine items are deleted by name in cleanup.
+
+`e2e-log.mjs` drives the log widget and its full-screen viewer against one managed Dimmer it
+creates itself (`nh_e2e_logdim`, bound to nothing): its state changes and one command are what
+openHAB logs as the events.log lines the checks look for. The openhab.log lines it looks for are
+made the same way: a message the log socket cannot parse as a filter, which the server logs as a
+WARN carrying the text verbatim, so each run leaves a few such warnings in the server's log, each
+tagged with the run's own marker. What an anonymous socket gets differs between the two openHAB
+lines, so the suite asks the server first and holds the tile to whichever answer it got. It
+enters edit mode once to inspect the settings panel and leaves without saving. The dashboard and
+the item are deleted by name in cleanup.
 
 `e2e-colorpower.mjs` drives the colour widget's on and off buttons against one managed Color item
 it creates itself (`nh_e2e_pwr`, bound to nothing), so its commands are real and reach openHAB but

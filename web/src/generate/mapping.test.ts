@@ -23,19 +23,18 @@ import {
   sizeFor,
   suggestWidget,
   titleCase,
-  widgetChoices,
+  widgetChoices
 } from './mapping'
 import type { Semantics } from './semantics'
 
-const item = (over: Partial<Item> & { name: string }): Item =>
-  ({ type: 'Switch', state: 'OFF', ...over }) as Item
+const item = (over: Partial<Item> & { name: string }): Item => ({ type: 'Switch', state: 'OFF', ...over }) as Item
 
 const NO_SEM: Semantics = { kind: null }
 const point = (name: string): Semantics => ({ kind: 'point', point: { name, root: 'Point', label: name } })
 const withProperty = (property: string): Semantics => ({
   kind: 'point',
   point: { name: 'Measurement', root: 'Point', label: 'Measurement' },
-  property: { name: property, root: 'Property', label: property },
+  property: { name: property, root: 'Property', label: property }
 })
 
 /** Strings that find something on Object.prototype when used as a plain object key. */
@@ -46,7 +45,7 @@ describe('base type', () => {
     ['Switch', 'Switch'],
     ['Number:Temperature', 'Number'],
     ['Number:Dimensionless', 'Number'],
-    ['Dimmer', 'Dimmer'],
+    ['Dimmer', 'Dimmer']
   ])('reduces %s to %s', (type, expected) => {
     expect(baseType(item({ name: 'i', type }))).toBe(expected)
   })
@@ -84,7 +83,7 @@ describe('suggesting a widget', () => {
     ['Player', 'player'],
     ['DateTime', 'value'],
     ['Location', 'value'],
-    ['Contact', 'value'],
+    ['Contact', 'value']
   ])('gives a %s item a %s', (type, expected) => {
     expect(suggestWidget(item({ name: 'i', type }), NO_SEM, 'I')?.type).toBe(expected)
   })
@@ -111,8 +110,9 @@ describe('suggesting a widget', () => {
   it('offers a selection only when a settable String declares at least two options', () => {
     const opts = (n: number) =>
       item({
-        name: 'i', type: 'String',
-        commandDescription: { commandOptions: Array.from({ length: n }, (_, k) => ({ command: `C${k}`, label: `L${k}` })) },
+        name: 'i',
+        type: 'String',
+        commandDescription: { commandOptions: Array.from({ length: n }, (_, k) => ({ command: `C${k}`, label: `L${k}` })) }
       })
     expect(suggestWidget(opts(2), point('Control'), 'I')?.type).toBe('selection')
     expect(suggestWidget(opts(1), point('Control'), 'I')?.type).toBe('value')
@@ -160,7 +160,9 @@ describe('widget configuration', () => {
 
   it('falls back to a percentage range only where that is the safe assumption', () => {
     expect(configFor('slider', item({ name: 'i', type: 'Dimmer' }), { label: 'L' })).toMatchObject({
-      min: 0, max: 100, step: 1,
+      min: 0,
+      max: 100,
+      step: 1
     })
   })
 
@@ -173,8 +175,9 @@ describe('widget configuration', () => {
 
   it('builds selection lines from command options, labelled', () => {
     const i = item({
-      name: 'i', type: 'String',
-      commandDescription: { commandOptions: [{ command: 'HDMI1', label: 'Apple TV' }, { command: 'HDMI2' }] },
+      name: 'i',
+      type: 'String',
+      commandDescription: { commandOptions: [{ command: 'HDMI1', label: 'Apple TV' }, { command: 'HDMI2' }] }
     })
     expect(configFor('selection', i, { label: 'L' }).choices).toBe('HDMI1=Apple TV\nHDMI2=HDMI2')
   })
@@ -229,7 +232,7 @@ describe('labels', () => {
     ['LivingRoomLamp', 'Living Room Lamp'],
     ['UPS1_load', 'UPS1 Load'],
     ['hvac-mode', 'Hvac Mode'],
-    ['PDU1', 'PDU1'],
+    ['PDU1', 'PDU1']
   ])('title-cases %s', (raw, expected) => {
     expect(titleCase(raw)).toBe(expected)
   })

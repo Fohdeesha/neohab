@@ -19,6 +19,7 @@ import { getActiveTheme, useActiveTheme } from '../themes/active'
 import { checkThemeCss, type ThemeCssIssue } from '../themes/cssRules'
 import { CONTRAST_PAIRS, contrastLevel, contrastOf, type ContrastLevel } from '../themes/contrast'
 import { TOKEN_SPECS } from '../themes/tokens'
+import { errorText } from '../api/errors'
 
 /** Re-apply whatever theme the app should actually be showing right now. */
 function applyLiveTheme(): void {
@@ -29,7 +30,7 @@ export function ThemeEditor({
   theme,
   onChange,
   onClose,
-  onNotice,
+  onNotice
 }: {
   theme: Theme
   onChange: (t: Theme) => void
@@ -78,7 +79,7 @@ export function ThemeEditor({
       )
       onClose()
     } catch (err) {
-      onNotice(t('Saving the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Saving the theme failed: {{error}}', { error: errorText(err) }))
     } finally {
       setSaving(false)
     }
@@ -91,16 +92,14 @@ export function ThemeEditor({
       await deleteTheme(theme.id)
       onClose()
     } catch (err) {
-      onNotice(t('Deleting the theme failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Deleting the theme failed: {{error}}', { error: errorText(err) }))
     }
   }
 
   return (
     <section className="nh-themeeditor">
       <h2 className="nh-settings__h">{t('Theme editor')}</h2>
-      <p className="nh-settings__text">
-        {t('Changes preview on this screen as you make them. Nothing is stored until you save.')}
-      </p>
+      <p className="nh-settings__text">{t('Changes preview on this screen as you make them. Nothing is stored until you save.')}</p>
 
       <div className="nh-form">
         <label className="nh-field" htmlFor="theme-name">
@@ -116,9 +115,7 @@ export function ThemeEditor({
             onChange={(e) => onChange({ ...theme, scheme: e.target.checked ? 'dark' : 'light' })}
           />
         </label>
-        <p className="nh-field__hint">
-          {t('Tells the browser which way round the page is, so scrollbars and form controls match.')}
-        </p>
+        <p className="nh-field__hint">{t('Tells the browser which way round the page is, so scrollbars and form controls match.')}</p>
 
         <ContrastReport theme={theme} />
 
@@ -140,12 +137,7 @@ export function ThemeEditor({
         <span className="nh-dash__spacer" />
         <label className="nh-field nh-field--row nh-themeeditor__share" htmlFor="theme-shared">
           <span className="nh-field__label">{t('Use on all devices')}</span>
-          <input
-            id="theme-shared"
-            type="checkbox"
-            checked={makeShared}
-            onChange={(e) => setMakeShared(e.target.checked)}
-          />
+          <input id="theme-shared" type="checkbox" checked={makeShared} onChange={(e) => setMakeShared(e.target.checked)} />
         </label>
         <button type="button" className="nh-btn nh-btn--ghost" onClick={onClose}>
           {t('Close')}
@@ -162,7 +154,7 @@ export function ThemeEditor({
 function TokenGroupFields({
   group,
   theme,
-  onSet,
+  onSet
 }: {
   group: (typeof TOKEN_GROUPS)[number]
   theme: Theme
@@ -177,16 +169,9 @@ function TokenGroupFields({
 
   return (
     <div className="nh-tokengroup">
-      <button
-        type="button"
-        className="nh-tokengroup__head"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
+      <button type="button" className="nh-tokengroup__head" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="nh-tokengroup__name">{t(group)}</span>
-        <span className="nh-tokengroup__count">
-          {set > 0 ? t('{{count}} set', { count: set }) : t('all automatic')}
-        </span>
+        <span className="nh-tokengroup__count">{set > 0 ? t('{{count}} set', { count: set }) : t('all automatic')}</span>
         <span aria-hidden="true">{open ? '▾' : '▸'}</span>
       </button>
       {open ? specs.map((spec) => <TokenField key={spec.key} spec={spec} theme={theme} onSet={onSet} />) : null}
@@ -194,15 +179,7 @@ function TokenGroupFields({
   )
 }
 
-function TokenField({
-  spec,
-  theme,
-  onSet,
-}: {
-  spec: TokenSpec
-  theme: Theme
-  onSet: (key: string, value: string | undefined) => void
-}) {
+function TokenField({ spec, theme, onSet }: { spec: TokenSpec; theme: Theme; onSet: (key: string, value: string | undefined) => void }) {
   const { t } = useTranslation()
   const value = theme.tokens[spec.key]
   const id = 'tok-' + spec.key
@@ -246,7 +223,7 @@ const LEVEL_LABEL: Record<ContrastLevel, string> = {
   AAA: 'AAA',
   AA: 'AA',
   'AA-large': 'large text only',
-  fail: 'hard to read',
+  fail: 'hard to read'
 }
 
 /**
@@ -283,8 +260,10 @@ function ContrastReport({ theme }: { theme: Theme }) {
       </div>
       <p className="nh-field__hint">
         {worst !== null && worst < 4.5
-          ? t('Some text on this theme falls below the 4.5:1 the accessibility guidelines ask for. It will still render - this is a warning, not a limit.')
-          : t('Contrast between the colours that meet on screen. 4.5:1 is the guideline for normal text, 3:1 for large.')}
+          ? t(
+              'Some text on this theme falls below the 4.5:1 the accessibility guidelines ask for. It will still render - this is a warning, not a limit.'
+            )
+          : t('Contrast between the colors that meet on screen. 4.5:1 is the guideline for normal text, 3:1 for large.')}
       </p>
     </div>
   )
@@ -295,19 +274,38 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
   const p = issue.params
   switch (issue.rule) {
     case 'attributePaint':
-      return t('“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself - a gradient, or a colour that follows the value. Your rule wins, and pins it to one colour. Style its width or opacity instead.', p)
+      return t(
+        '“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself - a gradient, or a color that follows the value. Your rule wins, and pins it to one color. Style its width or opacity instead.',
+        p
+      )
     case 'ungatedPadding':
-      return t('“{{selector}}” sets padding outside a @container gate, so it also applies in cells too small for it and text will clip. Wrap it in @container (min-height: 105px) and (min-width: 121px).', p)
+      return t(
+        '“{{selector}}” sets padding outside a @container gate, so it also applies in cells too small for it and text will clip. Wrap it in @container (min-height: 105px) and (min-width: 121px).',
+        p
+      )
     case 'activeState':
-      return t('.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state - style both.', p)
+      return t(
+        '.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state - style both.',
+        p
+      )
     case 'borderImageRadius':
-      return t('border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.', p)
+      return t(
+        'border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.',
+        p
+      )
     case 'bareWidget':
-      return t('Every widget is painted, including the label and clock widgets that asked for no card. Add a .nh-widget--bare rule undoing it.')
+      return t(
+        'Every widget is painted, including the label and clock widgets that asked for no card. Add a .nh-widget--bare rule undoing it.'
+      )
     case 'newTile':
-      return t('Every tile is painted, including the “+ New dashboard” one, which should stay a dashed invitation. Add a .nh-tile--new rule.')
+      return t(
+        'Every tile is painted, including the “+ New dashboard” one, which should stay a dashed invitation. Add a .nh-tile--new rule.'
+      )
     case 'externalAsset':
-      return t('“{{url}}” is not bundled with neohab, so it will not load on a server with no route to the internet. Use a fonts/, backgrounds/ or icons/ path, or a data: URI.', p)
+      return t(
+        '“{{url}}” is not bundled with neohab, so it will not load on a server with no route to the internet. Use a fonts/, backgrounds/ or icons/ path, or a data: URI.',
+        p
+      )
   }
 }
 
@@ -318,9 +316,7 @@ function StylesheetIssues({ css, radius }: { css: string; radius: string }) {
   if (issues.length === 0) return null
   return (
     <div className="nh-cssissues">
-      <span className="nh-cssissues__head">
-        {t('{{count}} thing to check', { count: issues.length })}
-      </span>
+      <span className="nh-cssissues__head">{t('{{count}} thing to check', { count: issues.length })}</span>
       <ul>
         {issues.map((issue, i) => (
           <li key={issue.rule + i}>{issueText(t, issue)}</li>
@@ -382,7 +378,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
           </button>
           <span className="nh-field__hint">
             {t(
-              'Copies it as a starting point. Be aware it contains colours written directly into it, which will not follow the tokens above - Swiss Sheet is the one built entirely from tokens, so it is the best one to copy.'
+              'Copies it as a starting point. Be aware it contains colors written directly into it, which will not follow the tokens above - Swiss Sheet is the one built entirely from tokens, so it is the best one to copy.'
             )}
           </span>
         </div>

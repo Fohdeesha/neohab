@@ -12,13 +12,8 @@ import { nextFreeId } from '../model/components'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import { saveWidgetDef, useConfigStore } from '../store/config'
 import { useEditingAllowed } from '../store/auth'
-import {
-  REMOTE_INDEX,
-  loadBundledGallery,
-  loadGalleryWidget,
-  loadRemoteGallery,
-  type GalleryEntry,
-} from '../gallery/gallery'
+import { REMOTE_INDEX, loadBundledGallery, loadGalleryWidget, loadRemoteGallery, type GalleryEntry } from '../gallery/gallery'
+import { errorText } from '../api/errors'
 
 const BUNDLED_URL = 'gallery/index.json'
 
@@ -43,7 +38,7 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       .then((index) => setEntries(index.widgets))
       .catch((err) => {
         setEntries([])
-        setError(String(err instanceof Error ? err.message : err))
+        setError(errorText(err))
       })
   }, [])
 
@@ -60,7 +55,7 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
     } catch (err) {
       setError(
         t('Could not reach the online gallery ({{error}}). The widgets below ship with neohab and always work.', {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorText(err)
         })
       )
     } finally {
@@ -89,8 +84,8 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       )
     } catch (err) {
       onNotice(
-        t('Could not install that widget: {{error}} - are you signed in as an administrator?', {
-          error: err instanceof Error ? err.message : String(err),
+        t('Could not install that widget: {{error}}', {
+          error: errorText(err)
         })
       )
     } finally {
@@ -126,15 +121,8 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
                 </div>
                 {entry.description ? <p className="nh-gallery__desc">{entry.description}</p> : null}
                 <div className="nh-gallery__foot">
-                  <span className="nh-gallery__meta">
-                    {[entry.author, entry.license].filter(Boolean).join(' · ')}
-                  </span>
-                  <button
-                    type="button"
-                    className="nh-btn nh-btn--ghost"
-                    disabled={busy !== null}
-                    onClick={() => void install(entry)}
-                  >
+                  <span className="nh-gallery__meta">{[entry.author, entry.license].filter(Boolean).join(' · ')}</span>
+                  <button type="button" className="nh-btn nh-btn--ghost" disabled={busy !== null} onClick={() => void install(entry)}>
                     {busy === entry.id ? t('Installing…') : installed ? t('Reinstall') : t('Install')}
                   </button>
                 </div>

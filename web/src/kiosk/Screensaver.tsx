@@ -116,9 +116,7 @@ function SaverClock() {
   return (
     <div className="nh-saver__clock" style={{ left: pos.x + '%', top: pos.y + '%' }}>
       <div className="nh-saver__time">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-      <div className="nh-saver__date">
-        {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-      </div>
+      <div className="nh-saver__date">{now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
     </div>
   )
 }

@@ -7,7 +7,7 @@
  * theme through the per-device override so the shared `settings` component is never written, and
  * commands nothing.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const del = (uid) => fetch(`${NS}/${encodeURIComponent(uid)}`, { method: 'DELETE', headers: AUTH }).catch(() => {})
@@ -17,12 +17,12 @@ const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json())
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return await chromium.launch({ channel, headless: true })
+      return await launchChromium({ channel, headless: true })
     } catch {
       /* try the next one */
     }
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const UID = 'theme:nh-e2e-rules'

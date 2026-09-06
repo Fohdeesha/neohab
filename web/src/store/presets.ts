@@ -23,12 +23,13 @@ import {
   SCENE_TAG,
   type Preset,
   type PresetSummary,
-  type StatusState,
+  type StatusState
 } from '../model/presets'
 import { commandItem } from '../widgets/common/command'
 import { useAuthStore } from './auth'
 import { clearSettling, markSettling } from './settling'
 import { emptyMap, mergeMap } from '../model/lookup'
+import { errorText } from '../api/errors'
 
 interface PresetsState {
   /** A load has completed at least once (successfully or not). */
@@ -50,7 +51,7 @@ export const usePresetsStore = create<PresetsState>(() => ({
   summaries: [],
   full: {},
   bridged: [],
-  allRuleUids: [],
+  allRuleUids: []
 }))
 
 let inflight: Promise<void> | null = null
@@ -96,9 +97,7 @@ async function doLoad(admin: boolean): Promise<void> {
     const [sceneSummaries, allSummaries] = await Promise.all([listRuleSummaries(SCENE_TAG), listRuleSummaries()])
     const summaries = sceneSummaries.map(presetSummaryFromRule)
     const allRuleUids = allSummaries.map((r) => r.uid).filter((u) => typeof u === 'string')
-    const bridged = allRuleUids
-      .filter((u) => u.startsWith(BRIDGE_UID_PREFIX))
-      .map((u) => u.slice(BRIDGE_UID_PREFIX.length))
+    const bridged = allRuleUids.filter((u) => u.startsWith(BRIDGE_UID_PREFIX)).map((u) => u.slice(BRIDGE_UID_PREFIX.length))
 
     let full: Record<string, Preset> = emptyMap()
     if (admin) {
@@ -115,7 +114,7 @@ async function doLoad(admin: boolean): Promise<void> {
     }
     usePresetsStore.setState({ loaded: true, summaries, full, bridged, allRuleUids, error: undefined })
   } catch (err) {
-    usePresetsStore.setState({ loaded: true, error: err instanceof Error ? err.message : String(err) })
+    usePresetsStore.setState({ loaded: true, error: errorText(err) })
   }
 }
 
@@ -222,7 +221,7 @@ export async function activatePreset(preset: PresetSummary): Promise<boolean> {
     notify(
       i18n.t('“{{name}}” could not be activated ({{error}})', {
         name: preset.name,
-        error: err instanceof ApiError ? err.status : String(err),
+        error: err instanceof ApiError ? err.status : String(err)
       })
     )
     return false

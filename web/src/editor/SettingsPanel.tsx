@@ -18,10 +18,12 @@ import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
 import type { Surface } from '../model/layout'
-import { removeWidget, selectWidget, updateWidgetConfig } from '../store/editor'
+import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs } from '../store/editor'
+import { useCatalogStore } from '../store/catalog'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
 import { NumberSetting } from '../components/NumberSetting'
+import { mixedContent } from '../model/url'
 import { parseColor } from '../themes/contrast'
 
 /**
@@ -34,7 +36,7 @@ const HIDE_ON_FIELD: SettingField = {
   key: 'hideOn',
   type: 'hideon',
   label: 'Hide on',
-  hint: 'Leave this widget out at the chosen screen sizes. It always stays visible while editing.',
+  hint: 'Leave this widget out at the chosen screen sizes. It always stays visible while editing.'
 }
 
 const ACCENT_FIELD: SettingField = {
@@ -47,23 +49,23 @@ const ACCENT_FIELD: SettingField = {
     { value: '', label: 'None' },
     { value: 'filled', label: 'Filled' },
     { value: 'tinted', label: 'Tinted' },
-    { value: 'outlined', label: 'Outlined' },
+    { value: 'outlined', label: 'Outlined' }
   ],
-  hint: 'Makes the tile stand out: painted in the accent color (filled), a muted wash of it (tinted), or framed by a rule in it (outlined).',
+  hint: 'Makes the tile stand out: painted in the accent color (filled), a muted wash of it (tinted), or framed by a rule in it (outlined).'
 }
 
 const ACCENT_COLOR_FIELD: SettingField = {
   key: 'accentColor',
   type: 'color',
   label: 'Accent color',
-  hint: 'This tile’s own accent: it recolors the filled/tinted accent above, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.',
+  hint: 'This tile’s own accent: it recolors the filled/tinted accent above, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.'
 }
 
 const GROUP_FIELD: SettingField = {
   key: 'group',
   type: 'text',
   label: 'Panel group',
-  hint: 'Widgets sharing a name here are framed together as one panel. Leave it empty for a tile that stands alone.',
+  hint: 'Widgets sharing a name here are framed together as one panel. Leave it empty for a tile that stands alone.'
 }
 
 const TEXT_SIZE_FIELD: SettingField = {
@@ -73,7 +75,7 @@ const TEXT_SIZE_FIELD: SettingField = {
   min: 50,
   max: 300,
   step: 5,
-  hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.',
+  hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.'
 }
 
 /**
@@ -87,12 +89,8 @@ function labelModeField(def: { labelModes?: { options: { value: string; label: s
     key: 'labelMode',
     type: 'select',
     label: 'Show the name',
-    options: [
-      { value: 'header', label: 'In the title bar' },
-      ...(def.labelModes?.options ?? []),
-      { value: 'none', label: 'Not at all' },
-    ],
-    hint: def.labelModes?.hint,
+    options: [{ value: 'header', label: 'In the title bar' }, ...(def.labelModes?.options ?? []), { value: 'none', label: 'Not at all' }],
+    hint: def.labelModes?.hint
   }
 }
 
@@ -112,8 +110,8 @@ const LABEL_ALIGN_FIELD: SettingField = {
     { value: '', label: 'Theme default' },
     { value: 'left', label: 'Left' },
     { value: 'center', label: 'Center' },
-    { value: 'right', label: 'Right' },
-  ],
+    { value: 'right', label: 'Right' }
+  ]
 }
 
 const LABEL_POSITION_FIELD: SettingField = {
@@ -123,8 +121,8 @@ const LABEL_POSITION_FIELD: SettingField = {
   options: [
     { value: '', label: 'Theme default' },
     { value: 'top', label: 'Top' },
-    { value: 'bottom', label: 'Bottom' },
-  ],
+    { value: 'bottom', label: 'Bottom' }
+  ]
 }
 
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
@@ -152,11 +150,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         {def.hasHeader ? (
           <>
             {String(effective.label ?? '').trim() ? (
-              <Field
-                field={labelModeField(def)}
-                widget={widget}
-                value={(effective.labelMode as string) || 'header'}
-              />
+              <Field field={labelModeField(def)} widget={widget} value={(effective.labelMode as string) || 'header'} />
             ) : null}
             <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? ''} />
             <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
@@ -176,8 +170,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
           className="nh-btn nh-btn--danger"
           onClick={() => {
             removeWidget(widget.id)
-          }}
-        >
+          }}>
           {t('Delete widget')}
         </button>
       </div>
@@ -204,7 +197,7 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
   const labels: [Surface, string][] = [
     ['phone', 'Phones'],
     ['tablet', 'Tablets'],
-    ['desktop', 'Desktops'],
+    ['desktop', 'Desktops']
   ]
   return (
     <div className="nh-field">
@@ -216,8 +209,7 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
             type="button"
             className={'nh-chip' + (current.includes(surface) ? ' nh-chip--on' : '')}
             aria-pressed={current.includes(surface)}
-            onClick={() => toggle(surface)}
-          >
+            onClick={() => toggle(surface)}>
             {t(label)}
           </button>
         ))}
@@ -238,16 +230,14 @@ function HideOnField({ field, widget, value }: { field: SettingField; widget: Wi
 function MultiSelectField({
   field,
   widget,
-  value,
+  value
 }: {
   field: Extract<SettingField, { type: 'multiselect' }>
   widget: WidgetInstance
   value: unknown
 }) {
   const { t } = useTranslation()
-  const current = Array.isArray(value)
-    ? value.filter((v): v is string => typeof v === 'string')
-    : (field.defaultValue ?? [])
+  const current = Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : (field.defaultValue ?? [])
   const toggle = (option: string) => {
     const picked = new Set(current)
     if (!picked.delete(option)) picked.add(option)
@@ -268,8 +258,7 @@ function MultiSelectField({
             type="button"
             className={'nh-chip' + (current.includes(o.value) ? ' nh-chip--on' : '')}
             aria-pressed={current.includes(o.value)}
-            onClick={() => toggle(o.value)}
-          >
+            onClick={() => toggle(o.value)}>
             {t(o.label)}
           </button>
         ))}
@@ -311,7 +300,10 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
 function toHex(value: string): string | null {
   const rgb = parseColor(value)
   if (!rgb) return null
-  const two = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
+  const two = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n)))
+      .toString(16)
+      .padStart(2, '0')
   return '#' + two(rgb.r) + two(rgb.g) + two(rgb.b)
 }
 
@@ -324,15 +316,7 @@ function numberValue(value: unknown): number | '' {
   return ''
 }
 
-function CustomField({
-  setting,
-  value,
-  onChange,
-}: {
-  setting: WidgetDefSetting
-  value: unknown
-  onChange: (v: unknown) => void
-}) {
+function CustomField({ setting, value, onChange }: { setting: WidgetDefSetting; value: unknown; onChange: (v: unknown) => void }) {
   const id = 'cw-' + setting.id
   const label = setting.label ?? setting.id
   switch (setting.type) {
@@ -384,10 +368,21 @@ function CustomField({
 
 function Field(props: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t } = useTranslation()
+  // An address this page will LOAD, typed as http:// while the page itself is https. The browser
+  // blocks that outright and says nothing a person can act on, so the widget draws an empty frame
+  // or a dead stream. Saying it here means it is answered while the address is being typed rather
+  // than puzzled over afterwards. `subresource` is declared per field: a navigate target opens in
+  // a new tab, which is allowed, and warning about it would be wrong.
+  const mixed = props.field.type === 'text' && props.field.subresource === true && mixedContent(String(props.value ?? ''))
   return (
     <>
       <FieldInput {...props} />
       {props.field.hint ? <p className="nh-field__hint">{t(props.field.hint)}</p> : null}
+      {mixed ? (
+        <p className="nh-field__warn">
+          {t('This page is served over HTTPS, so an insecure http:// address will not load. Use https:// here, or open neohab over http.')}
+        </p>
+      ) : null}
     </>
   )
 }
@@ -517,7 +512,7 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
             id={id}
             value={typeof value === 'string' ? value : ''}
             itemTypes={field.itemTypes}
-            onChange={set}
+            onChange={(name) => bindItem(widget, field.key, name)}
           />
         </div>
       )
@@ -583,13 +578,45 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
 }
 
 /**
+ * Bind an item, and name the widget after it when it has no name yet.
+ *
+ * A widget added from the palette carries no Name, so a switch bound to `kitchen_lights` and
+ * saved reads as a bare "OFF" on the dashboard - the first tile most people make, and it says
+ * nothing about what it controls. The item's own label is what the person just picked out of a
+ * list, so it is the name they meant; typing over it afterwards is one edit either way.
+ *
+ * Deliberately narrow. Only the conventional primary key ('item'), never a widget's second or
+ * third item (a thermostat's fan is not what the tile is called), only when the widget really has
+ * a Name field, and only while that field is empty - so it never overwrites a name, and clearing
+ * the item leaves the name alone. Both keys land in one change, so one undo puts both back.
+ */
+function bindItem(widget: WidgetInstance, key: string, itemName: string): void {
+  const def = getWidgetDefinition(widget.type)
+  const named = def?.settings.some((f) => f.key === 'label' && f.type === 'text')
+  const hasName = String((widget.config.label as string) ?? '').trim() !== ''
+  if (key !== 'item' || !named || hasName || !itemName) {
+    updateWidgetConfig(widget.id, key, itemName)
+    return
+  }
+  const label = useCatalogStore
+    .getState()
+    .items.find((i) => i.name === itemName)
+    ?.label?.trim()
+  if (!label) {
+    updateWidgetConfig(widget.id, key, itemName)
+    return
+  }
+  updateWidgetConfigs(widget.id, { [key]: itemName, label })
+}
+
+/**
  * Dashboard picker: a select over the dashboards that actually exist. A stored id that no
  * longer resolves stays visible as its raw id rather than being silently dropped.
  */
 function DashboardField({
   field,
   widget,
-  value,
+  value
 }: {
   field: Extract<SettingField, { type: 'dashboard' }>
   widget: WidgetInstance
@@ -602,11 +629,7 @@ function DashboardField({
   return (
     <label className="nh-field" htmlFor={id}>
       <span className="nh-field__label">{t(field.label)}</span>
-      <select
-        id={id}
-        value={current}
-        onChange={(e) => updateWidgetConfig(widget.id, field.key, e.target.value || undefined)}
-      >
+      <select id={id} value={current} onChange={(e) => updateWidgetConfig(widget.id, field.key, e.target.value || undefined)}>
         <option value="">{t('None')}</option>
         {current && !dashboards.some((d) => d.id === current) ? <option value={current}>{current}</option> : null}
         {dashboards.map((d) => (
@@ -628,4 +651,3 @@ function translatablePlaceholder(placeholder: string | undefined, t: (k: string)
   if (placeholder.includes('{{') || placeholder.includes('=')) return placeholder
   return t(placeholder)
 }
-

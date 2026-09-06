@@ -18,7 +18,7 @@ import {
   UNKNOWN_ICON,
   weekdayLabel,
   WMO_CONDITIONS,
-  type ViewOptions,
+  type ViewOptions
 } from './model'
 
 const t = (s: string) => s
@@ -133,7 +133,7 @@ describe('normalizeForecast', () => {
     const data = normalizeForecast({
       current: { time: '2026-08-18T12:00', temperature_2m: 'hot', is_day: 0 },
       hourly: { time: ['2026-08-18T13:00', '2026-08-18T14:00'], temperature_2m: [70], weather_code: 'nope' },
-      daily: {},
+      daily: {}
     })
     expect(data).not.toBeNull()
     expect(data!.current.temp).toBeNull()
@@ -153,7 +153,17 @@ describe('locationOf', () => {
   })
 
   it('refuses everything else', () => {
-    for (const bad of [undefined, null, 'Detroit', 42, { lat: 42.33 }, { lat: '42', lon: '-83' }, { lat: 91, lon: 0 }, { lat: 0, lon: 181 }, { lat: NaN, lon: 0 }]) {
+    for (const bad of [
+      undefined,
+      null,
+      'Detroit',
+      42,
+      { lat: 42.33 },
+      { lat: '42', lon: '-83' },
+      { lat: 91, lon: 0 },
+      { lat: 0, lon: 181 },
+      { lat: NaN, lon: 0 }
+    ]) {
       expect(locationOf(bad), JSON.stringify(bad)).toBeNull()
     }
   })
@@ -199,7 +209,7 @@ describe('itemsBinding', () => {
       windSpeedItem: '',
       dayHighPattern: 'Day{n}_High',
       dayFirstNumber: '2',
-      dayFirstIs: 'today',
+      dayFirstIs: 'today'
     })
     expect(b.temp).toBe('Out_Temp')
     expect(b.humidity).toBeUndefined()
@@ -272,7 +282,7 @@ describe('buildForecastView', () => {
 
   it('falls back to the current hour when there is no daily forecast at all', () => {
     const hourOnly = normalizeForecast({
-      current: { time: '2026-08-18T12:00', precipitation_probability: 55 },
+      current: { time: '2026-08-18T12:00', precipitation_probability: 55 }
     })!
     expect(buildForecastView(hourOnly, 'imperial', opts).precipProb).toBe('55%')
   })
@@ -309,7 +319,7 @@ describe('buildItemsView', () => {
     Day2_High: { state: '26.8', type: 'Number' },
     Day2_Low: { state: '16.0', type: 'Number' },
     Day2_Cond: { state: '0', type: 'Number' },
-    Day1_Prob: { state: '40', type: 'Number' },
+    Day1_Prob: { state: '40', type: 'Number' }
   }
   const getItem = (name: string) => states[name]
   const noonToday = new Date(2026, 7, 18, 12, 0, 0)
@@ -325,7 +335,7 @@ describe('buildItemsView', () => {
     dayLowPattern: 'Day{n}_Low',
     dayConditionPattern: 'Day{n}_Cond',
     dayPrecipPattern: 'Day{n}_Prob',
-    dayFirstNumber: 1,
+    dayFirstNumber: 1
   })
 
   it('shows the server-formatted current readings', () => {
@@ -361,16 +371,18 @@ describe('buildItemsView', () => {
 
     const todayFirst = buildItemsView(itemsBinding({ dayHighPattern: 'Day{n}_High', dayFirstNumber: 1, dayFirstIs: 'today' }), getItem, {
       ...opts,
-      now: noonToday,
+      now: noonToday
     })
     expect(todayFirst.days[0].label).toBe('Today')
     expect(todayFirst.high).toBe('24°')
   })
 
   it('passes a text condition item through untranslated', () => {
-    const v = buildItemsView(itemsBinding({ tempItem: 'Out_Temp', conditionItem: 'Out_Text' }), (n) =>
-      n === 'Out_Text' ? { state: 'Chance Flurries', type: 'String' } : states[n]
-    , { ...opts, now: noonToday })
+    const v = buildItemsView(
+      itemsBinding({ tempItem: 'Out_Temp', conditionItem: 'Out_Text' }),
+      (n) => (n === 'Out_Text' ? { state: 'Chance Flurries', type: 'String' } : states[n]),
+      { ...opts, now: noonToday }
+    )
     expect(v.label).toBe('Chance Flurries')
     expect(v.icon).toBe(UNKNOWN_ICON)
   })

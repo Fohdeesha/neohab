@@ -58,15 +58,7 @@ function AnalogFace({ parts, seconds, numbers }: { parts: ZoneParts; seconds: bo
         const outer = hand(i * 30, 92)
         const inner = hand(i * 30, quarter ? 82 : 87)
         return (
-          <line
-            key={i}
-            x1={inner.x2}
-            y1={inner.y2}
-            x2={outer.x2}
-            y2={outer.y2}
-            stroke="var(--nh-text-dim)"
-            strokeWidth={quarter ? 4 : 2}
-          />
+          <line key={i} x1={inner.x2} y1={inner.y2} x2={outer.x2} y2={outer.y2} stroke="var(--nh-text-dim)" strokeWidth={quarter ? 4 : 2} />
         )
       })}
       {numbers
@@ -74,15 +66,7 @@ function AnalogFace({ parts, seconds, numbers }: { parts: ZoneParts; seconds: bo
             const n = i === 0 ? 12 : i
             const pos = hand(i * 30, 68)
             return (
-              <text
-                key={i}
-                x={pos.x2}
-                y={pos.y2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize="17"
-                fill="var(--nh-text-dim)"
-              >
+              <text key={i} x={pos.x2} y={pos.y2} textAnchor="middle" dominantBaseline="central" fontSize="17" fill="var(--nh-text-dim)">
                 {n}
               </text>
             )
@@ -164,11 +148,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     return (
       <WidgetFrame bare={bare} center>
         <div className="nh-clock nh-clock--analog">
-          <AnalogFace
-            parts={zoneParts(now, zone)}
-            seconds={config.showSeconds === true}
-            numbers={config.showNumbers === true}
-          />
+          <AnalogFace parts={zoneParts(now, zone)} seconds={config.showSeconds === true} numbers={config.showNumbers === true} />
           {zoneText ? (
             <div className="nh-clock__zone" style={capVar('--nh-clock-zonefit', fit(CLOCK_LINES.zone.em, zoneText, 14, 0.23))}>
               {zoneText}
@@ -189,7 +169,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     minute: '2-digit',
     second: config.showSeconds ? '2-digit' : undefined,
     hour12: config.hour12,
-    ...(zone === '' ? {} : { timeZone: zone }),
+    ...(zone === '' ? {} : { timeZone: zone })
   })
 
   // Hiding the time leaves the date as the panel's own reading, so it is set as one.
@@ -208,11 +188,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
         {dateOnly ? null : (
           /* data-ghost is inert metadata: the LCD theme draws it as unlit segments ("8:88")
              behind the time; identical non-digit chars overlay themselves invisibly */
-          <div
-            className="nh-clock__time"
-            style={capVar('--nh-clock-timefit', lineFit('time', present, time))}
-            data-ghost={ghostFor(time)}
-          >
+          <div className="nh-clock__time" style={capVar('--nh-clock-timefit', lineFit('time', present, time))} data-ghost={ghostFor(time)}>
             {time}
           </div>
         )}
@@ -224,8 +200,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
         {showDate ? (
           <div
             className={'nh-clock__date' + (dateOnly ? ' nh-clock__date--only' : '')}
-            style={capVar('--nh-clock-datefit', lineFit(dateOnly ? 'dateOnly' : 'date', present, date))}
-          >
+            style={capVar('--nh-clock-datefit', lineFit(dateOnly ? 'dateOnly' : 'date', present, date))}>
             {date}
           </div>
         ) : null}
@@ -252,7 +227,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
     // and a wall panel whose own clock has drifted is exactly what this widget should not show.
     timeSource: 'server',
     timeZone: '',
-    zoneLabel: 'none',
+    zoneLabel: 'none'
   }),
   settings: [
     {
@@ -261,8 +236,8 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
       label: 'Style',
       options: [
         { value: 'digital', label: 'Digital' },
-        { value: 'analog', label: 'Analog' },
-      ],
+        { value: 'analog', label: 'Analog' }
+      ]
     },
     { key: 'showDate', type: 'boolean', label: 'Show date' },
     {
@@ -274,10 +249,10 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
         { value: 'weekday', label: 'Friday' },
         { value: 'monthYear', label: 'November 2026' },
         { value: 'full', label: 'Friday, November 6, 2026' },
-        { value: 'numeric', label: '11/6/2026' },
+        { value: 'numeric', label: '11/6/2026' }
       ],
       hint: 'Written in the language the interface is set to.',
-      showIf: (c) => c.showDate === true || c.hideTime === true,
+      showIf: (c) => c.showDate === true || c.hideTime === true
     },
     { key: 'hideTime', type: 'boolean', label: 'Date only (hide the time)', showIf: isDigital },
     { key: 'showSeconds', type: 'boolean', label: 'Show seconds', showIf: (c) => c.hideTime !== true },
@@ -287,7 +262,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
       key: 'timeZone',
       type: 'timezone',
       label: 'Time zone',
-      hint: 'A second clock set to another zone is how to keep an eye on another country.',
+      hint: 'A second clock set to another zone is how to keep an eye on another country.'
     },
     {
       key: 'zoneLabel',
@@ -297,15 +272,15 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
         { value: 'none', label: 'Off' },
         { value: 'short', label: 'Short name' },
         { value: 'offset', label: 'UTC offset' },
-        { value: 'custom', label: 'Your own text' },
-      ],
+        { value: 'custom', label: 'Your own text' }
+      ]
     },
     {
       key: 'zoneText',
       type: 'text',
       label: 'Zone label',
       hint: 'Left empty, the zone’s own city is used.',
-      showIf: (c) => c.zoneLabel === 'custom',
+      showIf: (c) => c.zoneLabel === 'custom'
     },
     {
       key: 'timeSource',
@@ -313,13 +288,13 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
       label: 'Time source',
       options: [
         { value: 'device', label: 'This device' },
-        { value: 'server', label: 'openHAB server' },
+        { value: 'server', label: 'openHAB server' }
       ],
-      hint: 'Which clock this tile follows. The server’s is usually the better kept of the two; hold the tile to compare them.',
+      hint: 'Which clock this tile follows. The server’s is usually the better kept of the two; hold the tile to compare them.'
     },
     { key: 'otherZones', type: 'clockzones', label: 'Other zones' },
-    { key: 'tileBackground', type: 'boolean', label: 'Show the tile background' },
+    { key: 'tileBackground', type: 'boolean', label: 'Show the tile background' }
   ],
   Component: ClockWidget,
-  DetailView: ClockDetail,
+  DetailView: ClockDetail
 }

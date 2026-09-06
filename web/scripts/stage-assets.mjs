@@ -48,9 +48,7 @@ if (!existsSync(mdiStampFile) || readFileSync(mdiStampFile, 'utf8') !== mdiStamp
   cpSync(join(mdiSrc, 'LICENSE'), join(dest, 'mdi', 'LICENSE'))
   writeFileSync(mdiStampFile, mdiStamp)
 }
-const mdiIndex = mdiMeta
-  .filter((m) => !m.deprecated)
-  .map((m) => (m.aliases?.length ? m.name + '|' + m.aliases.join(' ') : m.name))
+const mdiIndex = mdiMeta.filter((m) => !m.deprecated).map((m) => (m.aliases?.length ? m.name + '|' + m.aliases.join(' ') : m.name))
 writeFileSync(join(dest, 'mdi-index.json'), JSON.stringify(mdiIndex))
 console.log(`stage-assets: mdi: ${mdiIndex.length} icons staged`)
 
@@ -100,10 +98,7 @@ function stageIconifyPack({ pkg, dir, curate }) {
       const w = ic.width ?? data.width ?? 16
       const h = ic.height ?? data.height ?? 16
       const viewBox = `${ic.left ?? 0} ${ic.top ?? 0} ${w} ${h}`
-      writeFileSync(
-        join(packDir, name + '.svg'),
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${ic.body}</svg>`
-      )
+      writeFileSync(join(packDir, name + '.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${ic.body}</svg>`)
     }
     writeFileSync(
       join(packDir, 'ATTRIBUTION.txt'),
@@ -131,8 +126,7 @@ stageIconifyPack({
   dir: 'fluent',
   // Dashboard curation: no flags, no skin-tone variants (a handful of tone variants are
   // missing from the category metadata, so uncategorized names get the tone filter too).
-  curate: (name, category) =>
-    category !== 'Flags' && !((category === 'People & Body' || category === undefined) && hasSkinTone(name)),
+  curate: (name, category) => category !== 'Flags' && !((category === 'People & Body' || category === undefined) && hasSkinTone(name))
 })
 stageIconifyPack({ pkg: 'flat-color-icons', dir: 'fc' })
 stageIconifyPack({ pkg: 'meteocons', dir: 'meteo' })

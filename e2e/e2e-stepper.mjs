@@ -15,7 +15,7 @@
  *     nh_e2e_stepmany
  * Enters edit mode once and leaves without saving; touches no other item.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-stepper'
@@ -55,10 +55,10 @@ const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const stepper = (label, look, finish, extra) => ({

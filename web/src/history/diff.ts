@@ -53,8 +53,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   return keys.every((k) => Object.prototype.hasOwnProperty.call(bo, k) && deepEqual(ao[k], bo[k]))
 }
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
+const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 /** An array whose elements are all objects with a usable id - matchable by identity, not position. */
 function keyedArray(v: unknown): Record<string, unknown>[] | null {

@@ -76,9 +76,7 @@ function sameStoredState(a: string, b: string): boolean {
  * state at the transition instant so a plot draws no diagonal.
  */
 export function lastChangeFromHistory(points: readonly { time: number; state: string }[]): HistoryChange {
-  const rows = (Array.isArray(points) ? points : []).filter(
-    (p) => p && Number.isFinite(p.time) && typeof p.state === 'string'
-  )
+  const rows = (Array.isArray(points) ? points : []).filter((p) => p && Number.isFinite(p.time) && typeof p.state === 'string')
   if (rows.length === 0) return { kind: 'unknown' }
   const current = rows[rows.length - 1].state
   for (let i = rows.length - 2; i >= 0; i--) {
@@ -101,7 +99,7 @@ const STEPS: [number, RelativeUnit][] = [
   [45 * 60, 'minute'],
   [22 * 3600, 'hour'],
   [26 * 86400, 'day'],
-  [11 * 2629800, 'month'],
+  [11 * 2629800, 'month']
 ]
 const DIVISOR: Record<RelativeUnit, number> = {
   second: 1,
@@ -109,7 +107,7 @@ const DIVISOR: Record<RelativeUnit, number> = {
   hour: 3600,
   day: 86400,
   month: 2629800,
-  year: 31557600,
+  year: 31557600
 }
 
 /**

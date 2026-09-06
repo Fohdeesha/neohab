@@ -67,12 +67,7 @@ function shownAt<T>(live: T, key: string | number, now: number): SteadyState<T> 
  * remembered and held back. Calling it again with the key already recorded changes nothing, so
  * a component may run it on every render.
  */
-export function steadyStep<T>(
-  prev: SteadyState<T>,
-  live: T,
-  key: string | number,
-  now: number
-): SteadyState<T> {
+export function steadyStep<T>(prev: SteadyState<T>, live: T, key: string | number, now: number): SteadyState<T> {
   // Object.is, not ===: a NaN key (a reading that parsed to nothing) would otherwise differ from
   // itself on every render, and this runs during one - which is a render loop, not a wrong value.
   if (Object.is(key, prev.latestKey)) return prev

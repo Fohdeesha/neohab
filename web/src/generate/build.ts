@@ -8,15 +8,7 @@
 import type { Item } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
-import {
-  configFor,
-  isReadOnlyPoint,
-  prettyLabel,
-  sizeFor,
-  suggestWidget,
-  widgetChoices,
-  type SuggestNote,
-} from './mapping'
+import { configFor, isReadOnlyPoint, prettyLabel, sizeFor, suggestWidget, widgetChoices, type SuggestNote } from './mapping'
 import { classify, type TagIndex } from './semantics'
 import { clusterPrefix, type Cluster, type SourceKind } from './sources'
 
@@ -94,7 +86,7 @@ export function buildPlan(clusters: Cluster[], items: Item[], index: TagIndex, s
           // Carried separately from the suggestion so an override to a dial still knows the model
           // called this point read-only, and renders a gauge rather than a control.
           readOnly: isReadOnlyPoint(item, sem),
-          include: true,
+          include: true
         })
       }
       if (widgets.length > 0) sections.push({ name: section.name, widgets })
@@ -127,8 +119,7 @@ export interface BuildOptions {
   columns?: number
 }
 
-const overlaps = (a: Rect, b: Rect): boolean =>
-  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+const overlaps = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
 /**
  * Pack one section's widgets into the grid, first free spot wins, scanning top to bottom and
@@ -166,7 +157,7 @@ function headerWidget(text: string, columns: number, y: number, fontSize: number
     id: newWidgetId(),
     type: 'label',
     config: { text, fontSize },
-    layout: { lg: { x: 0, y, w: columns, h: 1 } },
+    layout: { lg: { x: 0, y, w: columns, h: 1 } }
   }
 }
 
@@ -206,7 +197,7 @@ export function buildDashboards(plan: GeneratePlan, opts: BuildOptions): Dashboa
           id: newWidgetId(),
           type: widget.type,
           config: configForPlanWidget(widget),
-          layout: { lg: rects[i] },
+          layout: { lg: rects[i] }
         })
       })
       y = bottom
@@ -236,7 +227,7 @@ export function buildDashboards(plan: GeneratePlan, opts: BuildOptions): Dashboa
       ...(cluster.icon ? { icon: cluster.icon } : {}),
       columns,
       rowHeight: 'match',
-      widgets: [],
+      widgets: []
     }
     emit(dashboard, cluster, 0, false)
     return dashboard

@@ -46,7 +46,7 @@ export interface CameraConfig {
   overlayColor?: 'white' | 'black'
   /** Which URL scheme to build from. Default 'go2rtc'. */
   source?: CameraSourceKind
-  /** Base URL of the camera server, e.g. `http://192.168.1.17:1984`. */
+  /** Base URL of the camera server, e.g. `http://192.168.1.10:1984`. */
   server?: string
   /** Stream/camera name at that server. */
   stream?: string
@@ -108,7 +108,7 @@ export const TRANSPORT_OPTIONS: { value: 'auto' | CameraTransport; label: string
   { value: 'mp4', label: 'MP4 stream' },
   { value: 'mjpeg', label: 'MJPEG' },
   { value: 'snapshot', label: 'Snapshots only' },
-  { value: 'iframe', label: "The server's own player" },
+  { value: 'iframe', label: "The server's own player" }
 ]
 
 /** Normalise a user-typed server address into a base URL with no trailing slash. */
@@ -133,20 +133,6 @@ export function toWebSocketUrl(url: string): string {
  */
 export function isOwnOrigin(url: string): boolean {
   return isSameOrigin(url, false)
-}
-
-/**
- * True when this page is HTTPS but the camera is plain HTTP. The browser blocks that outright -
- * video, images, WebSocket and WebRTC signalling alike - and does it silently enough that the
- * widget has to say so itself, or it just looks broken.
- */
-export function isMixedContent(url: string): boolean {
-  if (location.protocol !== 'https:') return false
-  try {
-    return new URL(url, location.href).protocol === 'http:'
-  } catch {
-    return false
-  }
 }
 
 /** Guess a transport from a bare URL, so "auto" on a hand-typed URL starts in the right place. */

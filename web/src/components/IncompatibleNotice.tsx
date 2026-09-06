@@ -19,9 +19,7 @@ export function IncompatibleNotice() {
 
   return (
     <div className="nh-incompat" role="status">
-      <strong>
-        {t('{{count}} part of your configuration needs a newer neohab', { count: incompatible.length })}
-      </strong>
+      <strong>{t('{{count}} part of your configuration needs a newer neohab', { count: incompatible.length })}</strong>
       <p>
         {t(
           'It was saved by a newer version than the one running here, so this version has left it completely alone rather than guess at it - nothing has been lost, and it will not be overwritten or deleted. Upgrade the add-on to use it again.'

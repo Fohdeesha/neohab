@@ -6,7 +6,7 @@ const entry = (uid: string, config: Record<string, unknown>, extra: Partial<Snap
   uid,
   component: 'neohab:dashboard',
   config,
-  ...extra,
+  ...extra
 })
 
 const paths = (before: unknown, after: unknown): string[] => {
@@ -36,13 +36,23 @@ describe('diffValues', () => {
     diffValues({ a: 1 }, { b: 2 }, '', out)
     expect(out.map((c) => [c.path, c.kind])).toEqual([
       ['a', 'removed'],
-      ['b', 'added'],
+      ['b', 'added']
     ])
   })
 
   it('matches keyed arrays by id, so moving a widget is not "every widget changed"', () => {
-    const before = { widgets: [{ id: 'w1', config: { label: 'A' } }, { id: 'w2', config: { label: 'B' } }] }
-    const after = { widgets: [{ id: 'w2', config: { label: 'B' } }, { id: 'w1', config: { label: 'A' } }] }
+    const before = {
+      widgets: [
+        { id: 'w1', config: { label: 'A' } },
+        { id: 'w2', config: { label: 'B' } }
+      ]
+    }
+    const after = {
+      widgets: [
+        { id: 'w2', config: { label: 'B' } },
+        { id: 'w1', config: { label: 'A' } }
+      ]
+    }
     expect(paths(before, after)).toEqual([])
   })
 
@@ -77,7 +87,7 @@ describe('diffEntries', () => {
     expect(rows.map((r) => [r.uid, r.kind])).toEqual([
       ['dashboard:a', 'changed'],
       ['dashboard:c', 'added'],
-      ['dashboard:b', 'removed'],
+      ['dashboard:b', 'removed']
     ])
   })
 

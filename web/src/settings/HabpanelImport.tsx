@@ -12,23 +12,32 @@ import {
   panelConfigFromComponent,
   parseHabpanelFile,
   type HabpanelImportResult,
-  type HPPanelConfig,
+  type HPPanelConfig
 } from '../importer/habpanel'
 import { beginBulkConfigWrite, saveDashboard, saveRawComponent, saveSettings, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
+import { errorText } from '../api/errors'
 
 export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
   const [serverConfigs, setServerConfigs] = useState<UIComponent[]>([])
+  /** Whether the server has been asked yet, so "nothing found" is only said once it is true. */
+  const [probed, setProbed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<HabpanelImportResult | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     listComponentsIn('habpanel:panelconfig', controller.signal)
-      .then(setServerConfigs)
-      .catch(() => setServerConfigs([]))
+      .then((found) => {
+        setServerConfigs(found)
+        setProbed(true)
+      })
+      .catch(() => {
+        setServerConfigs([])
+        setProbed(true)
+      })
     return () => controller.abort()
   }, [])
 
@@ -43,10 +52,8 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       t('Import {{dashboards}} dashboards ({{widgets}} widgets{{defs}}) from {{source}}?', {
         dashboards: converted.dashboards.length,
         widgets: converted.widgetCount,
-        defs: converted.widgetDefs.length
-          ? ', ' + t('{{count}} custom widgets', { count: converted.widgetDefs.length })
-          : '',
-        source: sourceName,
+        defs: converted.widgetDefs.length ? ', ' + t('{{count}} custom widgets', { count: converted.widgetDefs.length }) : '',
+        source: sourceName
       }) +
         (warnCount ? ' ' + t('{{count}} things will need attention - a report is shown afterwards.', { count: warnCount }) : '') +
         ' ' +
@@ -71,8 +78,8 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       setResult(converted)
     } catch (err) {
       onNotice(
-        t('Import failed: {{error}} - are you signed in as an administrator?', {
-          error: err instanceof Error ? err.message : String(err),
+        t('Import failed: {{error}}', {
+          error: errorText(err)
         })
       )
     } finally {
@@ -85,7 +92,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
       const parsed = parseHabpanelFile(JSON.parse(await file.text()))
       await runImport(parsed, `“${file.name}”`)
     } catch (err) {
-      onNotice(t('Could not read that file: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Could not read that file: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -111,7 +118,7 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
                 <span>
                   {t('HABPanel configuration “{{uid}}” found on this server - {{count}} dashboards', {
                     uid: c.uid,
-                    count: dashCount,
+                    count: dashCount
                   })}
                 </span>
                 <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => void importServer(c)}>
@@ -121,6 +128,15 @@ export function HabpanelImport({ onNotice }: { onNotice: (m: string | null) => v
             )
           })}
         </div>
+      ) : probed ? (
+        // HABPanel can keep its panels in the browser rather than on the server, and that is the
+        // single most repeated confusion about migrating off it: the section looked broken to
+        // anyone whose panels were never saved to openHAB, because it simply showed nothing.
+        <p className="nh-settings__text">
+          {t(
+            'No HABPanel configuration is saved on this server. If your panels only exist in HABPanel’s own browser storage, open HABPanel, save the panel configuration to the server or export it, and come back with the file.'
+          )}
+        </p>
       ) : null}
 
       <div className="nh-settings__row">
@@ -153,11 +169,9 @@ function ImportReport({ result }: { result: HabpanelImportResult }) {
         {'✓ '}
         {t('Imported {{dashboards}} dashboards with {{widgets}} widgets', {
           dashboards: result.dashboards.length,
-          widgets: result.widgetCount,
+          widgets: result.widgetCount
         })}
-        {result.widgetDefs.length
-          ? ' ' + t('and {{count}} custom widget definitions', { count: result.widgetDefs.length })
-          : ''}
+        {result.widgetDefs.length ? ' ' + t('and {{count}} custom widget definitions', { count: result.widgetDefs.length }) : ''}
         {'. '}
         <button type="button" className="nh-report__link" onClick={() => navigate({ name: 'home' })}>
           {t('View them →')}
@@ -166,10 +180,7 @@ function ImportReport({ result }: { result: HabpanelImportResult }) {
       {result.notes.length > 0 ? (
         <ul className="nh-report__list">
           {result.notes.map((note) => (
-            <li
-              key={note.message + JSON.stringify(note.params ?? {})}
-              className={'nh-report__item nh-report__item--' + note.level}
-            >
+            <li key={note.message + JSON.stringify(note.params ?? {})} className={'nh-report__item nh-report__item--' + note.level}>
               <span className="nh-report__chip">
                 {note.level === 'skip' ? t('skipped') : note.level === 'warn' ? t('attention') : t('note')}
               </span>

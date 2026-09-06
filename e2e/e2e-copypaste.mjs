@@ -6,7 +6,7 @@
  * dashboards are never touched. NO item commands anywhere - every seeded widget is a clock or
  * label (neither sends a command), so nothing on a real device can move.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const UID_A = 'dashboard:nh-e2e-cpa'
@@ -29,9 +29,9 @@ const widgetCount = async (uid) => {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const context = await browser.newContext({ viewport: { width: 1400, height: 950 } })

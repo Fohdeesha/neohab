@@ -1,19 +1,20 @@
 /**
- * Invisible glue for the kiosk features. Mounted once in App; renders nothing. It
+ * Glue for the kiosk features. Mounted once in App, and invisible except for the one dialog the
+ * exit gesture raises. It
  *   - keeps the wake lock in sync with the per-device setting,
  *   - opens this device's pinned dashboard on app start (a deep link wins over the pin),
  *   - follows the dashboard-control item (a String item whose state names a dashboard, used to
  *     drive wall panels remotely from rules), and
  *   - while kiosk mode hides all chrome, watches for the 5-taps-in-a-corner exit gesture.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { navigate } from '../app/router'
 import { useConfigStore } from '../store/config'
 import { useEditorStore } from '../store/editor'
 import { subscribeItems, useItemState } from '../store/items'
 import { setKioskSettings, useKioskMode, useKioskStore } from '../store/kiosk'
 import { syncWakeLock } from './wakeLock'
-import i18n from '../i18n'
 
 /** Corner hot-zone size for the exit gesture: the extreme corner, where grid padding lives. */
 const CORNER_PX = 48
@@ -29,6 +30,16 @@ function cornerOf(x: number, y: number): string | null {
 
 export function KioskRuntime() {
   const kiosk = useKioskMode()
+  const { t } = useTranslation()
+  /**
+   * The exit gesture asks before it acts, in the app rather than through `window.confirm`.
+   *
+   * A kiosk browser is exactly the kind that suppresses native dialogs - it is usually running
+   * with them turned off on purpose - and there the confirm returned false and the five taps did
+   * nothing at all, on the one device whose owner is standing in front of it with no other way
+   * out. Everything else about the gesture is unchanged.
+   */
+  const [confirming, setConfirming] = useState(false)
 
   /* ---- wake lock ---- */
   const wantWake = useKioskStore((s) => s.settings.wakeLock)
@@ -82,8 +93,7 @@ export function KioskRuntime() {
     if (state === 'NULL' || state === 'UNDEF') return
     const dashboards = useConfigStore.getState().dashboards
     const target =
-      dashboards.find((d) => d.id === state) ??
-      dashboards.find((d) => String(d.name ?? '').toLowerCase() === state.toLowerCase())
+      dashboards.find((d) => d.id === state) ?? dashboards.find((d) => String(d.name ?? '').toLowerCase() === state.toLowerCase())
     if (!target) return
     if (useEditorStore.getState().editing) return // never yank an open editor away
     navigate({ name: 'dashboard', id: target.id })
@@ -113,12 +123,38 @@ export function KioskRuntime() {
       if (count >= TAPS_TO_EXIT) {
         corner = null
         count = 0
-        if (window.confirm(i18n.t('Exit kiosk mode on this device?'))) setKioskSettings({ kiosk: false })
+        setConfirming(true)
       }
     }
     window.addEventListener('pointerdown', onDown, true)
     return () => window.removeEventListener('pointerdown', onDown, true)
   }, [kiosk])
 
-  return null
+  // Kiosk mode being switched off elsewhere leaves nothing to confirm.
+  useEffect(() => {
+    if (!kiosk) setConfirming(false)
+  }, [kiosk])
+
+  if (!confirming) return null
+  return (
+    <div className="nh-kioskexit" role="dialog" aria-modal="true" aria-label={t('Exit kiosk mode on this device?')}>
+      <div className="nh-kioskexit__box">
+        <p>{t('Exit kiosk mode on this device?')}</p>
+        <div className="nh-kioskexit__actions">
+          <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setConfirming(false)}>
+            {t('Stay in kiosk mode')}
+          </button>
+          <button
+            type="button"
+            className="nh-btn nh-btn--primary"
+            onClick={() => {
+              setConfirming(false)
+              setKioskSettings({ kiosk: false })
+            }}>
+            {t('Exit')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }

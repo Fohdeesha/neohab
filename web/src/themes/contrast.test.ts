@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  contrastLevel,
-  contrastOf,
-  contrastRatio,
-  DARK_INK,
-  parseColor,
-  readableInk,
-  relativeLuminance,
-} from './contrast'
+import { contrastLevel, contrastOf, contrastRatio, DARK_INK, parseColor, readableInk, relativeLuminance } from './contrast'
 
 describe('parseColor', () => {
   it('reads the forms a person can type', () => {
@@ -28,7 +20,7 @@ describe('parseColor', () => {
       'linear-gradient(red, blue)',
       '#12345',
       '',
-      undefined,
+      undefined
     ]) {
       expect(parseColor(input), String(input)).toBeNull()
     }

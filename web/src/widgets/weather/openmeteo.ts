@@ -41,7 +41,7 @@ export function forecastUrl(lat: number, lon: number, sys: UnitSystem, model = '
     hourly: 'temperature_2m,weather_code,precipitation_probability,precipitation,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum',
     forecast_days: '7',
-    timezone: 'auto',
+    timezone: 'auto'
   })
   if (model && (FORECAST_MODELS as readonly string[]).includes(model)) p.set('models', model)
   if (sys === 'imperial') {
@@ -57,7 +57,7 @@ export function geocodeUrl(query: string, lang: string): string {
     name: query,
     count: '8',
     format: 'json',
-    language: /^[a-z]{2}/i.test(lang) ? lang.slice(0, 2).toLowerCase() : 'en',
+    language: /^[a-z]{2}/i.test(lang) ? lang.slice(0, 2).toLowerCase() : 'en'
   })
   return GEOCODE_BASE + '?' + p.toString()
 }
@@ -89,13 +89,7 @@ const inflight = new Map<string, Promise<WeatherData>>()
  * instead of hammering. The in-flight entry clears on both settle paths, by key (the
  * memoized-promise trap: a cleared-by-identity entry wrapped in `.finally()` never matches).
  */
-export function getForecast(
-  lat: number,
-  lon: number,
-  sys: UnitSystem,
-  maxAgeMs: number,
-  model = ''
-): Promise<WeatherData> {
+export function getForecast(lat: number, lon: number, sys: UnitSystem, maxAgeMs: number, model = ''): Promise<WeatherData> {
   const key = lat.toFixed(4) + ',' + lon.toFixed(4) + ',' + sys + ',' + model
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < maxAgeMs) return Promise.resolve(hit.data)
@@ -141,7 +135,7 @@ export function parseGeoResults(json: unknown): GeoPlace[] {
     const label = [
       p.name,
       typeof p.admin1 === 'string' && p.admin1 !== '' ? p.admin1 : undefined,
-      typeof p.country_code === 'string' && p.country_code !== '' ? p.country_code.toUpperCase() : undefined,
+      typeof p.country_code === 'string' && p.country_code !== '' ? p.country_code.toUpperCase() : undefined
     ]
       .filter(Boolean)
       .join(', ')

@@ -6,7 +6,7 @@
  * cleanup (guarded, runs even if a section throws). The server's own dashboards are read ONLY.
  * No item commands anywhere: the dials are read-only gauges and no widget is ever pressed.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-editfix'
@@ -28,9 +28,9 @@ const A = 0, B = 1, C = 2, D = 3
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })

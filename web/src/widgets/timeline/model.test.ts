@@ -3,21 +3,11 @@
  * into the coloured runs the widget draws.
  */
 import { describe, expect, it } from 'vitest'
-import {
-  autoRefreshSeconds,
-  effectiveColorMaps,
-  effectiveTimelineSeries,
-  partitionHistory,
-  thinBands,
-  type TimelineConfig,
-} from './model'
+import { autoRefreshSeconds, effectiveColorMaps, effectiveTimelineSeries, partitionHistory, thinBands, type TimelineConfig } from './model'
 
 describe('reading the configuration', () => {
   it('keeps the rows that name an item', () => {
-    expect(effectiveTimelineSeries({ series: [{ item: 'A' }, { item: '' }, { item: 'B' }] })).toEqual([
-      { item: 'A' },
-      { item: 'B' },
-    ])
+    expect(effectiveTimelineSeries({ series: [{ item: 'A' }, { item: '' }, { item: 'B' }] })).toEqual([{ item: 'A' }, { item: 'B' }])
   })
 
   it('survives a series or colour map that is not a list', () => {
@@ -35,12 +25,7 @@ describe('reading the configuration', () => {
   it('drops colour rows with no state or no colour', () => {
     expect(
       effectiveColorMaps({
-        colorMaps: [
-          { state: 'ON', color: '#0f0' },
-          { state: '', color: '#f00' },
-          { state: 'OFF', color: '' },
-          null as never,
-        ],
+        colorMaps: [{ state: 'ON', color: '#0f0' }, { state: '', color: '#f00' }, { state: 'OFF', color: '' }, null as never]
       })
     ).toEqual([{ state: 'ON', color: '#0f0' }])
   })
@@ -53,14 +38,14 @@ describe('partitionHistory', () => {
     const bands = partitionHistory(
       [
         { time: t0 - 500, state: 'ON' },
-        { time: t0 + 100, state: 'OFF' },
+        { time: t0 + 100, state: 'OFF' }
       ],
       t0,
       t0 + 200
     )
     expect(bands).toEqual([
       { state: 'ON', start: t0, end: t0 + 100 },
-      { state: 'OFF', start: t0 + 100, end: t0 + 200 },
+      { state: 'OFF', start: t0 + 100, end: t0 + 200 }
     ])
   })
 
@@ -68,7 +53,7 @@ describe('partitionHistory', () => {
     const bands = partitionHistory(
       [
         { time: t0, state: 'NULL' },
-        { time: t0 + 50, state: 'ON' },
+        { time: t0 + 50, state: 'ON' }
       ],
       t0,
       t0 + 100
@@ -82,7 +67,7 @@ describe('thinBands', () => {
     const bands = [
       { state: 'A', start: 0, end: 100 },
       { state: 'B', start: 100, end: 101 },
-      { state: 'C', start: 101, end: 102 },
+      { state: 'C', start: 101, end: 102 }
     ]
     const out = thinBands(bands, 10)
     expect(out).toHaveLength(2)
@@ -112,7 +97,7 @@ describe('thinBands and the band that is current', () => {
   it('keeps a short band while it is the last one', () => {
     const bands = [
       { state: 'a', start: 0, end: 100_000 },
-      { state: 'b', start: 100_000, end: 100_500 },
+      { state: 'b', start: 100_000, end: 100_500 }
     ]
     expect(thinBands(bands, 2400)).toHaveLength(2)
   })
@@ -121,7 +106,7 @@ describe('thinBands and the band that is current', () => {
     const bands = [
       { state: 'a', start: 0, end: 100_000 },
       { state: 'b', start: 100_000, end: 101_000 },
-      { state: 'c', start: 101_000, end: 101_000 },
+      { state: 'c', start: 101_000, end: 101_000 }
     ]
     expect(thinBands(bands, 2400)).toHaveLength(2)
   })

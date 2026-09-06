@@ -32,7 +32,7 @@ registerSW({
   immediate: true,
   onRegisteredSW(_url, registration) {
     if (registration) setInterval(() => void registration.update(), 60 * 60 * 1000)
-  },
+  }
 })
 
 createRoot(document.getElementById('root')!).render(

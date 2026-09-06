@@ -43,7 +43,7 @@ function RollershutterWidget({ config, ctx }: WidgetProps<RollershutterConfig>) 
 const ROLLER_COMMANDS: ItemChoice[] = [
   { command: 'UP', labelKey: 'Up' },
   { command: 'STOP', labelKey: 'Stop' },
-  { command: 'DOWN', labelKey: 'Down' },
+  { command: 'DOWN', labelKey: 'Down' }
 ]
 
 export const rollershutterWidget: WidgetDefinition<RollershutterConfig> = {
@@ -55,10 +55,10 @@ export const rollershutterWidget: WidgetDefinition<RollershutterConfig> = {
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Rollershutter'] },
-    { key: 'label', type: 'text', label: 'Name' },
+    { key: 'label', type: 'text', label: 'Name' }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
   controlFor: (c, item) => (item === c.item ? { kind: 'choices', choices: ROLLER_COMMANDS } : undefined),
-  Component: RollershutterWidget,
+  Component: RollershutterWidget
 }

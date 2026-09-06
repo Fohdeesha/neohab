@@ -1,12 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { applyRetention, clampLimit, clampWindow, DEFAULT_HISTORY_LIMIT, DEFAULT_HISTORY_WINDOW_MIN, entryCategory, entryName, extractBlob, historyEnabled, MAX_HISTORY_LIMIT, mergeIndexes, shouldCapture, toEntry, type HistoryIndex, type SnapshotEntry, type SnapshotMeta, unusedBlobs, withBlob } from './history'
+import {
+  applyRetention,
+  clampLimit,
+  clampWindow,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_HISTORY_WINDOW_MIN,
+  entryCategory,
+  entryName,
+  extractBlob,
+  historyEnabled,
+  MAX_HISTORY_LIMIT,
+  mergeIndexes,
+  shouldCapture,
+  toEntry,
+  type HistoryIndex,
+  type SnapshotEntry,
+  type SnapshotMeta,
+  unusedBlobs,
+  withBlob
+} from './history'
 
 const meta = (id: string, blobs: string[] = []): SnapshotMeta => ({
   id,
   createdAt: '2026-08-04T00:00:00Z',
   summary: { count: 0, names: [] },
   entries: 1,
-  blobs,
+  blobs
 })
 
 describe('capture policy', () => {
@@ -83,7 +102,7 @@ describe('shared image bodies', () => {
     const index: HistoryIndex = {
       version: 1,
       snapshots: [meta('2', ['keep']), meta('1', ['keep'])],
-      blobs: ['keep', 'orphan'],
+      blobs: ['keep', 'orphan']
     }
     expect(unusedBlobs(index)).toEqual(['orphan'])
   })
@@ -97,7 +116,7 @@ describe('entries', () => {
       component: 'neohab:dashboard',
       config: { name: 'A' },
       timestamp: 'Aug 4, 2026',
-      props: { parameters: [] },
+      props: { parameters: [] }
     })
     expect(e).toEqual({ uid: 'dashboard:a', component: 'neohab:dashboard', config: { name: 'A' } })
   })
@@ -125,7 +144,7 @@ describe('mergeIndexes', () => {
     createdAt: new Date(Number(id)).toISOString(),
     summary: { count: 0, names: [] },
     entries: 1,
-    blobs: [],
+    blobs: []
   })
 
   /*

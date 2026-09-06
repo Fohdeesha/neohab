@@ -29,7 +29,7 @@ export function PresetBar({
   ctx,
   lights,
   spaceBelow = 0,
-  toggleOff = false,
+  toggleOff = false
 }: {
   ctx: WidgetContext
   lights: FloorplanLight[]
@@ -58,10 +58,7 @@ export function PresetBar({
 
   // The chips need the status items' live states; the plan's own lights are already tracked
   // through the widget's itemKeys. Ref-counted, so overlap costs nothing.
-  const statusItems = useMemo(
-    () => [...new Set(summaries.map((s) => s.statusItem).filter((i): i is string => !!i))],
-    [summaries]
-  )
+  const statusItems = useMemo(() => [...new Set(summaries.map((s) => s.statusItem).filter((i): i is string => !!i))], [summaries])
   useEffect(() => subscribeItems(statusItems), [statusItems])
   const states = useItemsStore((s) => s.states)
   const settled = useSettledState()
@@ -95,8 +92,7 @@ export function PresetBar({
             type="button"
             className={'nh-chip' + (isActive(p) ? ' nh-chip--on' : '')}
             disabled={ctx.editing}
-            onClick={() => void tap(p)}
-          >
+            onClick={() => void tap(p)}>
             {p.name}
           </button>
         ))}
@@ -106,18 +102,12 @@ export function PresetBar({
             className="nh-chip nh-chip--action"
             disabled={ctx.editing || lights.length === 0}
             title={lights.length === 0 ? t('Add lights to the plan first') : undefined}
-            onClick={() => setSaving(true)}
-          >
+            onClick={() => setSaving(true)}>
             {t('＋ Save preset')}
           </button>
         ) : null}
         {admin && summaries.length > 0 ? (
-          <button
-            type="button"
-            className="nh-chip nh-chip--action"
-            disabled={ctx.editing}
-            onClick={() => setManaging(true)}
-          >
+          <button type="button" className="nh-chip nh-chip--action" disabled={ctx.editing} onClick={() => setManaging(true)}>
             {t('⚙ Manage presets')}
           </button>
         ) : null}

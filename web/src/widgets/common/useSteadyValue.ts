@@ -54,14 +54,17 @@ export function useSteadyStates(): (item: string, live: string | undefined) => s
     let due = Infinity
     for (const state of map.values()) if (steadyHolding(state)) due = Math.min(due, state.since + STEADY_MS)
     if (!Number.isFinite(due)) return
-    const timer = setTimeout(() => {
-      const at = Date.now()
-      for (const [item, state] of map) {
-        const flushed = steadyFlush(state, at)
-        if (flushed) map.set(item, flushed)
-      }
-      bump()
-    }, Math.max(0, due - Date.now()) + 20)
+    const timer = setTimeout(
+      () => {
+        const at = Date.now()
+        for (const [item, state] of map) {
+          const flushed = steadyFlush(state, at)
+          if (flushed) map.set(item, flushed)
+        }
+        bump()
+      },
+      Math.max(0, due - Date.now()) + 20
+    )
     return () => clearTimeout(timer)
   })
 

@@ -33,7 +33,7 @@ const CATALOG_FIELDS = [
   // the pre-SSE fallback for the HABPanel-compatible template helpers (`getItem`,
   // `itemsInGroup`, `itemsWithTag`), which would otherwise read empty on a template's first
   // render pass. Worth ~45 bytes an item to keep the migration path behaving as it did.
-  'state',
+  'state'
 ].join(',')
 
 export function getItems(signal?: AbortSignal): Promise<Item[]> {

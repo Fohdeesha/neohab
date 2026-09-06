@@ -4,10 +4,10 @@
  * dashboard:nh-e2e-resp (deleted afterwards, cleanup guarded), reads the server's own dashboards
  * strictly read-only (zero clicks there), restores approved item states.
  */
-import { chromium } from 'playwright-core'
-import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { launchChromium } from './lib/browser.mjs'
+import { BASE, NS, TOKEN, AUTH, ITEMS, UNREACHABLE } from './lib/target.mjs'
 
-const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await chromium.launch({ channel: c, headless: true }) } catch {} } return chromium.launch({ headless: true }) }
+const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -51,7 +51,7 @@ const DASH = {
       { id: 'r-slider', type: 'slider', config: { item: SLIDER_ITEM, label: 'E2E Slider', min: 0, max: 100, step: 1 }, layout: { lg: { x: 6, y: 0, w: 3, h: 1 } } },
       { id: 'r-switch', type: 'switch', config: { item: SWITCH_ITEM, label: 'E2E Switch', icon: 'mdi:lightbulb', iconSize: 32 }, layout: { lg: { x: 9, y: 0, w: 2, h: 2 } } },
       { id: 'r-dial', type: 'dial', config: { item: SLIDER_ITEM, label: 'E2E Dial', readOnly: true }, layout: { lg: { x: 0, y: 1, w: 2, h: 2 } } },
-      { id: 'r-tpl', type: 'template', config: { label: 'date time', template: '<iframe name="t" frameborder="0" src="http://home.lan/habpanelstuff/time.html"> </iframe>' }, layout: { lg: { x: 3, y: 1, w: 2, h: 1 } } },
+      { id: 'r-tpl', type: 'template', config: { label: 'date time', template: '<iframe name="t" frameborder="0" src="' + UNREACHABLE + 'widget-host.invalid/time.html"> </iframe>' }, layout: { lg: { x: 3, y: 1, w: 2, h: 1 } } },
     ],
   },
 }
@@ -145,7 +145,7 @@ try {
     // pin the default theme: this suite asserts default geometry, and the server's
     // global theme belongs to the user (it was 'assembly' when this line was added)
     await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
-    await ctx.route('**://home.lan/**', (route) =>
+    await ctx.route('**://widget-host.invalid/**', (route) =>
       route.fulfill({ status: 200, contentType: 'text/html', body: TIME_HTML })
     )
     const page = await ctx.newPage()
@@ -219,7 +219,7 @@ try {
     // pin the default theme: this suite asserts default geometry, and the server's
     // global theme belongs to the user (it was 'assembly' when this line was added)
     await ctx.addInitScript(() => { try { localStorage.setItem('neohab:themeOverride', 'dark') } catch {} })
-    await ctx.route('**://home.lan/**', (route) =>
+    await ctx.route('**://widget-host.invalid/**', (route) =>
       route.request().url().endsWith('time.html')
         ? route.fulfill({ status: 200, contentType: 'text/html', body: TIME_HTML })
         : route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body style="background:#111"></body></html>' })

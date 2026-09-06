@@ -29,7 +29,7 @@ export function RangeControl({
   min = 0,
   max = 100,
   step = 1,
-  unit,
+  unit
 }: {
   item: string
   ctx: WidgetContext
@@ -79,17 +79,7 @@ export function RangeControl({
 }
 
 /** Two buttons sending whatever this widget calls on and off - not always ON and OFF. */
-export function SwitchControl({
-  item,
-  ctx,
-  on = 'ON',
-  off = 'OFF',
-}: {
-  item: string
-  ctx: WidgetContext
-  on?: string
-  off?: string
-}) {
+export function SwitchControl({ item, ctx, on = 'ON', off = 'OFF' }: { item: string; ctx: WidgetContext; on?: string; off?: string }) {
   const { t } = useTranslation()
   const state = ctx.getItem(item)
   // Two ways to be on, because a switch widget can be bound to more than a Switch item. Either
@@ -116,15 +106,7 @@ export function SwitchControl({
  * A button per command: a rollershutter's up/stop/down, a player's transport, a selection's own
  * choices, an item's declared command options. The one currently in effect is highlighted.
  */
-export function ChoiceControl({
-  item,
-  ctx,
-  choices,
-}: {
-  item: string
-  ctx: WidgetContext
-  choices: ItemChoice[]
-}) {
+export function ChoiceControl({ item, ctx, choices }: { item: string; ctx: WidgetContext; choices: ItemChoice[] }) {
   const { t } = useTranslation()
   const state = ctx.getItem(item)?.state
   return (
@@ -138,8 +120,7 @@ export function ChoiceControl({
           className={'nh-btn' + (stateMatches(choice.command, state) ? ' nh-btn--primary' : '')}
           onClick={() => {
             if (!ctx.editing) void ctx.sendCommand(item, choice.command)
-          }}
-        >
+          }}>
           {/* A key is our own vocabulary and is translated; a label came out of stored
               configuration and is shown exactly as it was written. */}
           {choice.labelKey ? t(choice.labelKey) : (choice.label ?? choice.command)}

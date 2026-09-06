@@ -61,3 +61,30 @@ export function openExternal(url: string | undefined): void {
   const safe = safeUrl(url)
   if (safe) window.open(safe, '_blank', 'noopener,noreferrer')
 }
+
+/**
+ * Would the browser refuse to load this URL into an https page?
+ *
+ * Serving neohab over HTTPS makes every `http://` address it EMBEDS unreachable: a fetch or an
+ * XHR is blocked outright, and an image is auto-upgraded to https and blocked when the upgrade
+ * fails. A camera at `http://192.168.1.10:1984` is the usual casualty, and the failure has no
+ * error anyone can act on - the stream simply never arrives, which looks exactly like a camera
+ * that is off.
+ *
+ * Only for URLs that become a SUBRESOURCE. A `window.open()` of an http address from an https
+ * page is a navigation, not mixed content, and is perfectly allowed - so the button's "go to a
+ * web address" and the camera's tap target are deliberately not asked about.
+ *
+ * The page's protocol is an argument so this is testable without a document; `mixedContent()`
+ * below is the version the widgets call.
+ */
+export function isMixedContent(url: string | undefined, pageProtocol: string): boolean {
+  if (pageProtocol !== 'https:') return false
+  const v = urlNormalize(url ?? '')
+  return /^http:\/\//i.test(v)
+}
+
+/** {@link isMixedContent} against the page this is running in. */
+export function mixedContent(url: string | undefined): boolean {
+  return isMixedContent(url, location.protocol)
+}

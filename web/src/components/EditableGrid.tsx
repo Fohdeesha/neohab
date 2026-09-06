@@ -38,7 +38,7 @@ import {
   widgetLabelBottom,
   widgetsOf,
   widgetTextScale,
-  type BumpPlan,
+  type BumpPlan
 } from '../model/layout'
 import {
   addToSelection,
@@ -49,7 +49,7 @@ import {
   setSelection,
   setWidgetRect,
   toggleWidgetSelection,
-  useEditorStore,
+  useEditorStore
 } from '../store/editor'
 import { lookup } from '../model/lookup'
 import { CellHandle } from './CellHandle'
@@ -116,7 +116,7 @@ const ARROW_STEPS: Record<string, { x: number; y: number }> = {
   ArrowLeft: { x: -1, y: 0 },
   ArrowRight: { x: 1, y: 0 },
   ArrowUp: { x: 0, y: -1 },
-  ArrowDown: { x: 0, y: 1 },
+  ArrowDown: { x: 0, y: 1 }
 }
 
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
@@ -180,10 +180,13 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     }
     longPressStart.current = null
   }
-  useEffect(() => () => {
-    clearDwell()
-    clearLongPress()
-  }, [])
+  useEffect(
+    () => () => {
+      clearDwell()
+      clearLongPress()
+    },
+    []
+  )
 
   /**
    * Palette drag-to-place. The press began on a palette card, so those pointer events are not
@@ -207,7 +210,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           x: Math.floor((clientX - box.left) / k / (m.colWidth + m.gap)),
           y: Math.floor((clientY - box.top) / k / (m.rowHeight + m.gap)),
           w: placing.w,
-          h: placing.h,
+          h: placing.h
         },
         columnsOf(dashRef.current)
       )
@@ -281,7 +284,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       dy: 0,
       target: startRect,
       valid: true,
-      bump: null,
+      bump: null
     })
   }
 
@@ -320,7 +323,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           clientX: e.clientX,
           clientY: e.clientY,
           additive: e.shiftKey || e.ctrlKey || e.metaKey,
-          fromWidget: true,
+          fromWidget: true
         }
       }
       return
@@ -376,7 +379,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     const k = pointerScale()
     return {
       x: Math.max(0, Math.min((clientX - rect.left) / k, rect.width / k)),
-      y: Math.max(0, Math.min((clientY - rect.top) / k, rect.height / k)),
+      y: Math.max(0, Math.min((clientY - rect.top) / k, rect.height / k))
     }
   }
 
@@ -389,7 +392,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       clientX: e.clientX,
       clientY: e.clientY,
       additive: e.shiftKey || e.ctrlKey || e.metaKey,
-      fromWidget: false,
+      fromWidget: false
     }
   }
 
@@ -399,7 +402,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
       left: Math.min(m.startX, m.curX),
       top: Math.min(m.startY, m.curY),
       right: Math.max(m.startX, m.curX),
-      bottom: Math.max(m.startY, m.curY),
+      bottom: Math.max(m.startY, m.curY)
     }
     const hit = widgetsOf(dashboard)
       .filter((w) => boxesOverlap(pixelBox(rectOf(w), colWidth, rowHeight, gap), box))
@@ -414,10 +417,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     // Promote a pending press to a marquee once it has clearly moved (and is not a drag).
     const pend = pendingRef.current
     if (pend && !marquee && !drag) {
-      if (
-        Math.abs(e.clientX - pend.clientX) > MARQUEE_THRESHOLD_PX ||
-        Math.abs(e.clientY - pend.clientY) > MARQUEE_THRESHOLD_PX
-      ) {
+      if (Math.abs(e.clientX - pend.clientX) > MARQUEE_THRESHOLD_PX || Math.abs(e.clientY - pend.clientY) > MARQUEE_THRESHOLD_PX) {
         pendingRef.current = null
         containerRef.current?.setPointerCapture(e.pointerId)
         const s = toLocal(pend.clientX, pend.clientY)
@@ -492,9 +492,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
     // (even out of a multi-selection: a bare click always means "just this one"). Only a real
     // move preserves an existing multi-selection the dragged widget belongs to; otherwise the
     // drop selects the moved widget (opening its settings panel).
-    const clickLike =
-      Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX &&
-      Math.abs(e.clientY - drag.startY) <= MARQUEE_THRESHOLD_PX
+    const clickLike = Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX && Math.abs(e.clientY - drag.startY) <= MARQUEE_THRESHOLD_PX
     if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
     else if (clickLike && e.shiftKey) addToSelection(drag.id)
     else if (clickLike) selectWidget(drag.id)
@@ -527,14 +525,13 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
-          '--nh-textscale': textScale(dashboard, rowHeight, coarse),
+          '--nh-textscale': textScale(dashboard, rowHeight, coarse)
         } as React.CSSProperties
       }
       onPointerDown={onGridPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={cancelPointer}
-    >
+      onPointerCancel={cancelPointer}>
       {/* panel frames, so a group reads as one panel while it is being edited too */}
       {groupFrames(widgetsOf(dashboard)).map((f) => (
         <div
@@ -544,7 +541,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
             {
               gridColumn: `${f.rect.x + 1} / span ${f.rect.w}`,
               gridRow: `${f.rect.y + 1} / span ${f.rect.h}`,
-              '--nh-cellaccent': f.color,
+              '--nh-cellaccent': f.color
             } as React.CSSProperties
           }
         />
@@ -556,7 +553,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           className={'nh-drop' + (drag.valid ? '' : ' nh-drop--invalid')}
           style={{
             gridColumn: `${drag.target.x + 1} / span ${drag.target.w}`,
-            gridRow: `${drag.target.y + 1} / span ${drag.target.h}`,
+            gridRow: `${drag.target.y + 1} / span ${drag.target.h}`
           }}
         />
       ) : null}
@@ -567,9 +564,8 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
           className={'nh-drop nh-drop--place' + (placeTarget.valid ? '' : ' nh-drop--invalid')}
           style={{
             gridColumn: `${placeTarget.rect.x + 1} / span ${placeTarget.rect.w}`,
-            gridRow: `${placeTarget.rect.y + 1} / span ${placeTarget.rect.h}`,
-          }}
-        >
+            gridRow: `${placeTarget.rect.y + 1} / span ${placeTarget.rect.h}`
+          }}>
           <span className="nh-drop__label">{placing?.name}</span>
         </div>
       ) : null}
@@ -582,7 +578,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
             left: Math.min(marquee.startX, marquee.curX),
             top: Math.min(marquee.startY, marquee.curY),
             width: Math.abs(marquee.curX - marquee.startX),
-            height: Math.abs(marquee.curY - marquee.startY),
+            height: Math.abs(marquee.curY - marquee.startY)
           }}
         />
       ) : null}
@@ -622,10 +618,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
                 // is anchored) while the placeholder shows the snapped result.
                 transform: isDragging && drag.mode === 'move' ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
                 width: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dx}px))` : undefined,
-                height: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dy}px))` : undefined,
+                height: isDragging && drag.mode === 'resize' ? `max(40px, calc(100% + ${drag.dy}px))` : undefined
               } as React.CSSProperties
-            }
-          >
+            }>
             <WidgetHost instance={widget} editing />
 
             {/* Edit overlay: tap selects, handle strip drags, corner resizes. It is a real
@@ -636,7 +631,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
               type="button"
               className="nh-cell__overlay"
               aria-label={t('{{type}} widget - press Enter to select, arrow keys to move', {
-                type: widget.type,
+                type: widget.type
               })}
               aria-pressed={isSelected}
               onClick={onWidgetClick(widget.id)}
@@ -646,12 +641,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
               onPointerUp={clearLongPress}
               onPointerCancel={clearLongPress}
             />
-            <CellHandle
-              id={widget.id}
-              type={widget.type}
-              hiddenOn={hiddenOn}
-              onDragStart={beginDrag(widget.id, 'move')}
-            />
+            <CellHandle id={widget.id} type={widget.type} hiddenOn={hiddenOn} onDragStart={beginDrag(widget.id, 'move')} />
             <div className="nh-cell__resize" onPointerDown={beginDrag(widget.id, 'resize')} />
           </div>
         )

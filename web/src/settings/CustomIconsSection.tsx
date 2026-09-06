@@ -1,14 +1,12 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  saveSettings,
-  useConfigStore
-} from '../store/config'
+import { saveSettings, useConfigStore } from '../store/config'
 import { NumberSetting } from '../components/NumberSetting'
 import { deleteCustomIcon, saveCustomIcon } from '../store/config'
 import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
+import { errorText } from '../api/errors'
 
 /** Manager for user-uploaded icons: upload, rename, delete, and the upload size limit. */
 export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
@@ -32,7 +30,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
     } catch (err) {
       onNotice(
         t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorText(err)
         })
       )
     } finally {
@@ -46,7 +44,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
     try {
       await deleteCustomIcon(icon.id)
     } catch (err) {
-      onNotice(t('Deleting the icon failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Deleting the icon failed: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -55,11 +53,9 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
       <h2 className="nh-settings__h">{t('Custom icons')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG - transparency and GIF animation survive) and pick them from the icon picker\'s Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them.'
+          "Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG - transparency and GIF animation survive) and pick them from the icon picker's Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them."
         )}
-        {customIcons.length > 0
-          ? ' ' + t('Using {{kb}} KB across {{count}} icons.', { kb: totalKB, count: customIcons.length })
-          : ''}
+        {customIcons.length > 0 ? ' ' + t('Using {{kb}} KB across {{count}} icons.', { kb: totalKB, count: customIcons.length }) : ''}
       </p>
       {customIcons.length > 0 ? (
         <div className="nh-iconman">
@@ -97,15 +93,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
   )
 }
 
-function CustomIconRow({
-  icon,
-  onNotice,
-  onDelete,
-}: {
-  icon: CustomIcon
-  onNotice: (m: string | null) => void
-  onDelete: () => void
-}) {
+function CustomIconRow({ icon, onNotice, onDelete }: { icon: CustomIcon; onNotice: (m: string | null) => void; onDelete: () => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState(icon.name)
 
@@ -118,7 +106,7 @@ function CustomIconRow({
     try {
       await saveCustomIcon({ ...icon, name: trimmed })
     } catch (err) {
-      onNotice(t('Renaming the icon failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Renaming the icon failed: {{error}}', { error: errorText(err) }))
       setName(icon.name)
     }
   }

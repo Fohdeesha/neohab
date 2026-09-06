@@ -16,17 +16,11 @@ import {
   DEFAULT_HISTORY_WINDOW_MIN,
   MAX_HISTORY_LIMIT,
   MAX_HISTORY_WINDOW_MIN,
-  type SnapshotMeta,
+  type SnapshotMeta
 } from '../model/history'
 import { saveSettings, useConfigStore } from '../store/config'
-import {
-  currentEntries,
-  getSnapshot,
-  loadHistory,
-  renameSnapshot,
-  restoreSnapshot,
-  useHistoryStore,
-} from '../store/history'
+import { currentEntries, getSnapshot, loadHistory, renameSnapshot, restoreSnapshot, useHistoryStore } from '../store/history'
+import { errorText } from '../api/errors'
 
 type CompareMode = 'step' | 'now'
 
@@ -89,9 +83,7 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
       {error ? <p className="nh-settings__text">{t('The history could not be read: {{error}}', { error })}</p> : null}
       {loading ? <p className="nh-settings__text">{t('Loading…')}</p> : null}
       {!loading && snapshots.length === 0 ? (
-        <p className="nh-settings__text">
-          {t('No restore points yet - the first one is taken the next time something is saved.')}
-        </p>
+        <p className="nh-settings__text">{t('No restore points yet - the first one is taken the next time something is saved.')}</p>
       ) : null}
 
       <div className="nh-hist">
@@ -101,8 +93,7 @@ export function HistorySection({ onNotice }: { onNotice: (m: string | null) => v
               type="button"
               className={'nh-hist__row' + (selected === snapshot.id ? ' nh-hist__row--on' : '')}
               aria-expanded={selected === snapshot.id}
-              onClick={() => setSelected(selected === snapshot.id ? null : snapshot.id)}
-            >
+              onClick={() => setSelected(selected === snapshot.id ? null : snapshot.id)}>
               <span className="nh-hist__when">{snapshot.label || formatWhen(snapshot.createdAt)}</span>
               <span className="nh-hist__what">
                 <SummaryText snapshot={snapshot} oldest={i === snapshots.length - 1} />
@@ -136,7 +127,7 @@ function formatWhen(iso: string): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
+    second: '2-digit'
   })
 }
 
@@ -155,7 +146,7 @@ function HistoryDetail({
   previousId,
   busy,
   onNotice,
-  onRestored,
+  onRestored
 }: {
   snapshot: SnapshotMeta
   previousId: string | null
@@ -192,7 +183,7 @@ function HistoryDetail({
       const previous = previousId ? await getSnapshot(previousId) : null
       setRows(diffEntries(previous?.components ?? [], target.components))
     } catch (err) {
-      setFailed(err instanceof Error ? err.message : String(err))
+      setFailed(errorText(err))
     }
   }, [mode, previousId, snapshot.id, t])
 
@@ -206,7 +197,7 @@ function HistoryDetail({
     try {
       await renameSnapshot(snapshot.id, trimmed)
     } catch (err) {
-      onNotice(t('Renaming failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Renaming failed: {{error}}', { error: errorText(err) }))
       setLabel(snapshot.label ?? '')
     }
   }
@@ -237,8 +228,8 @@ function HistoryDetail({
       onRestored()
     } catch (err) {
       onNotice(
-        t('Restore failed: {{error}} - are you signed in as an administrator?', {
-          error: err instanceof Error ? err.message : String(err),
+        t('Restore failed: {{error}}', {
+          error: errorText(err)
         })
       )
     }
@@ -248,18 +239,10 @@ function HistoryDetail({
     <div className="nh-histdetail">
       <div className="nh-histdetail__head">
         <div className="nh-histdetail__modes" role="group" aria-label={t('What to compare')}>
-          <button
-            type="button"
-            className={'nh-histmode' + (mode === 'step' ? ' nh-histmode--on' : '')}
-            onClick={() => setMode('step')}
-          >
+          <button type="button" className={'nh-histmode' + (mode === 'step' ? ' nh-histmode--on' : '')} onClick={() => setMode('step')}>
             {t('Changes at this point')}
           </button>
-          <button
-            type="button"
-            className={'nh-histmode' + (mode === 'now' ? ' nh-histmode--on' : '')}
-            onClick={() => setMode('now')}
-          >
+          <button type="button" className={'nh-histmode' + (mode === 'now' ? ' nh-histmode--on' : '')} onClick={() => setMode('now')}>
             {t('Compared with now')}
           </button>
         </div>
@@ -280,9 +263,7 @@ function HistoryDetail({
         </button>
       </div>
 
-      <p className="nh-settings__text">
-        {t('{{count}} components in this restore point.', { count: snapshot.entries })}
-      </p>
+      <p className="nh-settings__text">{t('{{count}} components in this restore point.', { count: snapshot.entries })}</p>
 
       {failed ? <p className="nh-settings__text">{failed}</p> : null}
       {!failed && rows === null ? <p className="nh-settings__text">{t('Loading…')}</p> : null}
@@ -303,8 +284,7 @@ function HistoryDetail({
             className="nh-histrow__head"
             aria-expanded={open === row.uid}
             disabled={row.fields.length === 0}
-            onClick={() => setOpen(open === row.uid ? null : row.uid)}
-          >
+            onClick={() => setOpen(open === row.uid ? null : row.uid)}>
             <span className={'nh-histrow__kind nh-histrow__kind--' + row.kind}>{kindLabel(row.kind, t)}</span>
             <span className="nh-histrow__name">{row.name}</span>
             <span className="nh-histrow__cat">{categoryLabel(row.category, t)}</span>

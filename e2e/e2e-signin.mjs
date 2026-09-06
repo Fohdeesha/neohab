@@ -16,8 +16,8 @@
  * SAFE with a live config: creates only dashboard:nh-e2e-pkce (deleted; only in the exchange
  * section), commands nothing, and only ever signs in as the throwaway user.
  */
-import { chromium } from 'playwright-core'
-import { BASE, APP, NS, AUTH, TEST_USER } from './lib/target.mjs'
+import { launchChromium } from './lib/browser.mjs'
+import { BASE, APP, NS, AUTH, TEST_USER, HTTPS } from './lib/target.mjs'
 
 const PKCE_UID = 'dashboard:nh-e2e-pkce'
 
@@ -27,9 +27,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 
@@ -72,7 +72,15 @@ try {
       })
     })
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
-    ok('this origin has no SubtleCrypto (the case that was broken)', !(await page.evaluate(() => !!window.crypto.subtle)))
+    // SubtleCrypto only exists in a secure context. On http its absence IS the bug this suite
+    // was written for (the challenge has to come from the bundled SHA-256 instead); on https
+    // it must be there, and e2e-https checks the challenge it produces.
+    const subtle = await page.evaluate(() => !!window.crypto.subtle)
+    ok(
+      HTTPS ? 'this origin has SubtleCrypto, as a secure context must' : 'this origin has no SubtleCrypto (the case that was broken)',
+      subtle === HTTPS,
+      'subtle ' + subtle
+    )
     await page.waitForSelector('h2:text-is("Account")', { timeout: 15000 })
     await page.click('section:has(h2:text-is("Account")) button:has-text("Sign in")')
     const url = await clickLogin(page)
@@ -147,13 +155,35 @@ try {
     // sign out: token revoked server-side, forgotten locally, UI back to anonymous
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('button:has-text("Sign out on this device")', { timeout: 10000 })
+    // Kept so the revocation can be checked from outside the browser. Core's deleteSession
+    // refuses a request with no principal outright, so a logout that carried no credentials
+    // answered 401 and left the session alive in the account for its full life - locally signed
+    // out, still signed in everywhere it mattered. The console filter above is why nothing here
+    // ever noticed.
+    const refresh = await page.evaluate(() => localStorage.getItem('neohab:refreshToken'))
+    let logoutStatus = 0
+    page.on('response', (r) => {
+      if (r.url().endsWith('/rest/auth/logout')) logoutStatus = r.status()
+    })
     await page.click('button:has-text("Sign out on this device")')
-    await sleep(800)
+    await sleep(1500)
     ok('sign-out: refresh token forgotten', await page.evaluate(() => !localStorage.getItem('neohab:refreshToken')))
     ok(
       'sign-out: account section back to anonymous',
       (await page.locator('text=This device is not signed in').count()) === 1
     )
+    ok('sign-out: the server accepted the revocation', logoutStatus === 200, 'status=' + logoutStatus)
+    // The real test of a revocation: the token it revoked must no longer buy an access token.
+    const reuse = await fetch(BASE + '/rest/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: BASE + '/neohab/index.html',
+        refresh_token: refresh ?? '',
+      }).toString(),
+    })
+    ok('sign-out: the session is gone from the server', !reuse.ok, 'reuse status=' + reuse.status)
 
     const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
     ok('exchange: no page/console errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))

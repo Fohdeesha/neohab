@@ -90,11 +90,7 @@ export const DEFAULT_MAX_POINTS = 250
  * bucket's extremes turns noisy data into a full-amplitude sawtooth that looks nothing like
  * the raw plot.
  */
-export function decimate(
-  xs: number[],
-  ys: (number | null)[],
-  maxPoints: number
-): [number[], (number | null)[]] {
+export function decimate(xs: number[], ys: (number | null)[], maxPoints: number): [number[], (number | null)[]] {
   const n = xs.length
   if (maxPoints <= 0 || n <= maxPoints) return [xs, ys]
   const x0 = xs[0]
@@ -150,7 +146,7 @@ export const PERIODS: Record<string, number> = {
   '30d': 30 * 86400e3,
   '60d': 60 * 86400e3,
   '120d': 120 * 86400e3,
-  '1y': 365 * 86400e3,
+  '1y': 365 * 86400e3
 }
 
 /** The chips a chart offers until its author picks a set of their own. */
@@ -210,7 +206,5 @@ export function effectiveSeries(config: ChartConfig): ChartSeries[] {
 
 /** The thresholds a config describes, with the same guard for the same reason. */
 export function effectiveThresholds(config: ChartConfig): ChartThreshold[] {
-  return (Array.isArray(config.thresholds) ? config.thresholds : []).filter(
-    (t): t is ChartThreshold => !!t && typeof t === 'object'
-  )
+  return (Array.isArray(config.thresholds) ? config.thresholds : []).filter((t): t is ChartThreshold => !!t && typeof t === 'object')
 }

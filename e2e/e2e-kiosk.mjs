@@ -10,13 +10,16 @@
  *     restored (the restore doubles as the follow-off check).
  *   - service worker tests run in throwaway Playwright profiles (nothing persists).
  */
-import { chromium } from 'playwright-core'
-import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { launchChromium } from './lib/browser.mjs'
+import { BASE, APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const UID_A = 'dashboard:nh-e2e-kiosk'
 const UID_B = 'dashboard:nh-e2e-kiosk2'
 const CONTROL_ITEM = ITEMS.dimmer
+
+/** Which kind of origin these were measured on: several answers below are decided by it. */
+const SCHEME = HTTPS ? 'HTTPS' : 'HTTP'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -25,9 +28,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 function launch(extraArgs = []) {
   const opts = { headless: true, args: extraArgs }
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, ...opts }) } catch {}
+    try { return launchChromium({ channel, ...opts }) } catch {}
   }
-  return chromium.launch(opts)
+  return launchChromium(opts)
 }
 
 const VP = { width: 1400, height: 950 }
@@ -161,23 +164,32 @@ try {
     await context.close()
   }
 
-  // ================= 3. plain-HTTP device: honest hint, no dead toggle =================
+  // ================= 3. what the wake lock looks like on each kind of origin =================
+  //
+  // The browser decides this from the page's scheme, so there are two right answers and the
+  // check is which one the target actually gets: on plain http the API is missing, so the toggle
+  // must be dead and say why rather than pretending; over TLS it is there and the toggle works.
+  // Asserting only the http half failed over TLS on an app that was behaving correctly.
   {
     const { context, page } = await newPage(browser)
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('#kiosk-wake', { timeout: 15000 })
-    ok('HTTP: wake lock API absent', await page.evaluate(() => !('wakeLock' in navigator)))
-    ok('HTTP: wake toggle disabled', !(await page.isEnabled('#kiosk-wake')))
-    ok('HTTP: HTTPS hint shown', (await page.locator('text=only offer the wake lock over HTTPS').count()) === 1)
+    const api = await page.evaluate(() => 'wakeLock' in navigator)
+    const enabled = await page.isEnabled('#kiosk-wake')
+    const hint = await page.locator('text=only offer the wake lock over HTTPS').count()
+    ok(`${SCHEME}: the wake lock API is ${HTTPS ? 'available' : 'absent'}`, api === HTTPS, 'api ' + api)
+    ok(`${SCHEME}: the toggle is ${HTTPS ? 'usable' : 'disabled'}`, enabled === HTTPS, 'enabled ' + enabled)
+    ok(`${SCHEME}: the HTTPS hint is ${HTTPS ? 'not shown' : 'shown'}`, hint === (HTTPS ? 0 : 1), 'hints ' + hint)
     await context.close()
   }
 
   // ================= 4. kiosk mode: URL params, chrome, 5-tap exit =================
   {
     const { context, page } = await newPage(browser)
+    // Counted, not used: the exit gesture must raise NO native dialog, so this staying at zero is
+    // itself one of the checks below.
     let dialogs = 0
-    let acceptDialogs = true
-    page.on('dialog', (d) => { dialogs++; acceptDialogs ? d.accept() : d.dismiss() })
+    page.on('dialog', (d) => { dialogs++; void d.accept() })
 
     // hash-query variant + route parsing tolerance
     await page.goto(APP + '#/d/nh-e2e-kiosk?kiosk=on', { waitUntil: 'domcontentloaded', timeout: 20000 })
@@ -220,16 +232,25 @@ try {
     await sleep(1000) // > TAP_WINDOW_MS: sequence expires
     for (let i = 0; i < 2; i++) { await page.mouse.click(cx, cy); await sleep(80) }
     await sleep(300)
-    ok('3 taps + pause + 2 taps does NOT exit', dialogs === 0 && (await page.locator('.nh-dash__bar').count()) === 0)
+    // The confirmation is the app's own dialog, not window.confirm: a kiosk browser is exactly
+    // the kind that suppresses native ones, and there the five taps used to do nothing at all.
+    const exitBox = page.locator('.nh-kioskexit')
+    ok(
+      '3 taps + pause + 2 taps does NOT exit',
+      dialogs === 0 && (await exitBox.count()) === 0 && (await page.locator('.nh-dash__bar').count()) === 0
+    )
 
-    acceptDialogs = false // first full sequence: dismiss the confirm - must stay in kiosk
     for (let i = 0; i < 5; i++) { await page.mouse.click(cx, cy); await sleep(80) }
     await sleep(300)
-    ok('5 taps show the exit confirm', dialogs === 1, String(dialogs))
-    ok('dismissing the confirm stays in kiosk', (await page.locator('.nh-dash__bar').count()) === 0)
+    ok('5 taps show the exit confirm', (await exitBox.count()) === 1, String(await exitBox.count()))
+    ok('the confirm is the app’s own, not a native dialog', dialogs === 0, String(dialogs))
+    await page.locator('.nh-kioskexit button', { hasText: 'Stay in kiosk mode' }).click()
+    await sleep(300)
+    ok('declining stays in kiosk', (await page.locator('.nh-dash__bar').count()) === 0 && (await exitBox.count()) === 0)
 
-    acceptDialogs = true
     for (let i = 0; i < 5; i++) { await page.mouse.click(cx, cy); await sleep(80) }
+    await exitBox.waitFor({ state: 'visible', timeout: 5000 })
+    await page.locator('.nh-kioskexit button', { hasText: 'Exit' }).click()
     await page.waitForSelector('.nh-dash__bar', { timeout: 5000 })
     ok('accepting the confirm exits kiosk (chrome returns)', true)
     ok('the exit is persisted (kiosk:false stored)',

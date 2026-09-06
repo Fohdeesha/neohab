@@ -19,7 +19,7 @@ import {
   zoneOptions,
   zoneParts,
   zoneRegion,
-  zoneShortName,
+  zoneShortName
 } from './zones'
 
 /** A summer instant, so the northern zones below are on daylight saving. */
@@ -108,7 +108,7 @@ describe('the wall clock in a zone', () => {
       day: 24,
       hour: 13,
       minute: 30,
-      second: 0,
+      second: 0
     })
     // The same instant, the previous evening in New York.
     expect(zoneParts(SUMMER, 'America/New_York')).toMatchObject({ day: 24, hour: 0, minute: 30 })
@@ -173,9 +173,7 @@ describe('the tile caption', () => {
   it('uses what the language calls the zone', () => {
     expect(zoneLabelText(SUMMER, 'America/New_York', 'en', 'short', undefined)).toBe('EDT')
     // Not every zone has letters in every language, and inventing some would be worse.
-    expect(zoneLabelText(SUMMER, 'Asia/Tokyo', 'en', 'short', undefined)).toBe(
-      zoneShortName(SUMMER, 'Asia/Tokyo', 'en')
-    )
+    expect(zoneLabelText(SUMMER, 'Asia/Tokyo', 'en', 'short', undefined)).toBe(zoneShortName(SUMMER, 'Asia/Tokyo', 'en'))
   })
 
   it('or the offset', () => {
@@ -205,7 +203,7 @@ describe('the extra zones a sheet lists', () => {
   it('keeps the good rows and their labels', () => {
     expect(extraZones([{ zone: 'Asia/Tokyo', label: 'Head office' }, { zone: 'UTC' }])).toEqual([
       { zone: 'Asia/Tokyo', label: 'Head office' },
-      { zone: 'UTC', label: undefined },
+      { zone: 'UTC', label: undefined }
     ])
   })
 
@@ -218,9 +216,7 @@ describe('the extra zones a sheet lists', () => {
   })
 
   it('lists the same zone once', () => {
-    expect(extraZones([{ zone: 'UTC' }, { zone: 'UTC', label: 'again' }])).toEqual([
-      { zone: 'UTC', label: undefined },
-    ])
+    expect(extraZones([{ zone: 'UTC' }, { zone: 'UTC', label: 'again' }])).toEqual([{ zone: 'UTC', label: undefined }])
   })
 
   it('ignores a label of only spaces', () => {

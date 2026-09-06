@@ -187,7 +187,7 @@ export class StatesTracker {
       // to push, so it has to carry whatever the request needs to get through - an openHAB token
       // on a server with no anonymous role, and a reverse proxy's own credentials.
       await api.post('/rest/events/states/' + connection, [...this.tracked], {
-        signal: controller.signal,
+        signal: controller.signal
       })
       if (connection !== this.connectionId) return
       this.setLive(true)

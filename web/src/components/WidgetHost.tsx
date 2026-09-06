@@ -21,10 +21,7 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   // is recloned on every edit and would otherwise resubscribe per keystroke.
   const itemNames = itemsForInstance(instance.type, instance.config)
   const itemsKey = itemNames.join('\n')
-  useEffect(
-    () => subscribeItems(itemsKey ? itemsKey.split('\n') : []),
-    [itemsKey]
-  )
+  useEffect(() => subscribeItems(itemsKey ? itemsKey.split('\n') : []), [itemsKey])
 
   // Select only this widget's item states (shallow-compared) to limit re-renders.
   const states = useItemsStore(useShallow((s) => selectStates(s.states, itemNames)))
@@ -47,7 +44,7 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
       widgetId: instance.id,
       getItem: (name) => states[name],
       sendCommand: (item, command) => commandItem(item, command),
-      editing,
+      editing
     }),
     [states, editing, instance.id]
   )

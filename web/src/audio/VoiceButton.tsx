@@ -13,6 +13,7 @@ import { interpretText } from '../api/voice'
 import { notify } from '../store/notify'
 import { useConfigStore } from '../store/config'
 import { recognitionSupported, startRecognition } from './speech'
+import { errorText } from '../api/errors'
 
 /** The server's configured locale decides the recognition language (HABPanel semantics). */
 let localePromise: Promise<string> | null = null
@@ -41,7 +42,7 @@ export function VoiceButton() {
       const answer = await interpretText(text)
       notify(answer.trim() || t('Sent: “{{text}}”', { text }))
     } catch (err) {
-      notify(err instanceof Error ? err.message : String(err))
+      notify(errorText(err))
     }
   }
 
@@ -68,7 +69,7 @@ export function VoiceButton() {
           stopRef.current = null
           setListening(false)
           if (error) notify(t('Voice input failed: {{error}}', { error }))
-        },
+        }
       })
     })
   }
@@ -80,8 +81,7 @@ export function VoiceButton() {
         className={'nh-iconbtn' + (listening ? ' nh-iconbtn--live' : '')}
         onClick={toggle}
         aria-label={listening ? t('Stop listening') : t('Voice command')}
-        title={listening ? t('Stop listening') : t('Voice command')}
-      >
+        title={listening ? t('Stop listening') : t('Voice command')}>
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path
             fill="currentColor"

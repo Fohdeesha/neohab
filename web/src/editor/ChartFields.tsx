@@ -6,12 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { ItemPicker } from '../components/ItemPicker'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
-import {
-  effectiveSeries,
-  type ChartConfig,
-  type ChartSeries,
-  type ChartThreshold,
-} from '../widgets/chart/model'
+import { effectiveSeries, type ChartConfig, type ChartSeries, type ChartThreshold } from '../widgets/chart/model'
 import { chartScheme, seriesColor } from '../widgets/chart/palette'
 
 const CHART_ITEM_TYPES = ['Number', 'Dimmer', 'Switch', 'Contact', 'Rollershutter']
@@ -25,8 +20,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
   const rows = raw.length > 0 ? raw : effectiveSeries(widget.config as ChartConfig)
   const scheme = chartScheme()
   const write = (next: ChartSeries[]) => updateWidgetConfig(widget.id, 'series', next)
-  const patch = (i: number, p: Partial<ChartSeries>) =>
-    write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
+  const patch = (i: number, p: Partial<ChartSeries>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
   const move = (i: number, d: number) => {
     const next = [...rows]
     const [r] = next.splice(i, 1)
@@ -47,8 +41,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               className="nh-chartcard__btn"
               aria-label={t('Move series {{n}} up', { n: i + 1 })}
               disabled={i === 0}
-              onClick={() => move(i, -1)}
-            >
+              onClick={() => move(i, -1)}>
               ↑
             </button>
             <button
@@ -56,16 +49,14 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               className="nh-chartcard__btn"
               aria-label={t('Move series {{n}} down', { n: i + 1 })}
               disabled={i === rows.length - 1}
-              onClick={() => move(i, 1)}
-            >
+              onClick={() => move(i, 1)}>
               ↓
             </button>
             <button
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove series {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -101,10 +92,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
             </label>
             <label className="nh-chartcard__cell">
               <span>{t('Axis')}</span>
-              <select
-                value={s.axis === 'y2' ? 'y2' : 'y'}
-                onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}
-              >
+              <select value={s.axis === 'y2' ? 'y2' : 'y'} onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}>
                 <option value="y">{t('Left')}</option>
                 <option value="y2">{t('Right')}</option>
               </select>
@@ -113,10 +101,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               <span>{t('Style')}</span>
               <select
                 value={s.mode ?? 'smooth'}
-                onChange={(e) =>
-                  patch(i, { mode: e.target.value === 'smooth' ? undefined : (e.target.value as ChartSeries['mode']) })
-                }
-              >
+                onChange={(e) => patch(i, { mode: e.target.value === 'smooth' ? undefined : (e.target.value as ChartSeries['mode']) })}>
                 <option value="smooth">{t('Smooth')}</option>
                 <option value="linear">{t('Linear')}</option>
                 <option value="step">{t('Step')}</option>
@@ -128,8 +113,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
               <span>{t('Draw as')}</span>
               <select
                 value={s.kind === 'bar' ? 'bar' : 'line'}
-                onChange={(e) => patch(i, { kind: e.target.value === 'bar' ? 'bar' : undefined })}
-              >
+                onChange={(e) => patch(i, { kind: e.target.value === 'bar' ? 'bar' : undefined })}>
                 <option value="line">{t('Line')}</option>
                 <option value="bar">{t('Bars')}</option>
               </select>
@@ -140,11 +124,9 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
                 value={s.aggregate ?? 'average'}
                 onChange={(e) =>
                   patch(i, {
-                    aggregate:
-                      e.target.value === 'average' ? undefined : (e.target.value as ChartSeries['aggregate']),
+                    aggregate: e.target.value === 'average' ? undefined : (e.target.value as ChartSeries['aggregate'])
                   })
-                }
-              >
+                }>
                 <option value="average">{t('Average (time-weighted)')}</option>
                 <option value="min">{t('Minimum')}</option>
                 <option value="max">{t('Maximum')}</option>
@@ -181,11 +163,7 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
             </label>
             <label className="nh-chartcard__cell nh-chartcard__cell--check">
               <span>{t('Points')}</span>
-              <input
-                type="checkbox"
-                checked={s.points === true}
-                onChange={(e) => patch(i, { points: e.target.checked || undefined })}
-              />
+              <input type="checkbox" checked={s.points === true} onChange={(e) => patch(i, { points: e.target.checked || undefined })} />
             </label>
           </div>
         </div>
@@ -199,12 +177,9 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
 
 export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
-  const rows = Array.isArray(widget.config.thresholds)
-    ? (widget.config.thresholds as ChartThreshold[])
-    : []
+  const rows = Array.isArray(widget.config.thresholds) ? (widget.config.thresholds as ChartThreshold[]) : []
   const write = (next: ChartThreshold[]) => updateWidgetConfig(widget.id, 'thresholds', next)
-  const patch = (i: number, p: Partial<ChartThreshold>) =>
-    write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
+  const patch = (i: number, p: Partial<ChartThreshold>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
   const numField = (i: number, key: 'from' | 'to', value: number | undefined) => (
     <label className="nh-chartcard__cell">
       <span>{key === 'from' ? t('From') : t('To (band)')}</span>
@@ -228,8 +203,7 @@ export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove threshold {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -248,18 +222,13 @@ export function ChartThresholdsField({ widget }: { widget: WidgetInstance }) {
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
               <span>{t('Label')}</span>
-              <input
-                type="text"
-                value={th.label ?? ''}
-                onChange={(e) => patch(i, { label: e.target.value || undefined })}
-              />
+              <input type="text" value={th.label ?? ''} onChange={(e) => patch(i, { label: e.target.value || undefined })} />
             </label>
             <label className="nh-chartcard__cell">
               <span>{t('Axis')}</span>
               <select
                 value={th.axis === 'y2' ? 'y2' : 'y'}
-                onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}
-              >
+                onChange={(e) => patch(i, { axis: e.target.value === 'y2' ? 'y2' : undefined })}>
                 <option value="y">{t('Left')}</option>
                 <option value="y2">{t('Right')}</option>
               </select>

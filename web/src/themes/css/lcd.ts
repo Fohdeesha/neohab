@@ -182,7 +182,7 @@ ${wholeTileActive({
   plate: 'var(--nh-cellaccent, var(--nh-primary))',
   border: 'var(--nh-cellaccent, var(--nh-primary))',
   extra: '  box-shadow: 0 0 16px color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 55%, transparent);',
-  labelInk: 'rgba(0, 0, 0, 0.6)',
+  labelInk: 'rgba(0, 0, 0, 0.6)'
 })}.nh-switch--on .nh-switch__track {
   background: var(--nh-cellaccent, var(--nh-primary));
   border-color: var(--nh-cellaccent, var(--nh-primary));
@@ -217,6 +217,15 @@ ${wholeTileActive({
 }
 .nh-switch__state {
   font-family: 'DSEG14', sans-serif;
+}
+/* The log console: the level tag in the panel neon, warnings and errors in their own colours
+   (those rules sit two classes deep in the base sheet and keep winning), the pill a neon plate. */
+.nh-log__level {
+  color: var(--nh-cellaccent, var(--nh-primary));
+}
+.nh-log__jump {
+  background: var(--nh-cellaccent, var(--nh-primary));
+  color: #000;
 }
 /* Home tiles carry their names in the 14-segment face too */
 .nh-tile__name {

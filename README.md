@@ -15,18 +15,48 @@ phones, tablets and wall panels, configured entirely in the browser. No file edi
 
 neohab is a community project and is not an official openHAB UI.
 
+## Requirements
+
+- **openHAB 4.3 or newer**, including 5.x. The bundle declares that range, so 4.0 to 4.2 will not
+  start it. Tested against apt-installed **4.3.7** and a zip install of **5.2.1**; Docker and
+  openHABian are the same jar in the same folder but have not been run yet.
+- **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121, or a matching
+  Android WebView. An older one is told so instead of rendering a broken page.
+- **Nothing else.** Only openHAB's public REST and SSE APIs, no server-side code of ours, no
+  internet access, no account anywhere.
+- Some features need **HTTPS**, because browsers only offer them in a secure context: installing
+  as an app (PWA), keeping the screen awake, and the microphone. Everything else works over plain
+  HTTP, which is how most home openHAB servers are reached. Install below says what changes if
+  you switch, including the certificate an app install needs and what happens to `http://`
+  cameras.
+- Charts, timelines, gauge sparklines and stat trends read history from a **persistence service**.
+  Any one will do; the widgets say so if none is set up.
+
 ## Install
 
 1. Download the add-on jar from the [releases page](https://github.com/Fohdeesha/neohab/releases).
-2. Drop it into your openHAB `addons/` folder. It is picked up in a few seconds, no restart.
-3. Open **http://your-server:8080/neohab/**.
+   Each release has a `.sha256` beside it if you want to check the download.
+2. Drop it into your openHAB `addons/` folder:
+   - apt or openHABian: `/usr/share/openhab/addons`
+   - Docker: whatever you mounted at `/openhab/addons` (the file has to be readable by uid 9001)
+   - manual zip install: `<openhab-home>/addons`
+3. It is picked up in a few seconds, no restart. `openhab.log` says `Started neohab at /neohab`.
+4. Open **http://your-server:8080/neohab/**.
 
-It appears on the openHAB start page too. To remove it, delete the jar. To upgrade, replace it:
-open tabs pick the new version up on their next load, with no cache to clear.
+It appears on the openHAB start page too. The jar is about 6 MB; a much smaller one did not build
+properly and will install cleanly and then serve nothing.
 
-Works with openHAB **4.x and 5.x**, using only public REST and SSE APIs - tested against 4.3.7
-and 5.2.1. Viewing works out of the box on a server that allows anonymous read, which is
-openHAB's default. Editing asks you to sign in as an administrator.
+**Upgrading:** delete the old jar first, wait for it to stop, then copy the new one in. Two jars in
+`addons/` at once register the same page twice. Open tabs notice the new version and offer to
+reload themselves.
+
+**Removing it:** delete the jar. Your dashboards stay in openHAB's JSON database, in the three
+`neohab:*` namespaces, so putting the jar back brings everything with it. Going back to an older
+version leaves anything a newer one wrote alone rather than misreading it, so those dashboards are
+invisible until you upgrade again.
+
+Viewing works out of the box on a server that allows anonymous read, which is openHAB's default.
+Editing asks you to sign in as an administrator.
 
 If you have turned openHAB's implicit user role **off**, neohab asks you to sign in before it
 shows anything, and commands and configuration then work normally. Live item values are the
@@ -34,12 +64,53 @@ exception: they arrive over an `EventSource`, which browsers do not let us attac
 on a server locked down that way the dashboard renders but its values do not update. neohab says
 so on screen rather than showing stale numbers.
 
+**Behind a reverse proxy**, do not buffer the event stream, or live values arrive in bursts or not
+at all:
+
+```nginx
+location / {
+  proxy_pass http://localhost:8080/;
+  proxy_set_header Host $host;
+  proxy_http_version 1.1;
+  proxy_buffering off;      # the item-state stream is server-sent events
+  proxy_read_timeout 3600s;
+}
+```
+
+neohab resolves every path against wherever it is served from, so a sub-path proxy works in
+principle. It is designed for openHAB Cloud and the openHAB phone app as well, and picks up their
+credentials by itself - but neither of those, nor a sub-path proxy, has been tested end to end yet.
+
+**Over HTTPS**, everything works and a few things start working that cannot over plain HTTP:
+installing neohab as an app, keeping a wall panel's screen awake, and the microphone. openHAB
+already listens on port 8443, so `https://your-server:8443/neohab/` needs nothing set up.
+
+Two things are worth knowing before you switch:
+
+- **The certificate has to be one the browser trusts.** openHAB generates a self-signed one, and a
+  browser will let you click past the warning to read the dashboard but will not install it as an
+  app: the service worker is refused outright, with nothing on screen to say why. A certificate
+  from your own authority or from Let's Encrypt, usually terminated at a reverse proxy, is what
+  makes the app install and the wake lock work.
+- **An `http://` address cannot be loaded into an `https://` page.** Browsers block it, silently,
+  so a camera at `http://192.168.1.10:1984`, a framed page or an image from a plain-HTTP host
+  simply never arrives. neohab says so on the widget and in its settings as you type the address,
+  rather than leaving you with a tile that looks broken. Give those devices HTTPS too, put them
+  behind the same proxy, or reach neohab over HTTP.
+
+Opening a *link* to an http address still works: that is a navigation, not something the page
+loads, so a button that goes to a web address is unaffected.
+
 ## Coming from HABPanel
 
-Import your panels from **Settings › HABPanel import**, either straight off your server or from a
-`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and panel
-names become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`. You get a report
-of what came over cleanly, what was approximated, and what needs a look.
+Import your panels from **Settings › Migrate from HABPanel**, either straight off your server or
+from a `habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and
+panel names become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`. You get a
+report of what came over cleanly, what was approximated, and what needs a look.
+
+If nothing is found on your server, HABPanel is probably keeping your panels in the browser rather
+than in openHAB. Open HABPanel, save the panel configuration to the server or export it, and come
+back with the file.
 
 All seven HABPanel themes have a port here, so an imported dashboard arrives looking like itself.
 Custom AngularJS templates import as neohab template widgets.
@@ -75,7 +146,8 @@ translate it.
 - **A closer look at any widget.** Hold a tile, or right-click it, and a sheet opens with the
   current value, when it last changed, recent history and a link to the item in Main UI. A tile is
   a deliberate summary; this answers what it has actually been doing, without leaving the
-  dashboard. Widgets that are not about an item answer too: a weather tile opens the whole
+  dashboard. A log tile opens the log full screen instead, with a search box and the filters as
+  chips. Widgets that are not about an item answer too: a weather tile opens the whole
   forecast it fetched - every reading, the next twelve hours in two rows of six, and the week
   under it - and a clock opens the date in full, the time to the second, which zone that is, any
   other zones it carries, and whether this device's clock and the server's read the same, or how
@@ -158,6 +230,15 @@ translate it.
   buttons, a carousel with position dots, a range bar), five finishes from the theme's plain
   controls to frosted glass, a neon glow, solid accent plates and a glossy sheen, and your choice
   of arrow glyph. A run of quick taps costs the device one command.
+- **Log.** openhab.log, events.log or both, as they happen, on a tile: a console that follows the
+  newest line, colours warnings and errors and dims debug output, and is filtered by a minimum
+  level, logger names (`org.openhab.binding.mqtt`, or a glob) and a text the message must
+  contain. A pause button at the top right stops the tile so a line can be read, and picks up
+  where it left off rather than losing what went past. Hold the tile and the same log opens full
+  screen with a search box, the level and the source as chips, pause, clear and copy. It reads
+  the feed openHAB's own log viewer uses, so
+  there is no file to reach and nothing to configure on the server; openHAB 5 shows it to
+  administrators only, and the tile says so to anyone else.
 - **Thermostat.** The room's temperature and the setpoint, with buttons to move the setpoint and
   a ring you can drag it round, plus buttons for the mode (heat or cool), the fan (auto or on)
   and auxiliary heat, each bound to whatever item your thermostat binding gives you and each
@@ -202,8 +283,9 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 
 **Running it**
 
-- **Wall panels and kiosks.** Installable as an app (PWA) with an offline-capable shell. Per
-  device: keep the screen awake, blank after idle or show a drifting clock, open onto a pinned
+- **Wall panels and kiosks.** Installable as an app (PWA) with an offline-capable shell, and able
+  to keep the screen awake - both of those need HTTPS, because browsers only offer them in a
+  secure context. Per device: blank after idle or show a drifting clock, open onto a pinned
   dashboard, and hide all chrome in kiosk mode. A dashboard-control item lets your rules switch
   what every panel shows.
 - **Voice and audio.** openHAB's Web Audio sink plays through the browser, a speech item announces
@@ -215,11 +297,15 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 - **View-only for visitors.** Like openHAB's own UIs, devices not signed in as an administrator
   get a clean read-only panel: buttons and sliders still work, but dashboards, themes, presets
   and settings can only be changed after an administrator sign-in.
-- **Away from home.** Works behind a reverse proxy or openHAB Cloud. Credentials are kept in
-  memory for the session, never written to the device. Inside the official openHAB phone app it
-  picks them up by itself.
+- **Away from home.** Built for a reverse proxy or openHAB Cloud, though neither has been tested
+  end to end yet. Credentials are kept in memory for the session, never written to the device.
+  Inside the official openHAB phone app it picks them up by itself.
 - **Your language.** English, German, Spanish, French, Italian, Dutch and Polish (machine-drafted,
   native review welcome), from the browser language with a per-device override.
+- **What is yours and what is this device's.** The theme, backgrounds, dashboards, presets and
+  widgets are shared with every device and travel in a backup. The theme override, language, text
+  size, kiosk and audio choices and the pinned sidebar belong to the browser they were set in, and
+  do not. Settings says which is which.
 - **When something is wrong.** Settings ends with an About screen: the neohab and openHAB
   versions, what this device is signed in as, whether live states are arriving, and which
   persistence services the server has. It offers all of that as one block to paste into a bug
@@ -283,6 +369,15 @@ linter and the unit suite, which is what CI runs.
 The browser end-to-end suites live in [`e2e/`](e2e/). They drive a real browser against a live
 openHAB with the add-on deployed, so read [`e2e/README.md`](e2e/README.md) before running them
 against a server you care about.
+
+## Help and bugs
+
+Open an [issue](https://github.com/Fohdeesha/neohab/issues). Settings ends with an **About** screen
+that offers one block to paste in: it says which neohab and openHAB you are on, what the device is
+signed in as, whether live values are arriving, and which persistence services the server has, with
+no addresses, credentials or item names in it.
+
+Security problems go **privately** instead - see [SECURITY.md](SECURITY.md).
 
 ## License
 

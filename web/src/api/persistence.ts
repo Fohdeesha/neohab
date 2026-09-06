@@ -22,19 +22,14 @@ export interface HistoryOptions {
 }
 
 /** Fetch an item's history from the default (or a specific) persistence service. */
-export async function getItemHistory(
-  item: string,
-  startTime: Date,
-  opts: HistoryOptions = {}
-): Promise<HistoryPoint[]> {
+export async function getItemHistory(item: string, startTime: Date, opts: HistoryOptions = {}): Promise<HistoryPoint[]> {
   const params = new URLSearchParams({ starttime: startTime.toISOString() })
   if (opts.endTime) params.set('endtime', opts.endTime.toISOString())
   if (opts.serviceId) params.set('serviceId', opts.serviceId)
   if (opts.boundary) params.set('boundary', 'true')
-  const dto = await api.get<ItemHistory>(
-    '/rest/persistence/items/' + encodeURIComponent(item) + '?' + params.toString(),
-    { signal: opts.signal }
-  )
+  const dto = await api.get<ItemHistory>('/rest/persistence/items/' + encodeURIComponent(item) + '?' + params.toString(), {
+    signal: opts.signal
+  })
   return dto.data ?? []
 }
 

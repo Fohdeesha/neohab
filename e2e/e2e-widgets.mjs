@@ -6,7 +6,7 @@
  * Flow: build the test dashboard in edit mode -> Save -> exit to run mode -> exercise the
  * widgets for real -> delete everything via REST so the VM stays pristine.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS, isAppResource } from './lib/target.mjs'
 
 
@@ -34,10 +34,10 @@ const sendCmd = (item, cmd) =>
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // Record initial states so cleanup restores what the owner actually had.

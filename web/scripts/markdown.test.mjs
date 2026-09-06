@@ -41,9 +41,7 @@ describe('the docs renderer', () => {
   })
 
   it('renders fenced code, keeping its language and its blank lines', () => {
-    expect(md('```css\n.a {\n\n  color: red;\n}\n```')).toBe(
-      '<pre><code class="lang-css">.a {\n\n  color: red;\n}</code></pre>'
-    )
+    expect(md('```css\n.a {\n\n  color: red;\n}\n```')).toBe('<pre><code class="lang-css">.a {\n\n  color: red;\n}</code></pre>')
   })
 
   it('renders tables', () => {

@@ -48,9 +48,7 @@ export class WidgetBoundary extends Component<Props, State> {
     if (this.state.message === null) return this.props.children
     return (
       <div className="nh-widget nh-widget--error">
-        <span className="nh-widget__errtitle">
-          {i18n.t('This {{type}} widget could not be shown', { type: this.props.type })}
-        </span>
+        <span className="nh-widget__errtitle">{i18n.t('This {{type}} widget could not be shown', { type: this.props.type })}</span>
         <span className="nh-widget__errtext">{this.state.message}</span>
         <span className="nh-widget__errhint">
           {i18n.t('Its settings are probably not what it expects. Edit the dashboard to change or remove it.')}

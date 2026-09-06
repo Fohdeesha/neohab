@@ -5,11 +5,10 @@ const widget = (over: Partial<ClipboardWidget> = {}): ClipboardWidget => ({
   type: 'label',
   config: { label: 'A' },
   rect: { x: 1, y: 2, w: 3, h: 4 },
-  ...over,
+  ...over
 })
 
-const payload = (widgets: unknown[]) =>
-  JSON.stringify({ app: 'neohab', kind: 'neohab/widgets', version: 1, widgets })
+const payload = (widgets: unknown[]) => JSON.stringify({ app: 'neohab', kind: 'neohab/widgets', version: 1, widgets })
 
 describe('parseClipboard', () => {
   it('round-trips what serializeClipboard writes', () => {

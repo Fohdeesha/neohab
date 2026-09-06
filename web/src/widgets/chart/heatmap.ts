@@ -179,6 +179,6 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
       canvas.removeEventListener('pointerleave', onLeave)
       canvas.remove()
       tip.remove()
-    },
+    }
   }
 }

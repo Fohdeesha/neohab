@@ -5,7 +5,7 @@
 // protects.
 //
 // Assumes EMPTY namespaces (wipe→restore cycle); creates everything it needs via REST/the app.
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { ALL_NS, APP, AUTH, HISTORY_DATA_NS, HISTORY_NS, NS, TOKEN } from './lib/target.mjs'
 
 // WIPE-CYCLE GUARD: this suite assumes empty namespaces and its cleanup DELETES EVERYTHING in
@@ -73,10 +73,10 @@ const clock = (id, x) => ({ id, type: 'clock', config: { label: 'Clock ' + id },
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const browser = await launch()

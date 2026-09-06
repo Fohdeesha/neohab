@@ -15,7 +15,7 @@
  * Commands NOTHING (sliders/values bound to no item; the chart reads the temperature item history
  * via GET only; def rows are only opened and closed, never saved).
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-lblalign'
@@ -31,9 +31,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })

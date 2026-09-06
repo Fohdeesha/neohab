@@ -84,8 +84,7 @@ export function createChart(p: PlotParams): ChartHandle {
   const hasY = p.series.some((s) => s.axis === 'y')
   const hasY2 = p.series.some((s) => s.axis === 'y2')
   /** Resolve a requested axis to a scale that exists (thresholds may name an unused axis). */
-  const scaleFor = (axis: 'y' | 'y2'): 'y' | 'y2' =>
-    axis === 'y2' ? (hasY2 ? 'y2' : 'y') : hasY ? 'y' : 'y2'
+  const scaleFor = (axis: 'y' | 'y2'): 'y' | 'y2' => (axis === 'y2' ? (hasY2 ? 'y2' : 'y') : hasY ? 'y' : 'y2')
 
   const category = p.xMode === 'category'
   const labels = p.categoryLabels ?? []
@@ -95,7 +94,7 @@ export function createChart(p: PlotParams): ChartHandle {
     // align 1 = step-after: an item holds its state until the next change
     step: uPlot.paths.stepped!({ align: 1 }),
     // 0.85 of the slot, capped so a two-bucket chart doesn't draw two enormous slabs
-    bar: uPlot.paths.bars!({ size: [0.85, 60] }),
+    bar: uPlot.paths.bars!({ size: [0.85, 60] })
   }
   /** A bucket index as its label ("Mon", "14"), or the raw value if there is no label for it. */
   const categoryLabel = (v: number): string => labels[Math.round(v)] ?? String(v)
@@ -109,18 +108,20 @@ export function createChart(p: PlotParams): ChartHandle {
       return g
     }
 
-  const range = (min?: number, max?: number): uPlot.Scale.Range => (_u, dataMin, dataMax) => {
-    const lo = dataMin ?? 0
-    const hi = dataMax ?? lo + 1
-    const padded = uPlot.rangeNum(lo, hi === lo ? lo + 1 : hi, 0.1, true)
-    return [min ?? padded[0], max ?? padded[1]]
-  }
+  const range =
+    (min?: number, max?: number): uPlot.Scale.Range =>
+    (_u, dataMin, dataMax) => {
+      const lo = dataMin ?? 0
+      const hi = dataMax ?? lo + 1
+      const padded = uPlot.rangeNum(lo, hi === lo ? lo + 1 : hi, 0.1, true)
+      return [min ?? padded[0], max ?? padded[1]]
+    }
 
   const axisStyle = {
     stroke: theme.dim,
     grid: { stroke: theme.grid, width: 1 },
     ticks: { stroke: theme.grid, width: 1 },
-    font: '11px system-ui, sans-serif',
+    font: '11px system-ui, sans-serif'
   }
 
   /* Crosshair tooltip: absolutely positioned inside the host, driven by setCursor. */
@@ -131,7 +132,7 @@ export function createChart(p: PlotParams): ChartHandle {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   })
   const hideTooltip = () => tt.classList.remove('nh-chart__tt--show')
 
@@ -242,13 +243,13 @@ export function createChart(p: PlotParams): ChartHandle {
       y: false,
       drag: { x: true, y: false },
       focus: { prox: 24 },
-      points: { size: 7 },
+      points: { size: 7 }
     },
     focus: { alpha: 0.35 },
     scales: {
       x: { time: !category },
       ...(hasY ? { y: { range: range(p.yMin, p.yMax) } } : {}),
-      ...(hasY2 ? { y2: { range: range(p.y2Min, p.y2Max) } } : {}),
+      ...(hasY2 ? { y2: { range: range(p.y2Min, p.y2Max) } } : {})
     },
     axes: [
       {
@@ -261,42 +262,38 @@ export function createChart(p: PlotParams): ChartHandle {
                 for (let v = Math.ceil(min); v <= Math.floor(max); v++) out.push(v)
                 return out
               },
-              values: (_u: uPlot, splits: number[]) => splits.map(categoryLabel),
+              values: (_u: uPlot, splits: number[]) => splits.map(categoryLabel)
             }
-          : {}),
+          : {})
       },
       ...(hasY ? [{ ...axisStyle, scale: 'y' } as uPlot.Axis] : []),
       // the horizontal gridlines belong to whichever y axis exists; never draw them twice
-      ...(hasY2
-        ? [{ ...axisStyle, scale: 'y2', side: 1, grid: { show: !hasY } } as uPlot.Axis]
-        : []),
+      ...(hasY2 ? [{ ...axisStyle, scale: 'y2', side: 1, grid: { show: !hasY } } as uPlot.Axis] : [])
     ],
     series: [
       {},
-      ...p.series.map(
-        (s): uPlot.Series => ({
-          label: s.label,
-          scale: s.axis,
-          stroke: s.color,
-          width: s.width,
-          spanGaps: true,
-          paths: s.kind === 'bar' ? paths.bar : paths[s.mode],
-          points: { show: s.points, size: 6, stroke: s.color, fill: s.color },
-          // bars are filled solid: a gradient that fades to nothing would erase their base
-          fill:
-            s.kind === 'bar'
-              ? alpha(s.color, Math.min(1, (s.fill > 0 ? s.fill : 70) / 100))
-              : s.fill > 0
-                ? gradient(s.color, Math.min(1, s.fill / 100))
-                : undefined,
-        })
-      ),
+      ...p.series.map((s): uPlot.Series => ({
+        label: s.label,
+        scale: s.axis,
+        stroke: s.color,
+        width: s.width,
+        spanGaps: true,
+        paths: s.kind === 'bar' ? paths.bar : paths[s.mode],
+        points: { show: s.points, size: 6, stroke: s.color, fill: s.color },
+        // bars are filled solid: a gradient that fades to nothing would erase their base
+        fill:
+          s.kind === 'bar'
+            ? alpha(s.color, Math.min(1, (s.fill > 0 ? s.fill : 70) / 100))
+            : s.fill > 0
+              ? gradient(s.color, Math.min(1, s.fill / 100))
+              : undefined
+      }))
     ],
     hooks: {
       setCursor: [onSetCursor],
       setScale: [(u, key) => onSetScale(u, key)],
-      drawAxes: [drawThresholds],
-    },
+      drawAxes: [drawThresholds]
+    }
   }
 
   const empty = [[], ...p.series.map(() => [])] as unknown as uPlot.AlignedData
@@ -324,6 +321,6 @@ export function createChart(p: PlotParams): ChartHandle {
       hideTooltip()
       tt.remove()
       u.destroy()
-    },
+    }
   }
 }

@@ -15,14 +15,7 @@
 import { describe, expect, it } from 'vitest'
 import type { UIComponent } from '../api/types'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
-import {
-  convertHabpanel,
-  panelConfigFromComponent,
-  parseHabpanelFile,
-  PERIOD_MAP,
-  THEME_MAP,
-  type HPPanelConfig,
-} from './habpanel'
+import { convertHabpanel, panelConfigFromComponent, parseHabpanelFile, PERIOD_MAP, THEME_MAP, type HPPanelConfig } from './habpanel'
 import fixture from './fixtures/habpanel-config.json'
 
 /**
@@ -44,7 +37,7 @@ const widget = (d: Dashboard, type: string): WidgetInstance => {
 const oneWidget = (w: Record<string, unknown>): HPPanelConfig => ({
   dashboards: [{ id: 'd', name: 'D', widgets: [{ type: String(w.type), ...w }] }],
   settings: {},
-  customwidgets: {},
+  customwidgets: {}
 })
 
 const convertOne = (w: Record<string, unknown>) => {
@@ -85,7 +78,7 @@ describe('parsing an export file', () => {
     ['an object with an empty dashboard list', { dashboards: [] }],
     ['an array of arrays', [[]]],
     ['an array of scalars', [1, 2]],
-    ['dashboards with no id, name or widgets', [{ foo: 'bar' }]],
+    ['dashboards with no id, name or widgets', [{ foo: 'bar' }]]
   ])('refuses %s', (_label, input) => {
     expect(() => parseHabpanelFile(input)).toThrow(/Not a HABPanel configuration/)
   })
@@ -103,18 +96,18 @@ describe('reading a live habpanel:panelconfig component', () => {
             component: 'dashboard',
             config: { id: 'kitchen', name: 'Kitchen', columns: 10 },
             slots: {
-              widgets: [{ component: 'switch', config: { item: 'K_Light', name: 'Light' } }],
-            },
-          },
+              widgets: [{ component: 'switch', config: { item: 'K_Light', name: 'Light' } }]
+            }
+          }
         ],
         customwidgets: [
           {
             component: 'customwidget',
             config: { id: 'gauge', name: 'Gauge', template: '<b>x</b>' },
-            slots: { settings: [{ component: 'item', config: { id: 'item', label: 'Item' } }] },
-          },
-        ],
-      },
+            slots: { settings: [{ component: 'item', config: { id: 'item', label: 'Item' } }] }
+          }
+        ]
+      }
     } as unknown as UIComponent
 
     const cfg = panelConfigFromComponent(component)
@@ -135,7 +128,7 @@ describe('reading a live habpanel:panelconfig component', () => {
       uid: 'x',
       component: 'panelconfiguration',
       config: {},
-      slots: { customwidgets: [{ component: 'customwidget', config: { name: 'nameless' } }] },
+      slots: { customwidgets: [{ component: 'customwidget', config: { name: 'nameless' } }] }
     } as unknown as UIComponent)
     expect(cfg.customwidgets).toEqual({})
   })
@@ -149,9 +142,23 @@ describe('widget conversion', () => {
     const types = dashboards.flatMap((d) => d.widgets.map((w) => w.type))
     expect(types).toEqual([
       // Ground Floor
-      'switch', 'slider', 'color', 'dial', 'value', 'label', 'button', 'button', 'selection',
+      'switch',
+      'slider',
+      'color',
+      'dial',
+      'value',
+      'label',
+      'button',
+      'button',
+      'selection',
       // First Floor - the unknown `rollershutter` type is skipped, so 7 of 8 survive
-      'image', 'frame', 'clock', 'clock', 'chart', 'timeline', 'template',
+      'image',
+      'frame',
+      'clock',
+      'clock',
+      'chart',
+      'timeline',
+      'template'
     ])
     expect(widgetCount).toBe(16)
   })
@@ -164,7 +171,7 @@ describe('widget conversion', () => {
       // eclipse-smarthome-classic is HABPanel's id for the set servers call "classic"; sending
       // it verbatim 404s on every icon request.
       icon: 'oh:light',
-      iconSize: 48,
+      iconSize: 48
     })
   })
 
@@ -181,7 +188,13 @@ describe('widget conversion', () => {
   it('keeps a slider range, and stands a vertical one on end', () => {
     const { dashboards, notes } = importFixture()
     expect(widget(dashboards[0], 'slider').config).toEqual({
-      item: 'Hall_Dimmer', label: 'Hall Dimmer', orient: 'vertical', min: 10, max: 90, step: 5, unit: '%',
+      item: 'Hall_Dimmer',
+      label: 'Hall Dimmer',
+      orient: 'vertical',
+      min: 10,
+      max: 90,
+      step: 5,
+      unit: '%'
     })
     // The fixture's slider is vertical and not inverted, and vertical is reproduced now, so there
     // is nothing to report about it.
@@ -206,15 +219,26 @@ describe('widget conversion', () => {
   it('maps a read-only knob to a gauge rather than a draggable dial', () => {
     const { dashboards } = importFixture()
     expect(widget(dashboards[0], 'dial').config).toEqual({
-      item: 'Boiler_Flow', label: 'Boiler Flow', min: 20, max: 80, step: 0.5, unit: '°C', readOnly: true,
+      item: 'Boiler_Flow',
+      label: 'Boiler Flow',
+      min: 20,
+      max: 80,
+      step: 0.5,
+      unit: '°C',
+      readOnly: true
     })
   })
 
   it('maps a toggle button to command plus alternate command', () => {
     const { dashboards } = importFixture()
     expect(widget(dashboards[0], 'button').config).toEqual({
-      item: 'Scene_AllOff', label: 'All Off', command: 'ON', commandAlt: 'OFF',
-      toggle: true, icon: 'oh:switch', hideLabel: true,
+      item: 'Scene_AllOff',
+      label: 'All Off',
+      command: 'ON',
+      commandAlt: 'OFF',
+      toggle: true,
+      icon: 'oh:switch',
+      hideLabel: true
     })
   })
 
@@ -238,7 +262,9 @@ describe('widget conversion', () => {
   it('warns that an item-sourced image URL did not come across', () => {
     const { dashboards, notes } = importFixture()
     expect(widget(dashboards[1], 'image').config).toEqual({
-      url: 'http://cam.example/porch.jpg', label: 'Porch', refresh: 10,
+      url: 'http://cam.example/porch.jpg',
+      label: 'Porch',
+      refresh: 10
     })
     expect(notes.find((n) => n.message.includes('Item-sourced images'))?.level).toBe('warn')
   })
@@ -264,7 +290,7 @@ describe('widget conversion', () => {
     expect(chart.config.series).toEqual([
       // display_area:false becomes fill 0; the defaults are omitted rather than written out
       { item: 'Outside_Temp', label: 'Outside', color: '#3fa9f5', fill: 0 },
-      { item: 'Indoor_Temp', label: 'Indoor', axis: 'y2', points: true },
+      { item: 'Indoor_Temp', label: 'Indoor', axis: 'y2', points: true }
     ])
     expect(chart.config).toMatchObject({ period: '7d', service: 'rrd4j', legend: false, yMin: -10, yMax: 40 })
     // y2 had includezero rather than an explicit minimum
@@ -283,7 +309,7 @@ describe('widget conversion', () => {
     expect(timeline.config.series).toEqual([{ item: 'Presence', label: 'Someone home' }])
     expect(timeline.config.colorMaps).toEqual([
       { state: 'ON', color: '#4caf50' },
-      { state: 'OFF', color: '#555555' },
+      { state: 'OFF', color: '#555555' }
     ])
     expect(timeline.config.period).toBe('2d')
   })
@@ -295,7 +321,7 @@ describe('widget conversion', () => {
       customwidget: 'fancygauge',
       config: { item: 'Boiler_Flow', scale: 2 },
       dontwrap: true,
-      nobackground: false,
+      nobackground: false
     })
   })
 
@@ -330,14 +356,11 @@ describe('a hostile or damaged export', () => {
   )
 
   // Same class, one table over: a chart period is also looked up in a plain object literal.
-  it.each(['constructor', 'toString', 'valueOf'])(
-    'falls back to a real period when the stored one is %s',
-    (period) => {
-      const { widget: w } = convertOne({ type: 'chart', item: 'T', period })
-      expect(typeof w.config.period).toBe('string')
-      expect(w.config.period).toBe('24h')
-    }
-  )
+  it.each(['constructor', 'toString', 'valueOf'])('falls back to a real period when the stored one is %s', (period) => {
+    const { widget: w } = convertOne({ type: 'chart', item: 'T', period })
+    expect(typeof w.config.period).toBe('string')
+    expect(w.config.period).toBe('24h')
+  })
 
   it.each(['constructor', 'toString'])('never adopts %s as a theme id', (theme) => {
     const res = convertHabpanel({ dashboards: [{ id: 'd', widgets: [] }], settings: { theme }, customwidgets: {} }, [])
@@ -351,14 +374,16 @@ describe('a hostile or damaged export', () => {
       {
         dashboards: [
           {
-            id: 'd', columns: 6,
+            id: 'd',
+            columns: 6,
             widgets: [
               { type: 'switch', item: 'A', col: 99, row: 5, sizeX: 40, sizeY: 3 },
-              { type: 'switch', item: 'B', col: -4, row: -9, sizeX: 0, sizeY: -2 },
-            ],
-          },
+              { type: 'switch', item: 'B', col: -4, row: -9, sizeX: 0, sizeY: -2 }
+            ]
+          }
         ],
-        settings: {}, customwidgets: {},
+        settings: {},
+        customwidgets: {}
       },
       []
     )
@@ -376,10 +401,19 @@ describe('a hostile or damaged export', () => {
   it('places a widget with no stored position instead of stacking everything at the origin', () => {
     const res = convertHabpanel(
       {
-        dashboards: [{ id: 'd', columns: 4, widgets: [
-          { type: 'switch', item: 'A' }, { type: 'switch', item: 'B' }, { type: 'switch', item: 'C' },
-        ] }],
-        settings: {}, customwidgets: {},
+        dashboards: [
+          {
+            id: 'd',
+            columns: 4,
+            widgets: [
+              { type: 'switch', item: 'A' },
+              { type: 'switch', item: 'B' },
+              { type: 'switch', item: 'C' }
+            ]
+          }
+        ],
+        settings: {},
+        customwidgets: {}
       },
       []
     )
@@ -425,8 +459,7 @@ describe('dashboard geometry and metadata', () => {
 
   it('ignores a font_scale of 1 and clamps an absurd one', () => {
     const scaled = (font_scale: unknown) =>
-      convertHabpanel({ dashboards: [{ id: 'd', font_scale, widgets: [] }], settings: {}, customwidgets: {} }, [])
-        .dashboards[0].textSize
+      convertHabpanel({ dashboards: [{ id: 'd', font_scale, widgets: [] }], settings: {}, customwidgets: {} }, []).dashboards[0].textSize
     expect(scaled(1)).toBeUndefined()
     expect(scaled(0)).toBeUndefined()
     expect(scaled(-2)).toBeUndefined()
@@ -453,7 +486,14 @@ describe('dashboard ids', () => {
 
   it('de-duplicates within one import when two dashboards slug to the same id', () => {
     const res = convertHabpanel(
-      { dashboards: [{ id: 'Living Room', widgets: [] }, { id: 'living room', widgets: [] }], settings: {}, customwidgets: {} },
+      {
+        dashboards: [
+          { id: 'Living Room', widgets: [] },
+          { id: 'living room', widgets: [] }
+        ],
+        settings: {},
+        customwidgets: {}
+      },
       []
     )
     expect(new Set(res.dashboards.map((d) => d.id)).size).toBe(2)
@@ -487,10 +527,10 @@ describe('dashboard ids', () => {
         dashboards: [
           { id: 'Living Room', widgets: [{ type: 'clock' }, { type: 'clock' }] },
           { id: 'living room', widgets: [{ type: 'clock' }, { type: 'clock' }] },
-          { id: 'Living  Room!', widgets: [{ type: 'clock' }] },
+          { id: 'Living  Room!', widgets: [{ type: 'clock' }] }
         ],
         settings: {},
-        customwidgets: {},
+        customwidgets: {}
       },
       []
     )
@@ -509,7 +549,7 @@ describe('panel settings', () => {
       theme: 'material-dark',
       background: 'http://example/bg.png',
       speechItem: 'Speak',
-      voiceButton: false,
+      voiceButton: false
     })
   })
 
@@ -572,9 +612,20 @@ describe('custom widgets', () => {
 describe('the import report', () => {
   it('counts repeats instead of listing the same note once per widget', () => {
     const res = convertHabpanel(
-      { dashboards: [{ id: 'd', widgets: [
-        { type: 'knob', item: 'A' }, { type: 'knob', item: 'B' }, { type: 'knob', item: 'C' },
-      ] }], settings: {}, customwidgets: {} },
+      {
+        dashboards: [
+          {
+            id: 'd',
+            widgets: [
+              { type: 'knob', item: 'A' },
+              { type: 'knob', item: 'B' },
+              { type: 'knob', item: 'C' }
+            ]
+          }
+        ],
+        settings: {},
+        customwidgets: {}
+      },
       []
     )
     const knobNote = res.notes.find((n) => n.message.includes('Knob appearance'))
@@ -583,10 +634,12 @@ describe('the import report', () => {
 
   it('orders the report so what was dropped is read before what was approximated', () => {
     const levels = importFixture().notes.map((n) => n.level)
-    expect(levels).toEqual([...levels].sort((a, b) => {
-      const order = { skip: 0, warn: 1, info: 2 }
-      return order[a] - order[b]
-    }))
+    expect(levels).toEqual(
+      [...levels].sort((a, b) => {
+        const order = { skip: 0, warn: 1, info: 2 }
+        return order[a] - order[b]
+      })
+    )
   })
 
   it('keeps a note’s dynamic parts in params so the text stays translatable', () => {

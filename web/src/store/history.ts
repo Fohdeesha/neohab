@@ -20,7 +20,7 @@ import {
   listDataComponents,
   listIndexComponents,
   putDataComponent,
-  putIndexComponent,
+  putIndexComponent
 } from '../api/history'
 import { sha256 } from '../api/sha256'
 import type { UIComponent } from '../api/types'
@@ -53,10 +53,11 @@ import {
   type Snapshot,
   type SnapshotEntry,
   type SnapshotMeta,
-  type StoredBlob,
+  type StoredBlob
 } from '../model/history'
 import { loadConfig, onBeforeConfigWrite, useConfigStore } from './config'
 import { notify } from './notify'
+import { errorText } from '../api/errors'
 
 interface HistoryState {
   index: HistoryIndex | null
@@ -78,7 +79,7 @@ export const useHistoryStore = create<HistoryState>(() => ({
   indexStored: false,
   loading: false,
   busy: false,
-  error: null,
+  error: null
 }))
 
 /** Write the index, then remember that it exists so the next write updates rather than probes. */
@@ -110,8 +111,7 @@ function markWrite(): void {
 
 /* ------------------------------------- hashing ------------------------------------- */
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+const toHex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 
 /**
  * SHA-256 of a string. `crypto.subtle` exists only in a secure context, and an openHAB served
@@ -129,7 +129,7 @@ export async function sha256Hex(text: string): Promise<string> {
 const indexComponent = (index: HistoryIndex): UIComponent<HistoryIndex> => ({
   uid: INDEX_UID,
   component: INDEX_COMPONENT,
-  config: index,
+  config: index
 })
 
 /** Snapshots already fetched, so switching between comparisons does not refetch them. */
@@ -182,7 +182,7 @@ async function rebuildIndex(): Promise<HistoryIndex> {
       label: s.label,
       summary: { count: rows.length, names: rows.slice(0, SUMMARY_NAMES).map((r) => r.name) },
       entries: (s.components ?? []).length,
-      blobs: blobHashesOf(s.components ?? []),
+      blobs: blobHashesOf(s.components ?? [])
     }
   })
   const index: HistoryIndex = { version: HISTORY_VERSION, snapshots: metas, blobs }
@@ -199,7 +199,7 @@ async function rebuildIndex(): Promise<HistoryIndex> {
 }
 
 const blobHashesOf = (entries: SnapshotEntry[]): string[] => [
-  ...new Set(entries.map((e) => e.blobHash).filter((h): h is string => typeof h === 'string')),
+  ...new Set(entries.map((e) => e.blobHash).filter((h): h is string => typeof h === 'string'))
 ]
 
 /**
@@ -230,7 +230,7 @@ export async function loadHistory(): Promise<void> {
     useHistoryStore.setState({
       index: emptyIndex(),
       loading: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorText(err)
     })
   }
 }
@@ -241,7 +241,7 @@ function historyLimits(): { limit: number; windowMin: number } {
   const s = useConfigStore.getState().settings
   return {
     limit: clampLimit(s.historyLimit ?? DEFAULT_HISTORY_LIMIT),
-    windowMin: clampWindow(s.historyWindowMin ?? DEFAULT_HISTORY_WINDOW_MIN),
+    windowMin: clampWindow(s.historyWindowMin ?? DEFAULT_HISTORY_WINDOW_MIN)
   }
 }
 
@@ -332,7 +332,7 @@ async function runCapture(force = false): Promise<boolean> {
       windowMin,
       lastWriteAt: lastWriteAt(),
       haveSnapshots: index.snapshots.length > 0,
-      now: Date.now(),
+      now: Date.now()
     })
   ) {
     useHistoryStore.setState({ index })
@@ -354,10 +354,7 @@ async function runCapture(force = false): Promise<boolean> {
     for (const [hash, body] of bodies) {
       if (known.has(hash)) continue
       const blob: StoredBlob = { version: HISTORY_VERSION, hash, dataUri: body, bytes: body.length }
-      await putDataComponent<StoredBlob>(
-        { uid: BLOB_PREFIX + hash, component: BLOB_COMPONENT, config: blob },
-        false
-      )
+      await putDataComponent<StoredBlob>({ uid: BLOB_PREFIX + hash, component: BLOB_COMPONENT, config: blob }, false)
       known.add(hash)
     }
 
@@ -372,17 +369,14 @@ async function runCapture(force = false): Promise<boolean> {
       createdAt,
       summary: { count: rows.length, names: rows.slice(0, SUMMARY_NAMES).map((r) => r.name) },
       entries: entries.length,
-      blobs: blobHashesOf(entries),
+      blobs: blobHashesOf(entries)
     }
     const snapshot: Snapshot = { ...meta, version: HISTORY_VERSION, components: entries }
 
     // The snapshot itself goes first: an index that named a snapshot which was never written
     // would be a broken row, while a snapshot the index does not name is invisible and is picked
     // up by the rebuild.
-    await putDataComponent<Snapshot>(
-      { uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: snapshot },
-      false
-    )
+    await putDataComponent<Snapshot>({ uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: snapshot }, false)
     cacheSnapshot(snapshot)
 
     // Re-read before overwriting. The chain above serialises this tab, but a second admin tab
@@ -438,7 +432,7 @@ export function installHistoryHook(): void {
     } catch (err) {
       notify(
         i18n.t('Saved, but no restore point could be recorded: {{error}}', {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorText(err)
         })
       )
     }
@@ -501,7 +495,7 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
       const component: UIComponent = {
         uid: ready.uid,
         component: ready.component,
-        config: ready.config,
+        config: ready.config
       }
       if (ready.tags) component.tags = ready.tags
       target.push(component)
@@ -549,10 +543,7 @@ export async function renameSnapshot(id: string, label: string): Promise<void> {
   if (snapshot) {
     const updated: Snapshot = { ...snapshot, label: trimmed || undefined }
     cacheSnapshot(updated)
-    await putDataComponent<Snapshot>(
-      { uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: updated },
-      true
-    )
+    await putDataComponent<Snapshot>({ uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: updated }, true)
   }
 }
 

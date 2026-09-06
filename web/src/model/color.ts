@@ -56,7 +56,7 @@ export function hsbToRgb(hsb: Hsb): [number, number, number] {
     [0, c, x],
     [0, x, c],
     [x, 0, c],
-    [c, 0, x],
+    [c, 0, x]
   ][seg]
   const to255 = (n: number) => Math.round((n + m) * 255)
   return [to255(r), to255(g), to255(bl)]

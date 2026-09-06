@@ -6,8 +6,11 @@
  * configuration comes after, the account follows because it is where you go when something above
  * it refused, and About is last: it changes nothing, and it is where you go to find out what you
  * are running when you are about to report that none of it worked.
+ *
+ * That order is also five screens of scrolling, so an index of jump links sits at the top. The
+ * links are what makes Account reachable without a hunt; the order below is unchanged.
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEditingAllowed } from '../store/auth'
 import { NavButton } from './Sidebar'
@@ -24,6 +27,42 @@ import { BackupSection } from '../settings/BackupSection'
 import { HistorySection } from '../settings/HistorySection'
 import { AccountSection } from '../settings/AccountSection'
 import { AboutSection } from '../settings/AboutSection'
+
+/**
+ * The index rows, and the anchor each one scrolls to.
+ *
+ * The label has to match the section's own heading, or the index sends people somewhere that
+ * looks like the wrong place. Kept here rather than exported from each section, because the
+ * sections know nothing about the shell and should not have to.
+ */
+const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'kiosk', label: 'Kiosk & wall panel' },
+  { id: 'voice', label: 'Voice & audio' },
+  { id: 'widgets', label: 'Custom widgets', admin: true },
+  { id: 'presets', label: 'Lighting presets', admin: true },
+  { id: 'icons', label: 'Custom icons', admin: true },
+  { id: 'habpanel', label: 'Migrate from HABPanel', admin: true },
+  { id: 'gallery', label: 'Widget gallery', admin: true },
+  { id: 'backup', label: 'Backup', admin: true },
+  { id: 'history', label: 'Version history', admin: true },
+  { id: 'account', label: 'Account' },
+  { id: 'about', label: 'About' }
+]
+
+/**
+ * The anchor lives on a wrapper here rather than on each section's own element: twelve files would
+ * otherwise have to know what the shell calls them. `scrollIntoView` rather than an `href="#..."`,
+ * because the app's own routing owns the fragment.
+ *
+ * Defined at module scope, and it has to be. Declared inside SettingsView it would be a NEW
+ * component type on every render of the shell, so React would unmount and remount every section
+ * each time the notice line changed - and a section that had just put something in its own state
+ * (the backup import's confirmation card) would lose it before it could draw.
+ */
+function Anchor({ id, children }: { id: string; children: ReactNode }) {
+  return <div id={'nh-sec-' + id}>{children}</div>
+}
 
 export function SettingsView() {
   const { t } = useTranslation()
@@ -44,35 +83,71 @@ export function SettingsView() {
 
         <IncompatibleNotice />
 
-        <AppearanceSection onNotice={setNotice} />
+        <nav className="nh-settings__index" aria-label={t('Settings sections')}>
+          {SECTIONS.filter((s) => canEdit || !s.admin).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="nh-settings__indexlink"
+              onClick={() => document.getElementById('nh-sec-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              {t(s.label)}
+            </button>
+          ))}
+        </nav>
 
-        <KioskSection onNotice={setNotice} />
+        <Anchor id="appearance">
+          <AppearanceSection onNotice={setNotice} />
+        </Anchor>
 
-        <VoiceAudioSection onNotice={setNotice} />
+        <Anchor id="kiosk">
+          <KioskSection onNotice={setNotice} />
+        </Anchor>
+
+        <Anchor id="voice">
+          <VoiceAudioSection onNotice={setNotice} />
+        </Anchor>
 
         {canEdit ? (
           <>
-            <WidgetDefManager onNotice={setNotice} />
+            <Anchor id="widgets">
+              <WidgetDefManager onNotice={setNotice} />
+            </Anchor>
 
-            <PresetsSection onNotice={setNotice} />
+            <Anchor id="presets">
+              <PresetsSection onNotice={setNotice} />
+            </Anchor>
 
-            <CustomIconsSection onNotice={setNotice} />
+            <Anchor id="icons">
+              <CustomIconsSection onNotice={setNotice} />
+            </Anchor>
 
-            <HabpanelImport onNotice={setNotice} />
+            <Anchor id="habpanel">
+              <HabpanelImport onNotice={setNotice} />
+            </Anchor>
 
-            <GallerySection onNotice={setNotice} />
+            <Anchor id="gallery">
+              <GallerySection onNotice={setNotice} />
+            </Anchor>
 
-            <BackupSection onNotice={setNotice} />
+            <Anchor id="backup">
+              <BackupSection onNotice={setNotice} />
+            </Anchor>
 
-            <HistorySection onNotice={setNotice} />
+            <Anchor id="history">
+              <HistorySection onNotice={setNotice} />
+            </Anchor>
           </>
         ) : null}
 
-        <AccountSection onNotice={setNotice} />
+        <Anchor id="account">
+          <AccountSection onNotice={setNotice} />
+        </Anchor>
 
         {/* Every role: the device that cannot edit is exactly the one whose owner needs to say
             what it is running. */}
-        <AboutSection />
+        <Anchor id="about">
+          <AboutSection />
+        </Anchor>
       </div>
     </div>
   )

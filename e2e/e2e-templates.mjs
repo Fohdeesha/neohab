@@ -3,7 +3,7 @@
  * deletes exactly those afterwards; never wipes the namespace. Commands only the approved
  * test items and restores their states.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
@@ -101,10 +101,10 @@ await post({
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } })

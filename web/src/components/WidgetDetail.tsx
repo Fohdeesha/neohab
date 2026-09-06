@@ -36,10 +36,11 @@ import {
   lastChangeFromHistory,
   mainUiItemPath,
   relativeTime,
-  type HistoryChange,
+  type HistoryChange
 } from '../model/itemDetail'
 import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
+import { useKioskMode } from '../store/kiosk'
 import { useShallow } from 'zustand/react/shallow'
 import { getWidgetDefinition, instanceCommands, instanceControl, itemsForInstance, widgetDetailView } from '../widgets'
 import { WidgetBoundary } from './WidgetBoundary'
@@ -108,12 +109,7 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
 
   return createPortal(
     <div className="nh-detail" onClick={onScrimClick}>
-      <div
-        className="nh-detail__panel"
-        role="dialog"
-        aria-label={t('Details')}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="nh-detail__panel" role="dialog" aria-label={t('Details')} onClick={(e) => e.stopPropagation()}>
         <header className="nh-detail__head">
           {!DetailView && chosen && items.length > 1 ? (
             <button type="button" className="nh-iconbtn" aria-label={t('Back')} onClick={() => setChosen(null)}>
@@ -175,7 +171,7 @@ function WidgetPane({
   instance,
   config,
   items,
-  View,
+  View
 }: {
   instance: WidgetInstance
   config: Record<string, unknown>
@@ -190,7 +186,7 @@ function WidgetPane({
       widgetId: 'detail:' + instance.id,
       getItem: (n) => states[n],
       sendCommand: (i, c) => commandItem(i, c),
-      editing: false,
+      editing: false
     }),
     [instance.id, states]
   )
@@ -224,20 +220,12 @@ function historyPeriodOf(config: Record<string, unknown>): string {
  * numeric slider inside it: an item that lists the commands it accepts is telling you exactly
  * that, and a projector input at "3" is not something to drag a 0-100 track over.
  */
-function renderControl(
-  control: ItemControl,
-  name: string,
-  ctx: WidgetContext,
-  state: string | undefined,
-  options: CommandOption[]
-) {
+function renderControl(control: ItemControl, name: string, ctx: WidgetContext, state: string | undefined, options: CommandOption[]) {
   switch (control.kind) {
     case 'color':
       return <ColorControl item={name} ctx={ctx} power={control.power === true} />
     case 'range':
-      return (
-        <RangeControl item={name} ctx={ctx} min={control.min} max={control.max} step={control.step} unit={control.unit} />
-      )
+      return <RangeControl item={name} ctx={ctx} min={control.min} max={control.max} step={control.step} unit={control.unit} />
     case 'onoff':
       return <SwitchControl item={name} ctx={ctx} on={control.on} off={control.off} />
     case 'choices':
@@ -266,7 +254,7 @@ function ItemPane({
   commands,
   control,
   period,
-  onLabel,
+  onLabel
 }: {
   name: string
   commands: boolean
@@ -275,6 +263,7 @@ function ItemPane({
   onLabel: (label: string | null) => void
 }) {
   const { t, i18n } = useTranslation()
+  const kiosk = useKioskMode()
   const [item, setItem] = useState<Item | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -321,7 +310,7 @@ function ItemPane({
       widgetId: 'detail:' + name,
       getItem: (n) => (n === name ? live : useItemsStore.getState().states[n]),
       sendCommand: (i, c) => commandItem(i, c),
-      editing: false,
+      editing: false
     }),
     [name, live]
   )
@@ -361,8 +350,7 @@ function ItemPane({
   // Two independent refusals, either of which is enough: the widget saying it is a display, and
   // the item saying it will not be written. Built as a node rather than a flag, so a control that
   // comes to nothing leaves no empty box behind - which is what a media player used to get.
-  const controlNode =
-    commands && !readOnly && control ? renderControl(control, name, ctx, live?.state ?? item?.state, options) : null
+  const controlNode = commands && !readOnly && control ? renderControl(control, name, ctx, live?.state ?? item?.state, options) : null
   const stored = history.kind === 'at' ? history.time : undefined
   const reported = serverChange ?? stored
   const changed = observed !== undefined && (reported === undefined || observed > reported) ? observed : reported
@@ -379,7 +367,7 @@ function ItemPane({
       // nowhere to expand to.
       expand: false,
       legend: false,
-      label: '',
+      label: ''
     }),
     [name, period]
   )
@@ -425,10 +413,14 @@ function ItemPane({
         </div>
       </section>
 
-      {/* Where you go to change what the item IS, rather than what it currently holds. */}
-      <a className="nh-detail__link" href={ohUrl(mainUiItemPath(name))} target="_blank" rel="noreferrer">
-        {t('Open in Main UI')}
-      </a>
+      {/* Where you go to change what the item IS, rather than what it currently holds.
+          Not in kiosk mode: the whole point of that mode is that the panel shows one thing and
+          offers no way out of it, and this opens a second tab of a different application. */}
+      {kiosk ? null : (
+        <a className="nh-detail__link" href={ohUrl(mainUiItemPath(name))} target="_blank" rel="noreferrer">
+          {t('Open in Main UI')}
+        </a>
+      )}
       {failed && !item ? <p className="nh-detail__hint">{t('Could not read this item from the server.')}</p> : null}
     </>
   )

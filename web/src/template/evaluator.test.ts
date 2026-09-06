@@ -43,7 +43,7 @@ describe('expressions', () => {
   it('calls functions the scope exposes, with the right receiver', () => {
     const s = scope({
       itemState: (n: string) => (n === 'Lamp' ? '64' : ''),
-      text: 'a,b,c',
+      text: 'a,b,c'
     })
     expect(evaluate('itemState("Lamp")', s)).toBe('64')
     expect(evaluate('+itemState("Lamp") + 1', s)).toBe(65)
@@ -103,7 +103,7 @@ describe('the sandbox', () => {
       'list.__proto__.constructor',
       'text.constructor.constructor',
       'fn.prototype',
-      'this.constructor',
+      'this.constructor'
     ]) {
       expect(evaluate(attempt, s), attempt).toBeUndefined()
     }
@@ -122,7 +122,7 @@ describe('the sandbox', () => {
       'String',
       'JSON',
       'setTimeout',
-      'fetch("/x")',
+      'fetch("/x")'
     ]) {
       expect(evaluate(attempt, s), attempt).toBeUndefined()
     }
@@ -156,20 +156,20 @@ describe('the sandbox', () => {
       'text?.constructor?.constructor',
       'obj[`constructor`]',
       'list["const" + "ructor"]',
-      'fn["constr" + "uctor"]',
+      'fn["constr" + "uctor"]'
     ]) {
       expect(evaluate(expr, s2), expr).toBeUndefined()
     }
   })
 
   it('does not let a function be re-pointed at the host', () => {
-    const s2 = scope({ fn: function (this: unknown) { return this }, obj: { a: 1 } })
-    for (const expr of [
-      'fn.call(obj)',
-      'fn.bind(obj)()',
-      'fn.apply(obj)',
-      'fn.constructor("return globalThis")()',
-    ]) {
+    const s2 = scope({
+      fn: function (this: unknown) {
+        return this
+      },
+      obj: { a: 1 }
+    })
+    for (const expr of ['fn.call(obj)', 'fn.bind(obj)()', 'fn.apply(obj)', 'fn.constructor("return globalThis")()']) {
       const out = evaluate(expr, s2)
       // whatever it answers, it must never hand back a live global object
       expect(out === globalThis, expr).toBe(false)
@@ -180,8 +180,22 @@ describe('the sandbox', () => {
   it('exposes no ambient names a script would expect', () => {
     const s2 = scope({})
     for (const name of [
-      'arguments', 'Symbol', 'Reflect', 'Proxy', 'Object', 'Array', 'JSON', 'Math',
-      'setTimeout', 'fetch', 'document', 'location', 'self', 'top', 'parent', 'localStorage',
+      'arguments',
+      'Symbol',
+      'Reflect',
+      'Proxy',
+      'Object',
+      'Array',
+      'JSON',
+      'Math',
+      'setTimeout',
+      'fetch',
+      'document',
+      'location',
+      'self',
+      'top',
+      'parent',
+      'localStorage'
     ]) {
       expect(evaluate(name, s2), name).toBeUndefined()
     }

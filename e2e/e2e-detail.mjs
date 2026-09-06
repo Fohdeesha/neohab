@@ -36,7 +36,7 @@
  * attempts is intercepted and answered by the suite, so no request reaches a real device and no
  * item state is disturbed. The item is only ever read.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-detail'
@@ -54,9 +54,9 @@ const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
 
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return await chromium.launch({ channel, headless: true }) } catch {}
+    try { return await launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /** Reports what the detail sheet is showing, or {} when it is not open. */
@@ -755,7 +755,7 @@ try {
     `commands=[${commands.map((c) => c.body).join(',')}]`
   )
 
-  // Jon's report: "it only has on off for switches, it does not have custom buttons, for example
+  // Reported as: "it only has on off for switches, it does not have custom buttons, for example
   // the tv play pause". A Player item holds PLAY or PAUSE, which is not a shape anything can guess.
   const play = await sheetOf('E2E Play')
   ok(

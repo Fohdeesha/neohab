@@ -15,7 +15,7 @@ import {
   formatDuration,
   msToNextBoundary,
   offsetFromReading,
-  readingUncertaintyMs,
+  readingUncertaintyMs
 } from './servertime'
 
 describe('one reading of the server clock', () => {

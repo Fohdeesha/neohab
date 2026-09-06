@@ -39,13 +39,27 @@ export function AboutSection() {
       .catch(() => {
         if (!dead) setOh(null)
       })
+    return () => {
+      dead = true
+    }
+  }, [])
+
+  // The service list is admin-only. Asking as a viewer answers 401, which the browser logs as an
+  // error on every visit to Settings - and the row already says "needs an administrator to
+  // check", so the request only bought noise. Re-asked once a sign-in makes it answerable.
+  useEffect(() => {
+    if (authStatus !== 'admin') {
+      setServices(null)
+      return
+    }
+    let dead = false
     void listPersistenceServices().then((list) => {
       if (!dead) setServices(list)
     })
     return () => {
       dead = true
     }
-  }, [])
+  }, [authStatus])
 
   const role =
     authStatus === 'admin'
@@ -76,7 +90,7 @@ export function AboutSection() {
     `persistence: ${services === null ? 'unknown' : services === undefined ? '?' : services.map((s) => s.id).join(',') || 'none'}`,
     `dashboards: ${dashboards}`,
     `browser: ${navigator.userAgent}`,
-    `locale: ${navigator.language}`,
+    `locale: ${navigator.language}`
   ].join('\n')
 
   /**
@@ -138,7 +152,11 @@ export function AboutSection() {
 
         <dt>{t('Author')}</dt>
         <dd>
-          Jon Sands (<a href="https://github.com/Fohdeesha" target="_blank" rel="noreferrer noopener">Fohdeesha</a>)
+          Jon Sands (
+          <a href="https://github.com/Fohdeesha" target="_blank" rel="noreferrer noopener">
+            Fohdeesha
+          </a>
+          )
         </dd>
 
         <dt>{t('License')}</dt>
@@ -163,11 +181,7 @@ export function AboutSection() {
         {report}
       </pre>
       <button type="button" className="nh-btn" onClick={() => void copy()}>
-        {copyState === 'copied'
-          ? t('Copied')
-          : copyState === 'selected'
-            ? t('Selected - press Ctrl+C')
-            : t('Copy this report')}
+        {copyState === 'copied' ? t('Copied') : copyState === 'selected' ? t('Selected - press Ctrl+C') : t('Copy this report')}
       </button>
     </section>
   )

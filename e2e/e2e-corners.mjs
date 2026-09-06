@@ -6,7 +6,7 @@
  *   3 mobile viewport behavior              7 SSE outage -> watchdog recovery
  *   4 theme cycling                         8 rapid dashboard switching (read-only)
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
@@ -55,9 +55,9 @@ await fetch(NS, {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 

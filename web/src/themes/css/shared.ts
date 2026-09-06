@@ -28,7 +28,8 @@ export function squareControls(): string {
 .nh-chart__chip,
 .nh-color__swatch,
 .nh-switch__track,
-.nh-switch__thumb {
+.nh-switch__thumb,
+.nh-log__jump {
   border-radius: 0;
 }
 .nh-step {

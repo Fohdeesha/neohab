@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  saveSettings,
-  useConfigStore
-} from '../store/config'
+import { saveSettings, useConfigStore } from '../store/config'
 import { navigate } from '../app/router'
 import { setKioskSettings, useKioskStore, type ScreensaverMode } from '../store/kiosk'
 import { useWakeLockStore, wakeLockSupported } from '../kiosk/wakeLock'
@@ -48,7 +45,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
   const setControlItem = async (name: string) => {
     onNotice(null)
     const err = await saveSettings({ controlItem: name || undefined })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
   const toggleFullscreen = () => {
@@ -76,8 +73,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
         <select
           id="kiosk-pinned"
           value={kioskSettings.pinnedDashboard ?? ''}
-          onChange={(e) => setKioskSettings({ pinnedDashboard: e.target.value || undefined })}
-        >
+          onChange={(e) => setKioskSettings({ pinnedDashboard: e.target.value || undefined })}>
           <option value="">{t('Home screen (default)')}</option>
           {dashboards.map((d) => (
             <option key={d.id} value={d.id}>
@@ -114,8 +110,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
         <select
           id="kiosk-saver"
           value={kioskSettings.screensaver}
-          onChange={(e) => setKioskSettings({ screensaver: e.target.value as ScreensaverMode })}
-        >
+          onChange={(e) => setKioskSettings({ screensaver: e.target.value as ScreensaverMode })}>
           <option value="off">{t('Off')}</option>
           <option value="blank">{t('Blank screen')}</option>
           <option value="clock">{t('Clock')}</option>
@@ -182,7 +177,7 @@ export function KioskSection({ onNotice }: { onNotice: (m: string | null) => voi
           ) : null}
           <p className="nh-settings__text">
             {t(
-              'A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard - the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device\'s own choice above (kiosk-mode devices follow by default).'
+              "A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard - the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device's own choice above (kiosk-mode devices follow by default)."
             )}
           </p>
         </>

@@ -10,6 +10,7 @@ import { PresetBridgeFields } from '../components/PresetBridgeFields'
 import { useIsAdmin } from '../store/auth'
 import { activatePreset, deletePreset, loadPresets, savePreset, usePresetsStore } from '../store/presets'
 import type { Preset, StatusState } from '../model/presets'
+import { errorText } from '../api/errors'
 
 export function PresetsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
@@ -25,7 +26,7 @@ export function PresetsSection({ onNotice }: { onNotice: (m: string | null) => v
     try {
       await work
     } catch (err) {
-      onNotice(t('Saving failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Saving failed: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -38,9 +39,7 @@ export function PresetsSection({ onNotice }: { onNotice: (m: string | null) => v
         )}
       </p>
       {error ? <p className="nh-settings__text">{t('Presets could not be loaded: {{error}}', { error })}</p> : null}
-      {loaded && !error && summaries.length === 0 ? (
-        <p className="nh-settings__text">{t('No presets yet.')}</p>
-      ) : null}
+      {loaded && !error && summaries.length === 0 ? <p className="nh-settings__text">{t('No presets yet.')}</p> : null}
       <div className="nh-presetlist">
         {summaries.map((s) => {
           const p = full[s.uid]
@@ -71,7 +70,7 @@ function PresetRow({
   manageable,
   onActivate,
   onSave,
-  onDelete,
+  onDelete
 }: {
   name: string
   uid: string
@@ -136,9 +135,7 @@ function PresetRow({
           )
         ) : null}
       </div>
-      {open && manageable && preset ? (
-        <BridgeEditor preset={preset} bridged={bridged} onSave={onSave} uid={uid} />
-      ) : null}
+      {open && manageable && preset ? <BridgeEditor preset={preset} bridged={bridged} onSave={onSave} uid={uid} /> : null}
     </div>
   )
 }
@@ -152,7 +149,7 @@ function BridgeEditor({
   preset,
   bridged,
   uid,
-  onSave,
+  onSave
 }: {
   preset: Preset
   bridged: boolean
@@ -183,12 +180,11 @@ function BridgeEditor({
             {
               ...preset,
               statusItem: item || undefined,
-              statusState: item ? state : undefined,
+              statusState: item ? state : undefined
             },
             item !== '' && bridge
           )
-        }
-      >
+        }>
         {t('Save link')}
       </button>
     </div>

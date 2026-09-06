@@ -45,7 +45,7 @@ const STYLES: Record<string, SliderStyle> = {
   gradient: 'gradient',
   bubble: 'bubble',
   inset: 'inset',
-  taper: 'taper',
+  taper: 'taper'
 }
 const ORIENTS: Record<string, SliderOrient> = { horizontal: 'horizontal', vertical: 'vertical' }
 
@@ -84,7 +84,7 @@ export const STYLE_FLOOR: Record<SliderStyle, number> = {
   gradient: 96,
   taper: 96,
   inset: 104,
-  bubble: 120,
+  bubble: 120
 }
 export const VERTICAL_FLOOR = 200
 

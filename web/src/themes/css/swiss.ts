@@ -49,7 +49,7 @@ body {
 }
 ${bareAndNewTile({
   reset: '  background: transparent;\n  border: none;',
-  newTileBorder: '1px dashed var(--sw-line)',
+  newTileBorder: '1px dashed var(--sw-line)'
 })}.nh-tile--new {
   padding: 18px;
 }
@@ -299,6 +299,19 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
   height: 22px;
   border: 1px solid #000;
   box-shadow: none;
+}
+/* The log is one of the board's tables: a hairline under every row, the level set bold in the
+   ink, and the pill a plate in the text colour like every other active control here. */
+.nh-log__line {
+  border-bottom: 1px solid var(--nh-border);
+}
+.nh-log__level {
+  font-weight: 700;
+  color: var(--nh-text);
+}
+.nh-log__jump {
+  background: var(--nh-text);
+  color: var(--nh-bg);
 }
 /* A picture sits on a flat grey panel, so a letterboxed camera reads as a mounted image. */
 .nh-camera,

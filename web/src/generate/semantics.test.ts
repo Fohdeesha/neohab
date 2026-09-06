@@ -13,8 +13,7 @@ import { buildTagIndex, classify, hasSemanticModel, labelFromTagName } from './s
 const item = (name: string, tags?: string[], over: Partial<Item> = {}): Item =>
   ({ name, type: 'Switch', state: 'OFF', tags, ...over }) as Item
 
-const tag = (uid: string, name?: string, label?: string): SemanticTag =>
-  ({ uid, name: name ?? uid.split('_').pop(), label }) as SemanticTag
+const tag = (uid: string, name?: string, label?: string): SemanticTag => ({ uid, name: name ?? uid.split('_').pop(), label }) as SemanticTag
 
 const DEFAULTS = buildTagIndex()
 
@@ -82,7 +81,8 @@ describe('classifying an item', () => {
 
   it('still calls a Property-only item a point, controllable unless its state is read-only', () => {
     expect(classify(item('i', ['Temperature']), DEFAULTS)).toMatchObject({
-      kind: 'point', point: { name: 'Control' },
+      kind: 'point',
+      point: { name: 'Control' }
     })
     const readOnly = item('i', ['Temperature'], { stateDescription: { readOnly: true } })
     expect(classify(readOnly, DEFAULTS)).toMatchObject({ kind: 'point', point: { name: 'Measurement' } })

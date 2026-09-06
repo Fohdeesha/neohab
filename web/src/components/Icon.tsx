@@ -30,7 +30,7 @@ const PACK_DIRS: Partial<Record<IconSource, string>> = {
   mdi: 'mdi',
   fluent: 'fluent',
   fc: 'fc',
-  meteo: 'meteo',
+  meteo: 'meteo'
 }
 
 const PREFIXED_SOURCES: IconSource[] = ['mdi', 'fluent', 'fc', 'meteo', 'custom']
@@ -149,9 +149,7 @@ const showLoaded = (e: SyntheticEvent<HTMLImageElement>) => {
 
 export function Icon({ icon, size = 32, state, color, className }: IconProps) {
   const ref = parseIconRef(icon)
-  const customUri = useConfigStore((s) =>
-    ref?.source === 'custom' ? s.customIcons.find((i) => i.id === ref.name)?.dataUri : undefined
-  )
+  const customUri = useConfigStore((s) => (ref?.source === 'custom' ? s.customIcons.find((i) => i.id === ref.name)?.dataUri : undefined))
   // Hooks run for every icon, so the URL is computed before the early return below.
   const maskUrl = ref?.source === 'mdi' ? packIconUrl('mdi', ref.name) : null
   const maskMissing = useMaskMissing(maskUrl)
@@ -175,7 +173,7 @@ export function Icon({ icon, size = 32, state, color, className }: IconProps) {
           // solid block. That is the same unmasked block `probeMask` exists to prevent.
           WebkitMaskImage: mask,
           maskImage: mask,
-          backgroundColor: color || undefined,
+          backgroundColor: color || undefined
         }}
         aria-hidden
       />

@@ -2,7 +2,7 @@
 // checks the first-run welcome, then creates its own dashboard via REST (the in-code demo
 // no longer exists), exercises the core widgets against the three approved items, and
 // cleans up the component + item states.
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 
@@ -49,12 +49,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {
       /* try next */
     }
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const results = []

@@ -21,7 +21,7 @@ import {
   ruleFromPreset,
   SCENE_UID_PREFIX,
   type Preset,
-  type SceneRule,
+  type SceneRule
 } from './presets'
 
 const scene = (over: Partial<SceneRule> = {}): SceneRule => ({
@@ -32,9 +32,9 @@ const scene = (over: Partial<SceneRule> = {}): SceneRule => ({
   configuration: {},
   actions: [
     { id: '1', type: 'core.ItemCommandAction', configuration: { itemName: 'STRIP_1', command: '240,73,100' } },
-    { id: '2', type: 'core.ItemCommandAction', configuration: { itemName: 'main_lights_level', command: '64' } },
+    { id: '2', type: 'core.ItemCommandAction', configuration: { itemName: 'main_lights_level', command: '64' } }
   ],
-  ...over,
+  ...over
 })
 
 describe('scene recognition', () => {
@@ -56,7 +56,7 @@ describe('rule -> preset', () => {
     expect(p.name).toBe('Evening')
     expect(p.lights).toEqual([
       { item: 'STRIP_1', command: '240,73,100' },
-      { item: 'main_lights_level', command: '64' },
+      { item: 'main_lights_level', command: '64' }
     ])
     expect(p.managed).toBe(true)
     expect(p.editable).toBe(true)
@@ -70,8 +70,8 @@ describe('rule -> preset', () => {
           { id: '1', type: 'script.ScriptAction', configuration: { script: 'x' } },
           { id: '2', type: 'core.ItemCommandAction' },
           { id: '3', type: 'core.ItemCommandAction', configuration: { itemName: '', command: 'ON' } },
-          { id: '4', type: 'core.ItemCommandAction', configuration: { itemName: 'A', command: 0 } },
-        ] as unknown as SceneRule['actions'],
+          { id: '4', type: 'core.ItemCommandAction', configuration: { itemName: 'A', command: 0 } }
+        ] as unknown as SceneRule['actions']
       })
     )
     expect(p.lights).toEqual([{ item: 'A', command: '0' }])
@@ -107,7 +107,7 @@ describe('preset -> rule', () => {
     managed: true,
     statusItem: 'House_Lighting_Preset_1',
     statusState: 'ON',
-    lights: [{ item: 'STRIP_1', command: '0,0,10' }],
+    lights: [{ item: 'STRIP_1', command: '0,0,10' }]
   }
 
   it('round-trips through the rule shape', () => {
@@ -165,7 +165,7 @@ describe('the wall-switch bridge', () => {
       editable: true,
       managed: true,
       statusItem: 'House_Lighting_Preset_1',
-      statusState: 'ON',
+      statusState: 'ON'
     })
     expect(rule?.uid).toBe(bridgeUidFor('nh-scene-evening'))
     expect(rule?.triggers?.[0].type).toBe('core.ItemStateChangeTrigger')
@@ -186,7 +186,7 @@ describe('the wall-switch bridge', () => {
       editable: true,
       managed: true,
       statusItem: 'A',
-      statusState: 'ON',
+      statusState: 'ON'
     })
     const ids = [...(rule?.triggers ?? []), ...(rule?.conditions ?? []), ...(rule?.actions ?? [])].map((m) => m.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -221,7 +221,7 @@ describe('state matching', () => {
   it('presetActive needs every light to hold, and an empty preset is never active', () => {
     const lights = [
       { item: 'a', command: '240,73,100' },
-      { item: 'b', command: '64' },
+      { item: 'b', command: '64' }
     ]
     const states: Record<string, string> = { a: '240,73,100', b: '64' }
     expect(presetActive(lights, (i) => states[i])).toBe(true)
@@ -241,11 +241,11 @@ describe('state matching', () => {
   it('an off command is built for every light of the preset, and nothing else', () => {
     const lights = [
       { item: 'strip', command: '288,55,40' },
-      { item: 'lamp', command: '64' },
+      { item: 'lamp', command: '64' }
     ]
     expect(presetOffCommands(lights)).toEqual([
       { item: 'strip', command: 'OFF' },
-      { item: 'lamp', command: '0' },
+      { item: 'lamp', command: '0' }
     ])
     expect(presetOffCommands([])).toEqual([])
     expect(presetOffCommands(undefined as never)).toEqual([])

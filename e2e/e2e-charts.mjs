@@ -8,7 +8,7 @@
  * records its initial state and restores it. the temperature item / the switch item are
  * read via persistence history only, never commanded.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-charts'
@@ -24,9 +24,9 @@ const initialLevel = await getState(ITEMS.dimmer)
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })

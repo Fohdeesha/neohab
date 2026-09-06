@@ -61,7 +61,7 @@ const MSE_CODECS = [
   'mp4a.40.2', // AAC LC
   'mp4a.40.5', // AAC HE
   'flac',
-  'opus',
+  'opus'
 ]
 
 export function startCamera(opts: StartOptions): PlayerHandle {
@@ -157,7 +157,7 @@ export function startCamera(opts: StartOptions): PlayerHandle {
     stop() {
       disposed = true
       clear()
-    },
+    }
   }
 }
 
@@ -197,12 +197,7 @@ function once(fn: Cleanup): Cleanup {
 }
 
 /** Attempt one transport. Resolves with its cleanup once playing; rejects on failure/timeout. */
-function attempt(
-  transport: CameraTransport,
-  url: string,
-  opts: StartOptions,
-  onDrop: () => void
-): Promise<Cleanup> {
+function attempt(transport: CameraTransport, url: string, opts: StartOptions, onDrop: () => void): Promise<Cleanup> {
   switch (transport) {
     case 'webrtc':
       return attemptWebRTC(url, opts, onDrop)
@@ -276,11 +271,7 @@ async function play(video: HTMLVideoElement): Promise<void> {
  * which is exactly what happens when a transmuxer misidentifies a stream - and treating that as
  * success ends the transport chain on a black rectangle that never recovers.
  */
-function firstFrame(
-  media: HTMLVideoElement | HTMLImageElement,
-  onDrop: () => void,
-  extraCleanup: Cleanup
-): Promise<Cleanup> {
+function firstFrame(media: HTMLVideoElement | HTMLImageElement, onDrop: () => void, extraCleanup: Cleanup): Promise<Cleanup> {
   return new Promise<Cleanup>((resolve, reject) => {
     const isVideo = media instanceof HTMLVideoElement
     let settled = false
@@ -424,7 +415,7 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
     iceServers: [],
     // Camera servers answer with host candidates on the LAN; gathering the full set only
     // delays the first frame.
-    bundlePolicy: 'max-bundle',
+    bundlePolicy: 'max-bundle'
   })
   const video = makeVideo(opts)
   opts.host.appendChild(video)
@@ -451,7 +442,7 @@ async function attemptWebRTC(url: string, opts: StartOptions, onDrop: () => void
       ws.send(
         JSON.stringify({
           type: 'webrtc/candidate',
-          value: ev.candidate ? ev.candidate.toJSON().candidate : '',
+          value: ev.candidate ? ev.candidate.toJSON().candidate : ''
         })
       )
     })
@@ -650,7 +641,7 @@ async function attemptHLS(url: string, opts: StartOptions, onDrop: () => void): 
     lowLatencyMode: true,
     liveSyncDurationCount: 2,
     backBufferLength: 10,
-    manifestLoadingTimeOut: CONNECT_TIMEOUT_MS,
+    manifestLoadingTimeOut: CONNECT_TIMEOUT_MS
   })
   const teardown = once(() => hls.destroy())
   let ready: Promise<Cleanup> | undefined
@@ -701,9 +692,13 @@ async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup
 
   const bust = () => url + (url.includes('?') ? '&' : '?') + '_=' + Date.now()
 
-  const ready = firstFrame(img, () => {}, () => {
-    if (timer) clearInterval(timer)
-  })
+  const ready = firstFrame(
+    img,
+    () => {},
+    () => {
+      if (timer) clearInterval(timer)
+    }
+  )
   img.src = bust()
   const done = await ready
 

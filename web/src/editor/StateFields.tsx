@@ -27,8 +27,7 @@ export function StateIconsField({ widget }: { widget: WidgetInstance }) {
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove state {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -38,11 +37,7 @@ export function StateIconsField({ widget }: { widget: WidgetInstance }) {
             value={r.state ?? ''}
             onChange={(e) => patch(i, { state: e.target.value })}
           />
-          <IconPicker
-            id={`f-${widget.id}-stateicon-${i}`}
-            value={r.icon ?? ''}
-            onChange={(v) => patch(i, { icon: v || undefined })}
-          />
+          <IconPicker id={`f-${widget.id}-stateicon-${i}`} value={r.icon ?? ''} onChange={(v) => patch(i, { icon: v || undefined })} />
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
               <span>{t('Tint (mono icons)')}</span>
@@ -68,9 +63,7 @@ export function StateIconsField({ widget }: { widget: WidgetInstance }) {
         {t('Add state icon')}
       </button>
       {rows.length > 0 ? (
-        <span className="nh-field__hint">
-          {t('The first matching state wins; states match exactly, or as a numeric range like 1-49.')}
-        </span>
+        <span className="nh-field__hint">{t('The first matching state wins; states match exactly, or as a numeric range like 1-49.')}</span>
       ) : null}
     </div>
   )
@@ -100,8 +93,7 @@ export function TimelineSeriesField({ widget }: { widget: WidgetInstance }) {
               className="nh-chartcard__btn"
               aria-label={t('Move row {{n}} up', { n: i + 1 })}
               disabled={i === 0}
-              onClick={() => move(i, -1)}
-            >
+              onClick={() => move(i, -1)}>
               ↑
             </button>
             <button
@@ -109,24 +101,18 @@ export function TimelineSeriesField({ widget }: { widget: WidgetInstance }) {
               className="nh-chartcard__btn"
               aria-label={t('Move row {{n}} down', { n: i + 1 })}
               disabled={i === rows.length - 1}
-              onClick={() => move(i, 1)}
-            >
+              onClick={() => move(i, 1)}>
               ↓
             </button>
             <button
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove row {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
-          <ItemPicker
-            id={`f-${widget.id}-tlrow-${i}`}
-            value={s.item}
-            onChange={(v) => patch(i, { item: v })}
-          />
+          <ItemPicker id={`f-${widget.id}-tlrow-${i}`} value={s.item} onChange={(v) => patch(i, { item: v })} />
           <input
             type="text"
             placeholder={t('Label (optional)')}
@@ -145,8 +131,7 @@ export function TimelineSeriesField({ widget }: { widget: WidgetInstance }) {
 export function StateColorsField({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
   const rows = Array.isArray(widget.config.colorMaps) ? (widget.config.colorMaps as TimelineColorMap[]) : []
-  const write = (next: TimelineColorMap[]) =>
-    updateWidgetConfig(widget.id, 'colorMaps', next.length > 0 ? next : undefined)
+  const write = (next: TimelineColorMap[]) => updateWidgetConfig(widget.id, 'colorMaps', next.length > 0 ? next : undefined)
   const patch = (i: number, p: Partial<TimelineColorMap>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
 
   return (
@@ -171,8 +156,7 @@ export function StateColorsField({ widget }: { widget: WidgetInstance }) {
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove state {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -181,9 +165,7 @@ export function StateColorsField({ widget }: { widget: WidgetInstance }) {
       <button type="button" className="nh-btn" onClick={() => write([...rows, { state: '', color: '#888888' }])}>
         {t('Add state color')}
       </button>
-      <span className="nh-field__hint">
-        {t('States without an explicit color get one from the chart palette automatically.')}
-      </span>
+      <span className="nh-field__hint">{t('States without an explicit color get one from the chart palette automatically.')}</span>
     </div>
   )
 }

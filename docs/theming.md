@@ -114,6 +114,7 @@ adopting it.
 | `.nh-thermo`, `.nh-thermo__btn`, `.nh-thermo__mbtn` | The thermostat: its root carries `--th-heat`, `--th-cool` and `--th-mid`, the colours its face and its temperature ramp are drawn in, which a theme can set there; `.nh-thermo--heat`, `--cool` and `--neutral` say which is in force |
 | `.nh-slider`, `.nh-slider__input`, `.nh-slider__value` | The plain range control: the slider widget in its plain style, and the one a long press or a floor-plan light puts in front of you. This is the one to restyle |
 | `.nh-fader__*` | The slider widget's four other styles (gradient, wedge, inset rail, bubble), which keep their own look in every theme on purpose. `.nh-fader__read` is the reading, `__bound` the ends of an inset scale, `__track` and `__fill` the two painted layers |
+| `.nh-log`, `.nh-log__line`, `.nh-log__level` | The log widget's console. The root carries `--lg-warn`, the one colour the tokens do not have (errors use `bad`); `.nh-log__line--warn` and `--error` mark the lines that carry it, `__time`, `__logger` and `__msg` are the columns, and `.nh-log__jump` is the pill that takes the reader back to the newest line |
 | `.nh-switch__track`, `.nh-switch__thumb` | The switch. `.nh-switch--on` marks the on state |
 | `.nh-value__text`, `.nh-value__unit` | A reading and its unit, set separately |
 | `.nh-stat__value`, `.nh-stat__caption`, `.nh-stat__badge` | The stat tile |

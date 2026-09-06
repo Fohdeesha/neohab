@@ -22,7 +22,7 @@ export const FILTERS: Record<string, FilterFn> = {
     return v
   },
   // angular-sprintf style: {{ '%.1f' | sprintf:value }} - the format string is the piped value.
-  sprintf: (fmt, ...args) => sprintf(String(fmt ?? ''), args),
+  sprintf: (fmt, ...args) => sprintf(String(fmt ?? ''), args)
 }
 
 /** Minimal printf: %s %d %i %f (with %.Nf precision), %% - covers HABPanel community usage. */

@@ -4,24 +4,7 @@
  */
 
 /** 16-wind rose; index n sits at n * 22.5 degrees. */
-export const CARDINALS = [
-  'N',
-  'NNE',
-  'NE',
-  'ENE',
-  'E',
-  'ESE',
-  'SE',
-  'SSE',
-  'S',
-  'SSW',
-  'SW',
-  'WSW',
-  'W',
-  'WNW',
-  'NW',
-  'NNW',
-] as const
+export const CARDINALS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'] as const
 
 /** Nearest 16-wind cardinal name for a bearing (any number, any sign). */
 export function cardinalFor(deg: number): string {

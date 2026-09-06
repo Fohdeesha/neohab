@@ -36,7 +36,7 @@ import {
   ticksOf,
   toneOf,
   unitOf,
-  valueAtAngle,
+  valueAtAngle
 } from './model'
 
 const state = (s: Partial<ItemState>): ItemState => ({ state: '', type: 'Number', ...s })
@@ -102,9 +102,17 @@ describe('reading a stored configuration', () => {
 
 describe('temperatures', () => {
   it('reads the number, the unit and the server text off a state', () => {
-    expect(readTemp(state({ state: '68.3 °F', displayState: '68 °F', numericState: 68.3, unit: '°F' }))).toEqual({ value: 68.3, unit: '°F', text: '68' })
+    expect(readTemp(state({ state: '68.3 °F', displayState: '68 °F', numericState: 68.3, unit: '°F' }))).toEqual({
+      value: 68.3,
+      unit: '°F',
+      text: '68'
+    })
     // No unit field: the unit comes off the formatted text.
-    expect(readTemp(state({ state: '21.5', displayState: '21.5 °C', numericState: 21.5 }))).toEqual({ value: 21.5, unit: '°C', text: '21.5' })
+    expect(readTemp(state({ state: '21.5', displayState: '21.5 °C', numericState: 21.5 }))).toEqual({
+      value: 21.5,
+      unit: '°C',
+      text: '21.5'
+    })
     // A plain number with no pattern has no server text to prefer.
     expect(readTemp(state({ state: '72', numericState: 72 }))).toEqual({ value: 72, unit: undefined, text: '72' })
     expect(readTemp(state({ state: 'NULL' }))).toEqual({ value: undefined, unit: undefined, text: undefined })
@@ -316,13 +324,17 @@ describe('mode, fan, aux and status', () => {
     expect(parseStates(undefined)).toEqual([])
   })
 
-  it('carries a default for every command and takes the widget\'s own over it', () => {
+  it("carries a default for every command and takes the widget's own over it", () => {
     expect(commands({})).toEqual({ heat: 'HEAT', cool: 'COOL', fanAuto: 'AUTO', fanOn: 'ON', auxOn: 'ON', auxOff: 'OFF' })
-    expect(commands({ heatCommand: 'heat', fanOnCommand: '1', auxOffCommand: '' })).toMatchObject({ heat: 'heat', fanOn: '1', auxOff: 'OFF' })
+    expect(commands({ heatCommand: 'heat', fanOnCommand: '1', auxOffCommand: '' })).toMatchObject({
+      heat: 'heat',
+      fanOn: '1',
+      auxOff: 'OFF'
+    })
     expect(DEFAULT_COMMANDS.heat).toBe('HEAT')
   })
 
-  it('names the mode a state means, in the binding\'s own words', () => {
+  it("names the mode a state means, in the binding's own words", () => {
     expect(modeFrom('HEAT', {})).toBe('heat')
     expect(modeFrom('heat', {})).toBe('heat')
     expect(modeFrom('COOL', {})).toBe('cool')

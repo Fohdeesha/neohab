@@ -5,8 +5,9 @@ expected of a change.
 
 ## What it is
 
-neohab is an openHAB UI add-on: a Java shell about seventy lines long that registers a tile and
-serves static files, wrapped around a React + TypeScript app. Nearly all the work is in `web/`.
+neohab is an openHAB UI add-on: a Java shell of under two hundred lines that registers a tile,
+serves static files and sets their cache headers, wrapped around a React + TypeScript app. Nearly
+all the work is in `web/`.
 
 ```
 pom.xml, bnd.bnd, src/main/…   the openHAB add-on shell (Java, rarely changes)
@@ -35,9 +36,9 @@ cp .env.example .env.local     # point OPENHAB_URL at a real openHAB
 npm run dev
 ```
 
-The dev server proxies `/rest`, `/auth`, `/icon` and `/static` to that server, so the frontend runs
-against your real items with no Java build at all. Reading works anonymously. Editing needs an
-administrator sign-in in the app.
+The dev server proxies `/rest`, `/auth`, `/icon/`, `/static` and `/images` to that server, so the
+frontend runs against your real items with no Java build at all. Reading works anonymously. Editing
+needs an administrator sign-in in the app.
 
 To build the installable add-on:
 
@@ -52,14 +53,18 @@ so it needs nothing installed beyond a JDK.
 
 ```bash
 cd web
-npm run check      # typecheck + lint + unit tests
+npm run check      # typecheck + lint + formatting + unit tests
 ```
 
-That is what CI runs. All three must pass.
+That is what CI runs. All four must pass.
 
 - **`npm run typecheck`** runs TypeScript in strict mode with no unused locals.
 - **`npm run lint`** runs ESLint. Watch `react-hooks/exhaustive-deps` in particular: if you
   suppress it, say why in a comment on the line above.
+- **`npm run format:check`** checks formatting. If it fails, `npm run format` fixes it: the
+  formatter is [oxfmt](https://oxc.rs), configured in `web/.oxfmtrc.json`, and it owns layout
+  entirely so that a lint failure is always a real mistake rather than a stray space. It leaves
+  `app.css`, the i18n catalogs and the captured API fixtures alone.
 - **`npm test`** runs the unit suite (vitest). Use `npm run test:watch` while you work.
 
 ## Tests

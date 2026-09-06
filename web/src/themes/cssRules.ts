@@ -31,7 +31,7 @@ export const ATTRIBUTE_PAINTED = [
   'nh-gauge__claybody',
   'nh-gauge__tklit',
   'nh-compass__cardinal',
-  'nh-compass__value',
+  'nh-compass__value'
 ] as const
 
 /** Controls whose `--active` modifier shares specificity with the base class. */
@@ -48,14 +48,7 @@ export interface CssRule {
   gates: string[]
 }
 
-export type RuleId =
-  | 'attributePaint'
-  | 'ungatedPadding'
-  | 'activeState'
-  | 'borderImageRadius'
-  | 'bareWidget'
-  | 'newTile'
-  | 'externalAsset'
+export type RuleId = 'attributePaint' | 'ungatedPadding' | 'activeState' | 'borderImageRadius' | 'bareWidget' | 'newTile' | 'externalAsset'
 
 export interface ThemeCssIssue {
   rule: RuleId
@@ -102,8 +95,7 @@ export function parseRules(css: string): CssRule[] {
 }
 
 /** Does any selector in the list name this class, as a whole class name? */
-const stylesClass = (selectors: string[], cls: string): boolean =>
-  selectors.some((s) => new RegExp(`\\.${cls}(?![\\w-])`).test(s))
+const stylesClass = (selectors: string[], cls: string): boolean => selectors.some((s) => new RegExp(`\\.${cls}(?![\\w-])`).test(s))
 
 /**
  * Every rule this stylesheet breaks.

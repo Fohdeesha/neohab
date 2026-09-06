@@ -6,7 +6,7 @@
  * SAFE with a live config: creates only dashboard:nh-e2e-resize, deletes exactly that in
  * cleanup, commands nothing (clock widgets only). Nothing is ever saved (Exit discards).
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-resize'
@@ -17,9 +17,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })

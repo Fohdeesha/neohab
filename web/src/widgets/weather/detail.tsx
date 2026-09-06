@@ -76,24 +76,13 @@ export function WeatherDetail({ config, ctx }: WidgetProps<Record<string, unknow
           {view.hours.length > 0 ? (
             <section className="nh-wdetail__block">
               <h3 className="nh-wdetail__head">{t('Hourly forecast')}</h3>
-              <Strip
-                cols={view.hours.map(hourCol)}
-                iconStyle={config.iconStyle}
-                className="nh-wdetail__hours"
-                iconSize={COL_ICON}
-              />
+              <Strip cols={view.hours.map(hourCol)} iconStyle={config.iconStyle} className="nh-wdetail__hours" iconSize={COL_ICON} />
             </section>
           ) : null}
           {view.days.length > 0 ? (
             <section className="nh-wdetail__block">
               <h3 className="nh-wdetail__head">{t('Weekly forecast')}</h3>
-              <Strip
-                cols={view.days.map(dayCol)}
-                iconStyle={config.iconStyle}
-                days
-                className="nh-wdetail__days"
-                iconSize={COL_ICON}
-              />
+              <Strip cols={view.days.map(dayCol)} iconStyle={config.iconStyle} days className="nh-wdetail__days" iconSize={COL_ICON} />
             </section>
           ) : null}
         </>

@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { numericScale } from '../common/itemControl'
-import {
-  STYLE_FLOOR,
-  VERTICAL_FLOOR,
-  boundsOf,
-  orientOf,
-  readingOf,
-  sliderFloor,
-  styleOf,
-  tintedOf,
-} from './model'
+import { STYLE_FLOOR, VERTICAL_FLOOR, boundsOf, orientOf, readingOf, sliderFloor, styleOf, tintedOf } from './model'
 import type { SliderStyle } from './model'
 
 const STYLES: SliderStyle[] = ['plain', 'gradient', 'bubble', 'inset', 'taper']

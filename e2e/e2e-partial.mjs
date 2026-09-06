@@ -17,7 +17,7 @@
  * a restore point.
  */
 import { readFileSync } from 'node:fs'
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, HISTORY_NS, HISTORY_DATA_NS } from './lib/target.mjs'
 
 const results = []
@@ -29,9 +29,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return await chromium.launch({ channel, headless: true }) } catch {}
+    try { return await launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8DwnwEJMDGgAgBLcAEPtvE4TQAAAABJRU5ErkJggg=='

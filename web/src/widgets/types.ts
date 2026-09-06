@@ -8,6 +8,7 @@
  */
 import type { ComponentType } from 'react'
 import type { ItemState } from '../api/types'
+import type { Route } from '../app/router'
 import type { ItemControl } from './common/itemControl'
 
 /** Runtime context passed to every widget. Uniform on purpose - the stable contract. */
@@ -51,16 +52,23 @@ interface SettingCommon {
  * configurable surface is declarative data rather than a form someone has to write.
  */
 export type SettingField = SettingCommon &
+  /**
+   * An openHAB item. `readOnly` says the widget only ever READS this one - a thermostat's room
+   * temperature, its status item - so the detail sheet offers no control for it. It is a
+   * declaration rather than a convention: the registry check that every bound item gets a
+   * control skips these, and its converse requires that these get none.
+   */
   (
-    /**
-     * An openHAB item. `readOnly` says the widget only ever READS this one - a thermostat's room
-     * temperature, its status item - so the detail sheet offers no control for it. It is a
-     * declaration rather than a convention: the registry check that every bound item gets a
-     * control skips these, and its converse requires that these get none.
-     */
     | { key: string; type: 'item'; label: string; itemTypes?: string[]; readOnly?: boolean }
     | { key: string; type: 'icon'; label: string }
-    | { key: string; type: 'text'; label: string; placeholder?: string }
+    /**
+     * A line of text. `subresource` says the value is an address the PAGE loads - an iframe, an
+     * image, a video stream - which an https page may not take from an `http://` one, so the form
+     * says so as it is typed. It is a declaration because the widgets that open an address in a
+     * new tab instead (a button's navigate target, a camera's tap target) are a navigation rather
+     * than mixed content, and warning about those would be wrong.
+     */
+    | { key: string; type: 'text'; label: string; placeholder?: string; subresource?: boolean }
     | { key: string; type: 'multiline'; label: string; placeholder?: string }
     | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }
     | { key: string; type: 'boolean'; label: string }
@@ -176,6 +184,13 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
    * the browser's own menu, which is the honest answer for them.
    */
   DetailView?: ComponentType<WidgetProps<C>>
+  /**
+   * A route the hold opens INSTEAD of a sheet, for a widget whose closer look wants the whole
+   * screen: the log widget opens its full-screen viewer. Given the dashboard and the widget ids,
+   * because a route has to address a real widget for the page to read its settings from. A
+   * widget declares one of the two; this one wins if both are there.
+   */
+  detailRoute?: (dashboardId: string, widgetId: string) => Route
   /** Item-name config keys whose live state this widget needs tracked via SSE. */
   itemKeys?: (config: C) => string[]
   /**

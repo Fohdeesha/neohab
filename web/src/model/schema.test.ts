@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  kindOf,
-  migrateConfig,
-  MIGRATIONS,
-  SCHEMA_VERSIONS,
-  versionOf,
-  type ComponentKind,
-  type Migration,
-} from './schema'
+import { kindOf, migrateConfig, MIGRATIONS, SCHEMA_VERSIONS, versionOf, type ComponentKind, type Migration } from './schema'
 
 /**
  * The migration runner has no production migrations yet, which is exactly the state in which a
@@ -22,7 +14,7 @@ const table = (steps: Migration[]): Record<ComponentKind, Migration[]> => ({
   widgetdef: [],
   icon: [],
   background: [],
-  settings: [],
+  settings: []
 })
 
 /** A world where dashboards are at `v` and everything else is still at 1. */
@@ -32,16 +24,18 @@ const versions = (v: number): Record<ComponentKind, number> => ({
   widgetdef: 1,
   icon: 1,
   background: 1,
-  settings: 1,
+  settings: 1
 })
 
 /** Records the order steps ran in, so a chain applied backwards cannot pass. */
 const trail = (): { steps: Migration[]; seen: string[] } => {
   const seen: string[] = []
-  const step = (name: string): Migration => (c) => {
-    seen.push(name)
-    return { ...c, [name]: true }
-  }
+  const step =
+    (name: string): Migration =>
+    (c) => {
+      seen.push(name)
+      return { ...c, [name]: true }
+    }
   return { steps: [step('one'), step('two'), step('three')], seen }
 }
 

@@ -16,6 +16,7 @@ import { clearTabletLayout, setDashSettingsOpen, stopEditing, updateDashboardMet
 import { buildDashboardExport, collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
 import { notify } from '../store/notify'
 import { navigate } from '../app/router'
+import { errorText } from '../api/errors'
 
 export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) {
   const { t } = useTranslation()
@@ -26,13 +27,12 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
   const sidebarOn = useConfigStore((s) => s.settings.sidebar !== false)
 
   const remove = async () => {
-    if (!window.confirm(t('Delete dashboard “{{name}}” and all its widgets? This cannot be undone.', { name: dashboard.name })))
-      return
+    if (!window.confirm(t('Delete dashboard “{{name}}” and all its widgets? This cannot be undone.', { name: dashboard.name }))) return
     stopEditing()
     try {
       await deleteDashboard(dashboard.id)
     } catch (err) {
-      window.alert(t('Delete failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      window.alert(t('Delete failed: {{error}}', { error: errorText(err) }))
       return
     }
     void collectUnusedBackgrounds()
@@ -51,14 +51,14 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
       downloadJson(partialFileName('dashboard', dashboard.id), out.bundle)
       if (out.missing.length > 0) {
         notify(
-          t('Exported, but {{count}} referenced item(s) no longer exist and were left out: {{list}}', {
+          t('Exported, but {{count}} referenced items no longer exist and were left out: {{list}}', {
             count: out.missing.length,
-            list: out.missing.join(', '),
+            list: out.missing.join(', ')
           })
         )
       }
     } catch (err) {
-      notify(t('Export failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      notify(t('Export failed: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -71,11 +71,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
       <div className="nh-form">
         <label className="nh-field" htmlFor="nh-dash-name">
           <span className="nh-field__label">{t('Name')}</span>
-          <input
-            id="nh-dash-name"
-            value={dashboard.name}
-            onChange={(e) => updateDashboardMeta({ name: e.target.value }, 'dash:name')}
-          />
+          <input id="nh-dash-name" value={dashboard.name} onChange={(e) => updateDashboardMeta({ name: e.target.value }, 'dash:name')} />
         </label>
 
         <div className="nh-field">
@@ -126,10 +122,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           <select
             id="nh-dash-rowmode"
             value={fixed ? 'fixed' : 'match'}
-            onChange={(e) =>
-              updateDashboardMeta({ rowHeight: e.target.value === 'match' ? 'match' : 80 }, 'dash:rowheight')
-            }
-          >
+            onChange={(e) => updateDashboardMeta({ rowHeight: e.target.value === 'match' ? 'match' : 80 }, 'dash:rowheight')}>
             <option value="match">{t('Square cells (match column width)')}</option>
             <option value="fixed">{t('Fixed height')}</option>
           </select>
@@ -183,9 +176,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
               value={mdColumnsOf(dashboard)}
               min={1}
               max={60}
-              hint={fieldHint(
-                t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.')
-              )}
+              hint={fieldHint(t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.'))}
               onCommit={(n) => updateDashboardMeta({ mdColumns: n }, 'dash:mdcolumns')}
             />
             <div className="nh-field">
@@ -193,9 +184,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
               <button type="button" className="nh-btn nh-btn--ghost" onClick={() => clearTabletLayout()}>
                 {t('Remove the tablet layout')}
               </button>
-              <span className="nh-field__hint">
-                {t('Tablets then show the desktop layout again, as they do without a tablet layout.')}
-              </span>
+              <span className="nh-field__hint">{t('Tablets then show the desktop layout again, as they do without a tablet layout.')}</span>
             </div>
           </>
         ) : null}
@@ -203,11 +192,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
         {dashboard.stackOrder && dashboard.stackOrder.length > 0 ? (
           <div className="nh-field">
             <span className="nh-field__label">{t('Phone layout')}</span>
-            <button
-              type="button"
-              className="nh-btn nh-btn--ghost"
-              onClick={() => updateDashboardMeta({ stackOrder: undefined })}
-            >
+            <button type="button" className="nh-btn nh-btn--ghost" onClick={() => updateDashboardMeta({ stackOrder: undefined })}>
               {t('Reset stack order to follow the grid')}
             </button>
           </div>

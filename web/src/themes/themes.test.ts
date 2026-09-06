@@ -173,7 +173,7 @@ describe('the stylesheet checker', () => {
       '.nh-button { color: red }',
       '.nh-widget { border-image: linear-gradient(red, blue) 1 }',
       '.nh-widget, .nh-tile { background: red }',
-      "body { background-image: url('https://x/y.png') }",
+      "body { background-image: url('https://x/y.png') }"
     ]) {
       for (const issue of checkThemeCss(css)) {
         seen.add(issue.rule)
@@ -316,7 +316,7 @@ describe('themeCss', () => {
         name: 'T',
         scheme: 'dark',
         tokens: {},
-        cssModule: key as never,
+        cssModule: key as never
       })
       expect(css === undefined || typeof css === 'string').toBe(true)
       expect(typeof css).not.toBe('object')

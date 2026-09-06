@@ -40,7 +40,7 @@ import {
   positionsIn,
   stepIndex,
   stepNumber,
-  wrapOf,
+  wrapOf
 } from './model'
 import type { StepperArrows, StepperConfig, StepperLook } from './model'
 import { CarouselLook, PairLook, RangeLook, SpinnerLook, SplitLook, StackLook } from './looks'
@@ -52,7 +52,7 @@ const LOOK_COMPONENTS: Record<StepperLook, ComponentType<{ view: StepperView }>>
   spinner: SpinnerLook,
   split: SplitLook,
   carousel: CarouselLook,
-  range: RangeLook,
+  range: RangeLook
 }
 
 /** The item's state as a string, or null for NULL/UNDEF and for an item not yet heard from. */
@@ -170,7 +170,7 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
     dots,
     dotIndex: position,
     count,
-    bounds,
+    bounds
   }
 
   const Look = LOOK_COMPONENTS[look]
@@ -210,7 +210,7 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
     min: 0,
     max: 100,
     step: 1,
-    wrap: false,
+    wrap: false
   }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item' },
@@ -225,8 +225,8 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
         { value: 'spinner', label: 'Spinner' },
         { value: 'split', label: 'Split tile' },
         { value: 'carousel', label: 'Carousel' },
-        { value: 'range', label: 'Range bar' },
-      ],
+        { value: 'range', label: 'Range bar' }
+      ]
     },
     {
       key: 'finish',
@@ -237,9 +237,9 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
         { value: 'glass', label: 'Glass' },
         { value: 'glow', label: 'Glow' },
         { value: 'solid', label: 'Solid' },
-        { value: 'sheen', label: 'Sheen' },
+        { value: 'sheen', label: 'Sheen' }
       ],
-      hint: "Plain follows the theme. The others keep their own look in any theme, in the tile's accent colour where one is set.",
+      hint: "Plain follows the theme. The others keep their own look in any theme, in the tile's accent color where one is set."
     },
     {
       key: 'arrows',
@@ -250,9 +250,9 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
         { value: 'chevron', label: 'Chevrons' },
         { value: 'triangle', label: 'Triangles' },
         { value: 'plusminus', label: 'Plus and minus' },
-        { value: 'arrow', label: 'Straight arrows' },
+        { value: 'arrow', label: 'Straight arrows' }
       ],
-      hint: 'Automatic uses plus and minus for a number and chevrons for a list.',
+      hint: 'Automatic uses plus and minus for a number and chevrons for a list.'
     },
     {
       key: 'mode',
@@ -260,9 +260,9 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
       label: 'Value',
       options: [
         { value: 'number', label: 'Number' },
-        { value: 'list', label: 'List of choices' },
+        { value: 'list', label: 'List of choices' }
       ],
-      hint: "A number steps by the step size within its range. A list cycles through the choices below, or the item's own options when none are given.",
+      hint: "A number steps by the step size within its range. A list cycles through the choices below, or the item's own options when none are given."
     },
     { key: 'min', type: 'number', label: 'Minimum', showIf: isNumber },
     { key: 'max', type: 'number', label: 'Maximum', showIf: isNumber },
@@ -274,9 +274,9 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
       label: 'Choices (one per line, COMMAND=Label)',
       placeholder: 'HDMI1=Apple TV\nHDMI2=Xbox',
       showIf: isList,
-      hint: "Leave empty to use the item's own options.",
+      hint: "Leave empty to use the item's own options."
     },
-    { key: 'wrap', type: 'boolean', label: 'Wrap around at the ends', showIf: isList },
+    { key: 'wrap', type: 'boolean', label: 'Wrap around at the ends', showIf: isList }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
@@ -290,5 +290,5 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
     }
     return rangeControl(numericScale(c.min, c.max, c.step), c.unit)
   },
-  Component: StepperWidget,
+  Component: StepperWidget
 }

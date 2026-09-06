@@ -60,7 +60,7 @@ export const WMO_CONDITIONS = new Map<number, ConditionSpec>([
   [86, c('extreme-day-snow', 'extreme-night-snow', 'Snow showers')],
   [95, c('thunderstorms-day', 'thunderstorms-night', 'Thunderstorm')],
   [96, c('thunderstorms-day-extreme', 'thunderstorms-night-extreme', 'Thunderstorm with hail')],
-  [99, c('thunderstorms-day-extreme', 'thunderstorms-night-extreme', 'Thunderstorm with heavy hail')],
+  [99, c('thunderstorms-day-extreme', 'thunderstorms-night-extreme', 'Thunderstorm with heavy hail')]
 ])
 
 /**
@@ -76,7 +76,7 @@ export const OWM_ICON_CONDITIONS = new Map<string, ConditionSpec>([
   ['10', c('partly-cloudy-day-rain', 'partly-cloudy-night-rain', 'Rain')],
   ['11', c('thunderstorms-day', 'thunderstorms-night', 'Thunderstorm')],
   ['13', one('snow', 'Snow')],
-  ['50', one('mist', 'Mist')],
+  ['50', one('mist', 'Mist')]
 ])
 
 /**
@@ -93,7 +93,7 @@ export const OWM_ID_CONDITIONS = new Map<number, ConditionSpec>([
   [761, c('dust-day', 'dust-night', 'Dust')],
   [762, one('smoke', 'Smoke')],
   [771, one('wind', 'Windy')],
-  [781, one('hurricane', 'Tornado')],
+  [781, one('hurricane', 'Tornado')]
 ])
 
 /** OWM condition id (2xx..8xx) to the nearest WMO code, for the groups WMO already covers. */
@@ -262,7 +262,7 @@ export function normalizeForecast(json: unknown): WeatherData | null {
     precip: num(cc.precipitation),
     precipProb: num(cc.precipitation_probability),
     code: num(cc.weather_code),
-    isDay: cc.is_day !== 0,
+    isDay: cc.is_day !== 0
   }
 
   const hourly: WeatherHour[] = []
@@ -278,7 +278,7 @@ export function normalizeForecast(json: unknown): WeatherData | null {
         temp: numAt(h.temperature_2m, i),
         code: numAt(h.weather_code, i),
         precipProb: numAt(h.precipitation_probability, i),
-        isDay: !Array.isArray(h.is_day) || h.is_day[i] !== 0,
+        isDay: !Array.isArray(h.is_day) || h.is_day[i] !== 0
       })
     }
   }
@@ -296,7 +296,7 @@ export function normalizeForecast(json: unknown): WeatherData | null {
         code: numAt(d.weather_code, i),
         high: numAt(d.temperature_2m_max, i),
         low: numAt(d.temperature_2m_min, i),
-        precipProb: numAt(d.precipitation_probability_max, i),
+        precipProb: numAt(d.precipitation_probability_max, i)
       })
     }
   }
@@ -381,7 +381,7 @@ export function itemsBinding(config: Record<string, unknown>): ItemsBinding {
     conditionPattern: str(config.dayConditionPattern),
     precipPattern: str(config.dayPrecipPattern),
     firstNumber: clampInt(config.dayFirstNumber, 0, 99, 1),
-    firstIsToday: config.dayFirstIs === 'today',
+    firstIsToday: config.dayFirstIs === 'today'
   }
 }
 
@@ -469,7 +469,8 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
   const cond = condition(cur.code, cur.isDay, o.t)
 
   const windSpeed = round(cur.windSpeed)
-  const wind = windSpeed !== undefined ? windSpeed + ' ' + units.wind + (cur.windDir !== null ? ' ' + cardinalFor(cur.windDir) : '') : undefined
+  const wind =
+    windSpeed !== undefined ? windSpeed + ' ' + units.wind + (cur.windDir !== null ? ' ' + cardinalFor(cur.windDir) : '') : undefined
 
   const hours: HourColumn[] = []
   for (const h of data.hourly) {
@@ -481,7 +482,7 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
       label: hourLabel(h.time, o.lang),
       icon: hc.icon,
       temp: deg(h.temp),
-      precipProb: o.showPrecip ? percent(h.precipProb) : undefined,
+      precipProb: o.showPrecip ? percent(h.precipProb) : undefined
     })
   }
 
@@ -494,7 +495,7 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
       icon: dc.icon,
       high: deg(d.high),
       low: deg(d.low),
-      precipProb: o.showPrecip ? percent(d.precipProb) : undefined,
+      precipProb: o.showPrecip ? percent(d.precipProb) : undefined
     }
   })
 
@@ -514,7 +515,7 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
     high: data.daily[0] ? deg(data.daily[0].high) : undefined,
     low: data.daily[0] ? deg(data.daily[0].low) : undefined,
     hours,
-    days,
+    days
   }
 }
 
@@ -540,10 +541,7 @@ export function buildItemsView(
   const windState = b.windSpeed ? getItem(b.windSpeed) : undefined
   const windDir = b.windDir ? numericOf(getItem(b.windDir)) : null
   const windText = windState ? displayValue(windState) : undefined
-  const wind =
-    windText !== undefined && windText !== '-'
-      ? windText + (windDir !== null ? ' ' + cardinalFor(windDir) : '')
-      : undefined
+  const wind = windText !== undefined && windText !== '-' ? windText + (windDir !== null ? ' ' + cardinalFor(windDir) : '') : undefined
 
   const days: DayColumn[] = []
   const wantDays = b.highPattern || b.lowPattern || b.conditionPattern ? o.days : 0
@@ -563,7 +561,7 @@ export function buildItemsView(
       icon: dayCond ? dayCond.icon : UNKNOWN_ICON,
       high: deg(high),
       low: deg(low),
-      precipProb: prob,
+      precipProb: prob
     })
   }
 
@@ -578,7 +576,7 @@ export function buildItemsView(
     high: days.length > 0 && days[0].label === t('Today') ? days[0].high : undefined,
     low: days.length > 0 && days[0].label === t('Today') ? days[0].low : undefined,
     hours: [],
-    days,
+    days
   }
 }
 

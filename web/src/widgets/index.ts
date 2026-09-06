@@ -26,6 +26,7 @@ import { cameraWidget } from './camera'
 import { rollershutterWidget } from './rollershutter'
 import { playerWidget } from './player'
 import { templateWidget } from './template'
+import { logWidget } from './log'
 
 let registered = false
 
@@ -54,6 +55,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(floorplanWidget)
   registerWidget(cameraWidget)
   registerWidget(frameWidget)
+  registerWidget(logWidget)
   registerWidget(templateWidget)
 }
 
@@ -63,6 +65,7 @@ export {
   itemsForInstance,
   instanceCommands,
   instanceControl,
+  instanceDetailRoute,
   instanceHasDetail,
-  widgetDetailView,
+  widgetDetailView
 } from './registry'

@@ -69,8 +69,8 @@ describe('parseGeoResults', () => {
         { name: 'NoCoords' },
         { name: 'BadLat', latitude: 91, longitude: 0 },
         { name: 'Bare', latitude: 1.5, longitude: 2.5 },
-        { name: 7, latitude: 1, longitude: 1 },
-      ],
+        { name: 7, latitude: 1, longitude: 1 }
+      ]
     })
     expect(mixed).toEqual([{ name: 'Bare', label: 'Bare', lat: 1.5, lon: 2.5 }])
   })
@@ -86,8 +86,7 @@ describe('getForecast cache', () => {
     vi.unstubAllGlobals()
   })
 
-  const okFetch = () =>
-    vi.fn(async () => ({ ok: true, status: 200, json: async () => forecast }) as unknown as Response)
+  const okFetch = () => vi.fn(async () => ({ ok: true, status: 200, json: async () => forecast }) as unknown as Response)
 
   it('shares one fetch between widgets asking for the same place', async () => {
     const f = okFetch()
@@ -144,12 +143,18 @@ describe('getForecast cache', () => {
   })
 
   it('rejects on a body that is not a forecast', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ nope: 1 }) }) as unknown as Response))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ nope: 1 }) }) as unknown as Response)
+    )
     await expect(getForecast(14, 24, 'metric', 60_000)).rejects.toThrow('shape')
   })
 
   it('rejects on an HTTP error status', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }) as unknown as Response))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }) as unknown as Response)
+    )
     await expect(getForecast(15, 25, 'metric', 60_000)).rejects.toThrow('429')
   })
 })

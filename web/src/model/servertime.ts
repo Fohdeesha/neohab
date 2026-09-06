@@ -101,7 +101,7 @@ const UNITS: { unit: Intl.NumberFormatOptions['unit']; ms: number; upTo: number 
   { unit: 'second', ms: 1000, upTo: 90_000 },
   { unit: 'minute', ms: 60_000, upTo: 90 * 60_000 },
   { unit: 'hour', ms: 3_600_000, upTo: 36 * 3_600_000 },
-  { unit: 'day', ms: 86_400_000, upTo: Infinity },
+  { unit: 'day', ms: 86_400_000, upTo: Infinity }
 ]
 
 /**
@@ -120,7 +120,7 @@ export function formatDuration(ms: number, lang: string): string {
       style: 'unit',
       unit: pick.unit,
       unitDisplay: 'long',
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(value)
   } catch {
     // An engine without unit style, or a language tag it will not parse.

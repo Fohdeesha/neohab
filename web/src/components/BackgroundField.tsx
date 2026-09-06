@@ -11,11 +11,12 @@ import { notify } from '../store/notify'
 import { BG_REF_PREFIX, isUploadedBackground, newBackgroundId, resolveBackgroundRef } from '../model/background'
 import { cssUrl } from './download'
 import { processBackgroundFile } from './iconUpload'
+import { errorText } from '../api/errors'
 
 export function BackgroundField({
   id,
   value,
-  onChange,
+  onChange
 }: {
   id: string
   value: string | undefined
@@ -40,7 +41,7 @@ export function BackgroundField({
     } catch (err) {
       notify(
         t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
-          error: err instanceof Error ? err.message : String(err),
+          error: errorText(err)
         })
       )
     } finally {
@@ -64,8 +65,8 @@ export function BackgroundField({
                 !resolved
                 ? t('The uploaded image is missing - upload another')
                 : (uploadedBytes ?? 0) >= 1024 * 1024
-                ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
-                : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })
+                  ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
+                  : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })
           }
           onChange={(e) => void onChange(e.target.value || undefined)}
         />
@@ -78,8 +79,7 @@ export function BackgroundField({
             className="nh-iconbtn"
             aria-label={t('Remove background')}
             title={t('Remove background')}
-            onClick={() => void onChange(undefined)}
-          >
+            onClick={() => void onChange(undefined)}>
             ✕
           </button>
         ) : null}
@@ -98,4 +98,3 @@ export function BackgroundField({
     </div>
   )
 }
-

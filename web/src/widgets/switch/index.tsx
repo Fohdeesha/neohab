@@ -33,11 +33,8 @@ function SwitchWidget({ config, ctx }: WidgetProps<SwitchConfig>) {
         role="switch"
         aria-checked={on}
         aria-label={config.label ?? config.item}
-        onClick={toggle}
-      >
-        {icon ? (
-          <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-switch__icon" />
-        ) : null}
+        onClick={toggle}>
+        {icon ? <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-switch__icon" /> : null}
         <span className="nh-switch__track">
           <span className="nh-switch__thumb" />
         </span>
@@ -51,7 +48,7 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
   type: 'switch',
   name: 'Switch',
   description: 'Toggle an on/off item',
-  defaultSize: { w: 3, h: 3 },
+  defaultSize: { w: 2, h: 2 },
   hasHeader: true,
   defaultConfig: () => ({ item: '', onCommand: 'ON', offCommand: 'OFF' }),
   settings: [
@@ -60,14 +57,12 @@ export const switchWidget: WidgetDefinition<SwitchConfig> = {
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     { key: 'onCommand', type: 'text', label: 'On command' },
-    { key: 'offCommand', type: 'text', label: 'Off command' },
+    { key: 'offCommand', type: 'text', label: 'Off command' }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
   // Whatever this switch calls on and off, which is not always ON and OFF.
   controlFor: (c, item) =>
-    item === c.item
-      ? { kind: 'onoff', on: commandOr(c.onCommand, 'ON'), off: commandOr(c.offCommand, 'OFF') }
-      : undefined,
-  Component: SwitchWidget,
+    item === c.item ? { kind: 'onoff', on: commandOr(c.onCommand, 'ON'), off: commandOr(c.offCommand, 'OFF') } : undefined,
+  Component: SwitchWidget
 }

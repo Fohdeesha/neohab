@@ -11,15 +11,7 @@ import { ColorControl } from '../color/ColorControl'
 import { RangeControl, SwitchControl } from '../common/QuickControls'
 import { stateKind, type FloorplanLight } from './model'
 
-export function LightPopup({
-  light,
-  ctx: outer,
-  onClose,
-}: {
-  light: FloorplanLight
-  ctx: WidgetContext
-  onClose: () => void
-}) {
+export function LightPopup({ light, ctx: outer, onClose }: { light: FloorplanLight; ctx: WidgetContext; onClose: () => void }) {
   const { t } = useTranslation()
   // Every command from this popup feeds the settling layer, so the room under it follows the
   // control instead of the device's pre-fade echo. Wrapped here rather than inside the controls
@@ -33,7 +25,7 @@ export function LightPopup({
           if (!accepted) clearSettling([item])
           return accepted
         })
-      },
+      }
     }),
     [outer]
   )
@@ -64,4 +56,3 @@ export function LightPopup({
     </div>
   )
 }
-

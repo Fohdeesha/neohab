@@ -50,7 +50,7 @@ describe('rangeControl', () => {
       min: 2000,
       max: 6500,
       step: 50,
-      unit: 'K',
+      unit: 'K'
     })
   })
 

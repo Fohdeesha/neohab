@@ -17,6 +17,6 @@ export function useBackgroundStyle(dashboard?: Dashboard): CSSProperties | undef
   return {
     backgroundImage: `url("${cssUrl(url)}")`,
     backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundPosition: 'center'
   }
 }

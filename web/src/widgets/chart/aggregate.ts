@@ -128,7 +128,7 @@ const newAcc = (): Acc => ({
   lastAt: -Infinity,
   lastValue: NaN,
   sum: 0,
-  count: 0,
+  count: 0
 })
 
 function valueOf(acc: Acc, fn: AggregateFunction): number | null {
@@ -265,12 +265,7 @@ export interface HeatmapData {
  * over the whole window. Hours nest inside days, so splitting the intervals at hour boundaries
  * also keeps every piece inside one weekday.
  */
-export function heatmapMatrix(
-  xs: number[],
-  ys: (number | null)[],
-  endSec: number,
-  fn: AggregateFunction
-): HeatmapData {
+export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: number, fn: AggregateFunction): HeatmapData {
   const accs = new Map<number, Acc>()
   const at = (key: number): Acc => {
     let acc = accs.get(key)

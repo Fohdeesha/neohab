@@ -9,10 +9,7 @@
  * The FIRST failure is what gets reported. The fallback's error only ever describes the symptom of
  * the first one ("cannot update, it is not there"), which is not the problem the user has.
  */
-export async function writeWithFallback(
-  first: () => Promise<unknown>,
-  second: () => Promise<unknown>
-): Promise<void> {
+export async function writeWithFallback(first: () => Promise<unknown>, second: () => Promise<unknown>): Promise<void> {
   try {
     await first()
   } catch (err) {

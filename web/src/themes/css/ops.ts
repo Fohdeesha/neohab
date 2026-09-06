@@ -230,6 +230,18 @@ body {
   border-color: transparent;
   opacity: 0.5;
 }
+/* The log console is a readout: the level tag in the board's blue, the time and the logger as
+   dim captions, and the pill a lit chip like the rest. */
+.nh-log__level {
+  color: var(--nh-primary);
+}
+.nh-log__time,
+.nh-log__logger {
+  color: color-mix(in srgb, var(--nh-primary) 40%, var(--nh-text-dim));
+}
+.nh-log__jump {
+  background-image: linear-gradient(170deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 55%);
+}
 /* Panels and framed regions carry the light too: the rule stays a crisp hairline, and a soft
    wash of the accent falls inward from it so the enclosed area reads as a lit recess rather
    than a box drawn on black. Kept low and wide so it never dims the content it frames. */

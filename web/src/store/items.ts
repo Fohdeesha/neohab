@@ -49,7 +49,7 @@ let pruneTimer: ReturnType<typeof setInterval> | null = null
 
 export const useItemsStore = create<ItemsState>(() => ({
   states: emptyMap(),
-  connected: false,
+  connected: false
 }))
 
 function applyStates(delta: StateMap): void {
@@ -158,7 +158,7 @@ export function startItemTracking(): void {
         followers.set(msg.from, {
           items: Array.isArray(msg.items) ? (msg.items as string[]) : [],
           audio: msg.audio === true,
-          at: Date.now(),
+          at: Date.now()
         })
         recomputeUnion()
         // Hand a newly seen tab the whole picture at once; waiting for its items to change

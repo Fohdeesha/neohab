@@ -51,7 +51,7 @@ describe('hsbToRgb', () => {
       { h: 0, s: 500, b: 500 },
       { h: 200, s: -100, b: -100 },
       { h: 200, s: NaN, b: NaN },
-      { h: 200, s: Infinity, b: Infinity },
+      { h: 200, s: Infinity, b: Infinity }
     ]) {
       const rgb = hsbToRgb(hsb)
       expect(rgb).toHaveLength(3)

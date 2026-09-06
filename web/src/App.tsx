@@ -5,6 +5,8 @@ import { startItemTracking } from './store/items'
 import { loadConfig, useConfigStore } from './store/config'
 import { getRootInfo } from './api/items'
 import { completeLogin } from './api/auth'
+import { errorText } from './api/errors'
+import { notify } from './store/notify'
 import { refreshAuthStatus } from './store/auth'
 import { applyTheme, cacheTheme, resolveTheme, urlThemeOverride } from './themes/themes'
 import { useRoute } from './app/router'
@@ -12,11 +14,13 @@ import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
 import { SettingsView } from './app/SettingsView'
 import { ChartView } from './app/ChartView'
+import { LogView } from './app/LogView'
 import { Sidebar } from './app/Sidebar'
 import { useSidebarLayout } from './store/sidebar'
 import { AppBoundary } from './components/AppBoundary'
 import { Toast } from './components/Toast'
 import { LiveStatus } from './components/LiveStatus'
+import { UpdateNotice } from './components/UpdateNotice'
 import { KioskRuntime } from './kiosk/KioskRuntime'
 import { Screensaver } from './kiosk/Screensaver'
 import { AudioRuntime } from './audio/AudioRuntime'
@@ -56,12 +60,18 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
       await credentialsReady
 
       // Finish an in-progress login redirect, then clean the code from the URL.
+      //
+      // A failure here used to go to the console alone: the person had just typed their openHAB
+      // password, come back, and been shown a signed-out app with `?code=…` still in the address
+      // and nothing saying why. The code is single-use and already spent either way, so it is
+      // stripped on both paths - leaving it invites a reload that fails again for a new reason.
       try {
         if (await completeLogin()) {
           history.replaceState(null, '', window.location.pathname + window.location.hash)
         }
       } catch (err) {
-        console.warn('Login could not be completed:', err)
+        history.replaceState(null, '', window.location.pathname + window.location.hash)
+        notify(t('Sign-in could not be completed: {{error}}', { error: errorText(err) }))
       }
 
       startItemTracking()
@@ -80,7 +90,8 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
     return () => {
       cancelled = true
     }
-    // Boot runs once; `credentialsReady` is created before the first render and never changes.
+    // Boot runs once; `credentialsReady` is created before the first render and never changes,
+    // and `t` is only used for a notice raised during that one run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -109,12 +120,15 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
             <SettingsView />
           ) : route.name === 'chart' ? (
             <ChartView dashboardId={route.dashboard} widgetId={route.widget} />
+          ) : route.name === 'log' ? (
+            <LogView dashboardId={route.dashboard} widgetId={route.widget} />
           ) : (
             <DashboardView id={route.id} />
           )}
         </AppBoundary>
         <Toast />
         <LiveStatus />
+        <UpdateNotice />
       </main>
       <AppBoundary silent where="the kiosk runtime">
         <KioskRuntime />

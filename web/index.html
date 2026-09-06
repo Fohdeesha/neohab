@@ -14,6 +14,49 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Say so on a browser too old to run this, before the bundle is even asked for.
+
+      Wall panels are frequently old tablets whose browser is frozen at whatever shipped with them
+      - a Fire HD's Silk, an Android 8 WebView - and every modern feature the app leans on
+      degrades quietly on its own: :has() stops matching, color-mix() drops the declaration, a
+      container query never fires. What arrives is a half-styled mess with nothing anywhere saying
+      why, which is a bug report nobody can answer.
+
+      Two probes, chosen because they are the oldest of the hard requirements: a browser with both
+      has the rest (container queries, zoom, structuredClone). Written as plain ES5, with no arrow
+      functions or template literals, because it has to run on the browser it is refusing.
+
+      The notice is its own fixed layer over #root rather than inside it: the module below may
+      still load and render something underneath, and on a browser this old that something is
+      exactly the broken page the notice exists to explain.
+    -->
+    <script>
+      (function () {
+        if (
+          window.CSS &&
+          CSS.supports &&
+          CSS.supports('selector(:has(*))') &&
+          CSS.supports('color', 'color-mix(in srgb, red 50%, blue)')
+        ) {
+          return
+        }
+        var el = document.createElement('div')
+        el.setAttribute(
+          'style',
+          'position:fixed;inset:0;top:0;left:0;right:0;bottom:0;z-index:2147483647;overflow:auto;' +
+            'padding:2rem 1.25rem;background:#0f1317;color:#dde3ea;font:16px/1.5 system-ui,sans-serif'
+        )
+        el.innerHTML =
+          '<div style="margin:0 auto;max-width:34rem">' +
+          '<h1 style="font-size:1.3rem;margin:0 0 .75rem">This browser is too old for neohab</h1>' +
+          '<p style="margin:0 0 .75rem">neohab needs Chrome or Edge 111, Safari 16.4, Firefox 121, or a matching Android WebView. ' +
+          'Older browsers load the page but cannot lay it out, so it would look broken rather than tell you why.</p>' +
+          '<p style="margin:0;color:#93a1b0">On a wall tablet that cannot be updated, installing a current browser from its app store is usually the fix.</p>' +
+          '</div>'
+        document.body.appendChild(el)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

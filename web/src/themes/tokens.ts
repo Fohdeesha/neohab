@@ -40,19 +40,89 @@ export interface TokenSpec {
  */
 export const TOKEN_SPECS: TokenSpec[] = [
   /* ---------------------------------- Core ---------------------------------- */
-  { key: 'bg', group: 'Core', kind: 'color', label: 'Page background', fallback: '#0f1317', hint: 'Behind everything: the page itself, and the top bar.' },
-  { key: 'surface', group: 'Core', kind: 'color', label: 'Widget surface', fallback: '#1a212a', hint: 'The face of a widget tile, a sheet and a Home tile.' },
-  { key: 'surface-2', group: 'Core', kind: 'color', label: 'Raised surface', fallback: '#222c37', hint: 'A step above the surface: buttons, dropdowns, slider tracks.' },
-  { key: 'border', group: 'Core', kind: 'color', label: 'Border', fallback: '#2c3844', hint: 'Every hairline: tile edges, field outlines, separators.' },
+  {
+    key: 'bg',
+    group: 'Core',
+    kind: 'color',
+    label: 'Page background',
+    fallback: '#0f1317',
+    hint: 'Behind everything: the page itself, and the top bar.'
+  },
+  {
+    key: 'surface',
+    group: 'Core',
+    kind: 'color',
+    label: 'Widget surface',
+    fallback: '#1a212a',
+    hint: 'The face of a widget tile, a sheet and a Home tile.'
+  },
+  {
+    key: 'surface-2',
+    group: 'Core',
+    kind: 'color',
+    label: 'Raised surface',
+    fallback: '#222c37',
+    hint: 'A step above the surface: buttons, dropdowns, slider tracks.'
+  },
+  {
+    key: 'border',
+    group: 'Core',
+    kind: 'color',
+    label: 'Border',
+    fallback: '#2c3844',
+    hint: 'Every hairline: tile edges, field outlines, separators.'
+  },
   { key: 'text', group: 'Core', kind: 'color', label: 'Text', fallback: '#dde3ea', hint: 'Readings, labels and controls - the main ink.' },
-  { key: 'text-dim', group: 'Core', kind: 'color', label: 'Secondary text', fallback: '#8a94a0', hint: 'Widget names, captions, hints and units.' },
-  { key: 'primary', group: 'Core', kind: 'color', label: 'Accent', fallback: '#38b6ff', hint: 'The theme accent: active controls, gauges, the tile-accent setting.' },
-  { key: 'brand', group: 'Core', kind: 'color', label: 'Brand', fallback: '#e35a2b', hint: 'neohab’s own colour: the wordmark, primary buttons, editor handles.' },
-  { key: 'radius', group: 'Core', kind: 'length', label: 'Corner radius', fallback: '12px', hint: 'Rounding on tiles, buttons and sheets. 0px gives square corners.' },
-  { key: 'shadow', group: 'Core', kind: 'shadow', label: 'Tile shadow', fallback: '0 1px 3px rgba(0, 0, 0, 0.3)', hint: 'The drop shadow under a widget tile. `none` makes the design flat.' },
+  {
+    key: 'text-dim',
+    group: 'Core',
+    kind: 'color',
+    label: 'Secondary text',
+    fallback: '#8a94a0',
+    hint: 'Widget names, captions, hints and units.'
+  },
+  {
+    key: 'primary',
+    group: 'Core',
+    kind: 'color',
+    label: 'Accent',
+    fallback: '#38b6ff',
+    hint: 'The theme accent: active controls, gauges, the tile-accent setting.'
+  },
+  {
+    key: 'brand',
+    group: 'Core',
+    kind: 'color',
+    label: 'Brand',
+    fallback: '#e35a2b',
+    hint: 'neohab’s own colour: the wordmark, primary buttons, editor handles.'
+  },
+  {
+    key: 'radius',
+    group: 'Core',
+    kind: 'length',
+    label: 'Corner radius',
+    fallback: '12px',
+    hint: 'Rounding on tiles, buttons and sheets. 0px gives square corners.'
+  },
+  {
+    key: 'shadow',
+    group: 'Core',
+    kind: 'shadow',
+    label: 'Tile shadow',
+    fallback: '0 1px 3px rgba(0, 0, 0, 0.3)',
+    hint: 'The drop shadow under a widget tile. `none` makes the design flat.'
+  },
 
   /* -------------------------------- Semantic -------------------------------- */
-  { key: 'good', group: 'Semantic', kind: 'color', label: 'Good', fallback: '#3fb950', hint: 'A reading that moved the way you want - the stat tile’s trend arrow.' },
+  {
+    key: 'good',
+    group: 'Semantic',
+    kind: 'color',
+    label: 'Good',
+    fallback: '#3fb950',
+    hint: 'A reading that moved the way you want - the stat tile’s trend arrow.'
+  },
   { key: 'bad', group: 'Semantic', kind: 'color', label: 'Bad', fallback: '#e5484d', hint: 'A reading that moved the wrong way.' },
   {
     key: 'accent-ink',
@@ -60,7 +130,7 @@ export const TOKEN_SPECS: TokenSpec[] = [
     kind: 'color',
     label: 'Ink on the accent',
     fallback: 'automatic',
-    hint: 'Text drawn on top of the accent colour (filled tiles, chips, badges). Left unset it is chosen automatically for contrast, which is usually what you want.',
+    hint: 'Text drawn on top of the accent colour (filled tiles, chips, badges). Left unset it is chosen automatically for contrast, which is usually what you want.'
   },
 
   /* ------------------------------ Chart palette ------------------------------ */
@@ -73,16 +143,58 @@ export const TOKEN_SPECS: TokenSpec[] = [
     hint:
       i === 0
         ? 'Colour of the first chart series, and of a timeline’s first state. Unset uses the built-in palette, which is checked for colour-blind separation.'
-        : `Colour of chart series ${i + 1}. Unset keeps the built-in palette’s own choice.`,
+        : `Colour of chart series ${i + 1}. Unset keeps the built-in palette’s own choice.`
   })),
 
   /* ------------------------------- Instruments ------------------------------- */
-  { key: 'rim-hi', group: 'Instruments', kind: 'color', label: 'Gauge rim highlight', fallback: 'the border colour', hint: 'Lit edge of a gauge’s outer rim. Set this and the rim is shaded rather than flat.' },
-  { key: 'rim-lo', group: 'Instruments', kind: 'color', label: 'Gauge rim shadow', fallback: 'the border colour', hint: 'The rim’s far edge, where the light falls away.' },
-  { key: 'face-hi', group: 'Instruments', kind: 'color', label: 'Gauge face light', fallback: 'transparent', hint: 'Glow inside a gauge face. Transparent by default, so faces are flat unless a theme lights them.' },
-  { key: 'face-lo', group: 'Instruments', kind: 'color', label: 'Gauge face shadow', fallback: 'transparent', hint: 'The dark end of that glow.' },
-  { key: 'band-light', group: 'Instruments', kind: 'unit', label: 'Gauge band highlight', fallback: '0', hint: 'Strength (0-1) of the bright film at the tip of a solid-arc gauge’s band. 0 is off.' },
-  { key: 'band-shade', group: 'Instruments', kind: 'unit', label: 'Gauge band shading', fallback: '0', hint: 'Strength (0-1) of the sunk film at the start of that band. 0 is off.' },
+  {
+    key: 'rim-hi',
+    group: 'Instruments',
+    kind: 'color',
+    label: 'Gauge rim highlight',
+    fallback: 'the border colour',
+    hint: 'Lit edge of a gauge’s outer rim. Set this and the rim is shaded rather than flat.'
+  },
+  {
+    key: 'rim-lo',
+    group: 'Instruments',
+    kind: 'color',
+    label: 'Gauge rim shadow',
+    fallback: 'the border colour',
+    hint: 'The rim’s far edge, where the light falls away.'
+  },
+  {
+    key: 'face-hi',
+    group: 'Instruments',
+    kind: 'color',
+    label: 'Gauge face light',
+    fallback: 'transparent',
+    hint: 'Glow inside a gauge face. Transparent by default, so faces are flat unless a theme lights them.'
+  },
+  {
+    key: 'face-lo',
+    group: 'Instruments',
+    kind: 'color',
+    label: 'Gauge face shadow',
+    fallback: 'transparent',
+    hint: 'The dark end of that glow.'
+  },
+  {
+    key: 'band-light',
+    group: 'Instruments',
+    kind: 'unit',
+    label: 'Gauge band highlight',
+    fallback: '0',
+    hint: 'Strength (0-1) of the bright film at the tip of a solid-arc gauge’s band. 0 is off.'
+  },
+  {
+    key: 'band-shade',
+    group: 'Instruments',
+    kind: 'unit',
+    label: 'Gauge band shading',
+    fallback: '0',
+    hint: 'Strength (0-1) of the sunk film at the start of that band. 0 is off.'
+  }
 ]
 
 export type TokenKey = string

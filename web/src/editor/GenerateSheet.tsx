@@ -9,17 +9,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getSemanticTags } from '../api/tags'
+import { errorText } from '../api/errors'
 import type { Item } from '../api/types'
 import { Sheet } from '../components/Sheet'
 import { navigate } from '../app/router'
-import {
-  buildDashboards,
-  buildPlan,
-  countPlanned,
-  type GeneratePlan,
-  type OutputMode,
-  type PlanWidget,
-} from '../generate/build'
+import { buildDashboards, buildPlan, countPlanned, type GeneratePlan, type OutputMode, type PlanWidget } from '../generate/build'
 import { titleCase } from '../generate/mapping'
 import { buildTagIndex, type TagIndex } from '../generate/semantics'
 import { pickedCluster, surveySources, type Cluster, type SourceKind } from '../generate/sources'
@@ -61,10 +55,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
   // the tag index arrives makes every source report "nothing found" while the catalog is still
   // downloading - a wrong answer rather than a wait, and one that only shows up on a big
   // install: at 130 items the gap is invisible, at 3000 it is on screen long enough to read.
-  const survey = useMemo(
-    () => (index && catalogLoaded ? surveySources(items, index) : null),
-    [items, index, catalogLoaded]
-  )
+  const survey = useMemo(() => (index && catalogLoaded ? surveySources(items, index) : null), [items, index, catalogLoaded])
 
   const clustersFor = (kind: SourceKind): Cluster[] => {
     if (!survey) return []
@@ -102,7 +93,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     const built = buildDashboards(plan, {
       mode: source === 'pick' ? 'single' : mode,
       name: source === 'pick' ? pickName : singleName,
-      existingIds,
+      existingIds
     })
     try {
       for (const dashboard of built) await saveDashboard(dashboard)
@@ -111,7 +102,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
       else navigate({ name: 'home' })
     } catch (err) {
       setBusy(false)
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorText(err))
     }
   }
 
@@ -119,9 +110,14 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     step === 'preview' ? t('Review what will be created') : step === 'source' ? t('Generate dashboards') : t('Choose what to include')
 
   return (
-    <Sheet title={title} onClose={onClose}>
+    // The steps share one scrolling body, so without the reset the review opened at whatever
+    // scroll position the cluster list had been left at - halfway down a list of widgets, with
+    // no sign that there was anything above.
+    <Sheet title={title} onClose={onClose} scrollResetKey={step}>
       {!survey ? (
-        <p className="nh-settings__text">{catalogLoading || !index ? t('Reading your items…') : t('No items could be read from this server.')}</p>
+        <p className="nh-settings__text">
+          {catalogLoading || !index ? t('Reading your items…') : t('No items could be read from this server.')}
+        </p>
       ) : step === 'source' ? (
         <SourceStep survey={survey} onChoose={chooseSource} />
       ) : step === 'pick' ? (
@@ -162,23 +158,10 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
 
 /* ------------------------------------ step 1: source ------------------------------------ */
 
-function SourceStep({
-  survey,
-  onChoose,
-}: {
-  survey: ReturnType<typeof surveySources>
-  onChoose: (kind: SourceKind) => void
-}) {
+function SourceStep({ survey, onChoose }: { survey: ReturnType<typeof surveySources>; onChoose: (kind: SourceKind) => void }) {
   const { t } = useTranslation()
   const card = (kind: SourceKind, name: string, description: string, count: number, empty: string) => (
-    <button
-      key={kind}
-      type="button"
-      className="nh-palette__card"
-      disabled={count === 0}
-      onClick={() => onChoose(kind)}
-      data-source={kind}
-    >
+    <button key={kind} type="button" className="nh-palette__card" disabled={count === 0} onClick={() => onChoose(kind)} data-source={kind}>
       <span className="nh-palette__name">{name}</span>
       <span className="nh-palette__desc">{count === 0 ? empty : description}</span>
     </button>
@@ -233,7 +216,7 @@ function ClusterStep({
   name,
   setName,
   onBack,
-  onNext,
+  onNext
 }: {
   clusters: Cluster[]
   chosen: Set<string>
@@ -286,17 +269,21 @@ function ClusterStep({
         </label>
       </fieldset>
 
+      {/* The placeholder is the name that will actually be used if the field is left empty (see
+          buildDashboards), so it is the first selected group rather than an invented "My home"
+          that reads like a default and is not one. Leaving the field empty is therefore a valid
+          answer, and the button no longer sits disabled with nothing saying why. */}
       {mode === 'single' ? (
         <label className="nh-field" htmlFor="nh-gen-name">
           <span className="nh-field__label">{t('Name')}</span>
-          <input id="nh-gen-name" value={name} placeholder={t('My home')} onChange={(e) => setName(e.target.value)} />
+          <input id="nh-gen-name" value={name} placeholder={selected[0]?.name ?? t('My home')} onChange={(e) => setName(e.target.value)} />
         </label>
       ) : null}
 
       <StepFooter
         onBack={onBack}
         onNext={onNext}
-        disabled={selected.length === 0 || (mode === 'single' && !name.trim())}
+        disabled={selected.length === 0}
         nextLabel={t('Review {{count}} items', { count: selected.reduce((n, c) => n + c.count, 0) })}
       />
     </div>
@@ -314,7 +301,7 @@ function PickStep({
   name,
   setName,
   onBack,
-  onNext,
+  onNext
 }: {
   items: Item[]
   picked: string[]
@@ -328,23 +315,15 @@ function PickStep({
   const [query, setQuery] = useState('')
   const chosen = new Set(picked)
   const q = query.trim().toLowerCase()
-  const matches = items.filter(
-    (i) => !q || i.name.toLowerCase().includes(q) || (i.label ?? '').toLowerCase().includes(q)
-  )
+  const matches = items.filter((i) => !q || i.name.toLowerCase().includes(q) || (i.label ?? '').toLowerCase().includes(q))
   const shown = matches.slice(0, PICK_LIMIT)
-  const toggle = (itemName: string) =>
-    setPicked(chosen.has(itemName) ? picked.filter((n) => n !== itemName) : [...picked, itemName])
+  const toggle = (itemName: string) => setPicked(chosen.has(itemName) ? picked.filter((n) => n !== itemName) : [...picked, itemName])
 
   return (
     <div className="nh-form">
       <label className="nh-field" htmlFor="nh-gen-search">
         <span className="nh-field__label">{t('Search items')}</span>
-        <input
-          id="nh-gen-search"
-          value={query}
-          placeholder={t('Type to filter…')}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <input id="nh-gen-search" value={query} placeholder={t('Type to filter…')} onChange={(e) => setQuery(e.target.value)} />
       </label>
 
       <div className="nh-gen__list">
@@ -369,7 +348,7 @@ function PickStep({
       <StepFooter
         onBack={onBack}
         onNext={onNext}
-        disabled={picked.length === 0 || !name.trim()}
+        disabled={picked.length === 0}
         nextLabel={t('Review {{count}} items', { count: picked.length })}
       />
     </div>
@@ -384,7 +363,7 @@ function PreviewStep({
   busy,
   error,
   onBack,
-  onCreate,
+  onCreate
 }: {
   plan: GeneratePlan
   setPlan: (p: GeneratePlan) => void
@@ -400,8 +379,8 @@ function PreviewStep({
       ...plan,
       clusters: plan.clusters.map((c) => ({
         ...c,
-        sections: c.sections.map((s) => ({ ...s, widgets: s.widgets.map((w) => (w.key === key ? change(w) : w)) })),
-      })),
+        sections: c.sections.map((s) => ({ ...s, widgets: s.widgets.map((w) => (w.key === key ? change(w) : w)) }))
+      }))
     })
 
   const toggleCluster = (id: string) =>
@@ -441,10 +420,9 @@ function PreviewStep({
                         ...w,
                         type: e.target.value,
                         // The note explained the suggestion; a deliberate override supersedes it.
-                        note: e.target.value === w.suggested ? w.note : undefined,
+                        note: e.target.value === w.suggested ? w.note : undefined
                       }))
-                    }
-                  >
+                    }>
                     {widget.choices.map((choice) => (
                       <option key={choice} value={choice}>
                         {t(getWidgetDefinition(choice)?.name ?? choice)}
@@ -464,11 +442,7 @@ function PreviewStep({
         </p>
       ) : null}
 
-      {error ? (
-        <p className="nh-form__error">
-          {t('Could not create: {{error}} - are you signed in as an administrator?', { error })}
-        </p>
-      ) : null}
+      {error ? <p className="nh-form__error">{t('Could not create: {{error}}', { error })}</p> : null}
 
       <StepFooter
         onBack={onBack}
@@ -489,7 +463,7 @@ function StepFooter({
   onBack,
   onNext,
   disabled,
-  nextLabel,
+  nextLabel
 }: {
   onBack: () => void
   onNext: () => void

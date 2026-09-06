@@ -165,9 +165,7 @@ function assign(scope: Scope, name: string, value: unknown): void {
 function evalMember(n: AnyNode, scope: Scope): { object: unknown; value: unknown } {
   const object = evalNode(n.object as jsep.Expression, scope)
   if (object === null || object === undefined) return { object, value: undefined }
-  const key = n.computed
-    ? String(evalNode(n.property as jsep.Expression, scope))
-    : String((n.property as AnyNode).name)
+  const key = n.computed ? String(evalNode(n.property as jsep.Expression, scope)) : String((n.property as AnyNode).name)
   if (FORBIDDEN_PROPS.has(key)) return { object, value: undefined }
   return { object, value: (object as Record<string, unknown>)[key] }
 }

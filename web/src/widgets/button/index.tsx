@@ -48,12 +48,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
 
   return (
     <WidgetFrame center>
-      <button
-        type="button"
-        className={'nh-button' + (active ? ' nh-button--active' : '')}
-        aria-label={config.label}
-        onClick={press}
-      >
+      <button type="button" className={'nh-button' + (active ? ' nh-button--active' : '')} aria-label={config.label} onClick={press}>
         {media ? (
           <img className="nh-button__media" src={media} alt="" />
         ) : icon ? (
@@ -73,12 +68,12 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   type: 'button',
   name: 'Button',
   description: 'Send a command or navigate',
-  defaultSize: { w: 3, h: 2 },
+  defaultSize: { w: 2, h: 2 },
   defaultConfig: () => ({ label: 'Button', command: 'ON', commandAlt: 'OFF', toggle: false, action: 'command', iconSize: 32 }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'caption', type: 'text', label: 'Caption' },
-    { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…' },
+    { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…', subresource: true },
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)' },
@@ -88,8 +83,8 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
       label: 'Action',
       options: [
         { value: 'command', label: 'Send command' },
-        { value: 'navigate', label: 'Navigate (neohab)' },
-      ],
+        { value: 'navigate', label: 'Navigate (neohab)' }
+      ]
     },
     // Item/Command/Toggle stay visible in navigate mode: they still decide the active icon,
     // so a navigation button can light up with the state of what it navigates to. Only the
@@ -99,7 +94,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     { key: 'commandAlt', type: 'text', label: 'Alternate command', showIf: isCommand },
     { key: 'toggle', type: 'boolean', label: 'Toggle with state' },
     { key: 'navigateDashboard', type: 'dashboard', label: 'Go to dashboard', showIf: isNavigate },
-    { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate },
+    { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate, subresource: false }
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),
   // In navigate mode the item only lights the tile up; nothing is ever sent to it.
@@ -116,5 +111,5 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     // The command IS the label here - it is the author's own text, so it is never translated.
     return commands.length ? { kind: 'choices', choices: commands.map((command) => ({ command, label: command })) } : undefined
   },
-  Component: ButtonWidget,
+  Component: ButtonWidget
 }

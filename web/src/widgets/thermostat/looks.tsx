@@ -70,7 +70,7 @@ const GLYPHS: Record<'flame' | 'snow' | 'fan' | 'fanAuto' | 'thermometer' | 'lea
     'M12.5 2C8.93 2 8.14 5.96 10.13 9.65C9.72 9.97 9.4 10.39 9.21 10.87C8.28 10.68 7.23 10.25 6.73 9.26C5.56 6.89 2 7 2 11.5C2 15.07 5.95 15.85 9.64 13.87C9.96 14.27 10.39 14.59 10.88 14.79C10.68 15.71 10.24 16.75 9.26 17.24C6.9 18.42 7 22 11.5 22C12.31 22 13 21.78 13.5 21.41C13.19 20.67 13 19.86 13 19C13 17.59 13.5 16.3 14.3 15.28C14.17 14.97 14.03 14.65 13.86 14.34C14.26 14 14.57 13.59 14.77 13.11C15.26 13.21 15.78 13.39 16.25 13.67C17.07 13.25 18 13 19 13C20.05 13 21.03 13.27 21.89 13.74C21.95 13.37 22 12.96 22 12.5C22 8.92 18.03 8.13 14.33 10.13C14 9.73 13.59 9.42 13.11 9.22C13.3 8.29 13.74 7.24 14.73 6.75C17.09 5.57 17 2 12.5 2M12 11C12.54 11 13 11.45 13 12C13 12.55 12.54 13 12 13C11.43 13 11 12.55 11 12C11 11.45 11.43 11 12 11M18 15C16.89 15 16 15.9 16 17V23H18V21H20V23H22V17C22 15.9 21.1 15 20 15M18 17H20V19H18Z',
   thermometer: 'M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z',
   leaf: 'M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z',
-  aux: 'M7.95,3L6.53,5.19L7.95,7.4H7.94L5.95,10.5L4.22,9.6L5.64,7.39L4.22,5.19L6.22,2.09L7.95,3M13.95,2.89L12.53,5.1L13.95,7.3L13.94,7.31L11.95,10.4L10.22,9.5L11.64,7.3L10.22,5.1L12.22,2L13.95,2.89M20,2.89L18.56,5.1L20,7.3V7.31L18,10.4L16.25,9.5L17.67,7.3L16.25,5.1L18.25,2L20,2.89M2,22V14A2,2 0 0,1 4,12H20A2,2 0 0,1 22,14V22H20V20H4V22H2M6,14A1,1 0 0,0 5,15V17A1,1 0 0,0 6,18A1,1 0 0,0 7,17V15A1,1 0 0,0 6,14M10,14A1,1 0 0,0 9,15V17A1,1 0 0,0 10,18A1,1 0 0,0 11,17V15A1,1 0 0,0 10,14M14,14A1,1 0 0,0 13,15V17A1,1 0 0,0 14,18A1,1 0 0,0 15,17V15A1,1 0 0,0 14,14M18,14A1,1 0 0,0 17,15V17A1,1 0 0,0 18,18A1,1 0 0,0 19,17V15A1,1 0 0,0 18,14Z',
+  aux: 'M7.95,3L6.53,5.19L7.95,7.4H7.94L5.95,10.5L4.22,9.6L5.64,7.39L4.22,5.19L6.22,2.09L7.95,3M13.95,2.89L12.53,5.1L13.95,7.3L13.94,7.31L11.95,10.4L10.22,9.5L11.64,7.3L10.22,5.1L12.22,2L13.95,2.89M20,2.89L18.56,5.1L20,7.3V7.31L18,10.4L16.25,9.5L17.67,7.3L16.25,5.1L18.25,2L20,2.89M2,22V14A2,2 0 0,1 4,12H20A2,2 0 0,1 22,14V22H20V20H4V22H2M6,14A1,1 0 0,0 5,15V17A1,1 0 0,0 6,18A1,1 0 0,0 7,17V15A1,1 0 0,0 6,14M10,14A1,1 0 0,0 9,15V17A1,1 0 0,0 10,18A1,1 0 0,0 11,17V15A1,1 0 0,0 10,14M14,14A1,1 0 0,0 13,15V17A1,1 0 0,0 14,18A1,1 0 0,0 15,17V15A1,1 0 0,0 14,14M18,14A1,1 0 0,0 17,15V17A1,1 0 0,0 18,18A1,1 0 0,0 19,17V15A1,1 0 0,0 18,14Z'
 }
 
 export type GlyphName = keyof typeof GLYPHS
@@ -121,14 +121,16 @@ function StepButton({ view, dir, className }: { view: ThermoView; dir: 1 | -1; c
     <button
       type="button"
       className={
-        'nh-thermo__btn nh-thermo__btn--' + (dir > 0 ? 'up' : 'down') + (off ? ' nh-thermo__btn--off' : '') + (className ? ' ' + className : '')
+        'nh-thermo__btn nh-thermo__btn--' +
+        (dir > 0 ? 'up' : 'down') +
+        (off ? ' nh-thermo__btn--off' : '') +
+        (className ? ' ' + className : '')
       }
       aria-label={dir > 0 ? view.labels.up : view.labels.down}
       aria-disabled={off || undefined}
       onClick={() => {
         if (!off) view.onStep(dir)
-      }}
-    >
+      }}>
       <svg className="nh-thermo__sign" viewBox="0 0 24 24" aria-hidden="true">
         <path d={dir > 0 ? 'M12 5v14M5 12h14' : 'M5 12h14'} />
       </svg>
@@ -142,7 +144,7 @@ function ringProps(ring: RingHandlers) {
     onPointerDown: ring.onPointerDown,
     onPointerMove: ring.onPointerMove,
     onPointerUp: ring.onPointerUp,
-    onPointerCancel: ring.onPointerCancel,
+    onPointerCancel: ring.onPointerCancel
   }
 }
 
@@ -190,7 +192,10 @@ export function ArcLook({ view }: { view: ThermoView }) {
   const cur = view.currentFraction === undefined ? null : polar(50, 50, R, angleFor(view.currentFraction, arc))
   return (
     <div className="nh-thermo__sq">
-      <svg className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')} viewBox="0 0 100 100" {...ringProps(view.ring)}>
+      <svg
+        className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')}
+        viewBox="0 0 100 100"
+        {...ringProps(view.ring)}>
         <path className="nh-thermo__track" d={arcPath(50, 50, R, arc.start, end)} />
         {view.setpoint.known ? (
           <path className="nh-thermo__fill" d={arcPath(50, 50, R, arc.start, Math.max(arc.start + 0.01, spAngle))} />
@@ -232,7 +237,10 @@ export function DialLook({ view }: { view: ThermoView }) {
   const glyph = activityGlyph(view.activity, view.mode)
   return (
     <div className="nh-thermo__sq">
-      <svg className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')} viewBox="0 0 100 100" {...ringProps(view.ring)}>
+      <svg
+        className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')}
+        viewBox="0 0 100 100"
+        {...ringProps(view.ring)}>
         <circle className="nh-thermo__disc" cx="50" cy="50" r="48" />
         {ticksOf(121, arc).map((a, i) => (
           <Tick
@@ -245,7 +253,13 @@ export function DialLook({ view }: { view: ThermoView }) {
           />
         ))}
         {view.setpoint.known ? (
-          <Tick angle={spAngle} from={33} to={44.5} className="nh-thermo__tick nh-thermo__tick--sp" color={view.ramped ? rampColor(view.fraction) : undefined} />
+          <Tick
+            angle={spAngle}
+            from={33}
+            to={44.5}
+            className="nh-thermo__tick nh-thermo__tick--sp"
+            color={view.ramped ? rampColor(view.fraction) : undefined}
+          />
         ) : null}
         {curAngle !== undefined ? (
           <>
@@ -283,7 +297,10 @@ export function DiscLook({ view }: { view: ThermoView }) {
   const glyph = view.mode === 'heat' ? 'flame' : view.mode === 'cool' ? 'snow' : activityGlyph(view.activity, view.mode)
   return (
     <div className="nh-thermo__sq">
-      <svg className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')} viewBox="0 0 100 100" {...ringProps(view.ring)}>
+      <svg
+        className={'nh-thermo__svg' + (view.ring.dragging ? ' nh-thermo__svg--drag' : '')}
+        viewBox="0 0 100 100"
+        {...ringProps(view.ring)}>
         <circle className="nh-thermo__disc" cx="50" cy="50" r="48" />
         {ticksOf(141, arc).map((a, i) => (
           <Tick
@@ -297,7 +314,13 @@ export function DiscLook({ view }: { view: ThermoView }) {
         ))}
         {view.setpoint.known ? (
           <>
-            <Tick angle={spAngle} from={36.5} to={47} className="nh-thermo__tick nh-thermo__tick--sp" color={view.ramped ? rampColor(view.fraction) : undefined} />
+            <Tick
+              angle={spAngle}
+              from={36.5}
+              to={47}
+              className="nh-thermo__tick nh-thermo__tick--sp"
+              color={view.ramped ? rampColor(view.fraction) : undefined}
+            />
             <Mark angle={spAngle} r={32.5} parts={view.setpoint.parts} className="nh-thermo__mark--sp" />
           </>
         ) : null}

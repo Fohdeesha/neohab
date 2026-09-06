@@ -16,8 +16,8 @@
  * SAFE with a live config: creates only dashboard:nh-e2e-camera / -camtall and deletes exactly
  * those uids in cleanup (guarded). NO item commands anywhere.
  */
-import { chromium } from 'playwright-core'
-import { APP, NS, TOKEN, AUTH, CAMERA, isAppResource } from './lib/target.mjs'
+import { launchChromium } from './lib/browser.mjs'
+import { APP, NS, TOKEN, AUTH, CAMERA, UNREACHABLE, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-camera'
 const UID_TALL = 'dashboard:nh-e2e-camtall'
@@ -29,9 +29,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 const browser = await launch()
 const context = await browser.newContext({ viewport: { width: 1400, height: 950 } })
@@ -55,7 +55,7 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 const camConfig = (over = {}) => ({
-  label: 'Cam', source: CAMERA?.kind ?? 'go2rtc', server: CAMERA?.server ?? 'http://camera.invalid:1984',
+  label: 'Cam', source: CAMERA?.kind ?? 'go2rtc', server: CAMERA?.server ?? UNREACHABLE + 'camera.invalid:1984',
   stream: CAMERA?.stream ?? 'nope', tapAction: 'none', offscreen: 'keep', ...over,
 })
 
@@ -254,7 +254,7 @@ try {
   // ---------- 4. a transport that cannot work ends the chain (no infinite retry) ----------
   // Counts how many times a <video> is inserted: a demoted transport is tried once, whereas the
   // pre-fix build restarted the whole chain every few seconds forever.
-  const badUrl = (CAMERA?.server ?? 'http://camera.invalid:1984') + '/api/stream.m3u8?src=definitely-not-a-stream'
+  const badUrl = (CAMERA?.server ?? UNREACHABLE + 'camera.invalid:1984') + '/api/stream.m3u8?src=definitely-not-a-stream'
   ok('seed dead stream', await seed([cell({ label: 'Dead', source: 'url', url: badUrl, transport: 'hls', tapAction: 'none', offscreen: 'keep' })]))
   await page.goto('about:blank')
   await page.addInitScript(() => {
@@ -432,7 +432,13 @@ try {
     return { name: true, text: n.textContent, badge: !!b, overlap: !!overlap }
   })
   ok('edit mode: the overlaid name previews', editPreview.name && editPreview.text === 'Front Door', JSON.stringify(editPreview))
-  ok('edit mode: the transport badge does not cover it', editPreview.badge && !editPreview.overlap, JSON.stringify(editPreview))
+  // The badge names the transport in use, so it is only drawn while a camera is genuinely
+  // playing - which needs a real one. Same precondition as this suite's other live sections.
+  if (CAMERA) {
+    ok('edit mode: the transport badge does not cover it', editPreview.badge && !editPreview.overlap, JSON.stringify(editPreview))
+  } else {
+    skip('edit mode: the transport badge does not cover it', 'no "camera" in target configuration')
+  }
   await page.click('button:has-text("Exit")')
   await sleep(600)
 
@@ -503,7 +509,7 @@ try {
   // discovery against an address that cannot answer explains itself rather than failing silently
   await page.fill('.nh-camerafield input', '')
   // TEST-NET-1, unroutable; port 1984 rather than a low one Chromium refuses outright
-  await labelled('Server address').locator('input').first().fill('http://192.0.2.1:1984')
+  await labelled('Server address').locator('input').first().fill(UNREACHABLE + '192.0.2.1:1984')
   await page.click('.nh-camerafield__find')
   await page.waitForSelector('.nh-camerafield ~ .nh-field__hint, .nh-field__hint', { timeout: 12000 })
   await sleep(7000)

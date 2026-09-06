@@ -22,22 +22,43 @@ import { evaluate, type Scope } from './evaluator'
 import { FILTERS, splitTopLevel } from './filters'
 
 const DIRECTIVE_ATTRS = [
-  'x-if', 'ng-if',
-  'x-for', 'ng-repeat',
-  'x-class', 'ng-class',
-  'x-style', 'ng-style',
-  'x-on:tap', 'ng-click',
-  'x-init', 'ng-init',
-  'ng-show', 'ng-hide', 'ng-bind', 'ng-src', 'ng-href',
+  'x-if',
+  'ng-if',
+  'x-for',
+  'ng-repeat',
+  'x-class',
+  'ng-class',
+  'x-style',
+  'ng-style',
+  'x-on:tap',
+  'ng-click',
+  'x-init',
+  'ng-init',
+  'ng-show',
+  'ng-hide',
+  'ng-bind',
+  'ng-src',
+  'ng-href'
 ]
 
 const SANITIZE_CONFIG = {
   ADD_TAGS: ['iframe', 'link', 'style', 'widget-icon'],
   ADD_ATTR: [
     ...DIRECTIVE_ATTRS,
-    'target', 'frameborder', 'allowfullscreen', 'allow', 'scrolling',
-    'iconset', 'icon', 'state', 'size', 'rel', 'media', 'align', 'valign',
-  ],
+    'target',
+    'frameborder',
+    'allowfullscreen',
+    'allow',
+    'scrolling',
+    'iconset',
+    'icon',
+    'state',
+    'size',
+    'rel',
+    'media',
+    'align',
+    'valign'
+  ]
 }
 
 const compileCache = new Map<string, HTMLTemplateElement>()
@@ -270,7 +291,10 @@ function applyStyle(el: HTMLElement, value: unknown): void {
   if (!value || typeof value !== 'object') return
   for (const [prop, v] of Object.entries(value)) {
     if (v === null || v === undefined || v === '') continue
-    el.style.setProperty(prop.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()), String(v))
+    el.style.setProperty(
+      prop.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()),
+      String(v)
+    )
   }
 }
 

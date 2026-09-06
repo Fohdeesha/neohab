@@ -93,7 +93,7 @@ describe('referenceValue', () => {
     const rows = [
       { time: 100, value: NaN },
       { time: 150, value: 5 },
-      { time: 400, value: 9 },
+      { time: 400, value: 9 }
     ]
     expect(referenceValue(rows, 200)).toBe(5)
   })

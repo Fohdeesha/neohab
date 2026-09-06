@@ -17,6 +17,7 @@ import { commandKind, type Preset } from '../../model/presets'
 import { hsbToCss, parseHsb } from '../../model/color'
 import { PresetEdit } from './PresetEdit'
 import type { FloorplanLight } from './model'
+import { errorText } from '../../api/errors'
 
 /** Enough of a preview to tell two scenes apart at a glance, without becoming a row of confetti. */
 const MAX_DOTS = 8
@@ -38,7 +39,7 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
       await work
       return true
     } catch (err) {
-      setError(t('Saving failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      setError(t('Saving failed: {{error}}', { error: errorText(err) }))
       return false
     } finally {
       setBusy(false)
@@ -99,8 +100,7 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
                       onClick={() => {
                         setConfirming(null)
                         setEditing(s.uid)
-                      }}
-                    >
+                      }}>
                       {t('Edit')}
                     </button>
                   ) : null}
@@ -111,8 +111,7 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
                           type="button"
                           className="nh-btn nh-btn--danger"
                           disabled={busy}
-                          onClick={() => void run(deletePreset(s.uid)).then(() => setConfirming(null))}
-                        >
+                          onClick={() => void run(deletePreset(s.uid)).then(() => setConfirming(null))}>
                           {t('Really delete')}
                         </button>
                         <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setConfirming(null)}>
@@ -120,11 +119,7 @@ export function PresetManageDialog({ lights, onClose }: { lights: FloorplanLight
                         </button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        className="nh-btn nh-btn--danger"
-                        onClick={() => setConfirming(s.uid)}
-                      >
+                      <button type="button" className="nh-btn nh-btn--danger" onClick={() => setConfirming(s.uid)}>
                         {t('Delete')}
                       </button>
                     )

@@ -16,17 +16,16 @@ import {
   referencedUids,
   resolvePartialImport,
   validatePartialBundle,
-  type PartialBundle,
+  type PartialBundle
 } from './partial'
 
 const c = (uid: string, config: Record<string, unknown>, component = 'neohab:dashboard'): UIComponent =>
-  ({ uid, component, config } as UIComponent)
+  ({ uid, component, config }) as UIComponent
 
 const dashboard = (id: string, widgets: unknown[] = [], extra: Record<string, unknown> = {}) =>
   c(`dashboard:${id}`, { version: 1, id, name: id, columns: 12, rowHeight: 'match', widgets, ...extra })
 
-const widgetdef = (id: string, template = '<p>hi</p>') =>
-  c(`widgetdef:${id}`, { version: 1, id, name: id, template }, 'neohab:widgetdef')
+const widgetdef = (id: string, template = '<p>hi</p>') => c(`widgetdef:${id}`, { version: 1, id, name: id, template }, 'neohab:widgetdef')
 
 const icon = (id: string) => c(`icon:${id}`, { version: 1, id, name: id, dataUri: 'data:,x' }, 'neohab:icon')
 
@@ -35,13 +34,15 @@ const newId = () => `w-test${++seq}`
 
 describe('reference collection', () => {
   it('finds widget definitions, icons and backgrounds wherever they appear', () => {
-    const d = dashboard('kitchen', [
-      { id: 'w1', type: 'template', config: { customwidget: 'gauge' } },
-      { id: 'w2', type: 'button', config: { icon: 'custom:bulb', stateIcons: [{ state: 'ON', icon: 'custom:lit' }] } },
-    ], { background: 'bg:hall' })
-    expect(referencedUids(d)).toEqual(
-      new Set(['widgetdef:gauge', 'icon:bulb', 'icon:lit', 'background:hall'])
+    const d = dashboard(
+      'kitchen',
+      [
+        { id: 'w1', type: 'template', config: { customwidget: 'gauge' } },
+        { id: 'w2', type: 'button', config: { icon: 'custom:bulb', stateIcons: [{ state: 'ON', icon: 'custom:lit' }] } }
+      ],
+      { background: 'bg:hall' }
     )
+    expect(referencedUids(d)).toEqual(new Set(['widgetdef:gauge', 'icon:bulb', 'icon:lit', 'background:hall']))
   })
 
   it('ignores bundled icon references, which are not components', () => {
@@ -51,7 +52,11 @@ describe('reference collection', () => {
 
   it('follows dependencies transitively and reports the ones that are missing', () => {
     const primary = dashboard('kitchen', [{ id: 'w', type: 'template', config: { customwidget: 'gauge' } }])
-    const def = c('widgetdef:gauge', { version: 1, id: 'gauge', name: 'g', template: '<i></i>', settings: [{ id: 'a', default: 'custom:dial' }] }, 'neohab:widgetdef')
+    const def = c(
+      'widgetdef:gauge',
+      { version: 1, id: 'gauge', name: 'g', template: '<i></i>', settings: [{ id: 'a', default: 'custom:dial' }] },
+      'neohab:widgetdef'
+    )
     const { components, missing } = collectDependencies(primary, [primary, def])
     expect(components.map((x) => x.uid)).toEqual(['widgetdef:gauge'])
     expect(missing).toEqual(['icon:dial'])
@@ -65,10 +70,10 @@ describe('validation', () => {
       formatVersion: PARTIAL_FORMAT_VERSION,
       exportedAt: 'now',
       kind: 'dashboard',
-      primary: 'dashboard:k',
+      primary: 'dashboard:k'
     },
     components: [dashboard('k')],
-    ...over,
+    ...over
   })
 
   it('accepts a file this version wrote', () => {
@@ -84,7 +89,7 @@ describe('validation', () => {
 
   it('refuses a file whose kind and primary disagree', () => {
     const bad = bundle({
-      manifest: { app: 'neohab', formatVersion: PARTIAL_FORMAT_VERSION, exportedAt: 'n', kind: 'theme', primary: 'dashboard:k' },
+      manifest: { app: 'neohab', formatVersion: PARTIAL_FORMAT_VERSION, exportedAt: 'n', kind: 'theme', primary: 'dashboard:k' }
     }) as PartialBundle
     expect(validatePartialBundle(bad)).toMatch(/but describes/)
   })
@@ -118,7 +123,7 @@ describe('import planning', () => {
     const existing = [dashboard('k'), widgetdef('gauge')]
     const incoming: PartialBundle = {
       manifest: { app: 'neohab', formatVersion: 2, exportedAt: 'n', kind: 'dashboard', primary: 'dashboard:k' },
-      components: [dashboard('k', [{ id: 'w', type: 'label', config: {} }]), widgetdef('gauge'), icon('bulb')],
+      components: [dashboard('k', [{ id: 'w', type: 'label', config: {} }]), widgetdef('gauge'), icon('bulb')]
     }
     const plan = planPartialImport(incoming, existing)
     expect(plan.primary.status).toBe('conflict')
@@ -130,7 +135,7 @@ describe('import planning', () => {
 describe('import resolution', () => {
   const bundleOf = (components: UIComponent[], primary: string): PartialBundle => ({
     manifest: { app: 'neohab', formatVersion: 2, exportedAt: 'n', kind: 'dashboard', primary },
-    components,
+    components
   })
 
   it('copy mode touches nothing that is already there', () => {
@@ -162,7 +167,10 @@ describe('import resolution', () => {
       { version: 1, id: 'gauge', name: 'gauge', template: '<p>hi</p>', settings: [{ id: 's', default: 'custom:bulb' }] },
       'neohab:widgetdef'
     )
-    const incoming = bundleOf([dashboard('fresh', [{ id: 'w', type: 'template', config: { customwidget: 'gauge' } }]), defWithIcon, icon('bulb')], 'dashboard:fresh')
+    const incoming = bundleOf(
+      [dashboard('fresh', [{ id: 'w', type: 'template', config: { customwidget: 'gauge' } }]), defWithIcon, icon('bulb')],
+      'dashboard:fresh'
+    )
     const out = resolvePartialImport(incoming, existing, 'copy', newId)
     const renamed = Object.fromEntries(out.renamed)
     expect(renamed['icon:bulb']).toBe('icon:bulb-2')
@@ -173,7 +181,16 @@ describe('import resolution', () => {
 
   it('gives a copied dashboard fresh widget ids, and keeps its stack order pointing at them', () => {
     const incoming = bundleOf(
-      [dashboard('k', [{ id: 'w1', type: 'label', config: {} }, { id: 'w2', type: 'clock', config: {} }], { stackOrder: ['w2', 'w1'] })],
+      [
+        dashboard(
+          'k',
+          [
+            { id: 'w1', type: 'label', config: {} },
+            { id: 'w2', type: 'clock', config: {} }
+          ],
+          { stackOrder: ['w2', 'w1'] }
+        )
+      ],
       'dashboard:k'
     )
     const out = resolvePartialImport(incoming, [dashboard('k')], 'copy', newId)
@@ -196,7 +213,11 @@ describe('import resolution', () => {
 
 describe('building a bundle', () => {
   it('carries the primary first, then its dependencies', () => {
-    const all = [dashboard('k', [{ id: 'w', type: 'template', config: { customwidget: 'gauge', icon: 'custom:bulb' } }]), widgetdef('gauge'), icon('bulb')]
+    const all = [
+      dashboard('k', [{ id: 'w', type: 'template', config: { customwidget: 'gauge', icon: 'custom:bulb' } }]),
+      widgetdef('gauge'),
+      icon('bulb')
+    ]
     const out = buildPartialBundle('dashboard', 'k', all, 'now')!
     expect(out.bundle.components.map((x) => x.uid)).toEqual(['dashboard:k', 'widgetdef:gauge', 'icon:bulb'])
     expect(out.missing).toEqual([])

@@ -198,10 +198,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
   // theme changes propagate without reloading the frame
   useEffect(() => {
     if (!allow) return
-    iframeRef.current?.contentWindow?.postMessage(
-      { neohab: true, type: 'theme', theme: activeTheme.tokens },
-      '*'
-    )
+    iframeRef.current?.contentWindow?.postMessage({ neohab: true, type: 'theme', theme: activeTheme.tokens }, '*')
   }, [allow, activeTheme])
 
   if (!allow) {
@@ -211,7 +208,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
           <span className="nh-template__badge">javascript</span>
           <span className="nh-template__text">
             {i18n.t('“{{name}}” is a JavaScript widget. An administrator has disabled these in Settings.', {
-              name: def.name,
+              name: def.name
             })}
           </span>
         </div>

@@ -39,7 +39,7 @@ const STYLE_LOOKS: Record<Exclude<SliderStyle, 'plain'>, ComponentType<{ view: F
   gradient: TrackLook,
   taper: TrackLook,
   bubble: BubbleLook,
-  inset: InsetLook,
+  inset: InsetLook
 }
 
 function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
@@ -119,8 +119,7 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
           // colours it was drawn in stand.
           (tintedOf(config.accentColor) ? ' nh-fader--tinted' : '')
         }
-        style={{ '--fd-f': String(view.fraction) } as CSSProperties}
-      >
+        style={{ '--fd-f': String(view.fraction) } as CSSProperties}>
         <Look view={view} />
       </div>
     </WidgetFrame>
@@ -151,9 +150,9 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
         { value: 'taper', label: 'Wedge' },
         { value: 'inset', label: 'Inset rail' },
         { value: 'bubble', label: 'Bubble' },
-        { value: 'plain', label: 'Plain' },
+        { value: 'plain', label: 'Plain' }
       ],
-      hint: "Plain follows the theme. The others keep their own look in any theme, in the tile's accent colour where one is set.",
+      hint: "Plain follows the theme. The others keep their own look in any theme, in the tile's accent color where one is set."
     },
     {
       key: 'orient',
@@ -161,18 +160,18 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
       label: 'Orientation',
       options: [
         { value: 'horizontal', label: 'Horizontal' },
-        { value: 'vertical', label: 'Vertical' },
-      ],
+        { value: 'vertical', label: 'Vertical' }
+      ]
     },
     { key: 'min', type: 'number', label: 'Minimum' },
     { key: 'max', type: 'number', label: 'Maximum' },
     { key: 'step', type: 'number', label: 'Step' },
-    { key: 'unit', type: 'text', label: 'Unit suffix' },
+    { key: 'unit', type: 'text', label: 'Unit suffix' }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
   // The reported bug: a popup that offered 0-100 for a slider set to 2000-6500 K, and commanded
   // whatever that track landed on. It is this widget's scale, wherever the control is drawn.
   controlFor: (c, item) => (item === c.item ? rangeControl(numericScale(c.min, c.max, c.step), c.unit) : undefined),
-  Component: SliderWidget,
+  Component: SliderWidget
 }

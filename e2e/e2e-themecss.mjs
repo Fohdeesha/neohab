@@ -23,7 +23,7 @@
  * VERBATIM. Commands NOTHING: the dial is read-only, the slider is never touched, and every
  * button is only ever read for its computed style.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings as readSettings, restoreSettings } from './lib/components.mjs'
 
@@ -41,9 +41,9 @@ const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json())
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // Chromium serialises a color-mix() result as color(srgb r g b) in 0..1; everything else as

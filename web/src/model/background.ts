@@ -20,10 +20,7 @@ export function isUploadedBackground(ref: string): boolean {
 }
 
 /** Resolve a background reference to something usable in CSS url(), or undefined. */
-export function resolveBackgroundRef(
-  ref: string | undefined,
-  uploads: CustomBackground[]
-): string | undefined {
+export function resolveBackgroundRef(ref: string | undefined, uploads: CustomBackground[]): string | undefined {
   if (!ref) return undefined
   if (isUploadedBackground(ref)) {
     return uploads.find((b) => b.id === ref.slice(BG_REF_PREFIX.length))?.dataUri

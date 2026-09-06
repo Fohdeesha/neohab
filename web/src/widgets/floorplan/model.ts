@@ -78,7 +78,7 @@ export function lightsOf(config: FloorplanConfig): FloorplanLight[] {
       y: clamp(num(l.y) ?? 50, 0, 100),
       label: typeof l.label === 'string' && l.label !== '' ? l.label : undefined,
       size: size === undefined ? undefined : clamp(size, 4, 80),
-      glowDir: dir === 'all' ? undefined : dir,
+      glowDir: dir === 'all' ? undefined : dir
     })
   }
   return lights
@@ -162,7 +162,7 @@ const GLOW_DIRECTIONS: Record<GlowDirection, { at: string; wide: number; tall: n
   up: { at: '50% 100%', wide: 1, tall: 0.5, transform: 'translate(-50%, -100%)' },
   down: { at: '50% 0%', wide: 1, tall: 0.5, transform: 'translate(-50%, 0)' },
   left: { at: '100% 50%', wide: 0.5, tall: 1, transform: 'translate(-100%, -50%)' },
-  right: { at: '0% 50%', wide: 0.5, tall: 1, transform: 'translate(0, -50%)' },
+  right: { at: '0% 50%', wide: 0.5, tall: 1, transform: 'translate(0, -50%)' }
 }
 
 /** A stored glow direction, or all directions for anything else. */
@@ -181,7 +181,7 @@ export const GLOW_DIRECTION_OPTIONS: { value: GlowDirection; label: string }[] =
   { value: 'up', label: '↑ Up' },
   { value: 'down', label: '↓ Down' },
   { value: 'left', label: '← Left' },
-  { value: 'right', label: '→ Right' },
+  { value: 'right', label: '→ Right' }
 ]
 
 export interface GlowGeometry {

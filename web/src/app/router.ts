@@ -1,6 +1,7 @@
 /**
- * Minimal hash router. Routes: `#/` (home), `#/d/:id` (dashboard), `#/settings`, and
- * `#/c/:dashboardId/:widgetId` (one chart, full screen, with calendar navigation).
+ * Minimal hash router. Routes: `#/` (home), `#/d/:id` (dashboard), `#/settings`,
+ * `#/c/:dashboardId/:widgetId` (one chart, full screen, with calendar navigation) and
+ * `#/log/:dashboardId/:widgetId` (one log widget, full screen).
  */
 import { useSyncExternalStore } from 'react'
 
@@ -9,6 +10,7 @@ export type Route =
   | { name: 'dashboard'; id: string }
   | { name: 'settings' }
   | { name: 'chart'; dashboard: string; widget: string }
+  | { name: 'log'; dashboard: string; widget: string }
 
 /**
  * One path segment as the app meant it, or the raw segment when it cannot be decoded.
@@ -39,6 +41,10 @@ export function parseHash(hash: string): Route {
   if (chart) {
     return { name: 'chart', dashboard: decodeSegment(chart[1]), widget: decodeSegment(chart[2]) }
   }
+  const log = /^\/log\/([^/]+)\/(.+)$/.exec(path)
+  if (log) {
+    return { name: 'log', dashboard: decodeSegment(log[1]), widget: decodeSegment(log[2]) }
+  }
   const m = /^\/d\/(.+)$/.exec(path)
   if (m) return { name: 'dashboard', id: decodeSegment(m[1]) }
   return { name: 'home' }
@@ -66,5 +72,7 @@ export function navigate(route: Route): void {
         ? '/settings'
         : route.name === 'chart'
           ? '/c/' + encodeURIComponent(route.dashboard) + '/' + encodeURIComponent(route.widget)
-          : '/'
+          : route.name === 'log'
+            ? '/log/' + encodeURIComponent(route.dashboard) + '/' + encodeURIComponent(route.widget)
+            : '/'
 }

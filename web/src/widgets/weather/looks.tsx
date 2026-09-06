@@ -50,7 +50,14 @@ interface StripCol {
 }
 
 export const hourCol = (h: HourColumn): StripCol => ({ key: h.key, label: h.label, icon: h.icon, main: h.temp, prob: h.precipProb })
-export const dayCol = (d: DayColumn): StripCol => ({ key: d.key, label: d.label, icon: d.icon, main: d.high, sub: d.low, prob: d.precipProb })
+export const dayCol = (d: DayColumn): StripCol => ({
+  key: d.key,
+  label: d.label,
+  icon: d.icon,
+  main: d.high,
+  sub: d.low,
+  prob: d.precipProb
+})
 
 /**
  * A row of forecast columns. Exported because the detail sheet lays the same columns out its own
@@ -62,7 +69,7 @@ export function Strip({
   iconStyle,
   days,
   className,
-  iconSize = 30,
+  iconSize = 30
 }: {
   cols: StripCol[]
   iconStyle: unknown
@@ -72,11 +79,7 @@ export function Strip({
 }) {
   const anyProb = cols.some((c) => c.prob !== undefined)
   return (
-    <div
-      className={
-        'nh-weather__strip' + (days ? ' nh-weather__strip--days' : '') + (className ? ' ' + className : '')
-      }
-    >
+    <div className={'nh-weather__strip' + (days ? ' nh-weather__strip--days' : '') + (className ? ' ' + className : '')}>
       {cols.map((c) => (
         <div key={c.key} className="nh-weather__col">
           <span className="nh-weather__collabel">{c.label}</span>

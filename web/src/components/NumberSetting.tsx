@@ -56,7 +56,7 @@ export function NumberSetting({
   hint,
   mode = 'blur',
   onCommit,
-  onClear,
+  onClear
 }: {
   id: string
   /** Plain text, or the caller's own markup where the surrounding form expects it. */

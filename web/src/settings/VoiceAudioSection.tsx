@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  saveSettings,
-  useConfigStore
-} from '../store/config'
+import { saveSettings, useConfigStore } from '../store/config'
 import { setAudioSettings, useAudioStore } from '../store/audio'
 import { listVoices, onVoicesChanged, recognitionSupported, speak, ttsSupported } from '../audio/speech'
 import { ItemPicker } from '../components/ItemPicker'
@@ -29,13 +26,13 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
   const setSpeechItem = async (name: string) => {
     onNotice(null)
     const err = await saveSettings({ speechItem: name || undefined })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
   const setVoiceButton = async (on: boolean) => {
     onNotice(null)
     const err = await saveSettings({ voiceButton: on ? undefined : false })
-    if (err) onNotice(t('Applied on this device, but saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
   return (
@@ -67,18 +64,12 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
           onChange={(e) => setAudioSettings({ speak: e.target.checked ? undefined : false })}
         />
       </label>
-      {!ttsSupported() ? (
-        <p className="nh-settings__text">{t('This browser has no speech synthesis.')}</p>
-      ) : null}
+      {!ttsSupported() ? <p className="nh-settings__text">{t('This browser has no speech synthesis.')}</p> : null}
       {ttsSupported() && speakOn ? (
         <>
           <label className="nh-field" htmlFor="nh-set-voice">
             <span className="nh-field__label">{t('Voice on this device')}</span>
-            <select
-              id="nh-set-voice"
-              value={audio.voice ?? ''}
-              onChange={(e) => setAudioSettings({ voice: e.target.value || undefined })}
-            >
+            <select id="nh-set-voice" value={audio.voice ?? ''} onChange={(e) => setAudioSettings({ voice: e.target.value || undefined })}>
               <option value="">{t('Browser default voice')}</option>
               {!voiceKnown ? <option value={audio.voice}>{audio.voice}</option> : null}
               {voices.map((v) => (
@@ -92,8 +83,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
             <button
               type="button"
               className="nh-btn nh-btn--ghost"
-              onClick={() => speak(t('This is the neohab voice on this device.'), audio.voice)}
-            >
+              onClick={() => speak(t('This is the neohab voice on this device.'), audio.voice)}>
               {t('Test voice')}
             </button>
           </div>
@@ -102,13 +92,17 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
 
       {blocked ? (
         <p className="nh-settings__text">
-          {t('The browser blocked sound because this page has not been interacted with yet - tap or click anywhere once (kiosk browsers usually allow it outright).')}
+          {t(
+            'The browser blocked sound because this page has not been interacted with yet - tap or click anywhere once (kiosk browsers usually allow it outright).'
+          )}
         </p>
       ) : null}
 
       {!recognitionSupported() ? (
         <p className="nh-settings__text">
-          {t('Voice input (the microphone button) is not available here: it needs a Chromium-based browser and HTTPS for microphone access.')}
+          {t(
+            'Voice input (the microphone button) is not available here: it needs a Chromium-based browser and HTTPS for microphone access.'
+          )}
         </p>
       ) : null}
 
@@ -139,12 +133,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) =
 
           <label className="nh-field nh-field--row" htmlFor="nh-set-voicebtn">
             <span className="nh-field__label">{t('Voice input button (all devices)')}</span>
-            <input
-              id="nh-set-voicebtn"
-              type="checkbox"
-              checked={voiceButtonOn}
-              onChange={(e) => void setVoiceButton(e.target.checked)}
-            />
+            <input id="nh-set-voicebtn" type="checkbox" checked={voiceButtonOn} onChange={(e) => void setVoiceButton(e.target.checked)} />
           </label>
           <p className="nh-settings__text">
             {t(

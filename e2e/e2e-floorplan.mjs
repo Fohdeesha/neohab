@@ -18,7 +18,7 @@
  * against a pre-run listing so a stray cannot survive unnoticed. Section H saves through the
  * app, so it DOES mint version-history restore points - clear them if the server is a live one.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { readFile } from 'node:fs/promises'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
@@ -87,9 +87,9 @@ async function getRule(uid) {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // A recognizable plan: white ground, dark room lines, 800x500 (aspect 1.6).

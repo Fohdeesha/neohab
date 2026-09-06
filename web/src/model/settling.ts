@@ -30,11 +30,7 @@ export interface Settling {
   at: number
 }
 
-export function settledDisplay(
-  pending: Settling | undefined,
-  live: string | undefined,
-  now: number
-): string | undefined {
+export function settledDisplay(pending: Settling | undefined, live: string | undefined, now: number): string | undefined {
   if (!pending) return live
   if (now - pending.at < SETTLE_MS) return pending.command
   return commandMatchesState(pending.command, live) ? pending.command : live

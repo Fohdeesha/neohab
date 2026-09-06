@@ -30,9 +30,7 @@ export async function processIconFile(file: File, maxKB: number): Promise<Proces
 
 function checkSize(bytes: number, maxKB: number, hint: string): void {
   if (bytes > maxKB * 1024) {
-    throw new Error(
-      i18n.t('Icon is {{kb}} KB - the limit is {{max}} KB.', { kb: Math.round(bytes / 1024), max: maxKB }) + ' ' + hint
-    )
+    throw new Error(i18n.t('Icon is {{kb}} KB - the limit is {{max}} KB.', { kb: Math.round(bytes / 1024), max: maxKB }) + ' ' + hint)
   }
 }
 
@@ -67,9 +65,12 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
       if (bytes <= maxKB * 1024) return { dataUri, bytes }
     }
     throw new Error(
-      i18n.t('Icon is too detailed to fit the {{max}} KB limit even after downscaling. Use a simpler image or raise the limit in Settings.', {
-        max: maxKB,
-      })
+      i18n.t(
+        'Icon is too detailed to fit the {{max}} KB limit even after downscaling. Use a simpler image or raise the limit in Settings.',
+        {
+          max: maxKB
+        }
+      )
     )
   } finally {
     URL.revokeObjectURL(url)

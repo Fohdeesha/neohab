@@ -45,7 +45,7 @@ export function parseColor(value: string | undefined): Rgb | null {
     return {
       r: parseInt(full.slice(0, 2), 16),
       g: parseInt(full.slice(2, 4), 16),
-      b: parseInt(full.slice(4, 6), 16),
+      b: parseInt(full.slice(4, 6), 16)
     }
   }
 
@@ -137,5 +137,5 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { label: 'Text on a widget', fg: 'text', bg: 'surface' },
   { label: 'Widget names', fg: 'text-dim', bg: 'surface' },
   { label: 'Text on a button', fg: 'text', bg: 'surface-2' },
-  { label: 'Accent on a widget', fg: 'primary', bg: 'surface', large: true },
+  { label: 'Accent on a widget', fg: 'primary', bg: 'surface', large: true }
 ]

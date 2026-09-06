@@ -16,8 +16,7 @@ export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; 
   const { t } = useTranslation()
   const rows = Array.isArray(widget.config[field.key]) ? (widget.config[field.key] as SeverityStop[]) : []
   const write = (next: SeverityStop[]) => updateWidgetConfig(widget.id, field.key, next)
-  const patch = (i: number, p: Partial<SeverityStop>) =>
-    write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
+  const patch = (i: number, p: Partial<SeverityStop>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
 
   return (
     <div className="nh-field">
@@ -31,8 +30,7 @@ export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; 
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove stop {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -70,8 +68,7 @@ export function GaugeMarkersField({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
   const rows = Array.isArray(widget.config.markers) ? (widget.config.markers as GaugeMarker[]) : []
   const write = (next: GaugeMarker[]) => updateWidgetConfig(widget.id, 'markers', next)
-  const patch = (i: number, p: Partial<GaugeMarker>) =>
-    write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
+  const patch = (i: number, p: Partial<GaugeMarker>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
 
   return (
     <div className="nh-field">
@@ -85,8 +82,7 @@ export function GaugeMarkersField({ widget }: { widget: WidgetInstance }) {
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove marker {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>
@@ -134,8 +130,7 @@ export function GaugeZonesField({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
   const rows = Array.isArray(widget.config.zones) ? (widget.config.zones as GaugeZone[]) : []
   const write = (next: GaugeZone[]) => updateWidgetConfig(widget.id, 'zones', next)
-  const patch = (i: number, p: Partial<GaugeZone>) =>
-    write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
+  const patch = (i: number, p: Partial<GaugeZone>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
 
   return (
     <div className="nh-field">
@@ -149,8 +144,7 @@ export function GaugeZonesField({ widget }: { widget: WidgetInstance }) {
               type="button"
               className="nh-chartcard__btn"
               aria-label={t('Remove zone {{n}}', { n: i + 1 })}
-              onClick={() => write(rows.filter((_, j) => j !== i))}
-            >
+              onClick={() => write(rows.filter((_, j) => j !== i))}>
               ✕
             </button>
           </div>

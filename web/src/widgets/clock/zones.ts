@@ -64,8 +64,7 @@ export function deviceZone(): string {
  * is reached through a declared shape rather than by widening the whole compilation. Read as a
  * value, not called blindly, so the fallback below is a branch rather than a caught exception.
  */
-const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] })
-  .supportedValuesOf
+const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -151,17 +150,19 @@ export interface ZoneParts {
  * under en-US. The analog face would turn that into an hour hand pointing at noon.
  */
 export function zoneParts(date: Date, zone: string): ZoneParts {
-  const fmt = formatter('parts:' + zone, () =>
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: zone || undefined,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
+  const fmt = formatter(
+    'parts:' + zone,
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: zone || undefined,
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
   )
   const out: ZoneParts = { year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0 }
   for (const p of fmt.formatToParts(date)) {
@@ -207,20 +208,16 @@ export function zoneOffsetLabel(date: Date, zone: string): string {
 function zoneName(date: Date, zone: string, lang: string, width: 'short' | 'long'): string {
   if (zone === '') return ''
   try {
-    const fmt = formatter(`${width}:${lang}:${zone}`, () =>
-      new Intl.DateTimeFormat(lang || 'en', { timeZone: zone, timeZoneName: width })
-    )
+    const fmt = formatter(`${width}:${lang}:${zone}`, () => new Intl.DateTimeFormat(lang || 'en', { timeZone: zone, timeZoneName: width }))
     return fmt.formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? zone
   } catch {
     return zone
   }
 }
 
-export const zoneShortName = (date: Date, zone: string, lang: string): string =>
-  zoneName(date, zone, lang, 'short')
+export const zoneShortName = (date: Date, zone: string, lang: string): string => zoneName(date, zone, lang, 'short')
 
-export const zoneLongName = (date: Date, zone: string, lang: string): string =>
-  zoneName(date, zone, lang, 'long')
+export const zoneLongName = (date: Date, zone: string, lang: string): string => zoneName(date, zone, lang, 'long')
 
 /** How a clock tile labels its zone. */
 export type ZoneLabelMode = 'none' | 'short' | 'offset' | 'custom'
@@ -239,13 +236,7 @@ export function zoneLabelMode(stored: unknown): ZoneLabelMode {
  * nothing gives "Tokyo" rather than an empty line - which is what a world clock wanted anyway,
  * and leaves the field free for "Head office".
  */
-export function zoneLabelText(
-  date: Date,
-  zone: string,
-  lang: string,
-  mode: unknown,
-  custom: unknown
-): string {
+export function zoneLabelText(date: Date, zone: string, lang: string, mode: unknown, custom: unknown): string {
   switch (zoneLabelMode(mode)) {
     case 'short':
       return zoneShortName(date, zone, lang)

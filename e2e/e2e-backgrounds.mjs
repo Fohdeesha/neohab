@@ -19,7 +19,7 @@
  * the import check) and its own background:* uploads; the `settings` component is snapshotted and
  * restored VERBATIM; exact-uid cleanup; commands NOTHING (clock/label widgets only).
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
@@ -32,9 +32,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return await chromium.launch({ channel, headless: true }) } catch {}
+    try { return await launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const GLOBAL_URL = 'https://example.invalid/global-bg.png'

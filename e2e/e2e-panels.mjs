@@ -29,7 +29,7 @@
  * commands nothing - the palette widgets are added unconfigured, and the short-tile ones are
  * bound so they render a control but are never clicked, with commands intercepted besides.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-panels'
@@ -45,9 +45,9 @@ const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
 
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return await chromium.launch({ channel, headless: true }) } catch {}
+    try { return await launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /**

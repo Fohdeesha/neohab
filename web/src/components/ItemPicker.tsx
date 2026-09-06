@@ -125,11 +125,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
   const { matches, truncated } = useMemo(() => {
     const q = (query ?? '').trim().toLowerCase()
     const byType = items.filter((i) => typeMatches(i, itemTypes))
-    const filtered = q
-      ? byType.filter(
-          (i) => i.name.toLowerCase().includes(q) || (i.label ?? '').toLowerCase().includes(q)
-        )
-      : byType
+    const filtered = q ? byType.filter((i) => i.name.toLowerCase().includes(q) || (i.label ?? '').toLowerCase().includes(q)) : byType
     return { matches: filtered.slice(0, MAX_RESULTS), truncated: filtered.length - MAX_RESULTS }
   }, [items, itemTypes, query])
 
@@ -165,6 +161,9 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
       const item = matches[highlight]
       if (item) select(item)
     } else if (e.key === 'Escape') {
+      // Marked as handled so the sheet this picker sits in does not close on the same press: one
+      // Escape shuts the list, the next shuts the panel.
+      e.preventDefault()
       close()
     }
   }
@@ -218,8 +217,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
               restoringFocus.current = true
               inputRef.current?.focus()
               restoringFocus.current = false
-            }}
-          >
+            }}>
             ✕
           </button>
         ) : null}
@@ -236,8 +234,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
               openList()
               inputRef.current?.focus()
             }
-          }}
-        >
+          }}>
           ▾
         </button>
       </div>
@@ -253,9 +250,8 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             width: pos.width,
             top: pos.top,
             bottom: pos.bottom,
-            maxHeight: pos.maxHeight,
-          }}
-        >
+            maxHeight: pos.maxHeight
+          }}>
           {matches.map((item, i) => (
             <li
               key={item.name}
@@ -275,8 +271,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
                 // Selection itself stays on click so touch can still scroll the list by drag.
                 e.preventDefault()
               }}
-              onClick={() => select(item)}
-            >
+              onClick={() => select(item)}>
               <span className="nh-picker__name">{item.name}</span>
               <span className="nh-picker__meta">
                 {item.label ? item.label + ' · ' : ''}
@@ -287,9 +282,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
           {truncated > 0 ? (
             <li className="nh-picker__empty">{t('…and {{count}} more - type to narrow the list', { count: truncated })}</li>
           ) : null}
-          {matches.length === 0 ? (
-            <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li>
-          ) : null}
+          {matches.length === 0 ? <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li> : null}
         </ul>
       ) : null}
     </div>

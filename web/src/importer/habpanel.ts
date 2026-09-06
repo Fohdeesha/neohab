@@ -99,7 +99,7 @@ export function parseHabpanelFile(json: unknown): HPPanelConfig {
   return {
     dashboards: normalizeDashboards(obj.dashboards),
     settings: (obj.settings as Record<string, unknown>) ?? {},
-    customwidgets: (obj.customwidgets as Record<string, HPCustomWidget>) ?? {},
+    customwidgets: (obj.customwidgets as Record<string, HPCustomWidget>) ?? {}
   }
 }
 
@@ -126,8 +126,8 @@ export function panelConfigFromComponent(component: UIComponent): HPPanelConfig 
     ...(dc.config as Record<string, unknown>),
     widgets: (dc.slots?.widgets ?? []).map((wc) => ({
       type: wc.component,
-      ...(wc.config as Record<string, unknown>),
-    })),
+      ...(wc.config as Record<string, unknown>)
+    }))
   })) as HPDashboard[]
 
   const customwidgets: Record<string, HPCustomWidget> = {}
@@ -139,8 +139,8 @@ export function panelConfigFromComponent(component: UIComponent): HPPanelConfig 
       ...(cfg as HPCustomWidget),
       settings: (cw.slots?.settings ?? []).map((sc) => ({
         type: sc.component,
-        ...(sc.config as Record<string, unknown>),
-      })),
+        ...(sc.config as Record<string, unknown>)
+      }))
     }
   }
 
@@ -148,7 +148,7 @@ export function panelConfigFromComponent(component: UIComponent): HPPanelConfig 
   return {
     dashboards,
     settings: (config.settings as Record<string, unknown>) ?? {},
-    customwidgets,
+    customwidgets
   }
 }
 
@@ -167,7 +167,6 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v !== '' ? v : undefined
 }
 
-
 /** One HABPanel interactive-chart series -> a neohab chart series (defaults omitted). */
 function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -178,7 +177,7 @@ function hpChartSeries(s: Record<string, unknown>): Record<string, unknown> {
     // display_line/area default true in HABPanel's series editor; only deviations are stored
     width: s.display_line === false ? 0 : undefined,
     fill: s.display_area === false ? 0 : undefined,
-    points: s.display_dots === true ? true : undefined,
+    points: s.display_dots === true ? true : undefined
   }
 }
 
@@ -197,7 +196,7 @@ export const PERIOD_MAP: Record<string, { period: string; exact: boolean }> = {
   M: { period: '30d', exact: true },
   '2M': { period: '60d', exact: true },
   '4M': { period: '120d', exact: true },
-  Y: { period: '1y', exact: true },
+  Y: { period: '1y', exact: true }
 }
 
 /**
@@ -212,7 +211,7 @@ export const THEME_MAP: Record<string, string> = {
   paleblue: 'paleblue',
   translucent: 'translucent',
   madras: 'madras',
-  'orange-tree': 'orange-tree',
+  'orange-tree': 'orange-tree'
 }
 
 /* ------------------------------- widget converters ------------------------------- */
@@ -223,8 +222,7 @@ export const THEME_MAP: Record<string, string> = {
  */
 function ohIcon(name: string | undefined, rawIconset: string | undefined): string | undefined {
   if (!name) return undefined
-  const iconset =
-    rawIconset === 'eclipse-smarthome-classic' || rawIconset === 'smarthome-classic' ? 'classic' : rawIconset
+  const iconset = rawIconset === 'eclipse-smarthome-classic' || rawIconset === 'smarthome-classic' ? 'classic' : rawIconset
   return 'oh:' + name + (iconset && iconset !== 'classic' ? '@' + iconset : '')
 }
 
@@ -240,7 +238,7 @@ type Converter = (w: HPWidget, report: Report) => { type: string; config: Record
 const CONVERTERS: Record<string, Converter> = {
   switch: (w) => ({
     type: 'switch',
-    config: { item: str(w.item) ?? '', label: w.hidelabel === true ? undefined : str(w.name), ...iconRef(w) },
+    config: { item: str(w.item) ?? '', label: w.hidelabel === true ? undefined : str(w.name), ...iconRef(w) }
   }),
 
   slider: (w, report) => {
@@ -256,14 +254,14 @@ const CONVERTERS: Record<string, Converter> = {
         min: num(w.floor) ?? 0,
         max: num(w.ceil) ?? 100,
         step: num(w.step) ?? 1,
-        unit: str(w.unit),
-      },
+        unit: str(w.unit)
+      }
     }
   },
 
   colorpicker: (w) => ({
     type: 'color',
-    config: { item: str(w.item) ?? '', label: str(w.name) },
+    config: { item: str(w.item) ?? '', label: str(w.name) }
   }),
 
   knob: (w, report) => {
@@ -277,8 +275,8 @@ const CONVERTERS: Record<string, Converter> = {
         max: num(w.ceil) ?? 100,
         step: num(w.step) ?? 1,
         unit: str(w.unit),
-        readOnly: w.readOnly === true,
-      },
+        readOnly: w.readOnly === true
+      }
     }
   },
 
@@ -286,7 +284,7 @@ const CONVERTERS: Record<string, Converter> = {
     if (str(w.format)) report.add('info', 'Custom value formats now come from the server (item state description)')
     return {
       type: 'value',
-      config: { item: str(w.item) ?? '', label: str(w.name), unit: str(w.unit) },
+      config: { item: str(w.item) ?? '', label: str(w.name), unit: str(w.unit) }
     }
   },
 
@@ -294,7 +292,7 @@ const CONVERTERS: Record<string, Converter> = {
     if (w.background) report.add('info', 'Label background colors are handled by the theme')
     return {
       type: 'label',
-      config: { text: str(w.name) ?? '', fontSize: num(w.font_size), color: str(w.foreground) },
+      config: { text: str(w.name) ?? '', fontSize: num(w.font_size), color: str(w.foreground) }
     }
   },
 
@@ -312,8 +310,8 @@ const CONVERTERS: Record<string, Converter> = {
           navigateUrl: str(w.navigate_url),
           command: 'ON',
           ...icon,
-          hideLabel,
-        },
+          hideLabel
+        }
       }
     }
     if (w.background || w.foreground || w.background_active) {
@@ -328,8 +326,8 @@ const CONVERTERS: Record<string, Converter> = {
         commandAlt: str(w.command_alt),
         toggle: action === 'toggle',
         ...icon,
-        hideLabel,
-      },
+        hideLabel
+      }
     }
   },
 
@@ -351,8 +349,8 @@ const CONVERTERS: Record<string, Converter> = {
         item: str(w.item) ?? '',
         label: w.hidelabel === true ? undefined : str(w.name),
         choices,
-        ...iconRef(w),
-      },
+        ...iconRef(w)
+      }
     }
   },
 
@@ -362,7 +360,7 @@ const CONVERTERS: Record<string, Converter> = {
     }
     return {
       type: 'image',
-      config: { url: str(w.url) ?? '', label: str(w.name), refresh: num(w.refresh) ?? 0 },
+      config: { url: str(w.url) ?? '', label: str(w.name), refresh: num(w.refresh) ?? 0 }
     }
   },
 
@@ -375,8 +373,8 @@ const CONVERTERS: Record<string, Converter> = {
       config: {
         url: str(w.frameUrl) ?? '',
         label: w.hidelabel ? undefined : str(w.name),
-        refresh: num(w.refresh) ?? 0,
-      },
+        refresh: num(w.refresh) ?? 0
+      }
     }
   },
 
@@ -391,8 +389,8 @@ const CONVERTERS: Record<string, Converter> = {
         showDate: true,
         showSeconds: analog ? undefined : /s/.test(format),
         // HABPanel's clock is a card too, with a "No background" checkbox to take it away.
-        tileBackground: w.nobackground ? false : undefined,
-      },
+        tileBackground: w.nobackground ? false : undefined
+      }
     }
   },
 
@@ -426,16 +424,14 @@ const CONVERTERS: Record<string, Converter> = {
         yMin: num(y.min) ?? (y.includezero === true ? 0 : undefined),
         yMax: num(y.max),
         y2Min: y2.enabled === true ? (num(y2.min) ?? (y2.includezero === true ? 0 : undefined)) : undefined,
-        y2Max: y2.enabled === true ? num(y2.max) : undefined,
-      },
+        y2Max: y2.enabled === true ? num(y2.max) : undefined
+      }
     }
   },
 
   timeline: (w) => {
     const hpSeries = Array.isArray(w.series) ? (w.series as Record<string, unknown>[]) : []
-    const series = hpSeries
-      .filter((s) => str(s.item))
-      .map((s) => ({ item: str(s.item), label: str(s.name) }))
+    const series = hpSeries.filter((s) => str(s.item)).map((s) => ({ item: str(s.item), label: str(s.name) }))
     const hpMaps = Array.isArray(w.colorMaps) ? (w.colorMaps as Record<string, unknown>[]) : []
     const colorMaps = hpMaps
       .filter((m) => m && m.state !== undefined && m.state !== '' && str(m.color))
@@ -448,8 +444,8 @@ const CONVERTERS: Record<string, Converter> = {
         colorMaps: colorMaps.length > 0 ? colorMaps : undefined,
         label: str(w.name),
         period: p.period,
-        service: str(w.service),
-      },
+        service: str(w.service)
+      }
     }
   },
 
@@ -463,10 +459,10 @@ const CONVERTERS: Record<string, Converter> = {
         customwidget: str(w.customwidget),
         config: (w.config as Record<string, unknown>) ?? {},
         dontwrap: w.dontwrap === true,
-        nobackground: w.nobackground === true,
-      },
+        nobackground: w.nobackground === true
+      }
     }
-  },
+  }
 }
 
 /* ------------------------------- conversion ------------------------------- */
@@ -482,9 +478,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
   // font_scale is a ratio (1.5 = 150%); ours is stored as percent.
   const fontScale = num(hp.font_scale)
   const textSize =
-    fontScale !== undefined && fontScale > 0 && fontScale !== 1
-      ? Math.min(300, Math.max(50, Math.round(fontScale * 100)))
-      : undefined
+    fontScale !== undefined && fontScale > 0 && fontScale !== 1 ? Math.min(300, Math.max(50, Math.round(fontScale * 100))) : undefined
   const id = str(hp.id) ?? str(hp.name) ?? 'imported-' + (index + 1)
 
   const dashboard: Dashboard = {
@@ -499,7 +493,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
     rowHeight,
     gap,
     textSize,
-    widgets: [],
+    widgets: []
   }
 
   for (const hpWidget of hp.widgets) {
@@ -536,7 +530,7 @@ function convertDashboard(hp: HPDashboard, index: number, report: Report): Dashb
       id: newWidgetId(),
       type: converted.type,
       config,
-      layout: { lg: rect },
+      layout: { lg: rect }
     }
     dashboard.widgets.push(instance)
   }
@@ -567,10 +561,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   const widgetDefs: UIComponent[] = Object.entries(cfg.customwidgets).map(([id, def]) => ({
     uid: 'widgetdef:' + id,
     component: 'neohab:widgetdef',
-    config: { version: 1, id, name: def.name ?? id, source: 'habpanel', habpanel: def } as unknown as Record<
-      string,
-      unknown
-    >,
+    config: { version: 1, id, name: def.name ?? id, source: 'habpanel', habpanel: def } as unknown as Record<string, unknown>
   }))
   if (widgetDefs.length > 0) {
     report.add('info', 'Custom widget definitions were imported and are available in the widget palette')
@@ -583,7 +574,11 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     if (themeId) {
       settingsPatch.theme = themeId
       if (hpTheme !== 'default') {
-        report.add('info', 'The “{{theme}}” theme was imported. Its colours are a port of HABPanel’s, and you can edit them under Settings › Appearance.', { theme: hpTheme })
+        report.add(
+          'info',
+          'The “{{theme}}” theme was imported. Its colors are a port of HABPanel’s, and you can edit them under Settings › Appearance.',
+          { theme: hpTheme }
+        )
       }
     } else {
       report.add('warn', 'HABPanel theme “{{theme}}” is not one neohab knows, so the theme was left alone.', { theme: hpTheme })

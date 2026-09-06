@@ -12,13 +12,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PresetBridgeFields } from '../../components/PresetBridgeFields'
 import { parseHsb } from '../../model/color'
-import {
-  commandForState,
-  commandKind,
-  type Preset,
-  type PresetLight,
-  type StatusState,
-} from '../../model/presets'
+import { commandForState, commandKind, type Preset, type PresetLight, type StatusState } from '../../model/presets'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { ColorSliders } from '../color/ColorSliders'
 import type { FloorplanLight } from './model'
@@ -29,7 +23,7 @@ export function PresetEdit({
   planLights,
   busy,
   onCancel,
-  onSave,
+  onSave
 }: {
   preset: Preset
   bridged: boolean
@@ -59,8 +53,7 @@ export function PresetEdit({
   const currentOf = (item: string) => commandForState(states[item]?.type, states[item]?.state)
   // Addressed by row, not by item name: a hand-written scene may command the same item twice,
   // and each of those rows has to edit its own action rather than both at once.
-  const setCommand = (i: number, command: string) =>
-    setLights((ls) => ls.map((l, n) => (n === i ? { ...l, command } : l)))
+  const setCommand = (i: number, command: string) => setLights((ls) => ls.map((l, n) => (n === i ? { ...l, command } : l)))
 
   const absent = planLights.filter((l) => !lights.some((x) => x.item === l.item))
   const addLight = () => {
@@ -94,8 +87,7 @@ export function PresetEdit({
                 onClick={() => {
                   const cur = currentOf(l.item)
                   if (cur !== null) setCommand(i, cur)
-                }}
-              >
+                }}>
                 {t('Copy from the light')}
               </button>
               <button
@@ -103,8 +95,7 @@ export function PresetEdit({
                 className="nh-iconbtn"
                 aria-label={t('Remove from this preset')}
                 title={t('Remove from this preset')}
-                onClick={() => setLights(lights.filter((_, n) => n !== i))}
-              >
+                onClick={() => setLights(lights.filter((_, n) => n !== i))}>
                 ✕
               </button>
             </div>
@@ -157,12 +148,11 @@ export function PresetEdit({
                 name: name.trim(),
                 lights,
                 statusItem: statusItem || undefined,
-                statusState: statusItem ? statusState : undefined,
+                statusState: statusItem ? statusState : undefined
               },
               statusItem !== '' && bridge
             )
-          }
-        >
+          }>
           {busy ? t('Saving…') : t('Save')}
         </button>
       </div>
@@ -207,31 +197,15 @@ function ValueControl({ command, onChange }: { command: string; onChange: (v: st
   if (kind === 'onoff') {
     return (
       <div className="nh-fplan__onoff">
-        <button
-          type="button"
-          className={'nh-btn' + (command === 'ON' ? ' nh-btn--primary' : '')}
-          onClick={() => onChange('ON')}
-        >
+        <button type="button" className={'nh-btn' + (command === 'ON' ? ' nh-btn--primary' : '')} onClick={() => onChange('ON')}>
           {t('On')}
         </button>
-        <button
-          type="button"
-          className={'nh-btn' + (command === 'OFF' ? ' nh-btn--primary' : '')}
-          onClick={() => onChange('OFF')}
-        >
+        <button type="button" className={'nh-btn' + (command === 'OFF' ? ' nh-btn--primary' : '')} onClick={() => onChange('OFF')}>
           {t('Off')}
         </button>
       </div>
     )
   }
 
-  return (
-    <input
-      type="text"
-      className="nh-pmgr__value"
-      value={command}
-      aria-label={t('Value')}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  )
+  return <input type="text" className="nh-pmgr__value" value={command} aria-label={t('Value')} onChange={(e) => onChange(e.target.value)} />
 }

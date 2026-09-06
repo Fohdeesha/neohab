@@ -80,7 +80,7 @@ export const useServerTimeStore = create<ServerTimeState>(() => ({
   at: cached?.at ?? null,
   roundTripMs: null,
   syncing: false,
-  failed: false,
+  failed: false
 }))
 
 /**
@@ -105,7 +105,7 @@ async function readServerClock(): Promise<ClockReading | null> {
       method: 'HEAD',
       headers,
       cache: 'no-store',
-      signal: abort.signal,
+      signal: abort.signal
     })
     const received = Date.now()
     const header = res.headers.get('Date')
@@ -144,7 +144,7 @@ export function syncServerTime(): Promise<void> {
         at,
         roundTripMs: reading.received - reading.sent,
         syncing: false,
-        failed: false,
+        failed: false
       })
       writeCache(offsetMs, at)
     } else {

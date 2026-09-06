@@ -16,6 +16,8 @@
 import { create } from 'zustand'
 import { addComponent, deleteComponent, listComponents, updateComponent } from '../api/components'
 import { ApiError } from '../api/client'
+import { errorText } from '../api/errors'
+import i18n from '../i18n'
 import { writeWithFallback } from '../api/write'
 import type { UIComponent } from '../api/types'
 import type { CustomBackground } from '../model/background'
@@ -28,7 +30,7 @@ import {
   resolvePartialImport,
   type PartialBundle,
   type PartialImportMode,
-  type PartialPlan,
+  type PartialPlan
 } from '../model/partial'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import { exportableRule, isImportableSceneRule, NEOHAB_TAG, type SceneRule } from '../model/presets'
@@ -47,7 +49,7 @@ import {
   THEME_COMPONENT,
   THEME_PREFIX,
   WIDGETDEF_COMPONENT,
-  WIDGETDEF_PREFIX,
+  WIDGETDEF_PREFIX
 } from '../model/components'
 import { kindOf, migrateConfig } from '../model/schema'
 
@@ -141,43 +143,43 @@ export const useConfigStore = create<ConfigState>(() => ({
   loading: false,
   loaded: false,
   error: null,
-  authRequired: false,
+  authRequired: false
 }))
 
 const dashboardComponent = (d: Dashboard): UIComponent<Dashboard> => ({
   uid: DASHBOARD_PREFIX + d.id,
   component: DASHBOARD_COMPONENT,
-  config: d,
+  config: d
 })
 
 const themeComponent = (t: Theme): UIComponent<Theme> => ({
   uid: THEME_PREFIX + t.id,
   component: THEME_COMPONENT,
-  config: t,
+  config: t
 })
 
 const settingsComponent = (s: AppSettings): UIComponent<AppSettings> => ({
   uid: SETTINGS_UID,
   component: SETTINGS_COMPONENT,
-  config: s,
+  config: s
 })
 
 const widgetDefComponent = (d: CustomWidgetDef): UIComponent<CustomWidgetDef> => ({
   uid: WIDGETDEF_PREFIX + d.id,
   component: WIDGETDEF_COMPONENT,
-  config: d,
+  config: d
 })
 
 const iconComponent = (i: CustomIcon): UIComponent<CustomIcon> => ({
   uid: ICON_PREFIX + i.id,
   component: ICON_COMPONENT,
-  config: i,
+  config: i
 })
 
 const backgroundComponent = (b: CustomBackground): UIComponent<CustomBackground> => ({
   uid: BACKGROUND_PREFIX + b.id,
   component: BACKGROUND_COMPONENT,
-  config: b,
+  config: b
 })
 
 function parseComponents(components: UIComponent[]) {
@@ -242,13 +244,28 @@ export function named(config: Record<string, unknown>): Record<string, unknown> 
   return { ...config, name: String(name) }
 }
 
+/**
+ * How long the first load may take before it is called off.
+ *
+ * A request with no timeout does not fail, it pends - so a wall panel booting while openHAB is
+ * restarting, or one behind a proxy that accepts the connection and never answers, sat on
+ * "loading…" for ever with no way forward but a manual reload. Generous, because a big
+ * configuration over a slow link is a legitimate wait; anything past it is not coming.
+ */
+const LOAD_TIMEOUT_MS = 20_000
+
 export async function loadConfig(): Promise<void> {
-  useConfigStore.setState({ loading: true, error: null, authRequired: false })
+  // The previous error stays on screen while this runs, and is cleared by the success below. It
+  // used to be cleared here, which made the failed-load screen - and the Try again button on it -
+  // vanish the moment it was pressed, replaced by the welcome for a configuration that had not
+  // been read.
+  useConfigStore.setState({ loading: true })
+  const abort = new AbortController()
+  const timer = setTimeout(() => abort.abort(), LOAD_TIMEOUT_MS)
   try {
-    const components = await listComponents()
+    const components = await listComponents(abort.signal)
     const serverUids = new Set(components.map((c) => c.uid))
-    const { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings, incompatible } =
-      parseComponents(components)
+    const { dashboards, customThemes, widgetDefs, customIcons, backgrounds, settings, incompatible } = parseComponents(components)
     useConfigStore.setState({
       dashboards,
       customThemes,
@@ -260,9 +277,12 @@ export async function loadConfig(): Promise<void> {
       serverUids,
       loading: false,
       loaded: true,
+      error: null,
+      authRequired: false
     })
   } catch (err) {
     // Server unreachable - render anyway so the welcome/error state shows.
+    const timedOut = abort.signal.aborted
     useConfigStore.setState({
       dashboards: [],
       customThemes: [],
@@ -274,9 +294,11 @@ export async function loadConfig(): Promise<void> {
       serverUids: new Set<string>(),
       loading: false,
       loaded: true,
-      error: err instanceof Error ? err.message : String(err),
-      authRequired: err instanceof ApiError && (err.status === 401 || err.status === 403),
+      error: timedOut ? i18n.t('the openHAB server did not answer in time') : errorText(err),
+      authRequired: err instanceof ApiError && (err.status === 401 || err.status === 403)
     })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -327,9 +349,7 @@ async function upsert<C>(component: UIComponent<C>): Promise<void> {
   // Settings on an older neohab and changing anything at all would overwrite a newer
   // configuration with this build's misreading of it.
   if (useConfigStore.getState().incompatible.some((c) => c.uid === component.uid)) {
-    throw new Error(
-      `${component.uid} was written by a newer version of neohab and will not be overwritten by this one.`
-    )
+    throw new Error(`${component.uid} was written by a newer version of neohab and will not be overwritten by this one.`)
   }
   const exists = useConfigStore.getState().serverUids.has(component.uid)
   const update = () => updateComponent(component)
@@ -361,7 +381,7 @@ export async function deleteDashboard(id: string): Promise<void> {
   if (useConfigStore.getState().serverUids.has(uid)) await deleteComponent(uid)
   useConfigStore.setState((s) => ({
     dashboards: s.dashboards.filter((d) => d.id !== id),
-    serverUids: new Set([...s.serverUids].filter((u) => u !== uid)),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== uid))
   }))
 }
 
@@ -381,7 +401,7 @@ export async function saveSettings(patch: Partial<AppSettings>): Promise<string 
     await upsert(settingsComponent(next))
     return null
   } catch (err) {
-    return err instanceof Error ? err.message : String(err)
+    return errorText(err)
   }
 }
 
@@ -409,7 +429,7 @@ export async function deleteTheme(id: string): Promise<void> {
   if (useConfigStore.getState().serverUids.has(THEME_PREFIX + id)) await deleteComponent(THEME_PREFIX + id)
   useConfigStore.setState((s) => ({
     customThemes: s.customThemes.filter((t) => t.id !== id),
-    serverUids: new Set([...s.serverUids].filter((u) => u !== THEME_PREFIX + id)),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== THEME_PREFIX + id))
   }))
 }
 
@@ -431,7 +451,7 @@ export async function deleteWidgetDef(id: string): Promise<void> {
   if (useConfigStore.getState().serverUids.has(WIDGETDEF_PREFIX + id)) await deleteComponent(WIDGETDEF_PREFIX + id)
   useConfigStore.setState((s) => ({
     widgetDefs: s.widgetDefs.filter((d) => d.id !== id),
-    serverUids: new Set([...s.serverUids].filter((u) => u !== WIDGETDEF_PREFIX + id)),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== WIDGETDEF_PREFIX + id))
   }))
 }
 
@@ -454,7 +474,7 @@ export async function deleteCustomIcon(id: string): Promise<void> {
   if (useConfigStore.getState().serverUids.has(ICON_PREFIX + id)) await deleteComponent(ICON_PREFIX + id)
   useConfigStore.setState((s) => ({
     customIcons: s.customIcons.filter((i) => i.id !== id),
-    serverUids: new Set([...s.serverUids].filter((u) => u !== ICON_PREFIX + id)),
+    serverUids: new Set([...s.serverUids].filter((u) => u !== ICON_PREFIX + id))
   }))
 }
 
@@ -491,7 +511,7 @@ export async function collectUnusedBackgrounds(alsoKeep: (string | undefined)[] 
       await deleteComponent(BACKGROUND_PREFIX + bg.id)
       useConfigStore.setState((st) => ({
         backgrounds: st.backgrounds.filter((b) => b.id !== bg.id),
-        serverUids: new Set([...st.serverUids].filter((u) => u !== BACKGROUND_PREFIX + bg.id)),
+        serverUids: new Set([...st.serverUids].filter((u) => u !== BACKGROUND_PREFIX + bg.id))
       }))
     } catch {
       /* not signed in or transient - the next collection gets it */
@@ -531,7 +551,7 @@ export async function buildExportBundle(includeBackgrounds = true): Promise<Expo
       ...s.customThemes.map((t) => themeComponent(t)),
       ...s.widgetDefs.map((d) => widgetDefComponent(d)),
       ...s.customIcons.map((i) => iconComponent(i)),
-      ...s.backgrounds.map((b) => backgroundComponent(b)),
+      ...s.backgrounds.map((b) => backgroundComponent(b))
     ] as unknown as UIComponent[]
   }
   if (!includeBackgrounds) {
@@ -557,7 +577,7 @@ export async function buildExportBundle(includeBackgrounds = true): Promise<Expo
     .map(([c]) => c)
   const bundle: ExportBundle = {
     manifest: { app: 'neohab', formatVersion: 1, exportedAt: new Date().toISOString() },
-    components,
+    components
   }
   try {
     // Lighting presets live in the rule registry, not the component namespace. Reading them
@@ -655,7 +675,7 @@ async function allComponents(): Promise<UIComponent[]> {
     ...s.customThemes.map((t) => themeComponent(t)),
     ...s.widgetDefs.map((d) => widgetDefComponent(d)),
     ...s.customIcons.map((i) => iconComponent(i)),
-    ...s.backgrounds.map((b) => backgroundComponent(b)),
+    ...s.backgrounds.map((b) => backgroundComponent(b))
   ] as unknown as UIComponent[]
 }
 
@@ -703,10 +723,7 @@ export interface PartialImportResult {
  *
  * One restore point covers the whole import ('bulk'), like the other multi-component writes.
  */
-export async function importPartialBundle(
-  bundle: PartialBundle,
-  mode: PartialImportMode
-): Promise<PartialImportResult> {
+export async function importPartialBundle(bundle: PartialBundle, mode: PartialImportMode): Promise<PartialImportResult> {
   await beforeConfigWrite('bulk')
   const existing = await listComponents()
   const resolved = resolvePartialImport(bundle, existing, mode, newWidgetId)
@@ -720,6 +737,6 @@ export async function importPartialBundle(
     primaryUid: resolved.primaryUid,
     renamed: resolved.renamed,
     reused: resolved.reused,
-    written: resolved.components.length,
+    written: resolved.components.length
   }
 }

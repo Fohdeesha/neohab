@@ -234,11 +234,16 @@ button {
   flex-direction: column;
 }
 
+/* Wraps on purpose. In edit mode this row carries a title plus six or seven controls, which need
+   about 350px between them - so on a 393px phone the last of them (Save) was laid out past the
+   right edge and could not be pressed at all. Wrapping moves the overflow onto a second row
+   instead; nothing wraps at a width where everything fits. */
 .nh-dash__bar {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
@@ -247,7 +252,15 @@ button {
   border-bottom: 1px solid var(--nh-border);
 }
 
+/* One line, cut with an ellipsis. Without `min-width: 0` a flex item refuses to shrink below its
+   content, so "Editing - Guest Bedroom Lighting" broke into four lines and pushed the bar taller
+   than the screen it was meant to fit. */
 .nh-dash__title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1.05rem;
   font-weight: 500;
 }
@@ -1079,15 +1092,23 @@ button {
 
 /* Gradient (reference 1): a thin track, a three-stop ramp that is complete AT the thumb rather
    than spread across the whole track, and a white ring with the card showing through it. The
-   reading is the ramp's first colour, which is where the reference puts it. */
+   reading is the ramp's first colour, which is where the reference puts it. The colours are not
+   the reference's: its cyan-violet-magenta is the stock ramp on every second app now, so this
+   one is copper weathering to verdigris, with the tarnish between - two colours that belong to
+   one object. Picked from five candidates drawn on the real tile.
+
+   The reading is that first colour pulled a fifth of the way toward the theme's ink. The ramp is
+   untouched by it; only the number moves, a shade lighter on a dark theme and deeper on a light
+   one, because the plain copper reads at 4:1 on the dark surface and 2.6:1 on white, and the
+   pulled one at 6:1 and 4.4:1. */
 .nh-fader--gradient {
-  --fd-g1: #22c8e6;
-  --fd-g2: #7b5cd6;
-  --fd-g3: #ec3a95;
+  --fd-g1: #d2763b;
+  --fd-g2: #b9b06c;
+  --fd-g3: #43a891;
   --fd-track: 6px;
   --fd-thumb: 18px;
   --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-g1), var(--fd-g2), var(--fd-g3));
-  --fd-read: var(--fd-g1);
+  --fd-read: color-mix(in srgb, var(--fd-g1) 80%, var(--nh-text));
   /* The reference's thumb is a white ring with the card showing through it. The core is a fixed
      dark rather than the theme's surface, because on a light theme a white core inside a white
      ring is no ring at all - and the ring has to stay light to read against the track. */
@@ -1108,7 +1129,7 @@ button {
   --fd-g1: color-mix(in srgb, var(--fd-accent) 55%, #fff);
   --fd-g2: var(--fd-accent);
   --fd-g3: color-mix(in srgb, var(--fd-accent) 62%, #0b0b0b);
-  --fd-read: var(--fd-accent);
+  --fd-read: color-mix(in srgb, var(--fd-accent) 80%, var(--nh-text));
 }
 
 /* Wedge (reference 5): a hairline track with an amber wedge under it, thin where the scale starts
@@ -1213,17 +1234,19 @@ button {
 }
 
 /* Bubble (reference 2): a pill track with the value riding the thumb, so the look needs no
-   reading row of its own. */
+   reading row of its own. The reference's cyan went the way of the gradient's: the fill is the
+   same copper-to-verdigris ramp, and the badge takes the colour the fill reaches at the thumb,
+   with a dark ink that reads on it at 5.7:1. */
 .nh-fader--bubble {
-  --fd-cyan: #22c8e6;
+  --fd-b1: #d2763b;
+  --fd-b2: #b9b06c;
+  --fd-b3: #43a891;
   --fd-track: 10px;
   --fd-thumb: 16px;
   --fd-hit: 28px;
-  --fd-badge-bg: var(--fd-cyan);
+  --fd-badge-bg: var(--fd-b3);
   --fd-badge-ink: #06222c;
-  --fd-fill-a: color-mix(in srgb, var(--fd-cyan) 62%, #1d7fd6);
-  --fd-fill-b: var(--fd-cyan);
-  --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-fill-a), var(--fd-fill-b));
+  --fd-fill: linear-gradient(var(--fd-angle, 90deg), var(--fd-b1), var(--fd-b2), var(--fd-b3));
   --fd-thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
 }
 
@@ -1231,11 +1254,13 @@ button {
   --fd-angle: 0deg;
 }
 
-/* Same rule as the gradient's: a deeper tone of the accent into the accent, rather than the
-   accent mixed into a blue that is no longer there. */
+/* Tinted, the same rule as the gradient's: pale, the accent, then a deeper tone of it. The badge
+   is the accent itself, so the ink derived for that colour is the right one on it. */
 .nh-fader--bubble.nh-fader--tinted {
-  --fd-cyan: var(--fd-accent);
-  --fd-fill-a: color-mix(in srgb, var(--fd-accent) 72%, #0b0b0b);
+  --fd-b1: color-mix(in srgb, var(--fd-accent) 55%, #fff);
+  --fd-b2: var(--fd-accent);
+  --fd-b3: color-mix(in srgb, var(--fd-accent) 62%, #0b0b0b);
+  --fd-badge-bg: var(--fd-accent);
   --fd-badge-ink: var(--nh-accent-ink, #fff);
 }
 
@@ -1564,6 +1589,10 @@ button {
 }
 
 .nh-dash__error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   padding: 8px 14px;
   background: color-mix(in srgb, #e53935 18%, transparent);
   border-bottom: 1px solid #e53935;
@@ -2061,10 +2090,25 @@ button {
   color: var(--nh-text-dim);
 }
 
+/* Sits where a hint sits, at a hint's size, so the form reads evenly; the color is what marks
+   it as something to act on. */
+.nh-field__warn {
+  margin: -8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--nh-bad, #e5534b);
+}
+
+/* `input:not([type])` matters more than it looks: an <input> with no type attribute IS a text
+   input, and three of them - New dashboard, Dashboard settings, Generate - were the first fields
+   a new administrator ever typed into. They rendered as the browser's grey inset box on a dark
+   theme, because every rule here was keyed on an attribute they did not carry. */
+.nh-field input:not([type]),
 .nh-field input[type='text'],
 .nh-field input[type='number'],
 .nh-field input[type='password'],
-.nh-field select {
+.nh-field select,
+.nh-gen__type {
   min-height: 40px;
   padding: 6px 10px;
   font: inherit;
@@ -2310,6 +2354,29 @@ button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* Jump links to the sections below. Chips rather than a list: twelve of them wrap into two rows
+   at the top of the page instead of pushing the first section off the screen. */
+.nh-settings__index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nh-settings__indexlink {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--nh-text-dim);
+  background: var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.nh-settings__indexlink:hover {
+  color: var(--nh-text);
 }
 
 .nh-settings__importchoice {
@@ -4541,6 +4608,326 @@ button {
 }
 
 /* ============================================================================
+   Log widget, and the full-screen log view (#/log/:dashboard/:widget)
+   ============================================================================ */
+/* A console on the tile's own surface: monospace lines that follow the newest entry. The level
+   is what a glance is for, so a warning and an error carry their colour on the level tag and a
+   bar at the left edge, an error colours its message too, and a debug or trace line recedes;
+   INFO is the theme's ink. `--lg-warn` is the one colour the tokens do not carry, so a theme sets
+   it here. The lines are the only monospace part: notices and the empty text keep the app font. */
+.nh-log {
+  --lg-warn: #e0a526;
+  --lg-error: var(--nh-bad, #e5484d);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.nh-log__list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.nh-log__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.nh-log__line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  padding: 0.12em 0 0.12em 0.5em;
+  border-left: 3px solid transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.nh-log__time,
+.nh-log__logger {
+  flex: none;
+  color: var(--nh-text-dim);
+}
+
+.nh-log__level {
+  flex: none;
+  width: 5ch;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+}
+
+.nh-log__logger {
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nh-log__msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wrapped: the message takes as many rows as it needs and breaks anywhere, since a log message
+   has no spaces to break at where it matters (a URL, a JSON payload). */
+.nh-log__list--wrap .nh-log__line {
+  white-space: normal;
+}
+
+.nh-log__list--wrap .nh-log__msg {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.nh-log__line--warn {
+  border-left-color: var(--lg-warn);
+}
+
+.nh-log__line--warn .nh-log__level {
+  color: var(--lg-warn);
+}
+
+.nh-log__line--error {
+  border-left-color: var(--lg-error);
+}
+
+.nh-log__line--error .nh-log__level,
+.nh-log__line--error .nh-log__msg {
+  color: var(--lg-error);
+}
+
+.nh-log__line--debug,
+.nh-log__line--trace {
+  opacity: 0.7;
+}
+
+/* The page's anatomy: a logger column of 36 characters keeping the right-hand end of the name,
+   which is what openhab.log's own pattern prints (`b.core.io.websocket.log.LogWebSocket`), so
+   the messages line up in a column of their own; and a line free to wrap onto a second row for
+   the stack trace under an entry that carried one. */
+.nh-log__list--full .nh-log__line {
+  flex-wrap: wrap;
+}
+
+.nh-log__list--full .nh-log__logger {
+  flex: 0 0 36ch;
+  max-width: 36ch;
+}
+
+/* The line wraps its items so the stack trace can take a row of its own, which would also let a
+   long message jump to a row of its own instead of wrapping beside its logger. A zero basis
+   keeps the message on the logger's row wherever it has two fifths of the width to wrap in, and
+   drops it under the logger only where it has not - a phone. */
+.nh-log__list--full .nh-log__msg {
+  flex: 1 1 0;
+  min-width: 40%;
+}
+
+.nh-log__stack {
+  flex: 1 0 100%;
+  color: var(--nh-text-dim);
+}
+
+.nh-log__stack summary {
+  cursor: pointer;
+}
+
+.nh-log__stack pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nh-log__empty,
+.nh-log__status,
+.nh-log__notice {
+  color: var(--nh-text-dim);
+}
+
+.nh-log__status {
+  flex: none;
+  padding-top: 4px;
+}
+
+.nh-log__notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.nh-log__notice p {
+  margin: 0;
+}
+
+/* Says that the newest line is out of view, and takes the reader back to it. Over the list's
+   bottom corner, out of the way of the text. */
+.nh-log__jump {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--nh-accent-ink, #fff);
+  background: var(--nh-primary);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+/* Pause, at the right end of the tile's name row. In the header rather than over the console:
+   a control floating on the lines would cover the top one permanently, and this row is the one
+   piece of tile chrome that costs nothing to share. Quiet while the log runs - a glyph on the
+   tile's own surface, at the row's weight - and an accent plate carrying the word when it does
+   not, because a frozen log and a dead server look exactly alike otherwise.
+   The radius follows the theme's own so a square theme needs no rule of its own. */
+.nh-log__pause {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  /* The name row is set at 0.8em, so these are 0.8 of what they read: the word matches the
+     widget's name beside it, and the glyph is grown back to about the cell's own size so the
+     button is a real target rather than header decoration. */
+  padding: 0.28em 0.45em;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: 1;
+  color: var(--nh-text-dim);
+  background: transparent;
+  border: 1px solid var(--nh-border);
+  border-radius: calc(var(--nh-radius) * 0.6);
+  cursor: pointer;
+}
+
+/* A finger needs more than the 22px a name row has room to draw. The target grows into the row's
+   own padding instead of the button, so nothing moves - and deliberately barely downwards, since
+   the console under it is a scroller and a strip of it that cannot be dragged would be worse than
+   a small button. */
+.nh-log__pause::after {
+  content: '';
+  position: absolute;
+  inset: -8px -8px -2px;
+}
+
+.nh-log__pause svg {
+  display: block;
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.nh-log__pause:hover {
+  color: var(--nh-text);
+  border-color: var(--nh-primary);
+}
+
+.nh-log__pause--on,
+.nh-log__pause--on:hover {
+  color: var(--nh-accent-ink, #fff);
+  background: var(--nh-primary);
+  border-color: var(--nh-primary);
+}
+
+.nh-logview__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-logview__search {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--nh-text);
+  background: var(--nh-bg);
+  border: 1px solid var(--nh-border);
+  border-radius: 8px;
+}
+
+.nh-logview__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Sized like the chart view's chips: a filter row, not a control. */
+.nh-logview .nh-chip {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.nh-logview__count {
+  margin-left: auto;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+}
+
+.nh-logview__state {
+  padding: 4px 10px;
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+}
+
+.nh-logview__state--live {
+  color: var(--nh-good, #3fb950);
+  border-color: currentColor;
+}
+
+.nh-logview__state--paused {
+  color: #e0a526;
+  border-color: currentColor;
+}
+
+.nh-logview .nh-dash__bar .nh-btn {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 0.9rem;
+}
+
+/* The page is the viewport and no taller: the dashboard surface grows with its content and lets
+   the window scroll, which for a log would put the newest line, the one the list follows, at
+   the bottom of a page the reader has to scroll to. Capped here, the LIST is what scrolls, and
+   following works. */
+.nh-logview {
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+/* The list takes every pixel left below the two bars - the point of a full-screen log. */
+.nh-logview__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px 12px;
+}
+
+/* ============================================================================
    Template placeholder, HABPanel import + report
    ============================================================================ */
 .nh-template {
@@ -4841,6 +5228,58 @@ button {
   color: var(--nh-text-dim);
   font-size: 12px;
   pointer-events: none;
+}
+
+/* The kiosk exit confirmation. Its own dialog rather than window.confirm, which the browsers this
+   mode runs in are routinely configured to suppress - and this is the one screen where a
+   suppressed dialog leaves nobody a way out. */
+.nh-kioskexit {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 55%);
+}
+
+.nh-kioskexit__box {
+  width: min(340px, calc(100vw - 32px));
+  padding: 18px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  color: var(--nh-text);
+  text-align: center;
+}
+
+.nh-kioskexit__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* "Updated on the server, reload." Top-centre rather than beside the live-status pill: it is a
+   decision to make, not a status to glance at, and it has buttons - so unlike that pill it takes
+   pointer events. Above the sheets, since a chunk can fail while one is open. */
+.nh-update {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 66;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--nh-primary);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-2);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
+  color: var(--nh-text);
+  font-size: 0.9rem;
 }
 
 /* ============================================================================
@@ -5319,11 +5758,18 @@ button {
   letter-spacing: 0.04em;
 }
 
+/* Stuck to the bottom of the sheet's own scroller. The cluster list scrolls inside itself, so a
+   wheel over it never reached the sheet and Back/Review sat below the fold with no hint that they
+   were there - the primary action of the step, invisible. */
 .nh-gen__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 6px;
+  padding: 6px 0;
+  background: var(--nh-surface);
 }
 
 .nh-form__hint {
@@ -8087,6 +8533,32 @@ button {
 
 @container nh-thermo (max-width: 13em) {
   .nh-thermo__bar {
+    display: none;
+  }
+}
+
+/* The log tile sheds its columns as width runs out, so the message keeps its room: the logger
+   first, then the time. The level stays, since it is what a glance at a log is for. Measured on
+   the cell, because the tile's own width is what the columns are competing for. */
+@container nh-cell (max-width: 480px) {
+  .nh-log__logger {
+    display: none;
+  }
+}
+
+@container nh-cell (max-width: 300px) {
+  .nh-log__time {
+    display: none;
+  }
+}
+
+/* The paused button keeps its word for as long as the name beside it has at least as much room
+   as the button takes; below that the accent plate says it on its own. Measured: the button with
+   its word is 4.75em of the cell and the row's own padding 1.9em, so the two are even at about
+   11em. In em rather than px because both the word and the name are set in the cell's font, and
+   a px threshold would shed at the wrong place the moment somebody sets a text size. */
+@container nh-cell (max-width: 11em) {
+  .nh-log__pausetext {
     display: none;
   }
 }

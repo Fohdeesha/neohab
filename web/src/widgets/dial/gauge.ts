@@ -112,11 +112,7 @@ export function hasInnerRing(c: DialConfig): boolean {
  * The color a ring shows for a value: a matching severity stop wins, else the ring's own
  * configured color, else undefined and the renderer falls back to the theme primary.
  */
-export function gaugeColor(
-  value: number,
-  stops: SeverityStop[] | undefined,
-  base: string | undefined,
-): string | undefined {
+export function gaugeColor(value: number, stops: SeverityStop[] | undefined, base: string | undefined): string | undefined {
   return severityColor(value, stops) ?? (typeof base === 'string' && base !== '' ? base : undefined)
 }
 
@@ -202,14 +198,7 @@ export function ledFraction(i: number, count: number, sweep: number): number {
  * value; bidirectional lights between the zero reference and the value, with the reference
  * LED always lit as the resting point.
  */
-export function ledLit(
-  i: number,
-  count: number,
-  sweep: number,
-  valueFrac: number,
-  zeroFrac: number,
-  bidirectional: boolean,
-): boolean {
+export function ledLit(i: number, count: number, sweep: number, valueFrac: number, zeroFrac: number, bidirectional: boolean): boolean {
   const f = ledFraction(i, count, sweep)
   const eps = 1e-9
   if (!bidirectional) return valueFrac > 0 && f <= valueFrac + eps
@@ -227,13 +216,7 @@ export function ledLit(
  * value. Same bidirectional semantics as {@link ledLit}, with the reference block being the
  * one whose span contains the zero fraction.
  */
-export function blockLit(
-  i: number,
-  count: number,
-  valueFrac: number,
-  zeroFrac: number,
-  bidirectional: boolean,
-): boolean {
+export function blockLit(i: number, count: number, valueFrac: number, zeroFrac: number, bidirectional: boolean): boolean {
   const f = (i + 0.5) / count
   const eps = 1e-9
   if (!bidirectional) return valueFrac > 0 && f <= valueFrac + eps
@@ -253,7 +236,9 @@ export function blockLit(
 export function severityColor(value: number, stops: SeverityStop[] | undefined): string | undefined {
   // stored config is untrusted: a hand edit can put anything here, and .filter on it would throw
   const usable = (Array.isArray(stops) ? stops : [])
-    .filter((s): s is { value: number; color: string } => Number.isFinite(s?.value as number) && typeof s?.color === 'string' && s.color !== '')
+    .filter(
+      (s): s is { value: number; color: string } => Number.isFinite(s?.value as number) && typeof s?.color === 'string' && s.color !== ''
+    )
     .sort((a, b) => a.value - b.value)
   if (usable.length === 0) return undefined
   for (const s of usable) if (value <= s.value) return s.color
@@ -274,7 +259,7 @@ export function gaugeTicks(
   sweep: number,
   majorSteps: number,
   decimals: number,
-  labels: boolean,
+  labels: boolean
 ): GaugeTick[] {
   const steps = Math.round(Math.min(20, Math.max(1, finite(majorSteps, 5))))
   const minor = steps * 2
@@ -288,7 +273,7 @@ export function gaugeTicks(
       major,
       // String(Number(...)) drops trailing zeros - "-40", not "-40.0" - scale labels need
       // the coarse number, and the width matters at the viewBox edges
-      label: major && labels ? String(Number((min + (i / minor) * (max - min)).toFixed(decimals))) : undefined,
+      label: major && labels ? String(Number((min + (i / minor) * (max - min)).toFixed(decimals))) : undefined
     })
   }
   return ticks
@@ -306,7 +291,7 @@ export function angleToValue(
   start: number,
   sweep: number,
   step: number,
-  decimals: number,
+  decimals: number
 ): number {
   // back to degrees-from-top-clockwise, normalized relative to the arc start
   let rel = (svgAngle + 90 - start) % 360
@@ -316,7 +301,7 @@ export function angleToValue(
     frac = rel / sweep
   } else {
     // in the gap: distance past the end vs distance short of the start
-    frac = rel - sweep < (360 - rel) ? 1 : 0
+    frac = rel - sweep < 360 - rel ? 1 : 0
   }
   const raw = min + frac * (max - min)
   const snapped = Number((Math.round(raw / step) * step).toFixed(decimals))
@@ -328,7 +313,7 @@ export const HISTORY_PERIODS: Record<string, number> = {
   '6h': 6 * 3600_000,
   '12h': 12 * 3600_000,
   '24h': 24 * 3600_000,
-  '7d': 7 * 24 * 3600_000,
+  '7d': 7 * 24 * 3600_000
 }
 
 export function historyPeriodMs(c: DialConfig): number {
@@ -346,17 +331,10 @@ export function historyPeriodMs(c: DialConfig): number {
  * bucket before the first sample has no data and returns null. A flat series normalizes to
  * 0.5 so it still draws as half-height bars rather than vanishing.
  */
-export function historyBars(
-  points: { time: number; value: number }[],
-  t0: number,
-  t1: number,
-  buckets: number,
-): (number | null)[] {
+export function historyBars(points: { time: number; value: number }[], t0: number, t1: number, buckets: number): (number | null)[] {
   const n = Math.round(Math.min(120, Math.max(1, finite(buckets, 24))))
   if (!(t1 > t0)) return Array(n).fill(null)
-  const pts = points
-    .filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time))
-    .sort((a, b) => a.time - b.time)
+  const pts = points.filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time)).sort((a, b) => a.time - b.time)
   const width = (t1 - t0) / n
   const means: (number | null)[] = []
   for (let b = 0; b < n; b++) {
@@ -390,13 +368,7 @@ export function historyBars(
  * drawing a straight lie across it. A run of one point draws a short dash so a lone reading
  * is still visible. Values grow upward from `yBase`.
  */
-export function sparkSegments(
-  values: (number | null)[],
-  x0: number,
-  width: number,
-  yBase: number,
-  height: number
-): string[] {
+export function sparkSegments(values: (number | null)[], x0: number, width: number, yBase: number, height: number): string[] {
   const n = values.length
   if (n === 0 || !(width > 0)) return []
   const stepX = n > 1 ? width / (n - 1) : 0

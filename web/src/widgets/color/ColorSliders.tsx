@@ -15,7 +15,7 @@ export function ColorSliders({
   onInput,
   onCommit,
   onKeyCommit,
-  aside,
+  aside
 }: {
   hsb: Hsb
   disabled?: boolean
@@ -36,9 +36,7 @@ export function ColorSliders({
   const swatch = hsbToCss(hsb)
   const trackFor = (key: keyof Hsb): string => {
     if (key === 'h') {
-      const stops = [0, 60, 120, 180, 240, 300, 360]
-        .map((h) => hsbToCss({ h, s: Math.max(40, hsb.s), b: Math.max(50, hsb.b) }))
-        .join(', ')
+      const stops = [0, 60, 120, 180, 240, 300, 360].map((h) => hsbToCss({ h, s: Math.max(40, hsb.s), b: Math.max(50, hsb.b) })).join(', ')
       return `linear-gradient(to right, ${stops})`
     }
     if (key === 's') {

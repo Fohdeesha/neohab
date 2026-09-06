@@ -18,7 +18,7 @@ export function PresetBridgeFields({
   bridge,
   onItem,
   onState,
-  onBridge,
+  onBridge
 }: {
   /** Unique per preset: several of these can be on screen at once. */
   idPrefix: string
@@ -45,11 +45,7 @@ export function PresetBridgeFields({
       </div>
       <label className="nh-field" htmlFor={idPrefix + '-state'}>
         <span className="nh-field__label">{t('Active when the item is')}</span>
-        <select
-          id={idPrefix + '-state'}
-          value={state}
-          onChange={(e) => onState(e.target.value === 'OFF' ? 'OFF' : 'ON')}
-        >
+        <select id={idPrefix + '-state'} value={state} onChange={(e) => onState(e.target.value === 'OFF' ? 'OFF' : 'ON')}>
           <option value="ON">ON</option>
           <option value="OFF">OFF</option>
         </select>

@@ -35,14 +35,14 @@ import {
   textScale,
   TOUCH_TEXT_FLOOR,
   widgetAccentInk,
-  widgetTextScale,
+  widgetTextScale
 } from './layout'
 
 const w = (id: string, rect: Rect, config: Record<string, unknown> = {}): WidgetInstance => ({
   id,
   type: 'label',
   config,
-  layout: { lg: rect },
+  layout: { lg: rect }
 })
 
 const dash = (widgets: WidgetInstance[], over: Partial<Dashboard> = {}): Dashboard => ({
@@ -52,7 +52,7 @@ const dash = (widgets: WidgetInstance[], over: Partial<Dashboard> = {}): Dashboa
   columns: 12,
   rowHeight: 'match',
   widgets,
-  ...over,
+  ...over
 })
 
 describe('cellMetrics', () => {
@@ -198,7 +198,7 @@ describe('scaling', () => {
   })
 
   it('a mouse-driven desk monitor never shrinks text: a 12-column board at 1270px', () => {
-    // Jon's 1200p monitor with the browser sidebar: 100px rows, which used to read 12.8px
+    // A 1200p monitor with a browser sidebar open: 100px rows, which used to read 12.8px
     const d = dash([], { columns: 12, gap: 4 })
     const rh = cellMetrics(d, 1270).rowHeight
     expect(rh).toBeGreaterThanOrEqual(POINTER_FULL_ROW)
@@ -229,7 +229,8 @@ describe('scaling', () => {
     expect(stackedTextScale(d, unit, 200, true)).toBeGreaterThan(stackedTextScale(d, unit, 40, true))
     expect(stackedTextScale(d, unit, 200, true)).toBeLessThanOrEqual(1)
     // the mouse floor never exceeds the stack's own room term, so the two pointers agree row for row
-    for (const h of [40, 80, 87, 96, 100, 200]) expect(stackedTextScale(d, unit, h, false)).toBeCloseTo(stackedTextScale(d, unit, h, true), 6)
+    for (const h of [40, 80, 87, 96, 100, 200])
+      expect(stackedTextScale(d, unit, h, false)).toBeCloseTo(stackedTextScale(d, unit, h, true), 6)
   })
 
   it('reads a widget text size stored as a string', () => {
@@ -324,7 +325,7 @@ describe('findFreeSpot', () => {
       [NaN, NaN],
       [Infinity, Infinity],
       [-Infinity, 3],
-      [2, NaN],
+      [2, NaN]
     ]) {
       const r = findFreeSpot(dash([]), width, height)
       for (const v of [r.x, r.y, r.w, r.h]) expect(Number.isFinite(v)).toBe(true)
@@ -343,22 +344,14 @@ describe('planBump', () => {
   const same = { w: 2, h: 2 }
 
   it('trades places with one equal-sized neighbour, moving nothing else', () => {
-    const d = dash([
-      w('a', { x: 0, y: 0, ...same }),
-      w('b', { x: 2, y: 0, ...same }),
-      w('c', { x: 4, y: 0, ...same }),
-    ])
+    const d = dash([w('a', { x: 0, y: 0, ...same }), w('b', { x: 2, y: 0, ...same }), w('c', { x: 4, y: 0, ...same })])
     const plan = planBump(d, 'a', { x: 2, y: 0, ...same })!
     expect(plan.size).toBe(1)
     expect(plan.get('b')).toEqual({ x: 0, y: 0, ...same })
   })
 
   it('pushes occupants down, keeping their stacking order', () => {
-    const d = dash([
-      w('a', { x: 0, y: 0, w: 4, h: 1 }),
-      w('b', { x: 0, y: 2, w: 2, h: 1 }),
-      w('c', { x: 0, y: 3, w: 2, h: 1 }),
-    ])
+    const d = dash([w('a', { x: 0, y: 0, w: 4, h: 1 }), w('b', { x: 0, y: 2, w: 2, h: 1 }), w('c', { x: 0, y: 3, w: 2, h: 1 })])
     const plan = planBump(d, 'a', { x: 0, y: 2, w: 4, h: 1 })!
     expect(plan.get('b')!.y).toBe(3)
     expect(plan.get('c')!.y).toBeGreaterThan(plan.get('b')!.y)
@@ -370,11 +363,7 @@ describe('planBump', () => {
   })
 
   it('produces a legal arrangement, never an overlapping one', () => {
-    const d = dash([
-      w('a', { x: 0, y: 0, w: 2, h: 2 }),
-      w('b', { x: 2, y: 0, w: 3, h: 2 }),
-      w('c', { x: 2, y: 2, w: 3, h: 2 }),
-    ])
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 2 }), w('b', { x: 2, y: 0, w: 3, h: 2 }), w('c', { x: 2, y: 2, w: 3, h: 2 })])
     const target = { x: 2, y: 0, w: 2, h: 2 }
     const plan = planBump(d, 'a', target)!
     const at = (id: string) => plan.get(id) ?? d.widgets.find((x) => x.id === id)!.layout.lg!
@@ -410,7 +399,7 @@ describe('the tablet layout', () => {
       id: 'a',
       type: 'label',
       config: {},
-      layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { x: 0, y: 0, w: 9, h: 2 } },
+      layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { x: 0, y: 0, w: 9, h: 2 } }
     }
     const d = dash([widget], { columns: 12, mdColumns: 4 })
     expect(tabletRects(d).get('a')!.w).toBeLessThanOrEqual(4)
@@ -430,7 +419,7 @@ describe('the tablet layout', () => {
         id: 'a',
         type: 'label',
         config: {},
-        layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: hostile },
+        layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: hostile }
       }
       const rect = tabletRects(dash([widget], { columns: 12, mdColumns })).get('a')!
       for (const v of [rect.x, rect.y, rect.w, rect.h]) expect(Number.isFinite(v)).toBe(true)
@@ -446,7 +435,7 @@ describe('the tablet layout', () => {
       id: 'a',
       type: 'label',
       config: {},
-      layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { w: null } as unknown as Rect },
+      layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { w: null } as unknown as Rect }
     }
     const projected = projectDashboard(dash([widget], { columns: 12, mdColumns: 6 }), 'md')
     const r = projected.widgets[0].layout.lg!
@@ -454,10 +443,7 @@ describe('the tablet layout', () => {
   })
 
   it('reflows into a narrower grid without overlapping', () => {
-    const d = dash(
-      [w('a', { x: 0, y: 0, w: 6, h: 2 }), w('b', { x: 6, y: 0, w: 6, h: 2 })],
-      { columns: 12, mdColumns: 6 }
-    )
+    const d = dash([w('a', { x: 0, y: 0, w: 6, h: 2 }), w('b', { x: 6, y: 0, w: 6, h: 2 })], { columns: 12, mdColumns: 6 })
     const rects = [...tabletRects(d).values()]
     expect(collides(rects[0], rects[1])).toBe(false)
     for (const r of rects) expect(r.x + r.w).toBeLessThanOrEqual(6)
@@ -469,16 +455,15 @@ describe('stackedOrder', () => {
     const d = dash([
       w('bottom', { x: 0, y: 5, w: 1, h: 1 }),
       w('topright', { x: 4, y: 0, w: 1, h: 1 }),
-      w('topleft', { x: 0, y: 0, w: 1, h: 1 }),
+      w('topleft', { x: 0, y: 0, w: 1, h: 1 })
     ])
     expect(stackedOrder(d).map((x) => x.id)).toEqual(['topleft', 'topright', 'bottom'])
   })
 
   it('honours a pinned order and puts unlisted widgets after it', () => {
-    const d = dash(
-      [w('a', { x: 0, y: 0, w: 1, h: 1 }), w('b', { x: 0, y: 1, w: 1, h: 1 }), w('c', { x: 0, y: 2, w: 1, h: 1 })],
-      { stackOrder: ['c', 'a'] }
-    )
+    const d = dash([w('a', { x: 0, y: 0, w: 1, h: 1 }), w('b', { x: 0, y: 1, w: 1, h: 1 }), w('c', { x: 0, y: 2, w: 1, h: 1 })], {
+      stackOrder: ['c', 'a']
+    })
     expect(stackedOrder(d).map((x) => x.id)).toEqual(['c', 'a', 'b'])
   })
 
@@ -493,7 +478,7 @@ describe('groupFrames', () => {
     const frames = groupFrames([
       w('a', { x: 1, y: 1, w: 2, h: 1 }, { group: 'Left' }),
       w('b', { x: 4, y: 3, w: 2, h: 2 }, { group: 'Left' }),
-      w('c', { x: 0, y: 0, w: 1, h: 1 }),
+      w('c', { x: 0, y: 0, w: 1, h: 1 })
     ])
     expect(frames).toHaveLength(1)
     expect(frames[0].rect).toEqual({ x: 1, y: 1, w: 5, h: 4 })
@@ -502,7 +487,7 @@ describe('groupFrames', () => {
   it('keeps groups apart and takes the first member colour', () => {
     const frames = groupFrames([
       w('a', { x: 0, y: 0, w: 1, h: 1 }, { group: 'One', accentColor: '#ff0000' }),
-      w('b', { x: 3, y: 0, w: 1, h: 1 }, { group: 'Two' }),
+      w('b', { x: 3, y: 0, w: 1, h: 1 }, { group: 'Two' })
     ])
     expect(frames.map((f) => f.group)).toEqual(['One', 'Two'])
     expect(frames[0].color).toBe('#ff0000')

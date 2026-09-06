@@ -39,15 +39,17 @@ import {
   widgetLabelBottom,
   widgetsOf,
   widgetTextScale,
-  STACK_REFERENCE_WIDTH,
+  STACK_REFERENCE_WIDTH
 } from '../model/layout'
 import { instanceMinHeight } from '../widgets/registry'
+import { useEditingAllowed } from '../store/auth'
 import { WidgetHost } from './WidgetHost'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
 import { useLongPress } from './useLongPress'
 import { WidgetDetail } from './WidgetDetail'
-import { instanceHasDetail } from '../widgets'
+import { instanceDetailRoute, instanceHasDetail } from '../widgets'
+import { navigate } from '../app/router'
 
 /**
  * One tile, and the hold/right-click that opens its detail sheet.
@@ -60,7 +62,7 @@ function Cell({
   style,
   instance,
   editing,
-  onDetail,
+  onDetail
 }: {
   className: string
   style: React.CSSProperties
@@ -85,9 +87,16 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const width = useContainerWidth(ref)
   // The text-scale floor is the device's as well as the row's (see textFloor).
   const coarse = useCoarsePointer()
+  const canEdit = useEditingAllowed()
   // Declared with the other hooks: the early returns below skip later code, and a hook after one
   // of them would change the render's hook order.
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
+  // A widget with a page of its own (the log viewer) is navigated to; the rest open the sheet.
+  const openDetail = (w: WidgetInstance) => {
+    const route = instanceDetailRoute(w.type, props.dashboard.id, w.id)
+    if (route) navigate(route)
+    else setDetail(w)
+  }
 
   if (width === 0) {
     // First paint: width unknown, render the container alone and lay out next frame.
@@ -99,19 +108,19 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   // Through `widgetsOf`: a stored `widgets` that is not a list makes `.length` undefined, so
   // this test passes and the `.filter` below throws - taking the whole dashboard view with it.
   if (widgetsOf(props.dashboard).length === 0) {
+    // A visitor has no pencil to tap, so pointing at one is an instruction they cannot follow.
     return (
       <div ref={ref} className="nh-grid">
-        <p className="nh-dash__empty">{t('This dashboard has no widgets yet - tap ✎ to start adding some.')}</p>
+        <p className="nh-dash__empty">
+          {canEdit ? t('This dashboard has no widgets yet - tap ✎ to start adding some.') : t('This dashboard has no widgets yet.')}
+        </p>
       </div>
     )
   }
 
   // The tablet band renders the tablet layout when there is one; otherwise nothing changes.
   const surface = surfaceFor(width)
-  const dashboard =
-    surface === 'tablet' && hasTabletLayout(props.dashboard)
-      ? projectDashboard(props.dashboard, 'md')
-      : props.dashboard
+  const dashboard = surface === 'tablet' && hasTabletLayout(props.dashboard) ? projectDashboard(props.dashboard, 'md') : props.dashboard
   const shown = widgetsOf(dashboard).filter((w) => !isHiddenOn(w, surface))
   if (shown.length === 0) {
     return (
@@ -131,10 +140,9 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
         style={
           {
             gap: gapOf(dashboard),
-            '--nh-iconscale': iconScale(dashboard, unit),
+            '--nh-iconscale': iconScale(dashboard, unit)
           } as React.CSSProperties
-        }
-      >
+        }>
         {ordered.map((w) => {
           const min = instanceMinHeight(w.type, w.config)
           const height = Math.round(Math.max(rectOf(w).h * unit, min))
@@ -143,11 +151,9 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
               key={w.id}
               instance={w}
               editing={editing}
-              onDetail={setDetail}
+              onDetail={openDetail}
               className={
-                'nh-gcell' +
-                (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
-                (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')
+                'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '') + (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')
               }
               style={
                 {
@@ -156,7 +162,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                   '--nh-widgetscale': widgetTextScale(w),
                   '--nh-labelalign': widgetLabelAlign(w),
                   '--nh-cellaccent': widgetAccentColor(w),
-                  '--nh-accent-ink': widgetAccentInk(w),
+                  '--nh-accent-ink': widgetAccentInk(w)
                 } as React.CSSProperties
               }
             />
@@ -178,10 +184,9 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           gridAutoRows: `${rowHeight}px`,
           gap,
           '--nh-iconscale': iconScale(dashboard, rowHeight),
-          '--nh-textscale': textScale(dashboard, rowHeight, coarse),
+          '--nh-textscale': textScale(dashboard, rowHeight, coarse)
         } as React.CSSProperties
-      }
-    >
+      }>
       {shown.map((w) => {
         const r = rectOf(w)
         return (
@@ -189,12 +194,8 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
             key={w.id}
             instance={w}
             editing={editing}
-            onDetail={setDetail}
-            className={
-              'nh-gcell' +
-              (widgetLabelBottom(w) ? ' nh-labelbottom' : '') +
-              (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')
-            }
+            onDetail={openDetail}
+            className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '') + (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')}
             style={
               {
                 gridColumn: `${r.x + 1} / span ${r.w}`,
@@ -204,7 +205,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
                 '--nh-widgetscale': widgetTextScale(w),
                 '--nh-labelalign': widgetLabelAlign(w),
                 '--nh-cellaccent': widgetAccentColor(w),
-                '--nh-accent-ink': widgetAccentInk(w),
+                '--nh-accent-ink': widgetAccentInk(w)
               } as React.CSSProperties
             }
           />
@@ -222,7 +223,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
             {
               gridColumn: `${f.rect.x + 1} / span ${f.rect.w}`,
               gridRow: `${f.rect.y + 1} / span ${f.rect.h}`,
-              '--nh-cellaccent': f.color,
+              '--nh-cellaccent': f.color
             } as React.CSSProperties
           }
         />

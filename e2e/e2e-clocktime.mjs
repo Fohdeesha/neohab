@@ -23,7 +23,7 @@
  * container units of its own and draws the date in a segment face). Nothing here reads a colour,
  * but the settings-panel width check would be at the mercy of a theme's padding.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-clocktime'
@@ -40,10 +40,10 @@ const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /** Wall-clock fields of an instant in a zone, worked out here rather than in the page. */

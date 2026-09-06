@@ -8,14 +8,9 @@
  */
 import { normalizeServer, type CameraSourceKind } from './model'
 
-export type DiscoveryResult =
-  | { ok: true; streams: string[] }
-  | { ok: false; reason: 'no-server' | 'unreachable' | 'bad-response' }
+export type DiscoveryResult = { ok: true; streams: string[] } | { ok: false; reason: 'no-server' | 'unreachable' | 'bad-response' }
 
-export async function listStreams(
-  server: string | undefined,
-  source: CameraSourceKind
-): Promise<DiscoveryResult> {
+export async function listStreams(server: string | undefined, source: CameraSourceKind): Promise<DiscoveryResult> {
   const base = normalizeServer(server)
   if (!base) return { ok: false, reason: 'no-server' }
 
@@ -32,10 +27,7 @@ export async function listStreams(
     return { ok: false, reason: 'unreachable' }
   }
 
-  const map =
-    source === 'frigate'
-      ? (body as { cameras?: Record<string, unknown> })?.cameras
-      : (body as Record<string, unknown>)
+  const map = source === 'frigate' ? (body as { cameras?: Record<string, unknown> })?.cameras : (body as Record<string, unknown>)
   if (!map || typeof map !== 'object') return { ok: false, reason: 'bad-response' }
 
   return { ok: true, streams: Object.keys(map).sort((a, b) => a.localeCompare(b)) }

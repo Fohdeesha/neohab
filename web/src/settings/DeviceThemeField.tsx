@@ -16,11 +16,7 @@ export function DeviceThemeField() {
   return (
     <label className="nh-field" htmlFor="nh-set-devicetheme">
       <span className="nh-field__label">{t('Theme on this device')}</span>
-      <select
-        id="nh-set-devicetheme"
-        value={override ?? ''}
-        onChange={(e) => setDeviceTheme(e.target.value || null)}
-      >
+      <select id="nh-set-devicetheme" value={override ?? ''} onChange={(e) => setDeviceTheme(e.target.value || null)}>
         <option value="">{t('Follow the shared theme (default)')}</option>
         {unknown ? <option value={override}>{override}</option> : null}
         {all.map((th) => (
@@ -30,9 +26,7 @@ export function DeviceThemeField() {
         ))}
       </select>
       {override !== null ? (
-        <span className="nh-field__hint">
-          {t('This device keeps its own theme; the theme every other device shares is unchanged.')}
-        </span>
+        <span className="nh-field__hint">{t('This device keeps its own theme; the theme every other device shares is unchanged.')}</span>
       ) : null}
     </label>
   )

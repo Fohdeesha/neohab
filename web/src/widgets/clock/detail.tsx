@@ -20,14 +20,7 @@ import type { WidgetProps } from '../types'
 import { clockDifference, displayNow, formatDuration } from '../../model/servertime'
 import { acquireServerTime, syncServerTime, useServerTimeStore } from '../../store/servertime'
 import { clockSource } from './config'
-import {
-  deviceZone,
-  extraZones,
-  resolveZone,
-  zoneCity,
-  zoneLongName,
-  zoneOffsetLabel,
-} from './zones'
+import { deviceZone, extraZones, resolveZone, zoneCity, zoneLongName, zoneOffsetLabel } from './zones'
 
 /**
  * The same instant in one zone, as one row of the other-zones list.
@@ -40,7 +33,7 @@ function ZoneRow({
   zone,
   label,
   lang,
-  hour12,
+  hour12
 }: {
   now: Date
   zone: string
@@ -57,7 +50,7 @@ function ZoneRow({
           minute: '2-digit',
           second: '2-digit',
           hour12,
-          ...(zone === '' ? {} : { timeZone: zone }),
+          ...(zone === '' ? {} : { timeZone: zone })
         })}
       </span>
       <span className="nh-clockdetail__zoneoff">{zoneOffsetLabel(now, zone)}</span>
@@ -131,7 +124,7 @@ export function ClockDetail({ config }: WidgetProps<Record<string, unknown>>) {
   const listed = new Set([zone])
   for (const row of [
     ...(device !== '' ? [{ zone: device, label: deviceName }] : []),
-    ...extraZones(config.otherZones).map((z) => ({ zone: z.zone, label: z.label ?? zoneCity(z.zone) })),
+    ...extraZones(config.otherZones).map((z) => ({ zone: z.zone, label: z.label ?? zoneCity(z.zone) }))
   ]) {
     if (listed.has(row.zone)) continue
     listed.add(row.zone)

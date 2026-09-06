@@ -4,7 +4,7 @@
  * the import report; servers without one skip straight to the file-import path, which uses a
  * synthetic export and is fully self-contained. habpanel:panelconfig is never written.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
 
 
@@ -29,10 +29,10 @@ const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detai
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // snapshot habpanel source config for before/after comparison (MUST be untouched)

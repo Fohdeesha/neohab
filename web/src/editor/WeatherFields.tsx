@@ -19,15 +19,7 @@ import { ensureCatalog, useCatalogStore } from '../store/catalog'
 import { clampInt, locationOf, patternItems } from '../widgets/weather/model'
 import { searchLocations, type GeoPlace } from '../widgets/weather/openmeteo'
 
-export function WeatherLocationField({
-  field,
-  widget,
-  value,
-}: {
-  field: SettingField
-  widget: WidgetInstance
-  value: unknown
-}) {
+export function WeatherLocationField({ field, widget, value }: { field: SettingField; widget: WidgetInstance; value: unknown }) {
   const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<GeoPlace[] | null>(null)
@@ -91,15 +83,12 @@ export function WeatherLocationField({
             <button
               key={p.label + p.lat + ',' + p.lon}
               type="button"
-              className={
-                'nh-camerafield__pick' + (loc && loc.lat === p.lat && loc.lon === p.lon ? ' nh-camerafield__pick--on' : '')
-              }
+              className={'nh-camerafield__pick' + (loc && loc.lat === p.lat && loc.lon === p.lon ? ' nh-camerafield__pick--on' : '')}
               onClick={() => {
                 updateWidgetConfig(widget.id, field.key, { name: p.label, lat: p.lat, lon: p.lon })
                 setFound(null)
                 setQuery('')
-              }}
-            >
+              }}>
               {p.label}
             </button>
           ))}
@@ -138,7 +127,7 @@ export function WeatherLocationField({
 export function ItemPatternField({
   field,
   widget,
-  value,
+  value
 }: {
   field: Extract<SettingField, { type: 'itempattern' }>
   widget: WidgetInstance
@@ -170,7 +159,7 @@ export function ItemPatternField({
           : t('Found {{found}} of {{total}}. Missing: {{missing}}', {
               found: names.length - missing.length,
               total: names.length,
-              missing: missing.slice(0, 3).join(', ') + (missing.length > 3 ? '…' : ''),
+              missing: missing.slice(0, 3).join(', ') + (missing.length > 3 ? '…' : '')
             })
     }
   }

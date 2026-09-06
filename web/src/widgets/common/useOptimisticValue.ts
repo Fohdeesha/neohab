@@ -48,13 +48,12 @@ export function useOptimisticValue<T>(
   }, [pending, settleMs])
 
   const steady = useSteadyValue(live, liveKey)
-  const display =
-    pending && (close(steady, pending.v) || Date.now() - pending.at < settleMs) ? pending.v : steady
+  const display = pending && (close(steady, pending.v) || Date.now() - pending.at < settleMs) ? pending.v : steady
   return {
     display,
     commit: (v: T) => setPending({ v, at: Date.now() }),
     // The device never took this value: stop showing it. Guarded against dropping a newer
     // commit the user made while the failed one was still in flight.
-    cancel: (v: T) => setPending((p) => (p && p.v === v ? null : p)),
+    cancel: (v: T) => setPending((p) => (p && p.v === v ? null : p))
   }
 }

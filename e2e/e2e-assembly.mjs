@@ -14,7 +14,7 @@
  * button binds the switch item with command == its CURRENT state, so it lights from SSE alone
  * and nothing is ever clicked.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const ID = 'nh-e2e-assembly'
@@ -37,9 +37,9 @@ async function sendItem(name, value) {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const rgba = (s) => {

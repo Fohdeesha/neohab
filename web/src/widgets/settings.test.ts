@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SettingField } from './types'
 import { lookOf as thermostatLookOf } from './thermostat/model'
 import { orientOf as sliderOrientOf, styleOf as sliderStyleOf } from './slider/model'
+import { keepOf as logKeepOf, minLevelOf as logMinLevelOf, sourceSetting as logSourceOf } from './log/model'
 
 // The registry is a tree of .tsx modules, so importing it drags in React and i18next even though
 // only the settings DATA is read here. i18next touches `document` when it activates a language.
@@ -26,17 +27,18 @@ vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeIt
 vi.stubGlobal('window', {
   ...noopEvents,
   location: { hash: '', search: '', pathname: '/neohab/', origin: 'http://localhost', href: 'http://localhost/neohab/' },
-  matchMedia: () => ({ matches: false, ...noopEvents }),
+  matchMedia: () => ({ matches: false, ...noopEvents })
 })
 
 const { registerBuiltinWidgets } = await import('./index')
 const {
   instanceCommands,
   instanceControl,
+  instanceDetailRoute,
   instanceHasDetail,
   instanceMinHeight,
   itemsForInstance,
-  listWidgetDefinitions,
+  listWidgetDefinitions
 } = await import('./registry')
 
 registerBuiltinWidgets()
@@ -77,11 +79,11 @@ const RENDERABLE: Record<SettingField['type'], true> = {
   timelineseries: true,
   gaugeseverity: true,
   gaugemarkers: true,
-  gaugezones: true,
+  gaugezones: true
 }
 
 const effectiveOf = (def: (typeof widgets)[number]): Record<string, unknown> => ({
-  ...(def.defaultConfig?.() as Record<string, unknown>),
+  ...(def.defaultConfig?.() as Record<string, unknown>)
 })
 
 /**
@@ -229,9 +231,7 @@ describe('every widget settings schema', () => {
    * no buttons at all. A widget that can command has to answer.
    */
   it('says which control it offers, not only that it offers one', () => {
-    const silent = widgets
-      .filter((def) => instanceCommands(def.type, boundConfig(def)) && !def.controlFor)
-      .map((def) => def.type)
+    const silent = widgets.filter((def) => instanceCommands(def.type, boundConfig(def)) && !def.controlFor).map((def) => def.type)
     expect(silent).toEqual([])
   })
 
@@ -313,7 +313,7 @@ describe('every widget settings schema', () => {
       min: 2000,
       max: 6500,
       step: 50,
-      unit: ' K',
+      unit: ' K'
     })
     // A dial, per ring - and nothing for a marker item it only reads.
     const dial = { item: 'x', item2: 'y', min: 10, max: 30, step: 0.5, min2: 0, max2: 5, markers: [{ item: 'm' }] }
@@ -322,19 +322,24 @@ describe('every widget settings schema', () => {
     expect(instanceControl('dial', dial, 'm')).toBeUndefined()
     // A transport, which no state shape could have produced.
     expect(instanceControl('player', { item: 'x' }, 'x')).toMatchObject({ kind: 'choices' })
-    expect((instanceControl('player', { item: 'x' }, 'x') as { choices: { command: string }[] }).choices.map((c) => c.command))
-      .toEqual(['PREVIOUS', 'PLAY', 'PAUSE', 'NEXT'])
+    expect((instanceControl('player', { item: 'x' }, 'x') as { choices: { command: string }[] }).choices.map((c) => c.command)).toEqual([
+      'PREVIOUS',
+      'PLAY',
+      'PAUSE',
+      'NEXT'
+    ])
     // Up/stop/down: a rollershutter's state is a percentage, and dragging one on a garage door
     // moves a real door.
-    expect((instanceControl('rollershutter', { item: 'x' }, 'x') as { choices: { command: string }[] }).choices.map((c) => c.command))
-      .toEqual(['UP', 'STOP', 'DOWN'])
+    expect(
+      (instanceControl('rollershutter', { item: 'x' }, 'x') as { choices: { command: string }[] }).choices.map((c) => c.command)
+    ).toEqual(['UP', 'STOP', 'DOWN'])
     // The author's own choices, with their own labels, never translated.
     expect(instanceControl('selection', { item: 'x', choices: 'HDMI1=Apple TV\nHDMI2=Xbox' }, 'x')).toEqual({
       kind: 'choices',
       choices: [
         { command: 'HDMI1', label: 'Apple TV' },
-        { command: 'HDMI2', label: 'Xbox' },
-      ],
+        { command: 'HDMI2', label: 'Xbox' }
+      ]
     })
     // No manual list: the same command options the widget itself falls back to.
     expect(instanceControl('selection', { item: 'x' }, 'x')).toEqual({ kind: 'auto' })
@@ -342,24 +347,24 @@ describe('every widget settings schema', () => {
     expect(instanceControl('switch', { item: 'x', onCommand: 'OPEN', offCommand: 'CLOSE' }, 'x')).toEqual({
       kind: 'onoff',
       on: 'OPEN',
-      off: 'CLOSE',
+      off: 'CLOSE'
     })
     expect(instanceControl('switch', { item: 'x' }, 'x')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
     // A button sends what it was configured to send. Its alternate command is dead unless the
     // button toggles, so a plain one offers exactly the command it sends and no more.
     expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0' }, 'x')).toEqual({
       kind: 'choices',
-      choices: [{ command: '55', label: '55' }],
+      choices: [{ command: '55', label: '55' }]
     })
     expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0', toggle: true }, 'x')).toEqual({
       kind: 'choices',
       choices: [
         { command: '55', label: '55' },
-        { command: '0', label: '0' },
-      ],
+        { command: '0', label: '0' }
+      ]
     })
     expect(instanceControl('button', { item: 'x', command: 'ON', commandAlt: '', toggle: true }, 'x')).toMatchObject({
-      choices: [{ command: 'ON' }],
+      choices: [{ command: 'ON' }]
     })
     expect(instanceControl('button', { item: 'x', command: 'ON', action: 'navigate' }, 'x')).toBeUndefined()
     // A read-only gauge is an instrument: it offers nothing, whatever its scale says.
@@ -386,24 +391,24 @@ describe('every widget settings schema', () => {
       min: 60,
       max: 80,
       step: 1,
-      unit: '°F',
+      unit: '°F'
     })
     expect(instanceControl('thermostat', thermo, 'mode')).toEqual({
       kind: 'choices',
       choices: [
         { command: 'HEAT', labelKey: 'Heat' },
-        { command: 'COOL', labelKey: 'Cool' },
-      ],
+        { command: 'COOL', labelKey: 'Cool' }
+      ]
     })
     expect(instanceControl('thermostat', { ...thermo, heatCommand: 'heat', coolCommand: 'cool' }, 'mode')).toMatchObject({
-      choices: [{ command: 'heat' }, { command: 'cool' }],
+      choices: [{ command: 'heat' }, { command: 'cool' }]
     })
     expect(instanceControl('thermostat', thermo, 'fan')).toEqual({
       kind: 'choices',
       choices: [
         { command: 'AUTO', labelKey: 'Auto' },
-        { command: 'ON', labelKey: 'On' },
-      ],
+        { command: 'ON', labelKey: 'On' }
+      ]
     })
     expect(instanceControl('thermostat', thermo, 'aux')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
     expect(instanceControl('thermostat', thermo, 'cur')).toBeUndefined()
@@ -431,6 +436,8 @@ describe('every widget settings schema', () => {
     // named because they are the two that had nothing and were reported as broken.
     expect(instanceHasDetail('weather', { source: 'openmeteo', location: { lat: 1, lon: 2 } })).toBe(true)
     expect(instanceHasDetail('clock', { mode: 'digital' })).toBe(true)
+    // A log tile answers with a page rather than a sheet, and the gesture is armed for it too.
+    expect(instanceHasDetail('log', {})).toBe(true)
     expect(instanceHasDetail('switch', { item: 'x' })).toBe(true)
     // Nothing configured yet, and nothing of its own to draw.
     expect(instanceHasDetail('switch', {})).toBe(false)
@@ -440,14 +447,34 @@ describe('every widget settings schema', () => {
     expect(instanceHasDetail('nonesuch', {})).toBe(false)
   })
 
-  it('offers the gesture on every widget that declares a view, whatever its config', () => {
+  it('offers the gesture on every widget that declares a view or a page, whatever its config', () => {
     // A view nothing can open is a view nobody sees. Driven with an EMPTY config on purpose: a
     // widget with a view of its own has to answer before anything is configured, which is the
     // difference between the two questions the gesture used to conflate.
-    const declaring = widgets.filter((d) => d.DetailView)
+    const declaring = widgets.filter((d) => d.DetailView || d.detailRoute)
     expect(declaring.length).toBeGreaterThan(0)
     const unreachable = declaring.filter((d) => !instanceHasDetail(d.type, {})).map((d) => d.type)
     expect(unreachable).toEqual([])
+  })
+
+  it('sends a hold on a log tile to the full-screen log route, and a hold on the rest to the sheet', () => {
+    // The route carries both ids, since the page reads the widget's own settings back out of the
+    // dashboard; a widget with a sheet answers no route at all, which is what keeps it a sheet.
+    expect(instanceDetailRoute('log', 'kitchen', 'w-1')).toEqual({ name: 'log', dashboard: 'kitchen', widget: 'w-1' })
+    expect(instanceDetailRoute('weather', 'kitchen', 'w-1')).toBeUndefined()
+    expect(instanceDetailRoute('switch', 'kitchen', 'w-1')).toBeUndefined()
+    expect(instanceDetailRoute('nonesuch', 'kitchen', 'w-1')).toBeUndefined()
+  })
+
+  it('starts a log widget where its readers fall back to', () => {
+    // A default that drifted from its reader would draw one source and offer another in the form.
+    const def = widgets.find((d) => d.type === 'log')
+    expect(def?.defaultConfig().source).toBe(logSourceOf(undefined))
+    expect(def?.defaultConfig().minLevel).toBe(logMinLevelOf(undefined))
+    expect(def?.defaultConfig().keep).toBe(logKeepOf(undefined))
+    // It binds no item, so the sheet's questions about commanding do not arise.
+    expect(def?.itemKeys).toBeUndefined()
+    expect(instanceCommands('log', {})).toBe(false)
   })
 
   it('lets an instance ask for the stacked height its own settings need', () => {
@@ -504,6 +531,39 @@ describe('every widget settings schema', () => {
     // which is what the grids' `Math.max` expects rather than NaN or undefined.
     expect(instanceMinHeight('label', {})).toBe(0)
     expect(instanceMinHeight('nonesuch', {})).toBe(0)
+  })
+
+  /**
+   * An address the page LOADS cannot be `http://` while the page is `https://`: the browser
+   * blocks it without an error anyone can catch, so the widget draws an empty frame or a dead
+   * stream. The settings form says so as the address is typed, but only for a field that has
+   * declared itself one - and the fields that open an address in a NEW TAB (a button's navigate
+   * target, a camera's tap target) are a navigation rather than mixed content, so warning about
+   * those would be wrong.
+   *
+   * Neither answer is safe to leave to a default, so a field whose label reads like an address
+   * has to say which it is. The cost of forgetting is this check, not a widget that quietly
+   * misleads somebody.
+   */
+  it('makes every address field say whether the page loads it', () => {
+    const undecided: string[] = []
+    let decided = 0
+    for (const def of widgets) {
+      for (const field of def.settings ?? []) {
+        if (field.type !== 'text') continue
+        const addressy = /\bURL\b|\baddress\b/i.test(field.label) || /^https?:\/\//i.test(field.placeholder ?? '')
+        if (!addressy) continue
+        if (field.subresource === undefined) undecided.push(`${def.type}.${field.key} (${field.label})`)
+        else decided++
+      }
+    }
+    expect(undecided).toEqual([])
+    // Both answers are really used, or the check would be satisfied by a registry that always
+    // says the same thing.
+    expect(decided).toBeGreaterThan(4)
+    const all = widgets.flatMap((d) => (d.settings ?? []).filter((f) => f.type === 'text'))
+    expect(all.some((f) => f.subresource === true)).toBe(true)
+    expect(all.some((f) => f.subresource === false)).toBe(true)
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

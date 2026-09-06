@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, getBasicCredentials, isLoggedIn, logout, onBasicCredentialsChange } from '../api/auth'
 import { refreshAuthStatus, useAuthStore } from '../store/auth'
+import { useConfigStore } from '../store/config'
 
 export function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) {
   const { t } = useTranslation()
   // Subscribing to the auth status keeps this section current after a sign-in or sign-out
   // (refreshAuthStatus updates the store, which re-renders us and re-evaluates isLoggedIn).
   const status = useAuthStore((s) => s.status)
+  const authRequired = useConfigStore((s) => s.authRequired)
   const [signInOpen, setSignInOpen] = useState(false)
   const [proxyOpen, setProxyOpen] = useState(false)
   // Proxy credentials live in memory, so this has to be told when they change.
@@ -17,7 +19,12 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
 
   const signedIn = isLoggedIn()
   const statusText = !signedIn
-    ? t('This device is not signed in. Viewing works without an account; editing needs an openHAB administrator sign-in.')
+    ? // Whether viewing works without an account is the SERVER's choice, and on one with
+      // openHAB's implicit user role off it does not - telling that person otherwise sends them
+      // looking for a fault that is not there.
+      authRequired
+      ? t('This device is not signed in, and this server shows nothing to signed-out visitors.')
+      : t('This device is not signed in. Viewing works without an account; editing needs an openHAB administrator sign-in.')
     : status === 'admin'
       ? t('This device is signed in as an administrator.')
       : status === 'user'
@@ -29,21 +36,20 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
       <h2 className="nh-settings__h">{t('Account')}</h2>
       <p className="nh-settings__text">{statusText}</p>
       {proxy ? (
-        <p className="nh-settings__text">
-          {t('Signed in to a reverse proxy as “{{user}}” for this session.', { user: proxy.id })}
-        </p>
+        <p className="nh-settings__text">{t('Signed in to a reverse proxy as “{{user}}” for this session.', { user: proxy.id })}</p>
       ) : null}
       {signedIn || proxy ? (
         <button
           type="button"
           className="nh-btn nh-btn--ghost"
           onClick={() => {
-            logout()
+            // The local half of a sign-out is synchronous; only the server-side revocation is
+            // awaited, and nothing here waits for it.
+            void logout()
             clearApiToken()
             void refreshAuthStatus()
             onNotice(t('Signed out on this device.'))
-          }}
-        >
+          }}>
           {t('Sign out on this device')}
         </button>
       ) : (
@@ -51,6 +57,14 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
           {t('Sign in')}
         </button>
       )}
+      {/* Says which of the settings above travel and which do not. Nothing in the app said it,
+          and "I restored my backup and my wall panel went back to the wrong theme" is the
+          question that follows. */}
+      <p className="nh-settings__text">
+        {t(
+          'Settings marked “on this device” are kept in this browser: the theme override, language, text size, kiosk and audio choices, and whether the sidebar is pinned. They are not part of a backup, and every device sets its own.'
+        )}
+      </p>
       {/* A proxy sign-in is a different thing from an openHAB one, and is needed just as much on a
           device that already holds a token - so it is reachable either way. */}
       {proxy ? null : (
@@ -58,13 +72,7 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
           {t('Sign in to a reverse proxy')}
         </button>
       )}
-      {proxyOpen ? (
-        <SignInSheet
-          initialProxy
-          onClose={() => setProxyOpen(false)}
-          onToken={() => setProxyOpen(false)}
-        />
-      ) : null}
+      {proxyOpen ? <SignInSheet initialProxy onClose={() => setProxyOpen(false)} onToken={() => setProxyOpen(false)} /> : null}
       {signInOpen ? (
         <SignInSheet
           onClose={() => setSignInOpen(false)}

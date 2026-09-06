@@ -72,7 +72,7 @@ export const DEFAULT_COMMANDS = {
   fanAuto: 'AUTO',
   fanOn: 'ON',
   auxOn: 'ON',
-  auxOff: 'OFF',
+  auxOff: 'OFF'
 } as const
 export const DEFAULT_HEATING_STATES = 'heating, HEATING, 1'
 export const DEFAULT_COOLING_STATES = 'cooling, COOLING, 2'
@@ -120,7 +120,7 @@ export const LOOK_ARC: Record<ThermostatLook, { start: number; sweep: number }> 
   arc: { start: 135, sweep: 270 },
   dial: { start: 135, sweep: 270 },
   disc: { start: 135, sweep: 270 },
-  ring: { start: 135, sweep: 270 },
+  ring: { start: 135, sweep: 270 }
 }
 
 /**
@@ -332,7 +332,7 @@ export function commands(c: Partial<ThermostatConfig>) {
     fanAuto: commandOr(c.fanAutoCommand, DEFAULT_COMMANDS.fanAuto),
     fanOn: commandOr(c.fanOnCommand, DEFAULT_COMMANDS.fanOn),
     auxOn: commandOr(c.auxOnCommand, DEFAULT_COMMANDS.auxOn),
-    auxOff: commandOr(c.auxOffCommand, DEFAULT_COMMANDS.auxOff),
+    auxOff: commandOr(c.auxOffCommand, DEFAULT_COMMANDS.auxOff)
   }
 }
 

@@ -25,7 +25,7 @@ const CATALOGS: Record<string, Record<string, string>> = {
   fr: frCatalog,
   it: itCatalog,
   nl: nlCatalog,
-  pl: plCatalog,
+  pl: plCatalog
 }
 const LANGS = Object.keys(CATALOGS)
 

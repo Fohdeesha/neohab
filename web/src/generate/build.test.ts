@@ -13,8 +13,7 @@ import { buildDashboards, buildPlan, countPlanned, GENERATED_COLUMNS } from './b
 import { buildTagIndex } from './semantics'
 import { groupClusters, pickedCluster, prefixClusters, semanticClusters, surveySources } from './sources'
 
-const item = (name: string, over: Partial<Item> = {}): Item =>
-  ({ name, type: 'Switch', state: 'OFF', ...over }) as Item
+const item = (name: string, over: Partial<Item> = {}): Item => ({ name, type: 'Switch', state: 'OFF', ...over }) as Item
 
 const INDEX = buildTagIndex()
 
@@ -24,14 +23,18 @@ const MODELLED: Item[] = [
   item('gCeiling', { type: 'Group', tags: ['Lightbulb'], groupNames: ['gKitchen'] }),
   item('Kitchen_Ceiling_Switch', { type: 'Switch', tags: ['Control', 'Light'], groupNames: ['gCeiling'] }),
   item('Kitchen_Ceiling_Level', { type: 'Dimmer', tags: ['Control', 'Light'], groupNames: ['gCeiling'] }),
-  item('Kitchen_Temp', { type: 'Number', tags: ['Measurement', 'Temperature'], groupNames: ['gKitchen'] }),
+  item('Kitchen_Temp', { type: 'Number', tags: ['Measurement', 'Temperature'], groupNames: ['gKitchen'] })
 ]
 
 const plan = (items: Item[], clusters = prefixClusters(items), source: 'prefix' | 'semantic' | 'group' | 'pick' = 'prefix') =>
   buildPlan(clusters, items, INDEX, source)
 
-const build = (items: Item[], clusters = prefixClusters(items), mode: 'each' | 'single' = 'each', source: 'prefix' | 'semantic' | 'group' | 'pick' = 'prefix') =>
-  buildDashboards(plan(items, clusters, source), { mode, name: 'Generated', existingIds: new Set() })
+const build = (
+  items: Item[],
+  clusters = prefixClusters(items),
+  mode: 'each' | 'single' = 'each',
+  source: 'prefix' | 'semantic' | 'group' | 'pick' = 'prefix'
+) => buildDashboards(plan(items, clusters, source), { mode, name: 'Generated', existingIds: new Set() })
 
 const rects = (widgets: { layout: { lg?: Rect } }[]): Rect[] =>
   widgets.map((w) => {
@@ -75,8 +78,11 @@ describe('finding clusters', () => {
 
   it('clusters by group membership, largest first', () => {
     const items = [
-      item('gBig', { type: 'Group' }), item('gSmall', { type: 'Group' }),
-      item('a', { groupNames: ['gBig'] }), item('b', { groupNames: ['gBig'] }), item('c', { groupNames: ['gSmall'] }),
+      item('gBig', { type: 'Group' }),
+      item('gSmall', { type: 'Group' }),
+      item('a', { groupNames: ['gBig'] }),
+      item('b', { groupNames: ['gBig'] }),
+      item('c', { groupNames: ['gSmall'] })
     ]
     expect(groupClusters(items, INDEX).map((c) => c.count)).toEqual([2, 1])
   })
@@ -105,7 +111,7 @@ describe('the reviewable plan', () => {
     expect(p.skipped).toEqual(
       expect.arrayContaining([
         { item: 'grp', reason: 'container' },
-        { item: 'pic', reason: 'image' },
+        { item: 'pic', reason: 'image' }
       ])
     )
     // and the one placeable item still made it through
@@ -129,7 +135,7 @@ describe('the reviewable plan', () => {
   it('carries read-onlyness separately so a type override still knows the model’s verdict', () => {
     const items = [
       item('room_a', { type: 'Number', tags: ['Measurement', 'Temperature'] }),
-      item('room_b', { type: 'Number', tags: ['Measurement', 'Temperature'] }),
+      item('room_b', { type: 'Number', tags: ['Measurement', 'Temperature'] })
     ]
     const widget = plan(items).clusters[0].sections[0].widgets[0]
     expect(widget.readOnly).toBe(true)
@@ -156,9 +162,7 @@ describe('the reviewable plan', () => {
 /* ------------------------------- the dashboards ------------------------------- */
 
 describe('building dashboards', () => {
-  const many = Array.from({ length: 18 }, (_, i) =>
-    item(`room_i${i}`, { type: ['Switch', 'Dimmer', 'Number', 'Color', 'Player'][i % 5] })
-  )
+  const many = Array.from({ length: 18 }, (_, i) => item(`room_i${i}`, { type: ['Switch', 'Dimmer', 'Number', 'Color', 'Player'][i % 5] }))
 
   it('lays every widget out inside the grid, with no two overlapping', () => {
     const dashboards = build(many)
@@ -192,7 +196,11 @@ describe('building dashboards', () => {
 
   it('gives each cluster its own dashboard in "each" mode', () => {
     const items = [item('hall_a'), item('hall_b'), item('shed_a'), item('shed_b')]
-    expect(build(items).map((d) => d.name).sort()).toEqual(['Hall', 'Shed'])
+    expect(
+      build(items)
+        .map((d) => d.name)
+        .sort()
+    ).toEqual(['Hall', 'Shed'])
   })
 
   it('puts every cluster on one dashboard in "single" mode, under headings', () => {

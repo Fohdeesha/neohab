@@ -19,7 +19,7 @@ const BINARY = new Map([
   ['ON', 1],
   ['OFF', 0],
   ['OPEN', 1],
-  ['CLOSED', 0],
+  ['CLOSED', 0]
 ])
 
 export function parseState(s: string): number | null {
@@ -55,7 +55,7 @@ export async function loadChartData(req: LoadRequest): Promise<SeriesTable[]> {
         serviceId: req.service || undefined,
         endTime: new Date(req.to * 1000),
         boundary: grouping,
-        signal: req.signal,
+        signal: req.signal
       })
     )
   )

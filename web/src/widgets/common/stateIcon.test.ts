@@ -39,7 +39,12 @@ describe('resolveStateIcon', () => {
   })
 
   it('matches an inclusive numeric range, negatives included', () => {
-    const c: StateIconConfig = { stateIcons: [{ state: '1-49', icon: 'dim' }, { state: '50-100', icon: 'bright' }] }
+    const c: StateIconConfig = {
+      stateIcons: [
+        { state: '1-49', icon: 'dim' },
+        { state: '50-100', icon: 'bright' }
+      ]
+    }
     expect(resolveStateIcon(c, false, '1').icon).toBe('dim')
     expect(resolveStateIcon(c, false, '49').icon).toBe('dim')
     expect(resolveStateIcon(c, false, '50').icon).toBe('bright')

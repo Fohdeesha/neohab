@@ -12,7 +12,7 @@
  * Pins the default theme: the clock's card is asserted against another widget's, and a theme
  * is free to paint either of them differently (LCD deliberately gives every widget a panel).
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
@@ -32,9 +32,9 @@ const postItem = (name, cmd) =>
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // ---------- snapshots ----------

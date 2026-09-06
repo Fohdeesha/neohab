@@ -4,15 +4,7 @@ import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
 import { categoryLabels, heatmapMatrix } from './aggregate'
-import {
-  DEFAULT_MAX_POINTS,
-  PERIOD_CHIPS,
-  PERIOD_IDS,
-  chipPeriods,
-  effectiveSeries,
-  periodMs,
-  type ChartConfig,
-} from './model'
+import { DEFAULT_MAX_POINTS, PERIOD_CHIPS, PERIOD_IDS, chipPeriods, effectiveSeries, periodMs, type ChartConfig } from './model'
 import { loadChartData, parseState, type SeriesTable } from './data'
 import { numOpt, plotSeries, resolveChart } from './resolve'
 import { navigate, useRoute } from '../../app/router'
@@ -80,9 +72,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const optionsKey =
     JSON.stringify(thresholds) +
     '|' +
-    [numOpt(config.yMin), numOpt(config.yMax), numOpt(config.y2Min), numOpt(config.y2Max), numOpt(config.maxPoints)].join(
-      ','
-    ) +
+    [numOpt(config.yMin), numOpt(config.yMax), numOpt(config.y2Min), numOpt(config.y2Max), numOpt(config.maxPoints)].join(',') +
     '|' +
     groupBy +
     '|' +
@@ -122,7 +112,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         groupBy: 'none',
         service: config.service || undefined,
         maxPoints: 0, // the matrix does the reducing; decimating first would blur the cells
-        signal: ctrl.signal,
+        signal: ctrl.signal
       })
       if (disposed) return
       const matrix = heatmapMatrix(table[0], table[1], to, resolved[0].aggregate)
@@ -139,7 +129,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
           host: hostRef.current,
           weekdays: categoryLabels('dayOfWeek'),
           formatValue: (v) => fmtValue(0, v),
-          title: t('Heatmap of {{name}} by hour and weekday', { name: resolved[0].label }),
+          title: t('Heatmap of {{name}} by hour and weekday', { name: resolved[0].label })
         })
       }
       heatRef.current.setData(matrix)
@@ -156,7 +146,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         groupBy,
         service: config.service || undefined,
         maxPoints: numOpt(config.maxPoints) ?? DEFAULT_MAX_POINTS,
-        signal: ctrl.signal,
+        signal: ctrl.signal
       })
       if (disposed) return
       tablesRef.current = tables
@@ -189,7 +179,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
             setZoomed(z)
             // leaving zoom: catch up on everything skipped while zoomed
             if (!z) void load().catch(() => {})
-          },
+          }
         })
         for (const i of hiddenRef.current) handleRef.current.setSeriesVisible(i, false)
       }
@@ -282,10 +272,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     setHidden(next)
   }
 
-  const chips = useMemo(
-    () => chipPeriods(config.periods, config.period, period),
-    [config.periods, config.period, period]
-  )
+  const chips = useMemo(() => chipPeriods(config.periods, config.period, period), [config.periods, config.period, period])
 
   const showChips = config.picker !== false && chips.length > 0
   const showLegend = config.legend !== false && resolved.length >= 2 && !heatmap
@@ -305,8 +292,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       className="nh-chart__expand"
       aria-label={t('Open this chart full screen')}
       title={t('Open full screen, with calendar navigation')}
-      onClick={() => navigate({ name: 'chart', dashboard: onDashboard ?? '', widget: ctx.widgetId })}
-    >
+      onClick={() => navigate({ name: 'chart', dashboard: onDashboard ?? '', widget: ctx.widgetId })}>
       ⤢
     </button>
   ) : null
@@ -321,18 +307,13 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
                 key={c}
                 type="button"
                 className={'nh-chart__chip' + (c === period ? ' nh-chart__chip--on' : '')}
-                onClick={() => setPeriod(c)}
-              >
+                onClick={() => setPeriod(c)}>
                 {c}
               </button>
             ))
           : null}
         {zoomed ? (
-          <button
-            type="button"
-            className="nh-chart__chip nh-chart__chip--reset"
-            onClick={() => handleRef.current?.resetZoom()}
-          >
+          <button type="button" className="nh-chart__chip nh-chart__chip--reset" onClick={() => handleRef.current?.resetZoom()}>
             {t('reset zoom')}
           </button>
         ) : null}
@@ -377,8 +358,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
                 key={i}
                 type="button"
                 className={'nh-chart__key' + (hidden.includes(i) ? ' nh-chart__key--off' : '')}
-                onClick={() => toggleSeries(i)}
-              >
+                onClick={() => toggleSeries(i)}>
                 <span className="nh-chart__dot" style={{ background: s.color }} />
                 {s.label}
               </button>
@@ -416,7 +396,7 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
     maxPoints: DEFAULT_MAX_POINTS,
     groupBy: 'none',
     mode: 'series',
-    expand: true,
+    expand: true
   }),
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
@@ -427,9 +407,9 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       label: 'Chart type',
       options: [
         { value: 'series', label: 'Time series' },
-        { value: 'heatmap', label: 'Heatmap (hour by weekday)' },
+        { value: 'heatmap', label: 'Heatmap (hour by weekday)' }
       ],
-      hint: 'A heatmap shows the first series only, coloured by its aggregate for each hour of each weekday.',
+      hint: 'A heatmap shows the first series only, colored by its aggregate for each hour of each weekday.'
     },
     {
       key: 'groupBy',
@@ -443,22 +423,22 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
         { value: 'month', label: 'Month' },
         { value: 'hourOfDay', label: 'Hour of day' },
         { value: 'dayOfWeek', label: 'Day of week' },
-        { value: 'monthOfYear', label: 'Month of year' },
+        { value: 'monthOfYear', label: 'Month of year' }
       ],
       showIf: isPlot,
-      hint: 'Buckets the history before plotting. Each series reduces its bucket with its own function (set per series above). Live updates pause while grouping, since a raw reading cannot be added to a finished bucket.',
+      hint: 'Buckets the history before plotting. Each series reduces its bucket with its own function (set per series above). Live updates pause while grouping, since a raw reading cannot be added to a finished bucket.'
     },
     {
       key: 'period',
       type: 'select',
       label: 'Default period',
-      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p }))
     },
     {
       key: 'picker',
       type: 'boolean',
       label: 'Period selector',
-      hint: 'Quick range chips on the widget. Dragging on the chart zooms in; double-click resets.',
+      hint: 'Quick range chips on the widget. Dragging on the chart zooms in; double-click resets.'
     },
     {
       key: 'periods',
@@ -467,27 +447,27 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
       defaultValue: PERIOD_CHIPS,
       showIf: (c) => c.picker !== false,
-      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.',
+      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.'
     },
     {
       key: 'expand',
       type: 'boolean',
       label: 'Full-screen button',
-      hint: 'Adds ⤢ to the chart, opening it full screen with calendar navigation (a day, week, month or year at a time).',
+      hint: 'Adds ⤢ to the chart, opening it full screen with calendar navigation (a day, week, month or year at a time).'
     },
     {
       key: 'legend',
       type: 'boolean',
       label: 'Legend',
       hint: 'Shown when the chart has two or more series; clicking an entry hides its series.',
-      showIf: isPlot,
+      showIf: isPlot
     },
     {
       key: 'live',
       type: 'boolean',
       label: 'Live updates',
       hint: 'Append item changes as they happen, between history refreshes.',
-      showIf: (c) => isPlot(c) && !isGrouped(c),
+      showIf: (c) => isPlot(c) && !isGrouped(c)
     },
     { key: 'thresholds', type: 'chartthresholds', label: 'Thresholds', showIf: isPlot },
     { key: 'yMin', type: 'number', label: 'Y axis min', showIf: (c) => isPlot(c) && yInUse(c) },
@@ -501,13 +481,13 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       type: 'number',
       label: 'Max points per series',
       min: 0,
-      hint: 'Long histories are averaged down to about this many points. 0 = unlimited.',
-    },
+      hint: 'Long histories are averaged down to about this many points. 0 = unlimited.'
+    }
   ],
   itemKeys: (config) =>
     config.live === false || (config.groupBy !== undefined && config.groupBy !== 'none') || config.mode === 'heatmap'
       ? []
       : [...new Set(effectiveSeries(config).map((s) => s.item))],
   canCommand: () => false,
-  Component: ChartWidget,
+  Component: ChartWidget
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useConfigStore } from '../store/config'
+import { loadConfig, useConfigStore } from '../store/config'
 import { useKioskMode } from '../store/kiosk'
 import { appExitToApp, appPinToHome, canExitToApp, canPinToHome } from './ohapp'
 import { editingAllowed, useEditingAllowed } from '../store/auth'
@@ -19,6 +19,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
   // Selectors, not the whole store: Home re-rendered on every settings change otherwise.
   const dashboards = useConfigStore((s) => s.dashboards)
   const error = useConfigStore((s) => s.error)
+  const loading = useConfigStore((s) => s.loading)
   const authRequired = useConfigStore((s) => s.authRequired)
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
@@ -73,9 +74,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               {/* This server does not let signed-out visitors read anything, which is the normal
                   posture once openHAB's implicit user role is turned off. Saying "401" here left
                   people looking at a REST call for a problem whose answer is simply to sign in. */}
-              <p className="nh-welcome__text">
-                {t('This openHAB server needs you to sign in before it will show anything.')}
-              </p>
+              <p className="nh-welcome__text">{t('This openHAB server needs you to sign in before it will show anything.')}</p>
               <div className="nh-welcome__actions">
                 <button type="button" className="nh-btn nh-btn--primary" onClick={openSignIn}>
                   {t('Sign in')}
@@ -83,17 +82,22 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               </div>
             </>
           ) : error ? (
-            <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
+            // A wall panel that booted while openHAB was restarting used to stay broken until
+            // someone found a keyboard: the message was accurate and there was nothing to press.
+            <>
+              <p className="nh-welcome__text">{t('The configuration could not be loaded: {{error}}', { error })}</p>
+              <div className="nh-welcome__actions">
+                <button type="button" className="nh-btn nh-btn--primary" disabled={loading} onClick={() => void loadConfig()}>
+                  {loading ? t('Trying again…') : t('Try again')}
+                </button>
+              </div>
+            </>
           ) : canEdit ? (
             <p className="nh-welcome__text">
-              {t(
-                'There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.'
-              )}
+              {t('There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.')}
             </p>
           ) : (
-            <p className="nh-welcome__text">
-              {t('There are no dashboards yet. Sign in as an openHAB administrator to set neohab up.')}
-            </p>
+            <p className="nh-welcome__text">{t('There are no dashboards yet. Sign in as an openHAB administrator to set neohab up.')}</p>
           )}
           {canEdit && !authRequired ? (
             <div className="nh-welcome__actions">
@@ -140,11 +144,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
       )}
 
       {kiosk ? null : (
-        <button
-          type="button"
-          className="nh-btn nh-btn--ghost nh-home__settings"
-          onClick={() => navigate({ name: 'settings' })}
-        >
+        <button type="button" className="nh-btn nh-btn--ghost nh-home__settings" onClick={() => navigate({ name: 'settings' })}>
           ⚙ {t('Settings')}
         </button>
       )}
@@ -177,6 +177,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
       {generateOpen ? <GenerateSheet onClose={() => setGenerateOpen(false)} /> : null}
       {signInOpen ? (
         <SignInSheet
+          reason={authRequired ? 'view' : 'edit'}
           onClose={() => setSignInOpen(false)}
           onToken={() => {
             setSignInOpen(false)

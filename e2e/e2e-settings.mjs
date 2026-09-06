@@ -1,6 +1,6 @@
 // Settings suite: item picker, theme switching, backup export + replace/merge import.
 // Assumes an EMPTY namespace (wipe -> restore cycle); creates its own dashboard via REST.
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { readFileSync } from 'node:fs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
@@ -40,10 +40,10 @@ const restPost = async (uid, component, config) =>
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
     try {
-      return chromium.launch({ channel, headless: true })
+      return launchChromium({ channel, headless: true })
     } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 const browser = await launch()

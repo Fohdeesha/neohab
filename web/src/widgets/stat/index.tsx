@@ -40,7 +40,7 @@ interface StatConfig {
 const ARROWS: Record<TrendDirection, string> = {
   up: 'M6 0 L11.5 7.2 H8.2 V14 H3.8 V7.2 H0.5 Z',
   down: 'M6 14 L11.5 6.8 H8.2 V0 H3.8 V6.8 H0.5 Z',
-  flat: 'M0 5 H12 V9 H0 Z',
+  flat: 'M0 5 H12 V9 H0 Z'
 }
 
 /**
@@ -104,13 +104,7 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
   const seg = isSegmentable(num)
 
   return (
-    <WidgetFrame
-      label={config.label}
-      icon={config.icon}
-      iconSize={config.iconSize}
-      iconState={state?.state}
-      iconColor={config.iconColor}
-    >
+    <WidgetFrame label={config.label} icon={config.icon} iconSize={config.iconSize} iconState={state?.state} iconColor={config.iconColor}>
       <div className={'nh-stat' + (config.align === 'center' || config.align === 'right' ? ' nh-stat--' + config.align : '')}>
         {/* the ink sits on the row, not the value, so the unit beside it can follow the
             reading's color in themes that ask it to (it stays dim in the rest) */}
@@ -134,12 +128,7 @@ function StatWidget({ config, ctx }: WidgetProps<StatConfig>) {
         {hasFoot ? (
           <div className="nh-stat__foot">
             {direction ? (
-              <svg
-                className={'nh-stat__arrow nh-stat__arrow--' + tone}
-                viewBox="0 0 12 14"
-                role="img"
-                aria-label={direction}
-              >
+              <svg className={'nh-stat__arrow nh-stat__arrow--' + tone} viewBox="0 0 12 14" role="img" aria-label={direction}>
                 <path d={ARROWS[direction]} />
               </svg>
             ) : null}
@@ -162,7 +151,7 @@ export const statWidget: WidgetDefinition<StatConfig> = {
   type: 'stat',
   name: 'Stat',
   description: 'A headline reading with a trend arrow and a second, smaller figure',
-  defaultSize: { w: 3, h: 3 },
+  defaultSize: { w: 2, h: 2 },
   hasHeader: true,
   defaultConfig: () => ({ item: '', trend: 'none', trendPeriod: '24h', goodDirection: 'none', align: 'left' }),
   settings: [
@@ -177,8 +166,8 @@ export const statWidget: WidgetDefinition<StatConfig> = {
       options: [
         { value: 'left', label: 'Left' },
         { value: 'center', label: 'Center' },
-        { value: 'right', label: 'Right' },
-      ],
+        { value: 'right', label: 'Right' }
+      ]
     },
     { key: 'color', type: 'color', label: 'Value color' },
     { key: 'severity', type: 'gaugeseverity', label: 'Color stops' },
@@ -189,8 +178,8 @@ export const statWidget: WidgetDefinition<StatConfig> = {
       options: [
         { value: 'none', label: 'None' },
         { value: 'history', label: 'Against its own history' },
-        { value: 'item', label: 'Against another item' },
-      ],
+        { value: 'item', label: 'Against another item' }
+      ]
     },
     {
       key: 'trendPeriod',
@@ -200,9 +189,9 @@ export const statWidget: WidgetDefinition<StatConfig> = {
         { value: '1h', label: '1h ago' },
         { value: '24h', label: '24h ago' },
         { value: '7d', label: '7 days ago' },
-        { value: '30d', label: '30 days ago' },
+        { value: '30d', label: '30 days ago' }
       ],
-      showIf: (c) => c.trend === 'history',
+      showIf: (c) => c.trend === 'history'
     },
     { key: 'trendItem', type: 'item', label: 'Compare with item', showIf: (c) => c.trend === 'item' },
     {
@@ -212,10 +201,10 @@ export const statWidget: WidgetDefinition<StatConfig> = {
       options: [
         { value: 'none', label: 'No judgement' },
         { value: 'up', label: 'Up is good' },
-        { value: 'down', label: 'Down is good' },
+        { value: 'down', label: 'Down is good' }
       ],
       hint: 'Arrows are drawn green when the reading moved the good way and red when it moved the other way.',
-      showIf: trending,
+      showIf: trending
     },
     { key: 'subItem', type: 'item', label: 'Second reading' },
     { key: 'subText', type: 'text', label: 'Second reading (fixed text)', showIf: (c) => !c.subItem },
@@ -224,13 +213,13 @@ export const statWidget: WidgetDefinition<StatConfig> = {
     { key: 'badgeColor', type: 'color', label: 'Badge color', showIf: (c) => typeof c.badge === 'string' && c.badge !== '' },
     { key: 'icon', type: 'icon', label: 'Icon' },
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
-    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 }
   ],
   itemKeys: (c) => [
     c.item,
     ...(typeof c.subItem === 'string' && c.subItem !== '' ? [c.subItem] : []),
-    ...(c.trend === 'item' && typeof c.trendItem === 'string' && c.trendItem !== '' ? [c.trendItem] : []),
+    ...(c.trend === 'item' && typeof c.trendItem === 'string' && c.trendItem !== '' ? [c.trendItem] : [])
   ],
   canCommand: () => false,
-  Component: StatWidget,
+  Component: StatWidget
 }

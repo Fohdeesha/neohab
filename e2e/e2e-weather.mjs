@@ -15,7 +15,7 @@
  * (themeOverride), so the shared settings component is never written.
  */
 import { readFileSync } from 'node:fs'
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-weather'
@@ -34,9 +34,9 @@ const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
 
 async function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return await chromium.launch({ channel, headless: true }) } catch {}
+    try { return await launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /** Expected strings derived from the fixture, so the checks and the routes cannot disagree. */
@@ -257,8 +257,8 @@ try {
         widgets: [
           {
             // The same tile with no name to draw: a header row costs the body about 1.05em plus
-            // 8px, so the two have different budgets and each has its own shed threshold. Jon's
-            // reported panel is this one - named, but told not to show it.
+            // 8px, so the two have different budgets and each has its own shed threshold. The
+            // panel that was reported is this one - named, but told not to show it.
             id: 'w-tight-bare',
             type: 'weather',
             config: { source: 'openmeteo', look: 'hero', label: 'Bare', labelMode: 'none', units: 'imperial', location: detroit, textSize: 110 },

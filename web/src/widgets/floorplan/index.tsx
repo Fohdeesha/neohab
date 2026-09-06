@@ -25,7 +25,7 @@ import {
   lightsOf,
   planStyleOf,
   type FloorplanConfig,
-  type FloorplanLight,
+  type FloorplanLight
 } from './model'
 import { LightPopup } from './LightPopup'
 import { PresetBar } from './PresetBar'
@@ -34,7 +34,7 @@ export function PlanCanvas({
   config,
   ctx,
   children,
-  onPlanPointerDown,
+  onPlanPointerDown
 }: {
   config: FloorplanConfig
   ctx: WidgetProps<FloorplanConfig>['ctx']
@@ -76,8 +76,7 @@ export function PlanCanvas({
         <div
           className="nh-fplan__layer"
           style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
-          onPointerDown={onPlanPointerDown ? (e) => onPlanPointerDown(e, rect) : undefined}
-        >
+          onPointerDown={onPlanPointerDown ? (e) => onPlanPointerDown(e, rect) : undefined}>
           {lights.map((l) => {
             const glow = glowFor(settled(l.item, ctx.getItem(l.item)?.state))
             if (!glow || glow.intensity <= 0) return null
@@ -92,7 +91,7 @@ export function PlanCanvas({
                   width: `${geom.width}%`,
                   aspectRatio: geom.aspectRatio,
                   transform: geom.transform,
-                  backgroundImage: glowCss(glow, l.glowDir),
+                  backgroundImage: glowCss(glow, l.glowDir)
                 }}
               />
             )
@@ -158,9 +157,9 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
       options: [
         { value: 'blueprint', label: 'Blueprint (for dark themes)' },
         { value: 'ink', label: 'Ink (for light themes)' },
-        { value: 'plain', label: 'As uploaded' },
+        { value: 'plain', label: 'As uploaded' }
       ],
-      hint: 'Blueprint restyles any uploaded plan into light linework on the theme background; ink keeps dark lines. As uploaded shows the image untouched.',
+      hint: 'Blueprint restyles any uploaded plan into light linework on the theme background; ink keeps dark lines. As uploaded shows the image untouched.'
     },
     { key: 'lights', type: 'planlights', label: 'Lights' },
     { key: 'markers', type: 'boolean', label: 'Show light markers' },
@@ -170,7 +169,7 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
       type: 'boolean',
       label: 'Turn the lights off when unselecting a preset',
       hint: 'Tapping the highlighted preset again switches off the lights it controls, instead of running it again. Other lights on the plan are left alone.',
-      showIf: (c) => c.presetBar !== false,
+      showIf: (c) => c.presetBar !== false
     },
     {
       key: 'glowScale',
@@ -179,8 +178,8 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
       min: 25,
       max: 400,
       step: 5,
-      hint: 'Scales every glow on this plan. 100 = normal.',
-    },
+      hint: 'Scales every glow on this plan. 100 = normal.'
+    }
   ],
   itemKeys: (c) => lightsOf(c).map((l) => l.item),
   canCommand: () => true,
@@ -188,5 +187,5 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
   // nothing on the plan says which. Working it out from the state is the honest answer here, and
   // it is what the tap-a-light popup on the plan itself does.
   controlFor: (c, item) => (lightsOf(c).some((l) => l.item === item) ? { kind: 'auto' } : undefined),
-  Component: FloorplanWidget,
+  Component: FloorplanWidget
 }

@@ -10,7 +10,7 @@
  * and restored); every in-app tap that could command goes through a fulfilled route, so no
  * widget interaction ever reaches a real device.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-gauge'
@@ -32,9 +32,9 @@ async function sendItem(name, value) {
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 /** The suite's own copy of the lighting rule: LED i is lit when its fraction <= value fraction. */

@@ -13,16 +13,9 @@ import { notify } from '../../store/notify'
 import { hsbToCss, parseHsb } from '../../model/color'
 import type { FloorplanLight } from './model'
 import { mergeMap } from '../../model/lookup'
+import { errorText } from '../../api/errors'
 
-export function PresetSaveDialog({
-  ctx,
-  lights,
-  onClose,
-}: {
-  ctx: WidgetContext
-  lights: FloorplanLight[]
-  onClose: () => void
-}) {
+export function PresetSaveDialog({ ctx, lights, onClose }: { ctx: WidgetContext; lights: FloorplanLight[]; onClose: () => void }) {
   const { t } = useTranslation()
   const { summaries, full } = usePresetsStore()
   const managed = summaries.filter((s) => s.managed && s.editable)
@@ -31,9 +24,7 @@ export function PresetSaveDialog({
   const [busy, setBusy] = useState(false)
   // Prototype-free: a light's id can come from stored configuration, so it can be any string at
   // all, and a miss on an ordinary object answers with a function - see model/lookup.ts.
-  const [included, setIncluded] = useState<Record<string, boolean>>(() =>
-    mergeMap(...lights.map((l) => ({ [l.id]: true })))
-  )
+  const [included, setIncluded] = useState<Record<string, boolean>>(() => mergeMap(...lights.map((l) => ({ [l.id]: true }))))
 
   const captures = lights.map((l) => {
     const state = ctx.getItem(l.item)
@@ -50,9 +41,7 @@ export function PresetSaveDialog({
     try {
       // Overwriting keeps the preset's identity (uid, status item, bridge) and replaces the
       // lights this plan covers; lights of the preset NOT on this plan are kept as they are.
-      const keptLights = existing
-        ? existing.lights.filter((pl) => !chosen.some((c) => c.light.item === pl.item))
-        : []
+      const keptLights = existing ? existing.lights.filter((pl) => !chosen.some((c) => c.light.item === pl.item)) : []
       const preset: Preset = existing
         ? { ...existing, lights: [...keptLights, ...chosen.map((c) => ({ item: c.light.item, command: c.command! }))] }
         : {
@@ -60,19 +49,23 @@ export function PresetSaveDialog({
             name: presetName,
             editable: true,
             managed: true,
-            lights: chosen.map((c) => ({ item: c.light.item, command: c.command! })),
+            lights: chosen.map((c) => ({ item: c.light.item, command: c.command! }))
           }
       await savePreset(preset, { create: !existing })
       onClose()
     } catch (err) {
-      notify(t('Saving the preset failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      notify(t('Saving the preset failed: {{error}}', { error: errorText(err) }))
       setBusy(false)
     }
   }
 
   return (
     <div className="nh-fplan__scrim" onClick={onClose}>
-      <div className="nh-fplan__popup nh-fplan__popup--save" role="dialog" aria-label={t('Save preset')} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="nh-fplan__popup nh-fplan__popup--save"
+        role="dialog"
+        aria-label={t('Save preset')}
+        onClick={(e) => e.stopPropagation()}>
         <div className="nh-fplan__popuphead">
           <span className="nh-fplan__popupname">{t('Save preset')}</span>
           <button type="button" className="nh-iconbtn" aria-label={t('Close')} onClick={onClose}>
@@ -122,13 +115,8 @@ export function PresetSaveDialog({
           <button
             type="button"
             className="nh-btn nh-btn--primary"
-            disabled={
-              busy ||
-              (target === '' && name.trim() === '') ||
-              !captures.some((c) => included[c.light.id] && c.command !== null)
-            }
-            onClick={() => void save()}
-          >
+            disabled={busy || (target === '' && name.trim() === '') || !captures.some((c) => included[c.light.id] && c.command !== null)}
+            onClick={() => void save()}>
             {busy ? t('Saving…') : t('Save preset')}
           </button>
         </div>

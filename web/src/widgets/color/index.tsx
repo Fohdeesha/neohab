@@ -43,8 +43,8 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
       key: 'powerButtons',
       type: 'boolean',
       label: 'On and off buttons',
-      hint: 'Off switches the light off and keeps its colour. On brings back the brightness it was last seen at.',
-    },
+      hint: 'Off switches the light off and keeps its color. On brings back the brightness it was last seen at.'
+    }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
@@ -53,5 +53,5 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
   // came from. Read against `true` rather than against `false`, so a stored value that is neither
   // - and anything at all can be in a stored config - lands on the plain picker.
   controlFor: (c, item) => (item === c.item ? { kind: 'color', ...(c.powerButtons === true ? { power: true } : {}) } : undefined),
-  Component: ColorWidget,
+  Component: ColorWidget
 }

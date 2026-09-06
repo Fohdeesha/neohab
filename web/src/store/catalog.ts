@@ -15,7 +15,7 @@ interface CatalogState {
 export const useCatalogStore = create<CatalogState>(() => ({
   items: [],
   loaded: false,
-  loading: false,
+  loading: false
 }))
 
 export function ensureCatalog(): void {

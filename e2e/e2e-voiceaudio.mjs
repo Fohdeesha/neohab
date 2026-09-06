@@ -8,8 +8,8 @@
  * (initial state recorded and restored). Audio playback is fully synthetic - the SSE stream
  * and the audio file are route-injected, nothing real plays and no rule runs.
  */
-import { chromium } from 'playwright-core'
-import { APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { launchChromium } from './lib/browser.mjs'
+import { APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
 import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-voice'
@@ -27,9 +27,9 @@ const postItem = (name, cmd) =>
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // ---------- snapshots ----------
@@ -69,17 +69,30 @@ try {
     ok('speak toggle present and on by default', await page.isChecked('#nh-set-speak'))
     ok('per-device voice select present', (await page.locator('#nh-set-voice').count()) === 1)
     ok('Test voice button present', (await page.locator('button:has-text("Test voice")').count()) === 1)
+    // Speech recognition needs a Chromium browser AND a secure context, so an insecure origin
+    // must say why rather than offering a button that cannot work. Over TLS there is nothing to
+    // explain, and the notice must be gone: two right answers, and the check is which one the
+    // target gets.
+    const unavailable = await page.locator('text=Voice input (the microphone button) is not available here').count()
     ok(
-      'voice input honestly marked unavailable on plain HTTP',
-      (await page.locator('text=Voice input (the microphone button) is not available here').count()) === 1
+      HTTPS
+        ? 'no unavailable notice over HTTPS, where voice input can work'
+        : 'voice input honestly marked unavailable on plain HTTP',
+      unavailable === (HTTPS ? 0 : 1),
+      'notices ' + unavailable
     )
     ok('speech item picker present (admin)', (await page.locator('#nh-set-speechitem').count()) === 1)
     ok('voice button toggle present (admin)', (await page.locator('#nh-set-voicebtn').count()) === 1)
 
-    // header mic button absent on this insecure origin, pencil still there
+    // The header mic follows the same rule; the pencil is there either way.
     await page.goto(APP + '#/d/nh-e2e-voice', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 })
-    ok('mic button absent on plain HTTP', (await page.locator('[aria-label="Voice command"]').count()) === 0)
+    const mic = await page.locator('[aria-label="Voice command"]').count()
+    ok(
+      HTTPS ? 'the mic button is offered over HTTPS' : 'mic button absent on plain HTTP',
+      mic === (HTTPS ? 1 : 0),
+      'buttons ' + mic
+    )
     const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
     ok('settings section: no page errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
     await page.close()

@@ -52,7 +52,7 @@ import {
   tempParts,
   toneOf,
   unitOf,
-  valueAtAngle,
+  valueAtAngle
 } from './model'
 import type { ThermostatConfig, ThermostatLook } from './model'
 import { ArcLook, DialLook, DiscLook, Glyph, RingLook } from './looks'
@@ -62,7 +62,7 @@ const LOOK_COMPONENTS: Record<ThermostatLook, ComponentType<{ view: ThermoView }
   arc: ArcLook,
   dial: DialLook,
   disc: DiscLook,
-  ring: RingLook,
+  ring: RingLook
 }
 
 /**
@@ -219,8 +219,8 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
       ambient: t('Ambient'),
       set: t('Set'),
       mode: t('Mode'),
-      current: t('Current temperature'),
-    },
+      current: t('Current temperature')
+    }
   }
 
   const Look = LOOK_COMPONENTS[look]
@@ -254,8 +254,7 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
                       type="button"
                       className={'nh-thermo__mbtn nh-thermo__mbtn--heat' + (hvac === 'heat' ? ' nh-thermo__mbtn--on' : '')}
                       aria-pressed={hvac === 'heat'}
-                      onClick={() => mode.send(cmd.heat)}
-                    >
+                      onClick={() => mode.send(cmd.heat)}>
                       <Glyph name="flame" />
                       <span className="nh-thermo__mtext">{t('Heat')}</span>
                     </button>
@@ -263,8 +262,7 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
                       type="button"
                       className={'nh-thermo__mbtn nh-thermo__mbtn--cool' + (hvac === 'cool' ? ' nh-thermo__mbtn--on' : '')}
                       aria-pressed={hvac === 'cool'}
-                      onClick={() => mode.send(cmd.cool)}
-                    >
+                      onClick={() => mode.send(cmd.cool)}>
                       <Glyph name="snow" />
                       <span className="nh-thermo__mtext">{t('Cool')}</span>
                     </button>
@@ -276,8 +274,7 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
                       type="button"
                       className={'nh-thermo__mbtn nh-thermo__mbtn--fan' + (fanMode === 'auto' ? ' nh-thermo__mbtn--on' : '')}
                       aria-pressed={fanMode === 'auto'}
-                      onClick={() => fan.send(cmd.fanAuto)}
-                    >
+                      onClick={() => fan.send(cmd.fanAuto)}>
                       <Glyph name="fanAuto" />
                       <span className="nh-thermo__mtext">{t('Auto')}</span>
                     </button>
@@ -285,8 +282,7 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
                       type="button"
                       className={'nh-thermo__mbtn nh-thermo__mbtn--fan' + (fanMode === 'on' ? ' nh-thermo__mbtn--on' : '')}
                       aria-pressed={fanMode === 'on'}
-                      onClick={() => fan.send(cmd.fanOn)}
-                    >
+                      onClick={() => fan.send(cmd.fanOn)}>
                       <Glyph name="fan" />
                       <span className="nh-thermo__mtext">{t('On')}</span>
                     </button>
@@ -297,8 +293,7 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
                     type="button"
                     className={'nh-thermo__mbtn nh-thermo__mbtn--aux' + (auxOn ? ' nh-thermo__mbtn--on' : '')}
                     aria-pressed={auxOn === true}
-                    onClick={() => aux.send(auxOn ? cmd.auxOff : cmd.auxOn)}
-                  >
+                    onClick={() => aux.send(auxOn ? cmd.auxOff : cmd.auxOn)}>
                     <Glyph name="aux" />
                     <span className="nh-thermo__mtext">{t('Aux heat')}</span>
                   </button>
@@ -353,8 +348,8 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
         { value: 'arc', label: 'Arc with buttons' },
         { value: 'dial', label: 'Solid dial' },
         { value: 'disc', label: 'Disc with markers' },
-        { value: 'ring', label: 'Ring' },
-      ],
+        { value: 'ring', label: 'Ring' }
+      ]
     },
     { key: 'modeItem', type: 'item', label: 'Mode item', hint: 'Heat or cool. Leave empty to hide the mode buttons.' },
     { key: 'heatCommand', type: 'text', label: 'Heat command', placeholder: 'HEAT', showIf: hasMode },
@@ -370,7 +365,7 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
       type: 'item',
       label: 'Status item',
       readOnly: true,
-      hint: 'What the system is doing now, if your thermostat reports it. The panel then says Heating, Cooling or Idle.',
+      hint: 'What the system is doing now, if your thermostat reports it. The panel then says Heating, Cooling or Idle.'
     },
     { key: 'heatingStates', type: 'text', label: 'States that mean heating', placeholder: 'heating, HEATING, 1', showIf: hasStatus },
     { key: 'coolingStates', type: 'text', label: 'States that mean cooling', placeholder: 'cooling, COOLING, 2', showIf: hasStatus },
@@ -378,13 +373,13 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
       key: 'min',
       type: 'number',
       label: 'Minimum',
-      hint: "Leave the range empty to use the item's own, or 10-30 by 0.5 for Celsius and 50-90 by 1 for Fahrenheit.",
+      hint: "Leave the range empty to use the item's own, or 10-30 by 0.5 for Celsius and 50-90 by 1 for Fahrenheit."
     },
     { key: 'max', type: 'number', label: 'Maximum' },
     { key: 'step', type: 'number', label: 'Step' },
     { key: 'unit', type: 'text', label: 'Unit suffix', hint: 'Leave empty to use the unit the items report.' },
     { key: 'heatColor', type: 'color', label: 'Heating color' },
-    { key: 'coolColor', type: 'color', label: 'Cooling color' },
+    { key: 'coolColor', type: 'color', label: 'Cooling color' }
   ],
   itemKeys: (c) => [c.currentItem, c.setpointItem, c.modeItem ?? '', c.fanItem ?? '', c.auxItem ?? '', c.statusItem ?? ''],
   canCommand: () => true,
@@ -400,8 +395,8 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
         kind: 'choices',
         choices: [
           { command: cmd.heat, labelKey: 'Heat' },
-          { command: cmd.cool, labelKey: 'Cool' },
-        ],
+          { command: cmd.cool, labelKey: 'Cool' }
+        ]
       }
     }
     if (item === c.fanItem) {
@@ -409,12 +404,12 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
         kind: 'choices',
         choices: [
           { command: cmd.fanAuto, labelKey: 'Auto' },
-          { command: cmd.fanOn, labelKey: 'On' },
-        ],
+          { command: cmd.fanOn, labelKey: 'On' }
+        ]
       }
     }
     if (item === c.auxItem) return { kind: 'onoff', on: cmd.auxOn, off: cmd.auxOff }
     return undefined
   },
-  Component: ThermostatWidget,
+  Component: ThermostatWidget
 }

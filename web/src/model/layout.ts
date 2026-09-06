@@ -35,7 +35,7 @@ export function sanitizeRect(stored: Partial<Rect> | undefined): Rect {
     x: Math.max(0, Math.round(finite(stored.x, 0))),
     y: Math.max(0, Math.round(finite(stored.y, 0))),
     w: Math.max(1, Math.round(finite(stored.w, 1))),
-    h: Math.max(1, Math.round(finite(stored.h, 1))),
+    h: Math.max(1, Math.round(finite(stored.h, 1)))
   }
 }
 
@@ -171,9 +171,7 @@ export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   for (const w of stackedOrder(dashboard)) {
     const stored = w.layout.md
     const source = rectOf(w)
-    const rect = stored
-      ? clampRect(stored, columns)
-      : findFreeSpot(placed, Math.min(source.w, columns), source.h)
+    const rect = stored ? clampRect(stored, columns) : findFreeSpot(placed, Math.min(source.w, columns), source.h)
     out.set(w.id, rect)
     placed.widgets = [...placed.widgets, { ...w, layout: { lg: rect } }]
   }
@@ -191,7 +189,7 @@ export function projectDashboard(dashboard: Dashboard, bp: 'lg' | 'md'): Dashboa
   return {
     ...dashboard,
     columns: mdColumnsOf(dashboard),
-    widgets: widgetsOf(dashboard).map((w) => ({ ...w, layout: { ...w.layout, lg: rects.get(w.id) ?? rectOf(w) } })),
+    widgets: widgetsOf(dashboard).map((w) => ({ ...w, layout: { ...w.layout, lg: rects.get(w.id) ?? rectOf(w) } }))
   }
 }
 
@@ -238,10 +236,7 @@ export function stackedOrder(dashboard: Dashboard): WidgetInstance[] {
  * Pixel geometry of one grid cell at a given container width. With rowHeight 'match' the
  * cells are square (row height = column width), so dashboards scale proportionally.
  */
-export function cellMetrics(
-  dashboard: Dashboard,
-  containerWidth: number
-): { gap: number; colWidth: number; rowHeight: number } {
+export function cellMetrics(dashboard: Dashboard, containerWidth: number): { gap: number; colWidth: number; rowHeight: number } {
   const gap = gapOf(dashboard)
   const columns = columnsOf(dashboard)
   // Floored at 1px: many columns at a wide gap can want more room than the container has, and a
@@ -441,7 +436,7 @@ export function groupFrames(widgets: WidgetInstance[]): GroupFrame[] {
       x,
       y,
       w: Math.max(b.x + b.w, r.x + r.w) - x,
-      h: Math.max(b.y + b.h, r.y + r.h) - y,
+      h: Math.max(b.y + b.h, r.y + r.h) - y
     }
     found.color ??= widgetAccentColor(w)
   }
@@ -537,9 +532,7 @@ export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPl
   const isLegal = (plan: BumpPlan): boolean => {
     const at = (w: WidgetInstance): Rect => plan.get(w.id) ?? rectOf(w)
     if (others.some((w) => collides(target, at(w)))) return false
-    return others.every(
-      (w) => !plan.has(w.id) || others.every((o) => o.id === w.id || !collides(at(w), at(o)))
-    )
+    return others.every((w) => !plan.has(w.id) || others.every((o) => o.id === w.id || !collides(at(w), at(o))))
   }
 
   // 1:1 trade. Equal sizes mean the occupant lands exactly on the spot the dragged widget

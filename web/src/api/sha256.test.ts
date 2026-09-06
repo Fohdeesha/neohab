@@ -30,22 +30,17 @@ describe('the published FIPS 180-4 vectors', () => {
   it.each([
     ['', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
     ['abc', 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'],
-    [
-      'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
-      '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
-    ],
+    ['abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq', '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1'],
     [
       'abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu',
-      'cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1',
-    ],
+      'cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1'
+    ]
   ])('hashes %j', (input, expected) => {
     expect(digest(input)).toBe(expected)
   })
 
   it('hashes a million "a" characters', () => {
-    expect(digest(new Uint8Array(1_000_000).fill(0x61))).toBe(
-      'cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0'
-    )
+    expect(digest(new Uint8Array(1_000_000).fill(0x61))).toBe('cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0')
   })
 })
 
@@ -89,7 +84,10 @@ describe('the shape PKCE actually needs', () => {
     // with the spec rather than merely being self-consistent.
     const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
     const base64url = (bytes: Uint8Array) =>
-      btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      btoa(String.fromCharCode(...bytes))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '')
     const challenge = base64url(sha256(utf8(verifier)))
     expect(challenge).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')
     expect(challenge).toHaveLength(43)

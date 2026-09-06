@@ -112,10 +112,24 @@ export function useIsAdmin(): boolean {
  * seam, not a role check.
  */
 export function useEditingAllowed(): boolean {
-  return useAuthStore((s) => s.status === 'admin')
+  return allowed(useAuthStore((s) => s.status))
 }
 
 /** The same answer outside a component, for handlers deciding between the editor and a sign-in. */
 export function editingAllowed(): boolean {
-  return useAuthStore.getState().status === 'admin'
+  return allowed(useAuthStore.getState().status)
+}
+
+/**
+ * 'unknown' means the probe has not answered, or failed for a reason that says nothing about the
+ * account (the server restarting, a dropped connection). A device holding credentials keeps its
+ * editing affordances through that, which is what the probe's own comment promises and what the
+ * app did before the probe existed - hiding them would lock a legitimately signed-in
+ * administrator out of their own panel over a hiccup, until they thought to reload. A device with
+ * no credentials at all is never 'unknown' in the first place, so nothing is offered to a
+ * visitor. The server refuses the write either way, so the cost of being wrong here is a refusal
+ * with a sign-in button on it, not an unauthorised change.
+ */
+function allowed(status: AuthStatus): boolean {
+  return status === 'admin' || (status === 'unknown' && isLoggedIn())
 }

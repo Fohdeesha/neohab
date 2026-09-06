@@ -16,7 +16,7 @@ import {
   partitionHistory,
   thinBands,
   type TimelineBand,
-  type TimelineConfig,
+  type TimelineConfig
 } from './model'
 
 /** Minimum painted width (%) for the current band, so a state change is visible instantly. */
@@ -110,14 +110,12 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
           getItemHistory(s.item, since, {
             serviceId: config.service || undefined,
             boundary: true,
-            signal: ctrl.signal,
+            signal: ctrl.signal
           })
         )
       )
       if (disposed) return
-      const partitioned = results.map((points) =>
-        thinBands(partitionHistory(points, now - windowMs, now), windowMs / THIN_DIVISOR)
-      )
+      const partitioned = results.map((points) => thinBands(partitionHistory(points, now - windowMs, now), windowMs / THIN_DIVISOR))
       setRows(partitioned)
       setNowTick(now)
       setStatus(partitioned.some((r) => r.length > 0) ? 'ready' : 'empty')
@@ -207,9 +205,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       return Number.isFinite(n) ? String(n) : s
     }
     const maps = effectiveColorMaps({ colorMaps })
-    const unmapped = [...new Set(rows.flat().map((b) => canon(b.state)))]
-      .filter((s) => !maps.some((m) => stateMatches(m.state, s)))
-      .sort()
+    const unmapped = [...new Set(rows.flat().map((b) => canon(b.state)))].filter((s) => !maps.some((m) => stateMatches(m.state, s))).sort()
     return (state: string): string => {
       const explicit = maps.find((m) => stateMatches(m.state, state))
       if (explicit) return explicit.color
@@ -217,10 +213,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     }
   }, [colorMaps, rows, scheme])
 
-  const chips = useMemo(
-    () => chipPeriods(config.periods, config.period, period),
-    [config.periods, config.period, period]
-  )
+  const chips = useMemo(() => chipPeriods(config.periods, config.period, period), [config.periods, config.period, period])
 
   const showChips = config.picker !== false && chips.length > 0
   const label = config.label ?? (series.length === 1 ? series[0].label || series[0].item : undefined)
@@ -234,8 +227,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
           key={c}
           type="button"
           className={'nh-chart__chip' + (c === period ? ' nh-chart__chip--on' : '')}
-          onClick={() => setPeriod(c)}
-        >
+          onClick={() => setPeriod(c)}>
           {c}
         </button>
       ))}
@@ -332,7 +324,7 @@ export const timelineWidget: WidgetDefinition<TimelineConfig> = {
       key: 'period',
       type: 'select',
       label: 'Default period',
-      options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
+      options: PERIOD_IDS.map((p) => ({ value: p, label: p }))
     },
     { key: 'picker', type: 'boolean', label: 'Period selector' },
     {
@@ -342,7 +334,7 @@ export const timelineWidget: WidgetDefinition<TimelineConfig> = {
       options: PERIOD_IDS.map((p) => ({ value: p, label: p })),
       defaultValue: PERIOD_CHIPS,
       showIf: (c) => c.picker !== false,
-      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.',
+      hint: 'Which chips the period selector shows. The default period and the range on screen are always reachable.'
     },
     { key: 'service', type: 'text', label: 'Persistence service (optional)' },
     {
@@ -350,10 +342,10 @@ export const timelineWidget: WidgetDefinition<TimelineConfig> = {
       type: 'number',
       label: 'Refresh (seconds)',
       min: 10,
-      hint: 'Empty = automatic, based on the period. Live item changes appear immediately either way.',
-    },
+      hint: 'Empty = automatic, based on the period. Live item changes appear immediately either way.'
+    }
   ],
   itemKeys: (config) => [...new Set(effectiveTimelineSeries(config).map((s) => s.item))],
   canCommand: () => false,
-  Component: TimelineWidget,
+  Component: TimelineWidget
 }

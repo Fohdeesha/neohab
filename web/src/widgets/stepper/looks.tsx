@@ -38,19 +38,19 @@ const CHEVRON: Record<'up' | 'down' | 'left' | 'right', string> = {
   up: 'M6 15l6-6 6 6',
   down: 'M6 9l6 6 6-6',
   left: 'M15 6l-6 6 6 6',
-  right: 'M9 6l6 6-6 6',
+  right: 'M9 6l6 6-6 6'
 }
 const TRIANGLE: Record<'up' | 'down' | 'left' | 'right', string> = {
   up: 'M12 7l6 10H6z',
   down: 'M12 17L6 7h12z',
   left: 'M7 12l10-6v12z',
-  right: 'M17 12L7 18V6z',
+  right: 'M17 12L7 18V6z'
 }
 const ARROW: Record<'up' | 'down' | 'left' | 'right', string> = {
   up: 'M12 19V5M5 12l7-7 7 7',
   down: 'M12 5v14M5 12l7 7 7-7',
   left: 'M19 12H5M12 5l-7 7 7 7',
-  right: 'M5 12h14M12 5l7 7-7 7',
+  right: 'M5 12h14M12 5l7 7-7 7'
 }
 const SIGN: Record<'plus' | 'minus', string> = { plus: 'M12 5v14M5 12h14', minus: 'M5 12h14' }
 
@@ -66,8 +66,7 @@ export function Arrow({ g, className }: { g: Glyph; className?: string }) {
     <svg
       className={'nh-step__ic' + (g.shape === 'triangle' ? ' nh-step__ic--fill' : '') + (className ? ' ' + className : '')}
       viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
+      aria-hidden="true">
       <path d={pathOf(g.shape, g.dir)} />
     </svg>
   )
@@ -91,15 +90,12 @@ function StepButton({ view, dir, axis, kind }: ButtonProps) {
   return (
     <button
       type="button"
-      className={
-        'nh-step__btn nh-step__' + kind + ' nh-step__btn--' + (dir > 0 ? 'up' : 'down') + (off ? ' nh-step__btn--off' : '')
-      }
+      className={'nh-step__btn nh-step__' + kind + ' nh-step__btn--' + (dir > 0 ? 'up' : 'down') + (off ? ' nh-step__btn--off' : '')}
       aria-label={dir > 0 ? view.labels.up : view.labels.down}
       aria-disabled={off || undefined}
       onClick={() => {
         if (!off) view.onStep(dir)
-      }}
-    >
+      }}>
       <Arrow g={view.glyph(axis, dir)} />
     </button>
   )
@@ -189,8 +185,7 @@ export function SplitLook({ view }: { view: StepperView }) {
         aria-disabled={off || undefined}
         onClick={() => {
           if (!off) view.onStep(dir)
-        }}
-      >
+        }}>
         <Arrow g={view.glyph('vertical', dir)} className="nh-step__ic--v" />
         <Arrow g={view.glyph('horizontal', dir)} className="nh-step__ic--h" />
       </button>

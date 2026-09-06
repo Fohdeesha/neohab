@@ -40,7 +40,7 @@ const cluster = (id: string, name: string, sections: ClusterSection[], icon?: st
   name,
   icon,
   sections: sections.filter((s) => s.items.length > 0),
-  count: sections.reduce((n, s) => n + s.items.length, 0),
+  count: sections.reduce((n, s) => n + s.items.length, 0)
 })
 
 /** Items that can never become a widget: containers and the item list's own housekeeping. */
@@ -112,21 +112,17 @@ export function semanticClusters(items: Item[], index: TagIndex): Cluster[] {
     const sections: ClusterSection[] = []
     /** Within a section: the equipment's own item first, then its points by display name. */
     const ordered = (names: string[], self?: string): string[] =>
-      [...names].sort((a, b) =>
-        a === self ? -1 : b === self ? 1 : nameOf(byName, a).localeCompare(nameOf(byName, b))
-      )
+      [...names].sort((a, b) => (a === self ? -1 : b === self ? 1 : nameOf(byName, a).localeCompare(nameOf(byName, b))))
     // Points sitting directly in the location come first, then equipment by name.
     const direct = bucket.get('')
     if (direct) sections.push({ items: ordered(direct) })
-    const equipmentKeys = [...bucket.keys()]
-      .filter((k) => k !== '')
-      .sort((a, b) => nameOf(byName, a).localeCompare(nameOf(byName, b)))
+    const equipmentKeys = [...bucket.keys()].filter((k) => k !== '').sort((a, b) => nameOf(byName, a).localeCompare(nameOf(byName, b)))
     for (const key of equipmentKeys) {
       const equipment = byName.get(key)
       sections.push({
         name: equipment ? displayName(equipment) : titleCase(key),
         equipmentTag: equipment ? kindOf.get(key)?.tag?.name : undefined,
-        items: ordered(bucket.get(key) ?? [], key),
+        items: ordered(bucket.get(key) ?? [], key)
       })
     }
     out.push(cluster(loc.name, displayName(loc), sections, locationIcon(kindOf.get(loc.name)?.tag?.name)))
@@ -213,6 +209,6 @@ export function surveySources(items: Item[], index: TagIndex) {
     semantic,
     groups,
     prefixes,
-    placeable: items.filter(isPlaceable).length,
+    placeable: items.filter(isPlaceable).length
   }
 }

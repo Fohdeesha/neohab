@@ -8,7 +8,7 @@
  * restored), never touches the switch item (its rule targets whatever state it already has),
  * and verifies the SHARED theme setting is untouched by the device override.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings } from './lib/components.mjs'
 
@@ -28,9 +28,9 @@ const postItem = (name, cmd) =>
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
-    try { return chromium.launch({ channel, headless: true }) } catch {}
+    try { return launchChromium({ channel, headless: true }) } catch {}
   }
-  return chromium.launch({ headless: true })
+  return launchChromium({ headless: true })
 }
 
 // ---------- snapshots ----------

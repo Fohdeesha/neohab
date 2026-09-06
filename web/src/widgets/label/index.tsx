@@ -25,24 +25,21 @@ function LabelWidget({ config }: WidgetProps<LabelConfig>) {
   return (
     <WidgetFrame bare center>
       <span
-        className={
-          'nh-label' +
-          (chip ? ' nh-label--chip nh-label--' + config.shape : '') +
-          (align ? ' nh-label--' + align : '')
-        }
-        style={{
-          // Authored against a desktop-width dashboard, like iconSize: scale it with the cell
-          // so a label tracks the rest of the widget text instead of staying fixed.
-          fontSize: config.fontSize
-            ? `calc(${config.fontSize}px * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1))`
-            : undefined,
-          color: config.color,
-          background: chip ? config.fill : undefined,
-          // A chip with a fill of its own needs ink that can be read on THAT colour, not on the
-          // theme accent the stylesheet assumed. An explicit Color setting still wins above.
-          '--nh-accent-ink': chip && config.fill ? (readableInk(config.fill) ?? undefined) : undefined,
-        } as CSSProperties}
-      >
+        className={'nh-label' + (chip ? ' nh-label--chip nh-label--' + config.shape : '') + (align ? ' nh-label--' + align : '')}
+        style={
+          {
+            // Authored against a desktop-width dashboard, like iconSize: scale it with the cell
+            // so a label tracks the rest of the widget text instead of staying fixed.
+            fontSize: config.fontSize
+              ? `calc(${config.fontSize}px * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1))`
+              : undefined,
+            color: config.color,
+            background: chip ? config.fill : undefined,
+            // A chip with a fill of its own needs ink that can be read on THAT colour, not on the
+            // theme accent the stylesheet assumed. An explicit Color setting still wins above.
+            '--nh-accent-ink': chip && config.fill ? (readableInk(config.fill) ?? undefined) : undefined
+          } as CSSProperties
+        }>
         {config.text}
       </span>
     </WidgetFrame>
@@ -68,8 +65,8 @@ export const labelWidget: WidgetDefinition<LabelConfig> = {
       options: [
         { value: 'left', label: 'Left' },
         { value: 'center', label: 'Center' },
-        { value: 'right', label: 'Right' },
-      ],
+        { value: 'right', label: 'Right' }
+      ]
     },
     {
       key: 'shape',
@@ -78,11 +75,11 @@ export const labelWidget: WidgetDefinition<LabelConfig> = {
       options: [
         { value: 'plain', label: 'Plain text' },
         { value: 'pill', label: 'Pill' },
-        { value: 'box', label: 'Box' },
+        { value: 'box', label: 'Box' }
       ],
-      hint: 'A pill or box makes the text a filled chip that hugs it, for callouts and badges.',
+      hint: 'A pill or box makes the text a filled chip that hugs it, for callouts and badges.'
     },
-    { key: 'fill', type: 'color', label: 'Chip fill', showIf: isChip },
+    { key: 'fill', type: 'color', label: 'Chip fill', showIf: isChip }
   ],
-  Component: LabelWidget,
+  Component: LabelWidget
 }

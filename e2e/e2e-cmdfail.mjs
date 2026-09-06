@@ -9,7 +9,7 @@
  * SAFE with the live config: creates only dashboard:nh-e2e-cmdfail, deletes exactly that in a
  * guarded cleanup. Real commands only ever touch the dimmer item (approved), restored exactly.
  */
-import { chromium } from 'playwright-core'
+import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-cmdfail'
@@ -45,7 +45,7 @@ try {
   })
   ok('seed dashboard created', seedRes.ok, 'HTTP ' + seedRes.status)
 
-  browser = await chromium.launch({ channel: 'msedge', headless: true })
+  browser = await launchChromium({ channel: 'msedge', headless: true })
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
@@ -85,7 +85,10 @@ try {
   const toastText = (await toast.first().textContent()) || ''
   console.log('toast: ' + toastText.trim())
   ok('toast names the item', toastText.includes(DIM), toastText.trim())
-  ok('toast shows the refused command + status', /400/.test(toastText) && /\d/.test(toastText), toastText.trim())
+  // What the server said, not the number it said it with. A status code in a toast tells the
+  // person pressing the button nothing they can act on, and reads like a fault in the panel.
+  ok('toast carries the server’s reason', /Simulated rejection/.test(toastText), toastText.trim())
+  ok('toast shows no bare HTTP status', !/\b(400|401|403|404|5\d\d)\b/.test(toastText), toastText.trim())
   ok('slider reverted to the live value', (await slider.inputValue()) === liveDim, 'shows ' + (await slider.inputValue()) + ' want ' + liveDim)
   ok('device untouched (request never left the browser)', (await stateOf(DIM)) === dimInitial, 'state=' + (await stateOf(DIM)))
 

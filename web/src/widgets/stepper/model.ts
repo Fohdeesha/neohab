@@ -61,7 +61,7 @@ const LOOKS: Record<string, StepperLook> = {
   spinner: 'spinner',
   split: 'split',
   carousel: 'carousel',
-  range: 'range',
+  range: 'range'
 }
 /* Not `ARROWS`: the stat widget has a table of that name with a pinned key, and the source scan
    for bare-index reads is cross-file by identifier, so sharing the name would flag its read. */
@@ -70,7 +70,7 @@ const ARROW_STYLES: Record<string, StepperArrows> = {
   chevron: 'chevron',
   triangle: 'triangle',
   plusminus: 'plusminus',
-  arrow: 'arrow',
+  arrow: 'arrow'
 }
 const FINISHES: Record<string, StepperFinish> = { plain: 'plain', glass: 'glass', glow: 'glow', solid: 'solid', sheen: 'sheen' }
 const MODES: Record<string, StepperMode> = { number: 'number', list: 'list' }
@@ -108,7 +108,7 @@ export const LOOK_AXIS: Record<StepperLook, 'vertical' | 'horizontal'> = {
   split: 'vertical',
   pair: 'horizontal',
   carousel: 'horizontal',
-  range: 'horizontal',
+  range: 'horizontal'
 }
 
 /**
@@ -122,7 +122,7 @@ export const LOOK_FLOOR: Record<StepperLook, number> = {
   range: 130,
   spinner: 120,
   split: 120,
-  carousel: 120,
+  carousel: 120
 }
 
 export type ArrowShape = 'chevron' | 'triangle' | 'arrow' | 'plusminus'

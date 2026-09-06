@@ -23,7 +23,7 @@ export const LANGUAGES: { code: string; name: string }[] = [
   { code: 'fr', name: 'Français' },
   { code: 'it', name: 'Italiano' },
   { code: 'nl', name: 'Nederlands' },
-  { code: 'pl', name: 'Polski' },
+  { code: 'pl', name: 'Polski' }
 ]
 
 const STORAGE_KEY = 'neohab:language'
@@ -34,7 +34,7 @@ const loaders: Record<string, () => Promise<{ default: Record<string, string> }>
   fr: () => import('./fr.json'),
   it: () => import('./it.json'),
   nl: () => import('./nl.json'),
-  pl: () => import('./pl.json'),
+  pl: () => import('./pl.json')
 }
 
 /** The explicit per-device choice, or null when following the browser. */
@@ -49,6 +49,7 @@ export function storedLanguage(): string | null {
 function detectLanguage(): string {
   const stored = storedLanguage()
   if (stored && LANGUAGES.some((l) => l.code === stored)) return stored
+  if (typeof navigator === 'undefined') return 'en'
   for (const cand of navigator.languages ?? [navigator.language]) {
     const base = (cand ?? '').slice(0, 2).toLowerCase()
     if (LANGUAGES.some((l) => l.code === base)) return base
@@ -63,11 +64,14 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false }, // React escapes for us
   // Keys are English sentences - they contain '.' and ':' that must not be parsed as paths.
   keySeparator: false,
-  nsSeparator: false,
+  nsSeparator: false
 })
 
 i18n.on('languageChanged', (lng) => {
-  document.documentElement.lang = lng
+  // Guarded because this module is now imported by pure code (api/errors, which translates what a
+  // failed request is called), and that code is unit-tested in Node where there is no document.
+  // An unhandled rejection there is noise that hides a real one.
+  if (typeof document !== 'undefined') document.documentElement.lang = lng
 })
 
 async function activate(code: string): Promise<void> {

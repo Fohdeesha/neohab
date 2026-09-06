@@ -10,15 +10,7 @@
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import {
-  buildForecastView,
-  buildItemsView,
-  clampInt,
-  itemsBinding,
-  patternItems,
-  type ViewOptions,
-  type WeatherView,
-} from './model'
+import { buildForecastView, buildItemsView, clampInt, itemsBinding, patternItems, type ViewOptions, type WeatherView } from './model'
 import { REFRESH_DEFAULT_MIN, useWeather } from './useWeather'
 import { CompactLook, HeroLook, StripLook } from './looks'
 import { WeatherDetail } from './detail'
@@ -49,7 +41,7 @@ function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
     feels: config.showFeels !== false,
     humidity: config.showHumidity !== false,
     wind: config.showWind !== false,
-    precip: config.showPrecip !== false,
+    precip: config.showPrecip !== false
   }
 
   const opts: ViewOptions = { days, hours, showPrecip: details.precip, lang, t }
@@ -119,7 +111,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
     stripOf: 'days',
     stripCurrent: true,
     dayFirstNumber: 1,
-    dayFirstIs: 'tomorrow',
+    dayFirstIs: 'tomorrow'
   }),
   settings: [
     {
@@ -128,9 +120,9 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'Weather source',
       options: [
         { value: 'openmeteo', label: 'Open-Meteo (internet)' },
-        { value: 'items', label: 'openHAB items' },
+        { value: 'items', label: 'openHAB items' }
       ],
-      hint: 'Open-Meteo is a free forecast service fetched straight from this device - no key, no server setup, but the device needs internet. Items mode reads your own weather items instead.',
+      hint: 'Open-Meteo is a free forecast service fetched straight from this device - no key, no server setup, but the device needs internet. Items mode reads your own weather items instead.'
     },
     { key: 'label', type: 'text', label: 'Name' },
     {
@@ -140,8 +132,8 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       options: [
         { value: 'hero', label: 'Hero' },
         { value: 'compact', label: 'Compact row' },
-        { value: 'strip', label: 'Forecast strip' },
-      ],
+        { value: 'strip', label: 'Forecast strip' }
+      ]
     },
     { key: 'location', type: 'weatherlocation', label: 'Location', showIf: isOm },
     {
@@ -151,9 +143,9 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       options: [
         { value: 'auto', label: 'Auto (server setting)' },
         { value: 'metric', label: 'Metric (°C, km/h)' },
-        { value: 'imperial', label: 'Imperial (°F, mph)' },
+        { value: 'imperial', label: 'Imperial (°F, mph)' }
       ],
-      showIf: isOm,
+      showIf: isOm
     },
     { key: 'refreshMinutes', type: 'number', label: 'Refresh (minutes)', min: 5, max: 120, showIf: isOm },
     {
@@ -165,10 +157,10 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
         { value: 'ecmwf_ifs025', label: 'ECMWF' },
         { value: 'gfs_seamless', label: 'NOAA GFS' },
         { value: 'icon_seamless', label: 'DWD ICON' },
-        { value: 'gem_seamless', label: 'Environment Canada GEM' },
+        { value: 'gem_seamless', label: 'Environment Canada GEM' }
       ],
       hint: 'Models disagree, sometimes a lot. Automatic is Open-Meteo’s own pick for the location; if a reading looks nothing like the forecast you usually read, try another.',
-      showIf: isOm,
+      showIf: isOm
     },
     {
       key: 'iconStyle',
@@ -176,8 +168,8 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'Icon style',
       options: [
         { value: 'fill', label: 'Filled' },
-        { value: 'line', label: 'Line art' },
-      ],
+        { value: 'line', label: 'Line art' }
+      ]
     },
     { key: 'tempItem', type: 'item', label: 'Temperature item', itemTypes: ['Number'], showIf: isItems },
     {
@@ -185,7 +177,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       type: 'item',
       label: 'Condition item',
       showIf: isItems,
-      hint: 'A WMO weather code, an OpenWeatherMap condition id or icon code ("04d"), or plain text shown as it is.',
+      hint: 'A WMO weather code, an OpenWeatherMap condition id or icon code ("04d"), or plain text shown as it is.'
     },
     { key: 'feelsItem', type: 'item', label: 'Feels-like item', itemTypes: ['Number'], showIf: isItems },
     { key: 'humidityItem', type: 'item', label: 'Humidity item', itemTypes: ['Number'], showIf: isItems },
@@ -195,7 +187,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       type: 'item',
       label: 'Wind direction item',
       showIf: isItems,
-      hint: 'Degrees or a cardinal name; shown beside the wind speed.',
+      hint: 'Degrees or a cardinal name; shown beside the wind speed.'
     },
     { key: 'precipProbItem', type: 'item', label: 'Precipitation chance item', itemTypes: ['Number'], showIf: isItems },
     { key: 'showDaily', type: 'boolean', label: 'Daily forecast' },
@@ -207,7 +199,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'Hours',
       min: 3,
       max: 24,
-      showIf: (c) => isOm(c) && c.showHourly !== false,
+      showIf: (c) => isOm(c) && c.showHourly !== false
     },
     {
       key: 'stripOf',
@@ -215,10 +207,10 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'Strip shows',
       options: [
         { value: 'days', label: 'Days' },
-        { value: 'hours', label: 'Hours' },
+        { value: 'hours', label: 'Hours' }
       ],
       showIf: isStrip,
-      hint: 'Hours need the Open-Meteo source; in items mode the strip shows days.',
+      hint: 'Hours need the Open-Meteo source; in items mode the strip shows days.'
     },
     { key: 'stripCurrent', type: 'boolean', label: 'Current conditions beside the strip', showIf: isStrip },
     { key: 'showFeels', type: 'boolean', label: 'Feels like', showIf: isHero },
@@ -228,7 +220,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       key: 'showPrecip',
       type: 'boolean',
       label: 'Precipitation',
-      hint: 'The chance of precipitation, on the current conditions and every forecast column.',
+      hint: 'The chance of precipitation, on the current conditions and every forecast column.'
     },
     {
       key: 'dayHighPattern',
@@ -236,7 +228,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'Day high pattern',
       showIf: itemsDaily,
       placeholder: 'Weather_Day{n}_MaxTemp',
-      hint: 'Item names with {n} standing for the day number, expanded for each forecast day.',
+      hint: 'Item names with {n} standing for the day number, expanded for each forecast day.'
     },
     { key: 'dayLowPattern', type: 'itempattern', label: 'Day low pattern', showIf: itemsDaily, placeholder: 'Weather_Day{n}_MinTemp' },
     { key: 'dayConditionPattern', type: 'itempattern', label: 'Day condition pattern', showIf: itemsDaily },
@@ -248,7 +240,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       min: 0,
       max: 9,
       showIf: itemsDaily,
-      hint: 'The {n} of the first forecast day - OpenWeatherMap items usually start at 1.',
+      hint: 'The {n} of the first forecast day - OpenWeatherMap items usually start at 1.'
     },
     {
       key: 'dayFirstIs',
@@ -256,10 +248,10 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       label: 'The first day is',
       options: [
         { value: 'tomorrow', label: 'Tomorrow' },
-        { value: 'today', label: 'Today' },
+        { value: 'today', label: 'Today' }
       ],
-      showIf: itemsDaily,
-    },
+      showIf: itemsDaily
+    }
   ],
   itemKeys: (c) => {
     if (c.source !== 'items') return []
@@ -278,5 +270,5 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
   },
   canCommand: () => false,
   Component: WeatherWidget,
-  DetailView: WeatherDetail,
+  DetailView: WeatherDetail
 }

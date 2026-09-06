@@ -55,4 +55,3 @@ export function setAudioSettings(patch: Partial<AudioSettings>): void {
 export function setAudioBlocked(blocked: boolean): void {
   if (useAudioStore.getState().blocked !== blocked) useAudioStore.setState({ blocked })
 }
-

@@ -1,3 +1,4 @@
+import type { Route } from '../app/router'
 import type { ItemControl } from './common/itemControl'
 import type { WidgetDefinition } from './types'
 
@@ -70,12 +71,21 @@ export function widgetDetailView(type: string): AnyWidgetDefinition['DetailView'
 }
 
 /**
- * Is there anything to show when this instance is held? Either an item to open, or a view the
- * widget draws itself. A widget with neither keeps the browser's own context menu rather than
- * offering a gesture that opens an empty sheet.
+ * The route a hold on this widget navigates to, when it opens a page rather than a sheet. See
+ * `WidgetDefinition.detailRoute`.
+ */
+export function instanceDetailRoute(type: string, dashboardId: string, widgetId: string): Route | undefined {
+  return registry.get(type)?.detailRoute?.(dashboardId, widgetId)
+}
+
+/**
+ * Is there anything to show when this instance is held? An item to open, a view the widget draws
+ * itself, or a page of its own. A widget with none of them keeps the browser's own context menu
+ * rather than offering a gesture that opens an empty sheet.
  */
 export function instanceHasDetail(type: string, config: Record<string, unknown>): boolean {
-  return widgetDetailView(type) !== undefined || itemsForInstance(type, config).length > 0
+  const def = registry.get(type)
+  return def?.DetailView !== undefined || def?.detailRoute !== undefined || itemsForInstance(type, config).length > 0
 }
 
 /**
@@ -93,11 +103,7 @@ export function instanceCommands(type: string, config: Record<string, unknown>):
  * state-shape rule. A registered widget that declares nothing gets `auto`, which is what every
  * widget got before any of them could answer; an unregistered type commands nothing at all.
  */
-export function instanceControl(
-  type: string,
-  config: Record<string, unknown>,
-  item: string
-): ItemControl | undefined {
+export function instanceControl(type: string, config: Record<string, unknown>, item: string): ItemControl | undefined {
   const def = registry.get(type)
   if (!def) return undefined
   return def.controlFor ? def.controlFor(effective(def, config), item) : { kind: 'auto' }

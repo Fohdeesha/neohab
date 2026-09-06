@@ -22,16 +22,10 @@ import {
   widgetLabelAlign,
   widgetLabelBottom,
   widgetTextScale,
-  STACK_REFERENCE_WIDTH,
+  STACK_REFERENCE_WIDTH
 } from '../model/layout'
 import { instanceMinHeight } from '../widgets/registry'
-import {
-  addToSelection,
-  selectWidget,
-  toggleWidgetSelection,
-  updateDashboardMeta,
-  useEditorStore,
-} from '../store/editor'
+import { addToSelection, selectWidget, toggleWidgetSelection, updateDashboardMeta, useEditorStore } from '../store/editor'
 import { CellHandle } from './CellHandle'
 import { useCoarsePointer } from './useCoarsePointer'
 import { WidgetHost } from './WidgetHost'
@@ -160,13 +154,12 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
       style={
         {
           gap: gapOf(dashboard),
-          '--nh-iconscale': iconScale(dashboard, unit),
+          '--nh-iconscale': iconScale(dashboard, unit)
         } as React.CSSProperties
       }
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => setDrag(null)}
-    >
+      onPointerCancel={() => setDrag(null)}>
       {ordered.map((widget) => {
         const min = instanceMinHeight(widget.type, widget.config)
         const height = Math.round(Math.max(rectOf(widget).h * unit, min))
@@ -196,10 +189,9 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                   '--nh-labelalign': widgetLabelAlign(widget),
                   '--nh-cellaccent': widgetAccentColor(widget),
                   '--nh-accent-ink': widgetAccentInk(widget),
-                  transform: isDragging ? `translateY(${drag.dy}px)` : undefined,
+                  transform: isDragging ? `translateY(${drag.dy}px)` : undefined
                 } as React.CSSProperties
-              }
-            >
+              }>
               <WidgetHost instance={widget} editing />
               {/* a real button, matching the wide grid: Tab reaches every widget, Enter selects */}
               <button
@@ -213,12 +205,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 onPointerUp={clearLongPress}
                 onPointerCancel={clearLongPress}
               />
-              <CellHandle
-                id={widget.id}
-                type={widget.type}
-                hiddenOn={hiddenSurfaces(widget)}
-                onDragStart={beginDrag(widget.id)}
-              />
+              <CellHandle id={widget.id} type={widget.type} hiddenOn={hiddenSurfaces(widget)} onDragStart={beginDrag(widget.id)} />
             </div>
           </div>
         )

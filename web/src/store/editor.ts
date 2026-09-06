@@ -11,6 +11,8 @@ import { newWidgetId, type Dashboard, type WidgetInstance } from '../model/dashb
 import { clampRect, collides, findFreeSpot, projectDashboard, rectOf, tabletRects, type BumpPlan } from '../model/layout'
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
+import { ApiError } from '../api/client'
+import { errorText } from '../api/errors'
 import type { ClipboardWidget } from './clipboard'
 import { collectUnusedBackgrounds, saveDashboard } from './config'
 
@@ -26,6 +28,12 @@ interface EditorState {
   dirty: boolean
   saving: boolean
   saveError: string | null
+  /**
+   * The save was refused for want of credentials rather than for anything about the dashboard,
+   * so the way out is a sign-in and a retry - with the draft still here. Without this the editor
+   * showed the refusal and offered nothing but Exit, which discards the work.
+   */
+  saveNeedsAuth: boolean
   /**
    * The selected widget ids. A single selection can open that widget's settings panel (see
    * panelOpen); multiple selection enables batch copy/cut/delete. Empty = nothing selected.
@@ -75,12 +83,13 @@ export const useEditorStore = create<EditorState>(() => ({
   dirty: false,
   saving: false,
   saveError: null,
+  saveNeedsAuth: false,
   selectedIds: [],
   panelOpen: false,
   paletteOpen: false,
   dashSettingsOpen: false,
   bp: 'lg',
-  placing: null,
+  placing: null
 }))
 
 const clone = <T>(value: T): T => structuredClone(value)
@@ -96,12 +105,13 @@ export function startEditing(dashboard: Dashboard): void {
     dirty: false,
     saving: false,
     saveError: null,
+    saveNeedsAuth: false,
     selectedIds: [],
     panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
     bp: 'lg',
-    placing: null,
+    placing: null
   })
 }
 
@@ -116,12 +126,13 @@ export function stopEditing(): void {
     dirty: false,
     saving: false,
     saveError: null,
+    saveNeedsAuth: false,
     selectedIds: [],
     panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
     bp: 'lg',
-    placing: null,
+    placing: null
   })
 }
 
@@ -141,7 +152,7 @@ export function applyChange(mutate: (draft: Dashboard) => void, coalesceKey: str
     undoStack: coalesce ? s.undoStack : [...s.undoStack.slice(-UNDO_LIMIT + 1), s.draft],
     redoStack: [],
     lastCoalesceKey: coalesceKey,
-    dirty: true,
+    dirty: true
   })
 }
 
@@ -154,7 +165,7 @@ export function undo(): void {
     undoStack: s.undoStack.slice(0, -1),
     redoStack: [...s.redoStack, s.draft],
     lastCoalesceKey: null,
-    dirty: true,
+    dirty: true
   })
 }
 
@@ -167,7 +178,7 @@ export function redo(): void {
     redoStack: s.redoStack.slice(0, -1),
     undoStack: [...s.undoStack, s.draft],
     lastCoalesceKey: null,
-    dirty: true,
+    dirty: true
   })
 }
 
@@ -181,7 +192,7 @@ export function selectWidget(id: string | null): void {
     // An explicit single-select is the one gesture that opens the settings panel.
     panelOpen: id !== null,
     lastCoalesceKey: null,
-    dashSettingsOpen: id !== null ? false : s.dashSettingsOpen,
+    dashSettingsOpen: id !== null ? false : s.dashSettingsOpen
   }))
 }
 
@@ -193,7 +204,7 @@ export function toggleWidgetSelection(id: string): void {
       selectedIds: has ? s.selectedIds.filter((w) => w !== id) : [...s.selectedIds, id],
       panelOpen: false, // multi-select intent: never pop the panel open
       lastCoalesceKey: null,
-      dashSettingsOpen: false,
+      dashSettingsOpen: false
     }
   })
 }
@@ -204,7 +215,7 @@ export function addToSelection(id: string): void {
     selectedIds: s.selectedIds.includes(id) ? s.selectedIds : [...s.selectedIds, id],
     panelOpen: false,
     lastCoalesceKey: null,
-    dashSettingsOpen: false,
+    dashSettingsOpen: false
   }))
 }
 
@@ -215,7 +226,7 @@ export function setSelection(ids: string[]): void {
     panelOpen: false,
     lastCoalesceKey: null,
     // The dashboard-settings panel shares the surface, so close it once anything is selected.
-    dashSettingsOpen: ids.length > 0 ? false : s.dashSettingsOpen,
+    dashSettingsOpen: ids.length > 0 ? false : s.dashSettingsOpen
   }))
 }
 
@@ -230,7 +241,7 @@ export function selectAll(): void {
     selectedIds: s.draft.widgets.map((w) => w.id),
     panelOpen: false,
     lastCoalesceKey: null,
-    dashSettingsOpen: false,
+    dashSettingsOpen: false
   })
 }
 
@@ -243,7 +254,7 @@ export function setDashSettingsOpen(open: boolean): void {
     dashSettingsOpen: open,
     // Opening the dashboard panel clears any widget selection (they share the surface).
     selectedIds: open ? [] : s.selectedIds,
-    lastCoalesceKey: null,
+    lastCoalesceKey: null
   }))
 }
 
@@ -256,19 +267,10 @@ export function updateDashboardMeta(
   patch: Partial<
     Pick<
       Dashboard,
-      | 'name'
-      | 'icon'
-      | 'hideInSidebar'
-      | 'background'
-      | 'columns'
-      | 'mdColumns'
-      | 'rowHeight'
-      | 'gap'
-      | 'textSize'
-      | 'stackOrder'
+      'name' | 'icon' | 'hideInSidebar' | 'background' | 'columns' | 'mdColumns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder'
     >
   >,
-  coalesceKey: string | null = null,
+  coalesceKey: string | null = null
 ): void {
   applyChange((draft) => {
     Object.assign(draft, patch)
@@ -302,7 +304,7 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
       id,
       type,
       config: { ...(def.defaultConfig() as Record<string, unknown>), ...configOverrides },
-      layout: layoutForNew(draft, s.bp, rect),
+      layout: layoutForNew(draft, s.bp, rect)
     }
     draft.widgets.push(widget)
   })
@@ -339,7 +341,7 @@ export function addWidgetAt(rect: Rect): boolean {
       id,
       type: placing.type,
       config: { ...(def.defaultConfig() as Record<string, unknown>), ...placing.configOverrides },
-      layout: layoutForNew(draft, s.bp, rect),
+      layout: layoutForNew(draft, s.bp, rect)
     })
   })
   useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false, placing: null })
@@ -401,6 +403,18 @@ export function updateWidgetConfig(id: string, key: string, value: unknown): voi
 }
 
 /**
+ * Set several of a widget's config keys at once. One user action is one undo step, so picking an
+ * item that also fills in the widget's empty Name is undone by a single press rather than two.
+ * No coalesce key: this is for discrete choices, not for typing.
+ */
+export function updateWidgetConfigs(id: string, patch: Record<string, unknown>): void {
+  applyChange((draft) => {
+    const widget = draft.widgets.find((w) => w.id === id)
+    if (widget) widget.config = { ...widget.config, ...patch }
+  })
+}
+
+/**
  * Move/resize a widget; returns false (and changes nothing) if the target overlaps.
  *
  * `displaced` carries a bump plan (see planBump): the widgets the move pushes aside, relocated
@@ -420,13 +434,7 @@ export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boo
   const current = view.widgets.find((w) => w.id === id)
   if (!current) return false
   const cur = rectOf(current)
-  if (
-    !displaced?.size &&
-    cur.x === clamped.x &&
-    cur.y === clamped.y &&
-    cur.w === clamped.w &&
-    cur.h === clamped.h
-  ) {
+  if (!displaced?.size && cur.x === clamped.x && cur.y === clamped.y && cur.w === clamped.w && cur.h === clamped.h) {
     return true // no-op move; don't create an undo entry
   }
   applyChange((draft) => {
@@ -470,7 +478,7 @@ function layoutForNew(draft: Dashboard, bp: 'lg' | 'md', rect: Rect): WidgetInst
   if (bp === 'lg') return { lg: clampRect(rect, draft.columns) }
   return {
     lg: clampRect(rect, draft.columns),
-    md: clampRect(rect, projectDashboard(draft, 'md').columns),
+    md: clampRect(rect, projectDashboard(draft, 'md').columns)
   }
 }
 
@@ -503,7 +511,7 @@ export async function saveDraft(keepEditing = false): Promise<boolean> {
   // on an attribute - and each save also takes a restore point, so two of them are two captures.
   if (saveInFlight) return false
   saveInFlight = true
-  useEditorStore.setState({ saving: true, saveError: null })
+  useEditorStore.setState({ saving: true, saveError: null, saveNeedsAuth: false })
   try {
     await saveDashboard(clone(s.draft))
     // A background upload replaced during this edit is unreferenced now that the save landed.
@@ -514,7 +522,8 @@ export async function saveDraft(keepEditing = false): Promise<boolean> {
   } catch (err) {
     useEditorStore.setState({
       saving: false,
-      saveError: err instanceof Error ? err.message : String(err),
+      saveError: errorText(err),
+      saveNeedsAuth: err instanceof ApiError && (err.status === 401 || err.status === 403)
     })
     return false
   } finally {

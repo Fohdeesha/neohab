@@ -78,15 +78,10 @@ describe('numericValue', () => {
  * used to be the one that threw, and a Switch bound to such an item rendered the error tile.
  */
 describe('the readers survive a state object with no state in it', () => {
-  const broken = [
-    undefined,
-    null,
-    {},
-    { state: undefined },
-    { state: null },
-    { state: 42 },
-    { displayState: 'ON' },
-  ] as unknown as (ItemState | undefined)[]
+  const broken = [undefined, null, {}, { state: undefined }, { state: null }, { state: 42 }, { displayState: 'ON' }] as unknown as (
+    | ItemState
+    | undefined
+  )[]
 
   it('isOn answers false rather than throwing', () => {
     for (const st of broken) {

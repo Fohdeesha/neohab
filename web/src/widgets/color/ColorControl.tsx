@@ -85,8 +85,7 @@ export function ColorControl({ item, ctx, power = false }: { item: string; ctx: 
       className={'nh-color__pbtn' + (active ? ' nh-color__pbtn--active' : '')}
       disabled={ctx.editing}
       aria-pressed={active}
-      onClick={() => press(wanted)}
-    >
+      onClick={() => press(wanted)}>
       {t(wanted === 'off' ? 'Off' : 'On')}
     </button>
   )

@@ -42,19 +42,13 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
       ? manual
       : (catalogItem?.commandDescription?.commandOptions ?? []).map((o) => ({
           command: o.command,
-          label: o.label ?? o.command,
+          label: o.label ?? o.command
         }))
 
   const state = ctx.getItem(config.item)
 
   return (
-    <WidgetFrame
-      label={config.label}
-      icon={config.icon}
-      iconSize={config.iconSize}
-      iconState={state?.state}
-      iconColor={config.iconColor}
-    >
+    <WidgetFrame label={config.label} icon={config.icon} iconSize={config.iconSize} iconState={state?.state} iconColor={config.iconColor}>
       {choices.length === 0 ? (
         <div className="nh-selection__empty">{t('No choices - set them in the widget settings')}</div>
       ) : config.display === 'dropdown' ? (
@@ -64,8 +58,7 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
           disabled={ctx.editing}
           onChange={(e) => {
             if (!ctx.editing && config.item) ctx.sendCommand(config.item, e.target.value)
-          }}
-        >
+          }}>
           {/* a live state that is not one of the choices still shows, rather than the list
               silently displaying some other choice as if it were current */}
           {choices.some((c) => c.command === state?.state) ? null : <option value={state?.state ?? ''}>{state?.state ?? ''}</option>}
@@ -84,13 +77,10 @@ function SelectionWidget({ config, ctx }: WidgetProps<SelectionConfig>) {
             <button
               key={i + '|' + choice.command}
               type="button"
-              className={
-                'nh-selection__btn' + (state?.state === choice.command ? ' nh-selection__btn--active' : '')
-              }
+              className={'nh-selection__btn' + (state?.state === choice.command ? ' nh-selection__btn--active' : '')}
               onClick={() => {
                 if (!ctx.editing && config.item) ctx.sendCommand(config.item, choice.command)
-              }}
-            >
+              }}>
               {choice.label}
             </button>
           ))}
@@ -116,8 +106,8 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
       label: 'Display',
       options: [
         { value: 'buttons', label: 'Buttons' },
-        { value: 'dropdown', label: 'Dropdown' },
-      ],
+        { value: 'dropdown', label: 'Dropdown' }
+      ]
     },
     { key: 'icon', type: 'icon', label: 'Icon' },
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
@@ -126,8 +116,8 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
       key: 'choices',
       type: 'multiline',
       label: 'Choices (one per line, COMMAND=Label)',
-      placeholder: 'ON=On\nOFF=Off',
-    },
+      placeholder: 'ON=On\nOFF=Off'
+    }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
@@ -139,5 +129,5 @@ export const selectionWidget: WidgetDefinition<SelectionConfig> = {
     const manual = parseChoices(c.choices)
     return manual.length ? { kind: 'choices', choices: manual } : { kind: 'auto' }
   },
-  Component: SelectionWidget,
+  Component: SelectionWidget
 }

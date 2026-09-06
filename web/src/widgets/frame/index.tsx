@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import { isSameOrigin, safeUrl } from '../../model/url'
+import { isSameOrigin, mixedContent, safeUrl } from '../../model/url'
 
 interface FrameConfig {
   url: string
@@ -31,8 +31,18 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
   if (!url) {
     return (
       <WidgetFrame label={config.label} center>
+        <span className="nh-image__placeholder">{config.url ? t('That page address cannot be embedded.') : t('No URL configured')}</span>
+      </WidgetFrame>
+    )
+  }
+
+  // An http page cannot be embedded in an https one: the browser blocks it and shows nothing,
+  // which is indistinguishable from a page that failed to load. Say which it is.
+  if (mixedContent(url)) {
+    return (
+      <WidgetFrame label={config.label} center>
         <span className="nh-image__placeholder">
-          {config.url ? t('That page address cannot be embedded.') : t('No URL configured')}
+          {t('This page is served over HTTPS, so it cannot embed an insecure http:// address.')}
         </span>
       </WidgetFrame>
     )
@@ -66,15 +76,15 @@ export const frameWidget: WidgetDefinition<FrameConfig> = {
   hasHeader: true,
   defaultConfig: () => ({ url: '', refresh: 0, sandbox: false }),
   settings: [
-    { key: 'url', type: 'text', label: 'Page URL', placeholder: 'https://…' },
+    { key: 'url', type: 'text', label: 'Page URL', placeholder: 'https://…', subresource: true },
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'refresh', type: 'number', label: 'Reload (seconds)', min: 0 },
     {
       key: 'sandbox',
       type: 'boolean',
       label: 'Sandbox the embedded page',
-      hint: 'A page served by openHAB itself can otherwise read this dashboard and your session token. Sandboxing walls it off, but it can then no longer reach openHAB at all: Basic UI, Main UI and HABPanel still draw themselves and quietly stop updating. Pages on any other address are already isolated by the browser, so this does nothing for them.',
-    },
+      hint: 'A page served by openHAB itself can otherwise read this dashboard and your session token. Sandboxing walls it off, but it can then no longer reach openHAB at all: Basic UI, Main UI and HABPanel still draw themselves and quietly stop updating. Pages on any other address are already isolated by the browser, so this does nothing for them.'
+    }
   ],
-  Component: FrameWidget,
+  Component: FrameWidget
 }

@@ -115,10 +115,8 @@ function statusFromTags(tags: unknown): { statusItem: string; statusState: Statu
 
 export function presetSummaryFromRule(rule: RuleSummary): PresetSummary {
   const cfg = rule.configuration
-  let statusItem =
-    cfg && typeof cfg.statusItem === 'string' && cfg.statusItem.trim() !== '' ? cfg.statusItem.trim() : undefined
-  let statusState: StatusState | undefined =
-    statusItem === undefined ? undefined : cfg?.statusState === 'OFF' ? 'OFF' : 'ON'
+  let statusItem = cfg && typeof cfg.statusItem === 'string' && cfg.statusItem.trim() !== '' ? cfg.statusItem.trim() : undefined
+  let statusState: StatusState | undefined = statusItem === undefined ? undefined : cfg?.statusState === 'OFF' ? 'OFF' : 'ON'
   if (statusItem === undefined) {
     const fromTag = statusFromTags(rule.tags)
     if (fromTag) ({ statusItem, statusState } = fromTag)
@@ -129,7 +127,7 @@ export function presetSummaryFromRule(rule: RuleSummary): PresetSummary {
     editable: rule.editable === true,
     managed: isNeohabRule(rule),
     statusItem,
-    statusState,
+    statusState
   }
 }
 
@@ -171,16 +169,14 @@ export function ruleFromPreset(preset: Preset): SceneRule {
     actions: preset.lights.map((l, i) => ({
       id: String(i + 1),
       type: 'core.ItemCommandAction',
-      configuration: { itemName: l.item, command: l.command },
-    })),
+      configuration: { itemName: l.item, command: l.command }
+    }))
   }
 }
 
 /** A fresh scene uid from a display name, de-duped against every existing rule uid. */
 export function newSceneUid(name: string, takenRuleUids: Set<string>): string {
-  const taken = new Set(
-    [...takenRuleUids].filter((u) => u.startsWith(SCENE_UID_PREFIX)).map((u) => u.slice(SCENE_UID_PREFIX.length))
-  )
+  const taken = new Set([...takenRuleUids].filter((u) => u.startsWith(SCENE_UID_PREFIX)).map((u) => u.slice(SCENE_UID_PREFIX.length)))
   return SCENE_UID_PREFIX + slugify(name, 'preset', taken)
 }
 
@@ -212,17 +208,17 @@ export function bridgeRuleFor(preset: PresetSummary): SceneRule | null {
       {
         id: '1',
         type: 'core.ItemStateChangeTrigger',
-        configuration: { itemName: preset.statusItem, state },
-      },
+        configuration: { itemName: preset.statusItem, state }
+      }
     ],
     conditions: [],
     actions: [
       {
         id: '2',
         type: 'core.RunRuleAction',
-        configuration: { ruleUIDs: [preset.uid], considerConditions: true },
-      },
-    ],
+        configuration: { ruleUIDs: [preset.uid], considerConditions: true }
+      }
+    ]
   }
 }
 
@@ -237,7 +233,7 @@ export function exportableRule(rule: SceneRule): SceneRule {
     configuration: rule.configuration ?? {},
     triggers: Array.isArray(rule.triggers) ? rule.triggers : [],
     conditions: Array.isArray(rule.conditions) ? rule.conditions : [],
-    actions: Array.isArray(rule.actions) ? rule.actions : [],
+    actions: Array.isArray(rule.actions) ? rule.actions : []
   }
   if (typeof rule.description === 'string' && rule.description !== '') out.description = rule.description
   return out

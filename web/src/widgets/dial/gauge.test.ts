@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { angleToValue, arcOf, blockLit, fractionOf, fractionToAngle, gaugeColor, gaugeTicks, hasInnerRing, HISTORY_PERIODS, historyBars, historyPeriodMs, inAlarm, ledCountOf, ledFraction, ledLit, pickRing, scaleOf, severityColor, sparkSegments, type DialConfig, zeroFractionOf } from './gauge'
+import {
+  angleToValue,
+  arcOf,
+  blockLit,
+  fractionOf,
+  fractionToAngle,
+  gaugeColor,
+  gaugeTicks,
+  hasInnerRing,
+  HISTORY_PERIODS,
+  historyBars,
+  historyPeriodMs,
+  inAlarm,
+  ledCountOf,
+  ledFraction,
+  ledLit,
+  pickRing,
+  scaleOf,
+  severityColor,
+  sparkSegments,
+  type DialConfig,
+  zeroFractionOf
+} from './gauge'
 
 const cfg = (over: Partial<DialConfig> = {}): DialConfig => ({ item: 'X', ...over })
 
@@ -127,7 +149,7 @@ describe('severity colours', () => {
     const stops = [
       { value: 10, color: 'blue' },
       { value: 20, color: 'green' },
-      { value: 30, color: 'red' },
+      { value: 30, color: 'red' }
     ]
     expect(severityColor(5, stops)).toBe('blue')
     expect(severityColor(10, stops)).toBe('blue')
@@ -138,7 +160,7 @@ describe('severity colours', () => {
   it('sorts stops that were entered out of order', () => {
     const stops = [
       { value: 30, color: 'red' },
-      { value: 10, color: 'blue' },
+      { value: 10, color: 'blue' }
     ]
     expect(severityColor(5, stops)).toBe('blue')
   })
@@ -228,7 +250,11 @@ describe('history bars', () => {
 
   it('draws a flat series at half height instead of vanishing', () => {
     const bars = historyBars(
-      [{ time: 0, value: 7 }, { time: 1000, value: 7 }, { time: 2000, value: 7 }],
+      [
+        { time: 0, value: 7 },
+        { time: 1000, value: 7 },
+        { time: 2000, value: 7 }
+      ],
       t0,
       t1,
       2

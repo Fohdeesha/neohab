@@ -6,19 +6,10 @@
  */
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  deleteWidgetDef,
-  saveSettings,
-  saveWidgetDef,
-  useConfigStore,
-} from '../store/config'
-import {
-  defSettings,
-  defTemplate,
-  type CustomWidgetDef,
-  type WidgetDefSetting,
-} from '../model/widgetdef'
+import { deleteWidgetDef, saveSettings, saveWidgetDef, useConfigStore } from '../store/config'
+import { defSettings, defTemplate, type CustomWidgetDef, type WidgetDefSetting } from '../model/widgetdef'
 import { exportComponent } from '../editor/exportComponent'
+import { errorText } from '../api/errors'
 
 const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
 
@@ -39,8 +30,9 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
       name: kind === 'js' ? t('My JS widget') : t('My widget'),
       kind,
       template: kind === 'template' ? '<div style="padding:8px">{{itemState(config.item)}}</div>' : undefined,
-      script: kind === 'js' ? "oh.onReady(function () {\n  document.body.textContent = 'Hello ' + (oh.config.item || 'world')\n})" : undefined,
-      settings: [{ id: 'item', type: 'item', label: 'Item' }],
+      script:
+        kind === 'js' ? "oh.onReady(function () {\n  document.body.textContent = 'Hello ' + (oh.config.item || 'world')\n})" : undefined,
+      settings: [{ id: 'item', type: 'item', label: 'Item' }]
     })
   }
 
@@ -50,7 +42,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
     setEditing({
       ...def,
       template: def.kind === 'js' ? undefined : defTemplate(def),
-      settings: defSettings(def),
+      settings: defSettings(def)
     })
   }
 
@@ -62,7 +54,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
   const toggleJs = async (enabled: boolean) => {
     onNotice(null)
     const err = await saveSettings({ allowJsWidgets: enabled })
-    if (err) onNotice(t('Saving failed: {{error}} - sign in as an administrator.', { error: err }))
+    if (err) onNotice(t('Saving failed: {{error}}', { error: err }))
   }
 
   return (
@@ -92,8 +84,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
                   type="button"
                   className="nh-btn nh-btn--ghost"
                   title={t('Export this widget as a file')}
-                  onClick={() => void exportComponent('widgetdef', def.id, onNotice)}
-                >
+                  onClick={() => void exportComponent('widgetdef', def.id, onNotice)}>
                   {t('Export')}
                 </button>
                 <button type="button" className="nh-btn nh-btn--ghost" onClick={() => edit(def)}>
@@ -121,13 +112,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) =>
 
       {/* new widgets (and an anchor that vanished from the list) edit down here */}
       {editing && !defs.some((d) => d.id === anchor) ? (
-        <DefEditor
-          def={editing}
-          exists={defs.some((d) => d.id === editing.id)}
-          onChange={setEditing}
-          onClose={close}
-          onNotice={onNotice}
-        />
+        <DefEditor def={editing} exists={defs.some((d) => d.id === editing.id)} onChange={setEditing} onClose={close} onNotice={onNotice} />
       ) : null}
     </section>
   )
@@ -138,7 +123,7 @@ function DefEditor({
   exists,
   onChange,
   onClose,
-  onNotice,
+  onNotice
 }: {
   def: CustomWidgetDef
   exists: boolean
@@ -160,19 +145,18 @@ function DefEditor({
       await saveWidgetDef(def)
       onClose()
     } catch (err) {
-      onNotice(t('Saving the widget failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Saving the widget failed: {{error}}', { error: errorText(err) }))
     }
   }
 
   const remove = async () => {
-    if (!window.confirm(t('Delete custom widget “{{name}}”? Dashboards using it will show a notice.', { name: def.name })))
-      return
+    if (!window.confirm(t('Delete custom widget “{{name}}”? Dashboards using it will show a notice.', { name: def.name }))) return
     onNotice(null)
     try {
       await deleteWidgetDef(def.id)
       onClose()
     } catch (err) {
-      onNotice(t('Deleting the widget failed: {{error}}', { error: err instanceof Error ? err.message : String(err) }))
+      onNotice(t('Deleting the widget failed: {{error}}', { error: errorText(err) }))
     }
   }
 
@@ -198,7 +182,8 @@ function DefEditor({
           <input id="def-name" type="text" value={def.name} onChange={(e) => onChange({ ...def, name: e.target.value })} />
         </label>
         <label className="nh-field" htmlFor="def-id">
-          <span className="nh-field__label">{exists ? t('Id (fixed once created)') : t('Id')}</span>
+          {/* "Id" alone said nothing about what it is for or why it goes grey once saved. */}
+          <span className="nh-field__label">{exists ? t('Identifier (fixed once created)') : t('Identifier')}</span>
           <input
             id="def-id"
             type="text"
@@ -206,11 +191,12 @@ function DefEditor({
             disabled={exists}
             onChange={(e) => onChange({ ...def, id: e.target.value.toLowerCase().replace(/[^a-z0-9-_]+/g, '-') })}
           />
+          <span className="nh-field__hint">
+            {t('How dashboards refer to this widget. It cannot change later, because every instance points at it.')}
+          </span>
         </label>
         <label className="nh-field" htmlFor="def-body">
-          <span className="nh-field__label">
-            {isJs ? t('Script (runs sandboxed, use the `oh` SDK)') : t('Template (HTML)')}
-          </span>
+          <span className="nh-field__label">{isJs ? t('Script (runs sandboxed, use the `oh` SDK)') : t('Template (HTML)')}</span>
           <textarea
             id="def-body"
             rows={12}
@@ -231,11 +217,7 @@ function DefEditor({
               value={s.id}
               onChange={(e) => setSetting(i, { id: e.target.value.replace(/[^\w]+/g, '_') })}
             />
-            <select
-              aria-label={t('Setting type')}
-              value={s.type ?? 'string'}
-              onChange={(e) => setSetting(i, { type: e.target.value })}
-            >
+            <select aria-label={t('Setting type')} value={s.type ?? 'string'} onChange={(e) => setSetting(i, { type: e.target.value })}>
               {SETTING_TYPES.map((st) => (
                 <option key={st} value={st}>
                   {st}
@@ -253,8 +235,7 @@ function DefEditor({
               type="button"
               className="nh-iconbtn"
               aria-label={t('Remove setting')}
-              onClick={() => onChange({ ...def, settings: settings.filter((_, j) => j !== i) })}
-            >
+              onClick={() => onChange({ ...def, settings: settings.filter((_, j) => j !== i) })}>
               ✕
             </button>
           </div>
@@ -262,8 +243,9 @@ function DefEditor({
         <button
           type="button"
           className="nh-btn nh-btn--ghost"
-          onClick={() => onChange({ ...def, settings: [...settings, { id: 'setting_' + (settings.length + 1), type: 'string', label: '' }] })}
-        >
+          onClick={() =>
+            onChange({ ...def, settings: [...settings, { id: 'setting_' + (settings.length + 1), type: 'string', label: '' }] })
+          }>
           {t('Add setting')}
         </button>
       </div>

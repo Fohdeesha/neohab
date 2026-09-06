@@ -31,9 +31,7 @@ function ValueWidget({ config, ctx }: WidgetProps<ValueConfig>) {
   return (
     <WidgetFrame label={config.label} center>
       <div className="nh-value">
-        {icon ? (
-          <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-value__icon" />
-        ) : null}
+        {icon ? <Icon icon={icon} size={config.iconSize ?? 32} state={state?.state} color={color} className="nh-value__icon" /> : null}
         <span className="nh-value__text" data-ghost={seg ? ghostFor(int) : undefined}>
           {int}
           {frac !== undefined ? (
@@ -52,7 +50,7 @@ export const valueWidget: WidgetDefinition<ValueConfig> = {
   type: 'value',
   name: 'Value',
   description: 'Display an item value as text',
-  defaultSize: { w: 3, h: 2 },
+  defaultSize: { w: 2, h: 2 },
   hasHeader: true,
   defaultConfig: () => ({ item: '' }),
   settings: [
@@ -62,11 +60,11 @@ export const valueWidget: WidgetDefinition<ValueConfig> = {
     { key: 'icon', type: 'icon', label: 'Icon' },
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
-    { key: 'stateIcons', type: 'stateicons', label: 'Per-state icons' },
+    { key: 'stateIcons', type: 'stateicons', label: 'Per-state icons' }
   ],
   itemKeys: (c) => [c.item],
   // A readout, whatever it is bound to: someone who wanted to change the value would have
   // placed a control.
   canCommand: () => false,
-  Component: ValueWidget,
+  Component: ValueWidget
 }

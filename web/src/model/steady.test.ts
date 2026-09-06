@@ -15,7 +15,7 @@ const FADE: [number, string][] = [
   [51, '0,0,4.7059'],
   [1075, '0.000,95.29400,100'],
   [1076, '24.198,95.29400,100'],
-  [1076, '20.810,87.05900,100'],
+  [1076, '20.810,87.05900,100']
 ]
 
 /** Run a sequence through the rule, returning every value that reached the screen. */

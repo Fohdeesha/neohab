@@ -15,14 +15,7 @@
  */
 import type { UIComponent } from '../api/types'
 import { BG_REF_PREFIX } from './background'
-import {
-  BACKGROUND_PREFIX,
-  DASHBOARD_PREFIX,
-  ICON_PREFIX,
-  THEME_PREFIX,
-  WIDGETDEF_PREFIX,
-  nextFreeId,
-} from './components'
+import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, THEME_PREFIX, WIDGETDEF_PREFIX, nextFreeId } from './components'
 import type { Dashboard } from './dashboard'
 
 /** Custom-icon reference prefix, as parsed by components/Icon.tsx. */
@@ -47,7 +40,7 @@ export interface PartialBundle {
 const PREFIX_OF: Record<PartialKind, string> = {
   dashboard: DASHBOARD_PREFIX,
   widgetdef: WIDGETDEF_PREFIX,
-  theme: THEME_PREFIX,
+  theme: THEME_PREFIX
 }
 
 export function partialUid(kind: PartialKind, id: string): string {
@@ -74,7 +67,7 @@ interface Refs {
 const emptyRefs = (): Refs => ({
   widgetdefs: new Set<string>(),
   icons: new Set<string>(),
-  backgrounds: new Set<string>(),
+  backgrounds: new Set<string>()
 })
 
 /**
@@ -138,7 +131,7 @@ export function collectDependencies(primary: UIComponent, all: UIComponent[]): D
     const groups: [string, Set<string>][] = [
       [WIDGETDEF_PREFIX, refs.widgetdefs],
       [ICON_PREFIX, refs.icons],
-      [BACKGROUND_PREFIX, refs.backgrounds],
+      [BACKGROUND_PREFIX, refs.backgrounds]
     ]
     for (const [prefix, ids] of groups) {
       for (const id of ids) {
@@ -157,8 +150,7 @@ export function collectDependencies(primary: UIComponent, all: UIComponent[]): D
   }
 
   // Write order keeps the file readable: definitions first, then the base64 blobs.
-  const rank = (uid: string) =>
-    uid.startsWith(WIDGETDEF_PREFIX) ? 0 : uid.startsWith(ICON_PREFIX) ? 1 : 2
+  const rank = (uid: string) => (uid.startsWith(WIDGETDEF_PREFIX) ? 0 : uid.startsWith(ICON_PREFIX) ? 1 : 2)
   const components = [...found.values()].sort((a, b) => rank(a.uid) - rank(b.uid) || a.uid.localeCompare(b.uid))
   return { components, missing: missing.sort() }
 }
@@ -176,9 +168,9 @@ export function buildPartialBundle(
   return {
     bundle: {
       manifest: { app: 'neohab', formatVersion: PARTIAL_FORMAT_VERSION, exportedAt, kind, primary: uid },
-      components: [primary, ...components],
+      components: [primary, ...components]
     },
-    missing,
+    missing
   }
 }
 
@@ -285,7 +277,7 @@ export function planPartialImport(bundle: PartialBundle, existing: UIComponent[]
     name: primaryComponent ? displayName(primaryComponent) : bundle.manifest.primary,
     primary,
     dependencies: entries.filter((e) => e.uid !== bundle.manifest.primary),
-    conflicts: entries.filter((e) => e.status === 'conflict').map((e) => e.uid),
+    conflicts: entries.filter((e) => e.status === 'conflict').map((e) => e.uid)
   }
 }
 
@@ -377,7 +369,7 @@ export function resolvePartialImport(
   const maps = {
     widgetdefs: new Map<string, string>(),
     icons: new Map<string, string>(),
-    backgrounds: new Map<string, string>(),
+    backgrounds: new Map<string, string>()
   }
   const mapFor = (prefix: string) =>
     prefix === WIDGETDEF_PREFIX
@@ -402,7 +394,7 @@ export function resolvePartialImport(
   if (mode === 'copy') {
     for (const [uid, st] of status) if (st === 'conflict') toRename.add(uid)
     const inBundle = new Set(bundle.components.map((c) => c.uid))
-    for (let changed = true; changed; ) {
+    for (let changed = true; changed;) {
       changed = false
       for (const c of bundle.components) {
         if (toRename.has(c.uid)) continue
@@ -464,7 +456,7 @@ export function resolvePartialImport(
     components,
     renamed,
     reused,
-    primaryUid: target.get(bundle.manifest.primary) ?? bundle.manifest.primary,
+    primaryUid: target.get(bundle.manifest.primary) ?? bundle.manifest.primary
   }
 }
 
@@ -480,8 +472,6 @@ function withFreshWidgetIds(dashboard: Dashboard, newWidgetId: () => string): Da
     if (typeof w.id === 'string') map.set(w.id, id)
     return { ...w, id }
   })
-  const stackOrder = Array.isArray(dashboard.stackOrder)
-    ? dashboard.stackOrder.map((id) => map.get(id) ?? id)
-    : dashboard.stackOrder
+  const stackOrder = Array.isArray(dashboard.stackOrder) ? dashboard.stackOrder.map((id) => map.get(id) ?? id) : dashboard.stackOrder
   return { ...dashboard, widgets, ...(stackOrder ? { stackOrder } : {}) }
 }

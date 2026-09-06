@@ -17,7 +17,7 @@ import {
   planStyleOf,
   stateKind,
   type FloorplanConfig,
-  type GlowDirection,
+  type GlowDirection
 } from './model'
 
 describe('lightsOf', () => {
@@ -25,8 +25,8 @@ describe('lightsOf', () => {
     const lights = lightsOf({
       lights: [
         { id: 'a', item: 'STRIP_1', x: 10, y: 20 },
-        { id: 'b', item: 'PAR_1', x: 90, y: 80, label: 'Par', size: 30 },
-      ],
+        { id: 'b', item: 'PAR_1', x: 90, y: 80, label: 'Par', size: 30 }
+      ]
     })
     expect(lights).toHaveLength(2)
     expect(lights[0]).toEqual({ id: 'a', item: 'STRIP_1', x: 10, y: 20, label: undefined, size: undefined })
@@ -35,7 +35,7 @@ describe('lightsOf', () => {
 
   it('drops entries without an item, without throwing on garbage', () => {
     const cfg = {
-      lights: [null, 42, 'x', {}, { item: '' }, { item: 'OK' }],
+      lights: [null, 42, 'x', {}, { item: '' }, { item: 'OK' }]
     } as unknown as FloorplanConfig
     const lights = lightsOf(cfg)
     expect(lights).toHaveLength(1)
@@ -52,7 +52,7 @@ describe('lightsOf', () => {
 
   it('clamps positions onto the plan and sizes into sanity, coercing stored strings', () => {
     const cfg = {
-      lights: [{ item: 'A', x: '150', y: -20, size: '900' }],
+      lights: [{ item: 'A', x: '150', y: -20, size: '900' }]
     } as unknown as FloorplanConfig
     const [l] = lightsOf(cfg)
     expect(l.x).toBe(100)
@@ -207,8 +207,8 @@ describe('glow direction', () => {
       lights: [
         { id: 'a', item: 'A', x: 1, y: 1, glowDir: 'left' },
         { id: 'b', item: 'B', x: 1, y: 1, glowDir: 'sideways' },
-        { id: 'c', item: 'C', x: 1, y: 1 },
-      ],
+        { id: 'c', item: 'C', x: 1, y: 1 }
+      ]
     } as FloorplanConfig)
     expect(lights[0].glowDir).toBe('left')
     expect(lights[1].glowDir).toBeUndefined()

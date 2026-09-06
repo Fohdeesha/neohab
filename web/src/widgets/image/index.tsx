@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
-import { safeUrl } from '../../model/url'
+import { mixedContent, safeUrl } from '../../model/url'
 
 interface ImageConfig {
   url: string
@@ -29,8 +29,18 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   if (!url) {
     return (
       <WidgetFrame label={config.label} center>
+        <span className="nh-image__placeholder">{config.url ? t('That image address cannot be shown.') : t('No image URL')}</span>
+      </WidgetFrame>
+    )
+  }
+
+  // Chromium upgrades a mixed-content image to https and blocks it when the upgrade fails, so
+  // an http:// picture on an https page is a broken image with no explanation anywhere.
+  if (mixedContent(url)) {
+    return (
+      <WidgetFrame label={config.label} center>
         <span className="nh-image__placeholder">
-          {config.url ? t('That image address cannot be shown.') : t('No image URL')}
+          {t('This page is served over HTTPS, so it cannot load an image from an insecure http:// address.')}
         </span>
       </WidgetFrame>
     )
@@ -57,9 +67,9 @@ export const imageWidget: WidgetDefinition<ImageConfig> = {
   hasHeader: true,
   defaultConfig: () => ({ url: '', refresh: 0 }),
   settings: [
-    { key: 'url', type: 'text', label: 'Image URL', placeholder: 'https://…' },
+    { key: 'url', type: 'text', label: 'Image URL', placeholder: 'https://…', subresource: true },
     { key: 'label', type: 'text', label: 'Name' },
-    { key: 'refresh', type: 'number', label: 'Refresh (seconds)', min: 0 },
+    { key: 'refresh', type: 'number', label: 'Refresh (seconds)', min: 0 }
   ],
-  Component: ImageWidget,
+  Component: ImageWidget
 }

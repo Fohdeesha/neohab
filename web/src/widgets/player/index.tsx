@@ -27,8 +27,7 @@ function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
           type="button"
           className="nh-player__btn nh-player__btn--main"
           aria-label={playing ? t('Pause') : t('Play')}
-          onClick={() => send(playing ? 'PAUSE' : 'PLAY')}
-        >
+          onClick={() => send(playing ? 'PAUSE' : 'PLAY')}>
           {playing ? '⏸' : '▶'}
         </button>
         <button type="button" className="nh-player__btn" aria-label={t('Next')} onClick={() => send('NEXT')}>
@@ -44,7 +43,7 @@ const PLAYER_COMMANDS: ItemChoice[] = [
   { command: 'PREVIOUS', labelKey: 'Previous' },
   { command: 'PLAY', labelKey: 'Play' },
   { command: 'PAUSE', labelKey: 'Pause' },
-  { command: 'NEXT', labelKey: 'Next' },
+  { command: 'NEXT', labelKey: 'Next' }
 ]
 
 export const playerWidget: WidgetDefinition<PlayerConfig> = {
@@ -56,7 +55,7 @@ export const playerWidget: WidgetDefinition<PlayerConfig> = {
   defaultConfig: () => ({ item: '' }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Player'] },
-    { key: 'label', type: 'text', label: 'Name' },
+    { key: 'label', type: 'text', label: 'Name' }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,
@@ -65,5 +64,5 @@ export const playerWidget: WidgetDefinition<PlayerConfig> = {
   // tile's one toggle: a list of commands is what a detail sheet can draw, and both are always
   // reachable whatever the player is doing.
   controlFor: (c, item) => (item === c.item ? { kind: 'choices', choices: PLAYER_COMMANDS } : undefined),
-  Component: PlayerWidget,
+  Component: PlayerWidget
 }
