@@ -35,15 +35,20 @@ export default defineConfig(({ mode }) => {
           background_color: '#0f1317',
           theme_color: '#0f1317',
           icons: [
-            { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            // its own file: a launcher shows about the middle two thirds of a maskable icon, so
+            // the mark has to sit smaller in it than in the ones nothing crops
+            { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {
           globPatterns: ['index.html', 'assets/*.{js,css}', 'tile.png', 'pwa-*.png', 'favicon.{svg,ico}', 'apple-touch-icon.png', 'fonts/*.woff2', 'backgrounds/*.jpg', 'docs/*.html'],
           globIgnores: ['**/hls-*.js'],
           navigateFallback: null,
+          // a shortcut into a dashboard launches index.html?app=<id>, which has to hit the same
+          // precached index.html or an offline wall panel gets nothing
+          ignoreURLParametersMatching: [/^app$/, /^utm_/, /^fbclid$/],
         },
       }),
     ],

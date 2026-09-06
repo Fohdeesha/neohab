@@ -285,9 +285,10 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
 
 - **Wall panels and kiosks.** Installable as an app (PWA) with an offline-capable shell, and able
   to keep the screen awake - both of those need HTTPS, because browsers only offer them in a
-  secure context. Per device: blank after idle or show a drifting clock, open onto a pinned
-  dashboard, and hide all chrome in kiosk mode. A dashboard-control item lets your rules switch
-  what every panel shows.
+  secure context. Adding it to a home screen while a dashboard is open pins that dashboard: the
+  icon is named after it and opens straight into it, so you can keep several side by side. Per
+  device: blank after idle or show a drifting clock, open onto a pinned dashboard, and hide all
+  chrome in kiosk mode. A dashboard-control item lets your rules switch what every panel shows.
 - **Voice and audio.** openHAB's Web Audio sink plays through the browser, a speech item announces
   changes out loud, and a microphone button sends spoken commands to the interpreter. Each device
   decides whether it joins in.

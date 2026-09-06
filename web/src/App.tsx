@@ -10,6 +10,7 @@ import { notify } from './store/notify'
 import { refreshAuthStatus } from './store/auth'
 import { applyTheme, cacheTheme, resolveTheme, urlThemeOverride } from './themes/themes'
 import { useRoute } from './app/router'
+import { syncAppManifest, syncTitle } from './app/webmanifest'
 import { Home } from './app/Home'
 import { DashboardView } from './app/DashboardView'
 import { SettingsView } from './app/SettingsView'
@@ -45,6 +46,16 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
     applyTheme(theme)
     if (!forced) cacheTheme(theme)
   }, [loaded, themeId, deviceThemeId, customThemes])
+
+  // installing from a dashboard should pin that dashboard, so the manifest the browser reads
+  // names it; anywhere else the add-on's own manifest stands
+  const dashId = route.name === 'dashboard' ? route.id : null
+  const dashName = useConfigStore((s) => (dashId ? (s.dashboards.find((d) => d.id === dashId)?.name ?? null) : null))
+  useEffect(() => {
+    const dashboard = dashId !== null && dashName !== null ? { id: dashId, name: dashName } : null
+    syncAppManifest(dashboard)
+    syncTitle(dashboard)
+  }, [dashId, dashName])
 
   useEffect(() => {
     let cancelled = false

@@ -5,11 +5,13 @@ import './i18n'
 import App from './App.tsx'
 import { AppBoundary } from './components/AppBoundary.tsx'
 import { applyCachedTheme } from './themes/themes.ts'
+import { applyLaunchQuery } from './app/router.ts'
 import { applyDeviceTextSize } from './store/textsize.ts'
 import { installHistoryHook } from './store/history.ts'
 import { restoreBasicCredentials } from './api/auth.ts'
 import './app.css'
 
+applyLaunchQuery()
 applyCachedTheme()
 applyDeviceTextSize()
 

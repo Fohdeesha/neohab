@@ -33,6 +33,24 @@ export function parseHash(hash: string): Route {
   return { name: 'home' }
 }
 
+/**
+ * A home-screen shortcut's start_url names its dashboard in ?app= as well as in the hash, so a
+ * launcher that drops the fragment still opens the right one. Runs once at boot, before anything
+ * else can navigate; replaceState rather than a hash assignment so it leaves no history step to
+ * go back to.
+ */
+export function applyLaunchQuery(): void {
+  try {
+    const id = new URLSearchParams(window.location.search).get('app')
+    if (!id) return
+    if (parseHash(window.location.hash).name !== 'home') return
+    const { pathname, search } = window.location
+    history.replaceState(null, '', pathname + search + '#/d/' + encodeURIComponent(id))
+  } catch {
+    // replaceState throws on an opaque origin, and this runs before anything can catch for us
+  }
+}
+
 function subscribe(cb: () => void): () => void {
   window.addEventListener('hashchange', cb)
   return () => window.removeEventListener('hashchange', cb)
