@@ -60,7 +60,7 @@ await fetch(NS, {
       widgets: [
         { id: 'b1', type: 'button', config: { label: 'PackBtn', icon: 'fluent:light-bulb', iconActive: 'fluent:fire', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
         { id: 'b2', type: 'button', config: { label: 'TintBtn', icon: 'mdi:lightbulb', iconColor: '#ff0000', iconColorActive: '#00ff00', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-        { id: 's1', type: 'switch', config: { label: 'MeteoSwitch', icon: 'meteo:clear-day', iconSize: 36, item: ITEM } , layout: { lg: { x: 6, y: 0, w: 3, h: 3 } } },
+        { id: 's1', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, label: 'MeteoSwitch', icon: 'meteo:clear-day', iconSize: 36, item: ITEM } , layout: { lg: { x: 6, y: 0, w: 3, h: 3 } } },
       ],
     },
   }),

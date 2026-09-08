@@ -23,7 +23,7 @@ const demoDashboard = {
   columns: 12,
   rowHeight: 40,
   widgets: [
-    { id: 'w-switch', type: 'switch', config: { item: SWITCH_ITEM, label: 'Guest Bedroom' }, layout: { lg: { x: 0, y: 0, w: 3, h: 3 } } },
+    { id: 'w-switch', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, item: SWITCH_ITEM, label: 'Guest Bedroom' }, layout: { lg: { x: 0, y: 0, w: 3, h: 3 } } },
     { id: 'w-button', type: 'button', config: { item: SWITCH_ITEM, label: 'Toggle', command: 'ON', commandAlt: 'OFF', toggle: true }, layout: { lg: { x: 3, y: 0, w: 3, h: 3 } } },
     { id: 'w-slider', type: 'slider', config: { item: SLIDER_ITEM, label: 'Main Lights', min: 0, max: 100, step: 1 }, layout: { lg: { x: 6, y: 0, w: 6, h: 3 } } },
     { id: 'w-value', type: 'value', config: { item: SLIDER_ITEM, label: 'Level' }, layout: { lg: { x: 0, y: 3, w: 3, h: 2 } } },

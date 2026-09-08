@@ -74,9 +74,9 @@ await fetch(NS, {
           layout: { lg: { x: 3, y: 0, w: 3, h: 3 } },
         },
         {
-          id: 'w-sw', type: 'switch',
+          id: 'w-sw', type: 'button',
           config: {
-            item: ITEMS.switch, label: 'Sw', icon: 'mdi:power',
+            style: 'switch', toggle: true, nonZeroIsOn: true, item: ITEMS.switch, label: 'Sw', icon: 'mdi:power',
             stateIcons: [{ state: switchState, icon: 'mdi:sleep', color: '#ff00ff' }],
           },
           layout: { lg: { x: 6, y: 0, w: 3, h: 3 } },

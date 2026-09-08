@@ -43,7 +43,7 @@ const DASH = {
       { id: 'r-btn3', type: 'button', config: { label: 'No Icon Button', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
       { id: 'r-color', type: 'color', config: { item: COLOR_ITEM, label: 'E2E Color' }, layout: { lg: { x: 3, y: 0, w: 3, h: 1 } } },
       { id: 'r-slider', type: 'slider', config: { item: SLIDER_ITEM, label: 'E2E Slider', min: 0, max: 100, step: 1 }, layout: { lg: { x: 6, y: 0, w: 3, h: 1 } } },
-      { id: 'r-switch', type: 'switch', config: { item: SWITCH_ITEM, label: 'E2E Switch', icon: 'mdi:lightbulb', iconSize: 32 }, layout: { lg: { x: 9, y: 0, w: 2, h: 2 } } },
+      { id: 'r-switch', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, item: SWITCH_ITEM, label: 'E2E Switch', icon: 'mdi:lightbulb', iconSize: 32 }, layout: { lg: { x: 9, y: 0, w: 2, h: 2 } } },
       { id: 'r-dial', type: 'dial', config: { item: SLIDER_ITEM, label: 'E2E Dial', readOnly: true }, layout: { lg: { x: 0, y: 1, w: 2, h: 2 } } },
       { id: 'r-tpl', type: 'template', config: { label: 'date time', template: '<iframe name="t" frameborder="0" src="' + UNREACHABLE + 'widget-host.invalid/time.html"> </iframe>' }, layout: { lg: { x: 3, y: 1, w: 2, h: 1 } } },
     ],

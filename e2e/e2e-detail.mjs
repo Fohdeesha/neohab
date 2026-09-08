@@ -133,7 +133,7 @@ try {
           { id: 'w-therm', type: 'dial', layout: { lg: { x: 4, y: 7, w: 4, h: 2 } }, config: { label: 'E2E Thermostat', item: ITEMS.dimmer, min: 10, max: 30, step: 0.5, unit: '°' } },
           { id: 'w-roller', type: 'rollershutter', layout: { lg: { x: 8, y: 7, w: 4, h: 2 } }, config: { label: 'E2E Roller', item: ITEMS.dimmer } },
           { id: 'w-pick', type: 'selection', layout: { lg: { x: 0, y: 9, w: 4, h: 2 } }, config: { label: 'E2E Pick', item: ITEMS.dimmer, choices: '10=Low\n50=Half\n100=Full' } },
-          { id: 'w-onoff', type: 'switch', layout: { lg: { x: 4, y: 9, w: 4, h: 2 } }, config: { label: 'E2E OnOff', item: ITEMS.dimmer, onCommand: '100', offCommand: '0' } },
+          { id: 'w-onoff', type: 'button', layout: { lg: { x: 4, y: 9, w: 4, h: 2 } }, config: { style: 'switch', toggle: true, label: 'E2E OnOff', item: ITEMS.dimmer, command: '100', commandAlt: '0' } },
           { id: 'w-play', type: 'player', layout: { lg: { x: 8, y: 9, w: 4, h: 2 } }, config: { label: 'E2E Play', item: ITEMS.dimmer } },
           { id: 'w-tv', type: 'player', layout: { lg: { x: 0, y: 11, w: 4, h: 2 } }, config: { label: 'E2E TV', item: ITEMS.player } },
           { id: 'w-text', type: 'label', layout: { lg: { x: 4, y: 11, w: 4, h: 2 } }, config: { text: 'E2E Label' } },

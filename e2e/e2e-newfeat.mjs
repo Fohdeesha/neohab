@@ -164,8 +164,8 @@ try {
     widgets: [
       {
         id: 'w-sw',
-        type: 'switch',
-        config: { item: SWITCH_ITEM, label: 'Guest', icon: 'mdi:lightbulb', iconSize: 40 },
+        type: 'button',
+        config: { style: 'switch', toggle: true, nonZeroIsOn: true, item: SWITCH_ITEM, label: 'Guest', icon: 'mdi:lightbulb', iconSize: 40 },
         layout: { lg: { x: 0, y: 0, w: 3, h: 4 } },
       },
       {

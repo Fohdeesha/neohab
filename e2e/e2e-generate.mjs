@@ -276,7 +276,7 @@ try {
     ok('a control point stays a control', row('Brightness')?.type === 'slider', JSON.stringify(row('Brightness')))
     ok('a status point becomes a value, and says why', row('Motion')?.type === 'value' && row('Motion')?.note === 'read-only', JSON.stringify(row('Motion')))
     ok('a read-only measurement is a value', row('Temperature')?.type === 'value')
-    ok('equipment with its own state is included', row('Ceiling Light')?.type === 'switch', JSON.stringify(row('Ceiling Light')))
+    ok('equipment with its own state is included', row('Ceiling Light')?.type === 'button', JSON.stringify(row('Ceiling Light')))
     ok('items outside the model are left out', !rows.some((r) => r.label === 'Nowhere'), JSON.stringify(rows.map((r) => r.label)))
 
     const before = await listUids()

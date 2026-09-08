@@ -170,7 +170,8 @@ try {
   await page.waitForSelector('.nh-grid--edit')
   await page.click('.nh-cell:has(.nh-cell__type:text-is("button")) .nh-cell__overlay')
   await page.waitForSelector('.nh-sheet--side')
-  const actionValue = await page.locator('.nh-sheet--side select').first().inputValue()
+  // named rather than taken by position: the button's schema grew a Style select above this one
+  const actionValue = await page.locator('.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Action")) select').inputValue()
   ok('button Action dropdown shows default (not blank)', actionValue === 'command', `value=${actionValue}`)
   await page.click('button:has-text("Exit")')
 

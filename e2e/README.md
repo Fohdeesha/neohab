@@ -187,6 +187,22 @@ real server's `events.log` - onto two managed items it creates itself (`nh_e2e_f
 suite. It clicks nothing, commands are intercepted, and the count of them is one of its checks.
 Both items are deleted by name in cleanup, and it never touches file-provided items.
 
+`e2e-button.mjs` drives the button widget in both its styles and the migration that folded the old
+switch widget into it, against two managed items it creates itself (`nh_e2e_btn`, a Dimmer, and
+`nh_e2e_btnstr`, a String, both bound to nothing), so its commands are real and reach no device. It
+seeds two dashboards: one in the shipped shape and one written the way a neohab from before the
+merge would have, with `type: 'switch'`, no version field and the switch's own
+`onCommand`/`offCommand`. The shipped seed puts the same Dimmer on two tiles **in the same style**,
+differing only by "Count any value above 0 as on", because that setting is what decides whether a
+tile reads as on and the style must be shown to decide nothing. **It is the one safe-additive suite
+that saves through the app**, because the migration has to be proved to reach the server and not
+only the screen, so it mints one version-history restore point exactly as a real edit does. Both
+dashboards and both items are deleted by name in cleanup.
+
+`e2e-audit2.mjs`, `e2e-editor.mjs` and `e2e-widgets.mjs` deliberately keep seeding `type: 'switch'`
+dashboards, so the battery drives the migration end to end rather than only where it is tested on
+purpose. Do not "modernise" those seeds.
+
 `e2e-stepper.mjs` drives the stepper widget - six looks, five finishes, a number and a list -
 against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist`,
 `nh_e2e_stepfan`, `nh_e2e_stepnull`, `nh_e2e_stepmany`, all bound to nothing), so its commands
