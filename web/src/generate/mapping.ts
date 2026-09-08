@@ -12,7 +12,6 @@ export interface Suggestion {
 
 // more compact than the palette's defaultSize: a generated dashboard puts twenty widgets on the grid at once
 export const GENERATED_SIZES: Record<string, { w: number; h: number }> = {
-  switch: { w: 2, h: 2 },
   button: { w: 2, h: 2 },
   value: { w: 2, h: 1 },
   slider: { w: 3, h: 1 },
@@ -197,9 +196,9 @@ export function isReadOnlyPoint(item: Item, sem: Semantics): boolean {
 export function widgetChoices(item: Item, suggested: string): string[] {
   const type = baseType(item)
   const byType: Record<string, string[]> = {
-    Switch: ['switch', 'button', 'value', 'timeline', 'chart'],
-    Dimmer: ['slider', 'dial', 'switch', 'value', 'chart'],
-    Color: ['color', 'switch', 'value'],
+    Switch: ['button', 'value', 'timeline', 'chart'],
+    Dimmer: ['slider', 'dial', 'button', 'value', 'chart'],
+    Color: ['color', 'button', 'value'],
     Number: ['value', 'slider', 'dial', 'chart', 'timeline'],
     String: ['value', 'selection', 'timeline'],
     Rollershutter: ['rollershutter', 'slider', 'value'],
@@ -220,10 +219,20 @@ export function configFor(
   const { label, icon, readOnly } = opts
   const base: Record<string, unknown> = { label }
   switch (type) {
-    case 'switch':
-      return { ...base, item: item.name, ...(icon ? { icon } : {}) }
-    case 'button':
-      return { ...base, item: item.name, ...(icon ? { icon } : {}), command: 'ON', commandAlt: 'OFF', toggle: true }
+    // an item whose value says whether it is on gets the sliding toggle and the above-zero rule with it;
+    // anything else gets a tile that lights up only while its state matches the command
+    case 'button': {
+      const dimmable = ['Switch', 'Dimmer', 'Color'].includes(baseType(item))
+      return {
+        ...base,
+        item: item.name,
+        ...(icon ? { icon } : {}),
+        command: 'ON',
+        commandAlt: 'OFF',
+        toggle: true,
+        ...(dimmable ? { style: 'switch', nonZeroIsOn: true } : {})
+      }
+    }
     case 'slider':
     case 'dial': {
       const pct = { min: 0, max: 100, step: 1 }
@@ -264,7 +273,7 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
 
   switch (type) {
     case 'Switch':
-      return control('switch')
+      return control('button')
     case 'Color':
       return control('color')
     case 'Dimmer':

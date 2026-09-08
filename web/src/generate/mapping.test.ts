@@ -63,7 +63,7 @@ describe('read-only points', () => {
 
 describe('suggesting a widget', () => {
   it.each([
-    ['Switch', 'switch'],
+    ['Switch', 'button'],
     ['Color', 'color'],
     ['Dimmer', 'slider'],
     ['Rollershutter', 'rollershutter'],
@@ -111,7 +111,7 @@ describe('suggesting a widget', () => {
   })
 
   it('still places a typed group, which does have a value of its own', () => {
-    expect(suggestWidget(item({ name: 'g', type: 'Group', groupType: 'Switch' }), NO_SEM, 'G')?.type).toBe('switch')
+    expect(suggestWidget(item({ name: 'g', type: 'Group', groupType: 'Switch' }), NO_SEM, 'G')?.type).toBe('button')
   })
 
   it('marks a read-only dial as a gauge when the type is overridden to one', () => {
@@ -124,7 +124,7 @@ describe('suggesting a widget', () => {
 describe('widget configuration', () => {
   it('binds every offered type to the item', () => {
     const i = item({ name: 'Kitchen_Light', type: 'Switch' })
-    for (const type of ['switch', 'button', 'slider', 'dial', 'value', 'selection', 'color', 'rollershutter', 'player']) {
+    for (const type of ['button', 'slider', 'dial', 'value', 'selection', 'color', 'rollershutter', 'player']) {
       expect(configFor(type, i, { label: 'L' }).item, type).toBe('Kitchen_Light')
     }
     for (const type of ['chart', 'timeline']) {
@@ -132,11 +132,24 @@ describe('widget configuration', () => {
     }
   })
 
+  it('gives an item whose value says it is on the toggle look and the above-zero rule', () => {
+    for (const type of ['Switch', 'Dimmer', 'Color']) {
+      const cfg = configFor('button', item({ name: 'i', type }), { label: 'L' })
+      expect(cfg, type).toMatchObject({ style: 'switch', nonZeroIsOn: true, toggle: true, command: 'ON', commandAlt: 'OFF' })
+    }
+    for (const type of ['Number', 'String', 'Contact']) {
+      const cfg = configFor('button', item({ name: 'i', type }), { label: 'L' })
+      expect(cfg, type).toMatchObject({ toggle: true, command: 'ON', commandAlt: 'OFF' })
+      expect(cfg, type).not.toHaveProperty('style')
+      expect(cfg, type).not.toHaveProperty('nonZeroIsOn')
+    }
+  })
+
   it('never writes an icon onto a widget that has no icon setting', () => {
     for (const type of ['color', 'rollershutter', 'player', 'chart', 'timeline']) {
       expect(configFor(type, item({ name: 'i' }), { label: 'L', icon: 'mdi:bulb' }), type).not.toHaveProperty('icon')
     }
-    for (const type of ['switch', 'button', 'value', 'selection']) {
+    for (const type of ['button', 'value', 'selection']) {
       expect(configFor(type, item({ name: 'i' }), { label: 'L', icon: 'mdi:bulb' }).icon, type).toBe('mdi:bulb')
     }
   })
@@ -175,7 +188,7 @@ describe('the type override list', () => {
 
   it('offers only types that can drive the item', () => {
     expect(widgetChoices(item({ name: 'i', type: 'Player' }), 'player')).not.toContain('slider')
-    expect(widgetChoices(item({ name: 'i', type: 'Switch' }), 'switch')).not.toContain('color')
+    expect(widgetChoices(item({ name: 'i', type: 'Switch' }), 'button')).not.toContain('color')
   })
 
   it('always offers at least the suggestion for an unfamiliar type', () => {

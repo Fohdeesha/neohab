@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Item } from '../api/types'
-import type { Rect } from '../model/dashboard'
+import { MODEL_VERSION, type Rect } from '../model/dashboard'
 import { buildDashboards, buildPlan, countPlanned, GENERATED_COLUMNS } from './build'
 import { buildTagIndex } from './semantics'
 import { groupClusters, pickedCluster, prefixClusters, semanticClusters, surveySources } from './sources'
@@ -163,7 +163,7 @@ describe('building dashboards', () => {
 
   it('produces a dashboard indistinguishable from a hand-made one', () => {
     const d = build(many)[0]
-    expect(d).toMatchObject({ version: 1, columns: GENERATED_COLUMNS, rowHeight: 'match' })
+    expect(d).toMatchObject({ version: MODEL_VERSION, columns: GENERATED_COLUMNS, rowHeight: 'match' })
     expect(new Set(d.widgets.map((w) => w.id)).size).toBe(d.widgets.length)
   })
 

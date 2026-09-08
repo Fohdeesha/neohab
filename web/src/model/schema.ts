@@ -3,7 +3,7 @@ import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, SETTINGS_UID, THEME_P
 export type ComponentKind = 'dashboard' | 'theme' | 'widgetdef' | 'icon' | 'background' | 'settings'
 
 export const SCHEMA_VERSIONS: Record<ComponentKind, number> = {
-  dashboard: 1,
+  dashboard: 2,
   theme: 1,
   widgetdef: 1,
   icon: 1,
@@ -13,9 +13,56 @@ export const SCHEMA_VERSIONS: Record<ComponentKind, number> = {
 
 export type Migration = (config: Record<string, unknown>) => Record<string, unknown>
 
-// empty, and correctly so: version 1 is the only shape neohab has ever written
+const plainObject = (v: unknown): Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+
+const commandOrDefault = (v: unknown, fallback: string): string => (typeof v === 'string' && v !== '' ? v : fallback)
+
+// 1 -> 2: the switch widget folded into the button. The style carries the look; the two behaviours it
+// used to imply - always toggling, and reading any value above zero as on - are written out as the
+// settings that now hold them, so the tile behaves exactly as it did.
+//
+// A button written before the merge is pinned too. Toggling is the default for a NEW widget now, and a
+// stored button that never carried the key would otherwise start alternating with the default alternate
+// command the day it was loaded.
+const switchToButtonStyle: Migration = (config) => {
+  const widgets = config.widgets
+  if (!Array.isArray(widgets)) return config
+  let changed = false
+  const migrated = widgets.map((entry) => {
+    const widget = plainObject(entry)
+
+    if (widget.type === 'button') {
+      const stored = plainObject(widget.config)
+      if (typeof stored.toggle === 'boolean') return entry
+      changed = true
+      return { ...widget, config: { ...stored, toggle: false } }
+    }
+
+    if (widget.type !== 'switch') return entry
+    changed = true
+    const { onCommand, offCommand, ...rest } = plainObject(widget.config)
+    return {
+      ...widget,
+      type: 'button',
+      config: {
+        ...rest,
+        style: 'switch',
+        toggle: true,
+        nonZeroIsOn: true,
+        // the button's default label is "Button", so a switch that carried no name has to say so out loud
+        // or the merge would name every unnamed one
+        label: typeof rest.label === 'string' ? rest.label : '',
+        command: commandOrDefault(onCommand, 'ON'),
+        commandAlt: commandOrDefault(offCommand, 'OFF')
+      }
+    }
+  })
+  return changed ? { ...config, widgets: migrated } : config
+}
+
 export const MIGRATIONS: Record<ComponentKind, Migration[]> = {
-  dashboard: [],
+  dashboard: [switchToButtonStyle],
   theme: [],
   widgetdef: [],
   icon: [],

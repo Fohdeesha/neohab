@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
-import { getWidgetDefinition, itemsForInstance } from '../widgets'
+import { getWidgetDefinition, hasHeaderFor, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
@@ -22,8 +22,10 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
   // definition defaults under the stored config, memoised so widgets are not handed a new object every render
   const config = useMemo(() => {
     const merged: Record<string, unknown> = { ...def?.defaultConfig(), ...instance.config }
-    // honoured here rather than in each widget, so one that forgot to check cannot ignore the setting
-    if (merged.labelMode === 'none') delete merged.label
+    // honoured here rather than in each widget, so one that forgot to check cannot ignore the setting.
+    // Only where there is a title bar to hide: a button draws its name on the face and has its own
+    // "icon only", so a labelMode left over from switch style must not blank it.
+    if (merged.labelMode === 'none' && hasHeaderFor(def, merged)) delete merged.label
     return merged
   }, [def, instance.config])
 

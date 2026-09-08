@@ -1,6 +1,8 @@
 import { slugify } from './components'
+import { SCHEMA_VERSIONS } from './schema'
 
-export const MODEL_VERSION = 1
+// one number: a dashboard written at anything but the declared version would be migrated on every load
+export const MODEL_VERSION = SCHEMA_VERSIONS.dashboard
 
 export type Breakpoint = 'lg' | 'md'
 

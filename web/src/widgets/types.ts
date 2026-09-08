@@ -62,7 +62,7 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   description: string
   defaultSize: { w: number; h: number }
   minPixelHeight?: number | ((config: C) => number)
-  hasHeader?: boolean
+  hasHeader?: boolean | ((config: C) => boolean)
   labelModes?: { options: { value: string; label: string }[]; hint?: string }
   defaultConfig: () => C
   settings: SettingField[]

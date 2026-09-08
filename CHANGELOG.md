@@ -7,6 +7,21 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+- The switch widget is now a style of the button widget rather than a widget of its own. They were
+  two ways of drawing the same job, and the palette offered both with no way to tell which you
+  wanted. The Style setting is only the look, a pressable tile or a sliding toggle; both send the
+  same commands and behave the same way. Dashboards that already have switches are converted when
+  they load, keeping their commands, icons and names, and are written back in the new shape the
+  next time you save.
+- How a tile decides it is on is now a setting rather than a side effect of which widget you
+  picked. "Count any value above 0 as on" makes a dimmer at 50% or a color with any brightness
+  read as on, which is what the switch widget used to do; leave it off and the tile lights up only
+  when the item matches its command exactly. It works on either style.
+- A new widget now arrives set to toggle between its command and its alternate, so it does
+  something useful the moment you give it an item.
+- Panel group, its explanation and the "Theme default" name-alignment option are translated. They
+  had never been in the catalogs, so they showed in English in all six languages.
+
 ## 1.26.0
 
 - Adding neohab to a phone's home screen while a dashboard is open now pins that dashboard. The

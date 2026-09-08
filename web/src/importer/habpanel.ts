@@ -190,9 +190,21 @@ function iconRef(w: HPWidget): { icon?: string; iconSize?: number } {
 type Converter = (w: HPWidget, report: Report) => { type: string; config: Record<string, unknown> } | null
 
 const CONVERTERS: Record<string, Converter> = {
+  // the button in its switch style: a sliding toggle that reads any value above zero as on, which is what
+  // HABPanel draws here. The label is written even when empty, or the button's own "Button" default would
+  // name every unnamed one.
   switch: (w) => ({
-    type: 'switch',
-    config: { item: str(w.item) ?? '', label: w.hidelabel === true ? undefined : str(w.name), ...iconRef(w) }
+    type: 'button',
+    config: {
+      style: 'switch',
+      toggle: true,
+      nonZeroIsOn: true,
+      command: 'ON',
+      commandAlt: 'OFF',
+      item: str(w.item) ?? '',
+      label: (w.hidelabel === true ? undefined : str(w.name)) ?? '',
+      ...iconRef(w)
+    }
   }),
 
   slider: (w, report) => {

@@ -39,6 +39,18 @@ export function instanceMinHeight(type: string, config: Record<string, unknown>)
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0
 }
 
+// one rule for "does this instance draw a title bar": the panel offers the name settings off it, and
+// WidgetHost honours labelMode: 'none' off it
+export function hasHeaderFor(def: AnyWidgetDefinition | undefined, config: Record<string, unknown>): boolean {
+  if (!def) return false
+  return typeof def.hasHeader === 'function' ? def.hasHeader(config) === true : def.hasHeader === true
+}
+
+export function instanceHasHeader(type: string, config: Record<string, unknown>): boolean {
+  const def = registry.get(type)
+  return def ? hasHeaderFor(def, effective(def, config)) : false
+}
+
 export function widgetDetailView(type: string): AnyWidgetDefinition['DetailView'] {
   return registry.get(type)?.DetailView
 }

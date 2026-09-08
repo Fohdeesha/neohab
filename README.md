@@ -211,6 +211,12 @@ translate it.
   from your own weather items, and your server's measurement system decides °F or °C. Rain chance
   is the day's, the way every forecast site quotes it; if the numbers look nothing like the
   forecast you usually read, pick another weather model (ECMWF, GFS, ICON, GEM) and see.
+- **Buttons and switches.** One widget, drawn either as a pressable tile or as a sliding toggle.
+  The style is only the look: both send the same commands, both can toggle between a command and
+  an alternate one, and both can show whether the item is on. How "on" is decided is a setting of
+  its own: exactly matching the command, or counting any value above 0, so a dimmer part way up or
+  a color with any brightness reads as on. Per-state icons throughout, and either style can open
+  another dashboard or a web address instead of sending anything.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.

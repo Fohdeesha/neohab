@@ -77,7 +77,7 @@ describe('which kind a uid names', () => {
 
 describe('migrating forward', () => {
   it('does nothing when the config is already current', () => {
-    const result = migrateConfig('dashboard', { version: 1, name: 'Kitchen' })
+    const result = migrateConfig('dashboard', { version: SCHEMA_VERSIONS.dashboard, name: 'Kitchen' })
     expect(result.status).toBe('ok')
     if (result.status !== 'ok') return
     expect(result.migrated).toBe(false)
@@ -130,16 +130,109 @@ describe('migrating forward', () => {
 
 describe('refusing a config from the future', () => {
   it('refuses rather than guessing', () => {
-    const result = migrateConfig('dashboard', { version: 2, name: 'Kitchen' })
+    const result = migrateConfig('dashboard', { version: SCHEMA_VERSIONS.dashboard + 1, name: 'Kitchen' })
     expect(result.status).toBe('future')
     if (result.status !== 'future') return
-    expect(result.from).toBe(2)
+    expect(result.from).toBe(SCHEMA_VERSIONS.dashboard + 1)
     expect(result.expected).toBe(SCHEMA_VERSIONS.dashboard)
   })
 
   it('refuses per kind, so one component cannot condemn the others', () => {
     expect(migrateConfig('theme', { version: 9 }).status).toBe('future')
     expect(migrateConfig('dashboard', { version: 1 }).status).toBe('ok')
+  })
+})
+
+describe('folding the switch widget into the button (dashboard 1 -> 2)', () => {
+  const dash = (widgets: unknown[]): Record<string, unknown> => ({ version: 1, id: 'kitchen', name: 'Kitchen', widgets })
+  const run = (widgets: unknown[]): Record<string, unknown> => {
+    const result = migrateConfig('dashboard', dash(widgets))
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') throw new Error('refused')
+    return result.config
+  }
+  const first = (widgets: unknown[]) => (run(widgets).widgets as Record<string, unknown>[])[0]
+  const sw = (config: Record<string, unknown>) => ({ id: 'w-1', type: 'switch', config, layout: { lg: { x: 1, y: 2, w: 3, h: 4 } } })
+
+  it('turns a switch into a button in switch style', () => {
+    const w = first([sw({ item: 'Hall_Light', label: 'Hall' })])
+    expect(w.type).toBe('button')
+    expect(w.config).toMatchObject({ style: 'switch', item: 'Hall_Light', label: 'Hall' })
+  })
+
+  it('writes out the two behaviours the old widget implied, so the tile acts as it did', () => {
+    // the switch always toggled and read any value above zero as on; both are settings now, and a
+    // migration that left them off would turn every stored switch into a tile that never lights up
+    const w = first([sw({ item: 'i' })])
+    expect(w.config).toMatchObject({ toggle: true, nonZeroIsOn: true })
+  })
+
+  it('pins a button written before the merge to the behaviour it had', () => {
+    // toggling is the default for a NEW widget now, so a stored button with no toggle key would start
+    // alternating with the default alternate command the day it was loaded
+    const btn = (config: Record<string, unknown>) => ({ id: 'w-b', type: 'button', config, layout: {} })
+    expect(first([btn({ item: 'i', command: '55' })]).config).toMatchObject({ toggle: false, command: '55' })
+    expect(first([btn({ item: 'i', command: '55', toggle: true })]).config).toMatchObject({ toggle: true })
+    expect(first([btn({ item: 'i', command: '55', toggle: false })]).config).toMatchObject({ toggle: false })
+  })
+
+  it('keeps the widget where it was, under the id it had', () => {
+    const w = first([sw({ item: 'i' })])
+    expect(w.id).toBe('w-1')
+    expect(w.layout).toEqual({ lg: { x: 1, y: 2, w: 3, h: 4 } })
+  })
+
+  it('renames the two commands to the pair the button keeps', () => {
+    const w = first([sw({ item: 'i', onCommand: 'OPEN', offCommand: 'CLOSE' })])
+    expect(w.config).toMatchObject({ command: 'OPEN', commandAlt: 'CLOSE' })
+    expect(w.config).not.toHaveProperty('onCommand')
+    expect(w.config).not.toHaveProperty('offCommand')
+  })
+
+  it('falls back to ON and OFF when the switch never named them, or named them empty', () => {
+    expect(first([sw({ item: 'i' })]).config).toMatchObject({ command: 'ON', commandAlt: 'OFF' })
+    expect(first([sw({ item: 'i', onCommand: '', offCommand: '' })]).config).toMatchObject({ command: 'ON', commandAlt: 'OFF' })
+  })
+
+  it('writes an empty name for a switch that had none, so the button default cannot name it', () => {
+    expect(first([sw({ item: 'i' })]).config).toMatchObject({ label: '' })
+    expect(first([sw({ item: 'i', label: 42 })]).config).toMatchObject({ label: '' })
+  })
+
+  it('carries every other setting across untouched', () => {
+    const w = first([sw({ item: 'i', label: 'L', icon: 'mdi:lightbulb', iconSize: 48, accent: 'filled', textSize: 120 })])
+    expect(w.config).toMatchObject({ icon: 'mdi:lightbulb', iconSize: 48, accent: 'filled', textSize: 120 })
+  })
+
+  it('leaves every other widget type exactly as it was', () => {
+    const slider = { id: 'w-2', type: 'slider', config: { item: 'd', min: 0, max: 100 }, layout: {} }
+    const widgets = run([slider, sw({ item: 'i' })]).widgets as Record<string, unknown>[]
+    expect(widgets[0]).toEqual(slider)
+    expect(widgets[1].type).toBe('button')
+  })
+
+  it('lands the dashboard on the current version either way', () => {
+    expect(run([sw({ item: 'i' })]).version).toBe(SCHEMA_VERSIONS.dashboard)
+    expect(run([{ id: 'w-2', type: 'clock', config: {}, layout: {} }]).version).toBe(SCHEMA_VERSIONS.dashboard)
+  })
+
+  it('does not touch a dashboard already written at the current version', () => {
+    const stored = { version: SCHEMA_VERSIONS.dashboard, widgets: [sw({ item: 'i' })] }
+    const result = migrateConfig('dashboard', stored)
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') return
+    expect(result.migrated).toBe(false)
+    expect((result.config.widgets as Record<string, unknown>[])[0].type).toBe('switch')
+  })
+
+  it('survives a stored shape no editor would ever write', () => {
+    expect(() => migrateConfig('dashboard', { version: 1, widgets: 'not a list' })).not.toThrow()
+    expect(migrateConfig('dashboard', { version: 1 }).status).toBe('ok')
+    const odd = run([null, 'nope', 7, { type: 'switch' }, { type: 'switch', config: ['array'] }])
+    const widgets = odd.widgets as unknown[]
+    expect(widgets.slice(0, 3)).toEqual([null, 'nope', 7])
+    expect((widgets[3] as Record<string, unknown>).config).toMatchObject({ style: 'switch', label: '', command: 'ON' })
+    expect((widgets[4] as Record<string, unknown>).config).toMatchObject({ style: 'switch', commandAlt: 'OFF' })
   })
 })
 

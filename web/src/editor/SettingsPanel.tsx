@@ -10,7 +10,7 @@ import { PlanImageField, PlanLightsField } from './FloorplanFields'
 import { ItemPatternField, WeatherLocationField } from './WeatherFields'
 import { ClockZonesField, TimeZoneField } from './ClockFields'
 import type { SettingField } from '../widgets/types'
-import { getWidgetDefinition } from '../widgets'
+import { getWidgetDefinition, hasHeaderFor } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
 import type { Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs } from '../store/editor'
@@ -118,7 +118,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
             <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
           ))}
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
-        {def.hasHeader ? (
+        {hasHeaderFor(def, effective) ? (
           <>
             {String(effective.label ?? '').trim() ? (
               <Field field={labelModeField(def)} widget={widget} value={(effective.labelMode as string) || 'header'} />

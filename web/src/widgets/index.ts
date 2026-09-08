@@ -1,5 +1,4 @@
 import { registerWidget } from './registry'
-import { switchWidget } from './switch'
 import { buttonWidget } from './button'
 import { sliderWidget } from './slider'
 import { valueWidget } from './value'
@@ -29,7 +28,6 @@ let registered = false
 export function registerBuiltinWidgets(): void {
   if (registered) return
   registered = true
-  registerWidget(switchWidget)
   registerWidget(buttonWidget)
   registerWidget(sliderWidget)
   registerWidget(dialWidget)
@@ -57,6 +55,8 @@ export function registerBuiltinWidgets(): void {
 
 export {
   getWidgetDefinition,
+  hasHeaderFor,
+  instanceHasHeader,
   listWidgetDefinitions,
   itemsForInstance,
   instanceCommands,

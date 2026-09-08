@@ -14,6 +14,14 @@ const widget = (d: Dashboard, type: string): WidgetInstance => {
   return found[0]
 }
 
+// a HABPanel switch, a toggle button and a navigate button are all button widgets now, so each is
+// found by what makes it itself rather than by its place in the list
+const buttonWith = (d: Dashboard, match: (config: Record<string, unknown>) => boolean): WidgetInstance => {
+  const found = d.widgets.filter((w) => w.type === 'button').find((w) => match(w.config as Record<string, unknown>))
+  if (!found) throw new Error(`no matching button on ${d.id}`)
+  return found
+}
+
 const oneWidget = (w: Record<string, unknown>): HPPanelConfig => ({
   dashboards: [{ id: 'd', name: 'D', widgets: [{ type: String(w.type), ...w }] }],
   settings: {},
@@ -114,7 +122,7 @@ describe('widget conversion', () => {
     const { dashboards, widgetCount } = importFixture()
     const types = dashboards.flatMap((d) => d.widgets.map((w) => w.type))
     expect(types).toEqual([
-      'switch',
+      'button',
       'slider',
       'color',
       'dial',
@@ -134,14 +142,29 @@ describe('widget conversion', () => {
     expect(widgetCount).toBe(16)
   })
 
-  it('carries a switch across with its state-aware icon', () => {
+  it('carries a switch across as a button in switch style, with its state-aware icon', () => {
     const { dashboards } = importFixture()
-    expect(widget(dashboards[0], 'switch').config).toEqual({
+    expect(buttonWith(dashboards[0], (c) => c.style === 'switch').config).toEqual({
+      style: 'switch',
+      toggle: true,
+      nonZeroIsOn: true,
+      command: 'ON',
+      commandAlt: 'OFF',
       item: 'Hall_Light',
       label: 'Hall Light',
       icon: 'oh:light',
       iconSize: 48
     })
+  })
+
+  it('writes an unnamed switch an empty name, so the button default cannot name it', () => {
+    const { widget: w } = convertOne({ type: 'switch', item: 'I' })
+    expect(w.config).toMatchObject({ style: 'switch', label: '' })
+  })
+
+  it('writes an empty name for a switch HABPanel was hiding the label on', () => {
+    const { widget: w } = convertOne({ type: 'switch', item: 'I', name: 'Hidden', hidelabel: true })
+    expect(w.config.label).toBe('')
   })
 
   it('keeps a non-classic icon set on the reference', () => {
@@ -198,7 +221,7 @@ describe('widget conversion', () => {
 
   it('maps a toggle button to command plus alternate command', () => {
     const { dashboards } = importFixture()
-    expect(widget(dashboards[0], 'button').config).toEqual({
+    expect(buttonWith(dashboards[0], (c) => c.toggle === true && c.style === undefined).config).toEqual({
       item: 'Scene_AllOff',
       label: 'All Off',
       command: 'ON',
@@ -211,7 +234,7 @@ describe('widget conversion', () => {
 
   it('maps a navigate button to the dashboard it pointed at', () => {
     const { dashboards } = importFixture()
-    const nav = dashboards[0].widgets.filter((w) => w.type === 'button')[1]
+    const nav = buttonWith(dashboards[0], (c) => c.action === 'navigate')
     expect(nav.config).toMatchObject({ action: 'navigate', navigateDashboard: 'First Floor', label: 'Upstairs' })
     expect(nav.config.item).toBeUndefined()
   })

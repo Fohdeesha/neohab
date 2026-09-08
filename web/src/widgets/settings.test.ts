@@ -19,6 +19,7 @@ const {
   instanceControl,
   instanceDetailRoute,
   instanceHasDetail,
+  instanceHasHeader,
   instanceMinHeight,
   itemsForInstance,
   listWidgetDefinitions
@@ -163,7 +164,7 @@ describe('every widget settings schema', () => {
     for (const display of ['value', 'stat', 'chart', 'timeline', 'compass', 'weather']) {
       expect(instanceCommands(display, { item: 'x' }), display).toBe(false)
     }
-    for (const control of ['switch', 'slider', 'color', 'selection', 'rollershutter', 'player']) {
+    for (const control of ['slider', 'color', 'selection', 'rollershutter', 'player']) {
       expect(instanceCommands(control, { item: 'x' }), control).toBe(true)
     }
     expect(instanceCommands('thermostat', { currentItem: 'x', setpointItem: 'y' })).toBe(true)
@@ -171,6 +172,32 @@ describe('every widget settings schema', () => {
 
   it('says no for a widget type nobody registered', () => {
     expect(instanceCommands('not-a-widget', {})).toBe(false)
+  })
+
+  it('has no switch widget of its own: the button draws that now', () => {
+    expect(widgets.map((d) => d.type)).not.toContain('switch')
+    expect(instanceCommands('switch', { item: 'x' })).toBe(false)
+  })
+
+  it('answers the header question per instance, not only per widget type', () => {
+    expect(instanceHasHeader('button', {})).toBe(false)
+    expect(instanceHasHeader('button', { style: 'switch' })).toBe(true)
+    expect(instanceHasHeader('button', { style: 'nonsense' })).toBe(false)
+    // a widget that declares a plain boolean still answers, and so does one that declares nothing
+    expect(instanceHasHeader('value', {})).toBe(true)
+    expect(instanceHasHeader('label', {})).toBe(false)
+    expect(instanceHasHeader('nonesuch', {})).toBe(false)
+  })
+
+  it('gives the button the same behaviour in either style: the look decides nothing', () => {
+    for (const style of ['button', 'switch']) {
+      const bound = { item: 'x', style, command: 'OPEN', commandAlt: 'CLOSE' }
+      expect(instanceCommands('button', bound), style).toBe(true)
+      expect(instanceControl('button', bound, 'x'), style).toEqual({ kind: 'onoff', on: 'OPEN', off: 'CLOSE' })
+      expect(instanceCommands('button', { ...bound, action: 'navigate' }), style).toBe(false)
+      expect(instanceControl('button', { ...bound, action: 'navigate' }, 'x'), style).toBeUndefined()
+      expect(itemsForInstance('button', bound), style).toEqual(['x'])
+    }
   })
 
   it('says which control it offers, not only that it offers one', () => {
@@ -263,25 +290,22 @@ describe('every widget settings schema', () => {
       ]
     })
     expect(instanceControl('selection', { item: 'x' }, 'x')).toEqual({ kind: 'auto' })
-    expect(instanceControl('switch', { item: 'x', onCommand: 'OPEN', offCommand: 'CLOSE' }, 'x')).toEqual({
-      kind: 'onoff',
-      on: 'OPEN',
-      off: 'CLOSE'
-    })
-    expect(instanceControl('switch', { item: 'x' }, 'x')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
+    expect(instanceControl('button', { item: 'x', style: 'switch' }, 'x')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
+    // emptied on purpose: it offers nothing rather than inventing a command the author removed
+    expect(instanceControl('button', { item: 'x', command: '', commandAlt: '' }, 'x')).toBeUndefined()
+    // two commands make an on/off pair; one command is the single thing it sends
     expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0' }, 'x')).toEqual({
+      kind: 'onoff',
+      on: '55',
+      off: '0'
+    })
+    expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0', toggle: false }, 'x')).toEqual({
       kind: 'choices',
       choices: [{ command: '55', label: '55' }]
     })
-    expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0', toggle: true }, 'x')).toEqual({
+    expect(instanceControl('button', { item: 'x', command: 'ON', commandAlt: '' }, 'x')).toEqual({
       kind: 'choices',
-      choices: [
-        { command: '55', label: '55' },
-        { command: '0', label: '0' }
-      ]
-    })
-    expect(instanceControl('button', { item: 'x', command: 'ON', commandAlt: '', toggle: true }, 'x')).toMatchObject({
-      choices: [{ command: 'ON' }]
+      choices: [{ command: 'ON', label: 'ON' }]
     })
     expect(instanceControl('button', { item: 'x', command: 'ON', action: 'navigate' }, 'x')).toBeUndefined()
     expect(instanceControl('dial', { item: 'x', readOnly: true }, 'x')).toBeUndefined()
@@ -342,8 +366,8 @@ describe('every widget settings schema', () => {
     expect(instanceHasDetail('weather', { source: 'openmeteo', location: { lat: 1, lon: 2 } })).toBe(true)
     expect(instanceHasDetail('clock', { mode: 'digital' })).toBe(true)
     expect(instanceHasDetail('log', {})).toBe(true)
-    expect(instanceHasDetail('switch', { item: 'x' })).toBe(true)
-    expect(instanceHasDetail('switch', {})).toBe(false)
+    expect(instanceHasDetail('button', { item: 'x' })).toBe(true)
+    expect(instanceHasDetail('button', {})).toBe(false)
     expect(instanceHasDetail('label', { text: 'Kitchen' })).toBe(false)
     expect(instanceHasDetail('image', { url: 'x.png' })).toBe(false)
     expect(instanceHasDetail('nonesuch', {})).toBe(false)
@@ -359,7 +383,7 @@ describe('every widget settings schema', () => {
   it('sends a hold on a log tile to the full-screen log route, and a hold on the rest to the sheet', () => {
     expect(instanceDetailRoute('log', 'kitchen', 'w-1')).toEqual({ name: 'log', dashboard: 'kitchen', widget: 'w-1' })
     expect(instanceDetailRoute('weather', 'kitchen', 'w-1')).toBeUndefined()
-    expect(instanceDetailRoute('switch', 'kitchen', 'w-1')).toBeUndefined()
+    expect(instanceDetailRoute('button', 'kitchen', 'w-1')).toBeUndefined()
     expect(instanceDetailRoute('nonesuch', 'kitchen', 'w-1')).toBeUndefined()
   })
 
