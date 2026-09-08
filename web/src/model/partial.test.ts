@@ -121,6 +121,49 @@ describe('import planning', () => {
     expect(plan.dependencies.find((d) => d.uid === 'widgetdef:gauge')!.status).toBe('identical')
     expect(plan.dependencies.find((d) => d.uid === 'icon:bulb')!.status).toBe('new')
   })
+
+  it('calls a component identical to its own export, even when the stored one predates a migration', () => {
+    // exactly what re-importing your own export of an older dashboard does: the app migrated it on the
+    // way out, so the file carries the newer shape while the server still holds the older one
+    const stored = c('dashboard:k', {
+      version: 1,
+      id: 'k',
+      name: 'k',
+      columns: 12,
+      rowHeight: 'match',
+      widgets: [{ id: 'w', type: 'switch', config: { item: 'i', onCommand: 'ON', offCommand: 'OFF' }, layout: {} }]
+    })
+    const exported = c('dashboard:k', {
+      version: 2,
+      id: 'k',
+      name: 'k',
+      columns: 12,
+      rowHeight: 'match',
+      widgets: [
+        {
+          id: 'w',
+          type: 'button',
+          config: { item: 'i', style: 'switch', toggle: true, nonZeroIsOn: true, label: '', command: 'ON', commandAlt: 'OFF' },
+          layout: {}
+        }
+      ]
+    })
+    const bundle: PartialBundle = {
+      manifest: { app: 'neohab', formatVersion: 2, exportedAt: 'n', kind: 'dashboard', primary: 'dashboard:k' },
+      components: [exported]
+    }
+    expect(planPartialImport(bundle, [stored]).primary.status).toBe('identical')
+  })
+
+  it('still calls a real difference a conflict, migration or no migration', () => {
+    const stored = c('dashboard:k', { version: 1, id: 'k', name: 'k', columns: 12, rowHeight: 'match', widgets: [] })
+    const changed = c('dashboard:k', { version: 2, id: 'k', name: 'Renamed', columns: 12, rowHeight: 'match', widgets: [] })
+    const bundle: PartialBundle = {
+      manifest: { app: 'neohab', formatVersion: 2, exportedAt: 'n', kind: 'dashboard', primary: 'dashboard:k' },
+      components: [changed]
+    }
+    expect(planPartialImport(bundle, [stored]).primary.status).toBe('conflict')
+  })
 })
 
 describe('import resolution', () => {

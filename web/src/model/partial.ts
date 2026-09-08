@@ -2,6 +2,7 @@ import type { UIComponent } from '../api/types'
 import { BG_REF_PREFIX } from './background'
 import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, THEME_PREFIX, WIDGETDEF_PREFIX, nextFreeId } from './components'
 import type { Dashboard } from './dashboard'
+import { kindOf, migrateConfig } from './schema'
 
 export const ICON_REF_PREFIX = 'custom:'
 
@@ -201,11 +202,21 @@ function canonical(value: unknown): string {
   return JSON.stringify(norm(value))
 }
 
+// "identical" has to mean "importing this would change nothing once it is loaded", not "these two files
+// match byte for byte". A component still stored at an older version is migrated the moment the app reads
+// it, so an export of it carries the newer shape and would otherwise read as a conflict with its own source.
+function comparable(c: UIComponent): unknown {
+  const kind = kindOf(c.uid)
+  if (!kind) return c.config
+  const result = migrateConfig(kind, c.config)
+  return result.status === 'ok' ? result.config : c.config
+}
+
 function statusOf(incoming: UIComponent, existing: Map<string, UIComponent>): EntryStatus {
   const have = existing.get(incoming.uid)
   if (!have) return 'new'
-  return canonical({ component: have.component, config: have.config }) ===
-    canonical({ component: incoming.component, config: incoming.config })
+  return canonical({ component: have.component, config: comparable(have) }) ===
+    canonical({ component: incoming.component, config: comparable(incoming) })
     ? 'identical'
     : 'conflict'
 }
