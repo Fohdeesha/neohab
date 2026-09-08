@@ -7,6 +7,8 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.27.0
+
 - The switch widget is now a style of the button widget rather than a widget of its own. They were
   two ways of drawing the same job, and the palette offered both with no way to tell which you
   wanted. The Style setting is only the look, a pressable tile or a sliding toggle; both send the
