@@ -134,23 +134,23 @@ body {
 }
 /* A button IS its glass card - the zone-card pattern: flat content at rest, and the active
    one takes the selected treatment on the whole tile: green outline, tinted fill, soft glow. */
-.nh-button {
+.nh-button--plain {
   background: transparent;
   border: none;
 }
-.nh-button:active {
+.nh-button--plain:active {
   background: color-mix(in srgb, var(--nh-primary) 10%, transparent);
 }
-.nh-button--active {
+.nh-button--plain.nh-button--active {
   background: color-mix(in srgb, var(--nh-primary) 12%, transparent);
   border: none;
 }
 /* resting mono icons take the board's green cast; the active rule below must stay AFTER this
    one (same specificity - source order is what keeps the active tint winning) */
-.nh-button .nh-icon--mdi {
+.nh-button--plain .nh-icon--mdi {
   background-color: color-mix(in srgb, var(--nh-primary) 55%, var(--nh-text));
 }
-.nh-button--active .nh-icon--mdi {
+.nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: var(--nh-primary);
 }
 ${wholeTileActive({
@@ -163,12 +163,12 @@ ${wholeTileActive({
     0 14px 30px -20px rgba(0, 0, 0, 0.85);`
 })}/* A button carrying an illustration is a zone card: media on top, title and dim caption
    bottom-left, the reference's left-column layout. */
-.nh-button:has(.nh-button__media) {
+.nh-button--plain:has(.nh-button__media) {
   align-items: flex-start;
   text-align: left;
   gap: 8px;
 }
-.nh-button:has(.nh-button__media) .nh-button__label {
+.nh-button--plain:has(.nh-button__media) .nh-button__label {
   font-weight: 600;
 }
 /* Small controls: outlined dark glass chips; the active one is a solid green plate with dark

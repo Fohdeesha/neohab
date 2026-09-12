@@ -56,21 +56,21 @@ ${tightCellInsets({ label: '9px 10px 0', labelBottom: '0 10px 9px', body: '8px 1
 /* A button fills its tile as flat content - no inner card, so no double border. The plain
    --active rule keeps a visible on-state without :has(); where :has() exists the WHOLE
    tile becomes the solid accent plate, the reference's callout look. */
-.nh-button {
+.nh-button--plain {
   background: transparent;
   border: none;
   border-radius: 0;
   font-size: 0.85em;
   color: var(--nh-text);
 }
-.nh-button:active {
+.nh-button--plain:active {
   background: color-mix(in srgb, var(--nh-primary) 16%, transparent);
 }
-.nh-button--active {
+.nh-button--plain.nh-button--active {
   background: var(--nh-primary);
   color: var(--nh-accent-ink, #fff);
 }
-.nh-button--active .nh-icon--mdi {
+.nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: var(--nh-accent-ink, #fff);
 }
 ${wholeTileActive({ plate: 'var(--nh-primary)', border: 'var(--nh-primary)' })}/* Controls light solid accent when on, white-hot thumb - no translucent tints. */
@@ -145,7 +145,7 @@ ${wholeTileActive({ plate: 'var(--nh-primary)', border: 'var(--nh-primary)' })}/
   border-color: color-mix(in srgb, var(--nh-primary) 12%, var(--nh-bg));
 }
 .nh-acc-tinted .nh-widget__label,
-.nh-acc-tinted .nh-button {
+.nh-acc-tinted .nh-button--plain {
   color: color-mix(in srgb, var(--nh-primary) 62%, var(--nh-text));
 }
 `

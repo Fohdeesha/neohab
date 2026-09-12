@@ -4,7 +4,17 @@ import { navigate } from '../../app/router'
 import { openExternal, safeUrl } from '../../model/url'
 import { Icon } from '../../components/Icon'
 import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
-import { commandFor, isActive, styleOf, toggleCommands, type ButtonStyle } from './model'
+import {
+  buttonFloor,
+  commandFor,
+  drawsFace,
+  finishOf,
+  isActive,
+  styleOf,
+  toggleCommands,
+  type ButtonFinish,
+  type ButtonStyle
+} from './model'
 
 interface ButtonConfig extends StateIconConfig {
   item?: string
@@ -14,6 +24,7 @@ interface ButtonConfig extends StateIconConfig {
   toggle?: boolean
   nonZeroIsOn?: boolean
   style?: ButtonStyle
+  finish?: ButtonFinish
   action?: 'command' | 'navigate'
   navigateDashboard?: string
   navigateUrl?: string
@@ -27,7 +38,9 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   const state = config.item ? ctx.getItem(config.item) : undefined
   const active = isActive(config, state)
   const { icon, color } = resolveStateIcon(config, active, state?.state)
-  const asSwitch = styleOf(config.style) === 'switch'
+  const style = styleOf(config.style)
+  const finish = finishOf(config.finish)
+  const asSwitch = style === 'switch'
 
   const press = () => {
     if (ctx.editing) return
@@ -72,11 +85,32 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
 
   const showLabel = !config.hideLabel && config.label
   const media = safeUrl(config.imageUrl)
+  const art = media ? <img className="nh-button__media" src={media} alt="" /> : iconEl
+  const className =
+    `nh-button nh-button--${finish}` +
+    (style === 'card' ? ' nh-button--card' : '') +
+    (finish === 'plain' ? '' : ' nh-button--fill') +
+    (active ? ' nh-button--active' : '')
+
+  if (style === 'card') {
+    return (
+      <WidgetFrame center>
+        <button type="button" className={className} aria-label={config.label} onClick={press}>
+          {art ? <span className="nh-button__chip">{art}</span> : null}
+          {config.toggle ? <span className="nh-button__pip" /> : null}
+          <span className="nh-button__text">
+            {showLabel ? <span className="nh-button__label">{config.label}</span> : null}
+            {config.caption ? <span className="nh-button__caption">{config.caption}</span> : null}
+          </span>
+        </button>
+      </WidgetFrame>
+    )
+  }
 
   return (
     <WidgetFrame center>
-      <button type="button" className={'nh-button' + (active ? ' nh-button--active' : '')} aria-label={config.label} onClick={press}>
-        {media ? <img className="nh-button__media" src={media} alt="" /> : iconEl}
+      <button type="button" className={className} aria-label={config.label} onClick={press}>
+        {art}
         {showLabel ? <span className="nh-button__label">{config.label}</span> : null}
         {config.caption ? <span className="nh-button__caption">{config.caption}</span> : null}
       </button>
@@ -86,15 +120,16 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
 
 // only the fields the button's own face draws are hidden in switch style; everything about behaviour is
 // offered either way, because the style is the look and nothing else
-const drawsFace = (c: Record<string, unknown>) => styleOf(c.style) === 'button'
+const hasFace = (c: Record<string, unknown>) => drawsFace(c.style)
 const isNavigate = (c: Record<string, unknown>) => c.action === 'navigate'
 const isCommand = (c: Record<string, unknown>) => c.action !== 'navigate'
 
 export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   type: 'button',
   name: 'Button',
-  description: 'A pressable tile or a sliding switch: send a command, toggle an item, or navigate',
+  description: 'A pressable tile, a card or a sliding switch: send a command, toggle an item, or navigate',
   defaultSize: { w: 2, h: 2 },
+  minPixelHeight: buttonFloor,
   hasHeader: (c) => styleOf(c.style) === 'switch',
   defaultConfig: () => ({
     label: 'Button',
@@ -103,6 +138,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     toggle: true,
     nonZeroIsOn: false,
     style: 'button',
+    finish: 'plain',
     action: 'command',
     iconSize: 32
   }),
@@ -113,16 +149,34 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
       label: 'Style',
       options: [
         { value: 'button', label: 'Button' },
+        { value: 'card', label: 'Card' },
         { value: 'switch', label: 'Switch' }
       ],
-      hint: 'Just the look: a tile you press, or a sliding toggle.'
+      hint: 'Where the parts sit: centred on a tile you press, in the corners of a card, or a sliding toggle.'
+    },
+    {
+      key: 'finish',
+      type: 'select',
+      label: 'Finish',
+      options: [
+        { value: 'plain', label: 'Plain' },
+        { value: 'solid', label: 'Solid' },
+        { value: 'glass', label: 'Glass' },
+        { value: 'glow', label: 'Glow' },
+        { value: 'edge', label: 'Edge' },
+        { value: 'outline', label: 'Outline' },
+        { value: 'sheen', label: 'Sheen' },
+        { value: 'bare', label: 'Bare' }
+      ],
+      showIf: hasFace,
+      hint: 'What the face is made of. Plain follows the theme; the rest fill the tile and use the accent color.'
     },
     { key: 'label', type: 'text', label: 'Name' },
-    { key: 'caption', type: 'text', label: 'Caption', showIf: drawsFace },
-    { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…', subresource: true, showIf: drawsFace },
+    { key: 'caption', type: 'text', label: 'Caption', showIf: hasFace },
+    { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…', subresource: true, showIf: hasFace },
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
-    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)', showIf: drawsFace },
+    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)', showIf: hasFace },
     {
       key: 'action',
       type: 'select',

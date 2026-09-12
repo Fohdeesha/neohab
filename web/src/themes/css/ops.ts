@@ -156,22 +156,22 @@ body {
 }
 /* Buttons are the board's links: bare blue text, the current one underlined rather than
    plated - a filled button would read as a control on a surface that has none. */
-.nh-button {
+.nh-button--plain {
   background: transparent;
   border: none;
   color: var(--nh-primary);
   font-weight: 500;
 }
-.nh-button:active {
+.nh-button--plain:active {
   background: color-mix(in srgb, var(--nh-primary) 14%, transparent);
 }
-.nh-button--active {
+.nh-button--plain.nh-button--active {
   background: transparent;
   color: var(--nh-text);
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.nh-button--active .nh-icon--mdi {
+.nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: var(--nh-text);
 }
 /* A dropdown is a filter field: a label over a blue rule, nothing else. */

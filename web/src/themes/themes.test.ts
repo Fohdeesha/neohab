@@ -109,6 +109,11 @@ describe('the stylesheet checker', () => {
     expect(check('.nh-button__icon { width: 10px }')).toEqual([])
   })
 
+  it('still catches it when the sheet scopes itself to the plain finish, which the built-ins do', () => {
+    expect(check('.nh-button--plain { background: red }')).toEqual(['activeState'])
+    expect(check('.nh-button--plain { background: red } .nh-button--plain.nh-button--active { background: blue }')).toEqual([])
+  })
+
   it('catches border-image against a rounded radius only', () => {
     expect(check('.nh-widget { border-image: linear-gradient(red, blue) 1 }', '12px')).toEqual(['borderImageRadius'])
     expect(check('.nh-widget { border-image: linear-gradient(red, blue) 1 }', '0px')).toEqual([])

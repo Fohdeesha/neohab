@@ -15,7 +15,12 @@ export const ATTRIBUTE_PAINTED = [
   'nh-compass__value'
 ] as const
 
-const STATEFUL_CONTROLS = ['nh-button', 'nh-selection__btn'] as const
+// the button's base class carries the layout and .nh-button--plain the theme's own surface, so a sheet
+// restyling either of them owes an --active rule
+const STATEFUL_CONTROLS = [
+  { control: 'nh-button', base: /\.nh-button(--plain)?(?![\w-])/, active: 'nh-button--active' },
+  { control: 'nh-selection__btn', base: /\.nh-selection__btn(?![\w-])/, active: 'nh-selection__btn--active' }
+] as const
 
 const BUNDLED_ASSET = /^(fonts|backgrounds|icons)\//
 
@@ -83,12 +88,9 @@ export function checkThemeCss(css: string, { radius = '12px' }: { radius?: strin
     if (!gates.some((g) => g.startsWith('@container'))) issues.push({ rule: 'ungatedPadding', params: { selector } })
   }
 
-  for (const control of STATEFUL_CONTROLS) {
-    const base = selectors.filter((s) => !s.includes(`${control}--active`))
-    if (!stylesClass(base, control)) continue
-    if (!selectors.some((s) => s.includes(`${control}--active`))) {
-      issues.push({ rule: 'activeState', params: { control } })
-    }
+  for (const { control, base, active } of STATEFUL_CONTROLS) {
+    if (!selectors.some((s) => !s.includes(active) && base.test(s))) continue
+    if (!selectors.some((s) => s.includes(active))) issues.push({ rule: 'activeState', params: { control } })
   }
 
   const paintsBorderImage = rules.some((r) =>

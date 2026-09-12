@@ -139,7 +139,7 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
    would draw double borders (panel + control). The panel is the control: neon uppercase
    glyphs at rest, and an active toggle turns its WHOLE panel into the neon plate with dark
    glyphs (the plain --active rule keeps a visible on-state without :has()). */
-.nh-button,
+.nh-button--plain,
 .nh-selection__btn,
 .nh-roller__btn,
 .nh-player__btn,
@@ -154,15 +154,15 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   font-weight: 600;
   box-shadow: none;
 }
-.nh-button:active {
+.nh-button--plain:active {
   background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 18%, transparent);
 }
-.nh-button--active,
+.nh-button--plain.nh-button--active,
 .nh-selection__btn--active {
   background: var(--nh-cellaccent, var(--nh-primary));
   color: #000;
 }
-.nh-button--active .nh-icon--mdi {
+.nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: #000;
 }
 ${wholeTileActive({

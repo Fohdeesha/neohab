@@ -45,7 +45,7 @@ const ACCENT_COLOR_FIELD: SettingField = {
   key: 'accentColor',
   type: 'color',
   label: 'Accent color',
-  hint: 'This tile’s own accent: it recolors the filled/tinted accent above, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.'
+  hint: 'This tile’s own accent: everything on this tile drawn in the accent color follows it - the tile accent above, the color a control goes when it is on, and the panel border and digits in themes with per-tile accents. Empty = the theme accent.'
 }
 
 const GROUP_FIELD: SettingField = {

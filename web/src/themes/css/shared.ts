@@ -3,7 +3,7 @@
 
 // `--nh-radius: 0` is not enough: several controls carry a hardcoded radius of their own
 export function squareControls(): string {
-  return `.nh-button,
+  return `.nh-button--plain,
 .nh-iconbtn,
 .nh-selection__btn,
 .nh-roller__btn,
@@ -68,15 +68,15 @@ export interface WholeTileActive {
 }
 
 export function wholeTileActive({ plate, plateProperty = 'background', border, labelInk, extra }: WholeTileActive): string {
-  return `.nh-widget:has(.nh-button--active) {
+  return `.nh-widget:has(.nh-button--plain.nh-button--active) {
   ${plateProperty}: ${plate};${border ? `\n  border-color: ${border};` : ''}${extra ? `\n${extra}` : ''}
 }
-.nh-widget:has(.nh-button--active) .nh-button--active {
+.nh-widget:has(.nh-button--plain.nh-button--active) .nh-button--plain.nh-button--active {
   background: transparent;
 }${
     labelInk
       ? `
-.nh-widget:has(.nh-button--active) .nh-widget__label {
+.nh-widget:has(.nh-button--plain.nh-button--active) .nh-widget__label {
   color: ${labelInk};
 }`
       : ''

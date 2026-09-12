@@ -118,7 +118,7 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 }
 /* Controls are outlined, and the one in force is a plate in the text colour. Base and active
    are both declared here because the modifier shares the base class's specificity. */
-.nh-button,
+.nh-button--plain,
 .nh-selection__btn,
 .nh-roller__btn,
 .nh-player__btn,
@@ -136,10 +136,10 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
   box-shadow: none;
   color: var(--nh-text);
 }
-.nh-button {
+.nh-button--plain {
   font-weight: 500;
 }
-.nh-button:active,
+.nh-button--plain:active,
 .nh-selection__btn:active,
 .nh-roller__btn:active,
 .nh-player__btn:active,
@@ -147,7 +147,7 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 .nh-chip:active {
   background: color-mix(in srgb, var(--nh-text) 14%, transparent);
 }
-.nh-button--active,
+.nh-button--plain.nh-button--active,
 .nh-selection__btn--active,
 .nh-chip--on,
 .nh-chart__chip--on {
@@ -155,10 +155,10 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
   border-color: var(--nh-text);
   color: var(--nh-bg);
 }
-.nh-button--active .nh-icon--mdi {
+.nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: var(--nh-bg);
 }
-.nh-button--active .nh-button__caption {
+.nh-button--plain.nh-button--active .nh-button__caption {
   color: var(--nh-bg);
   opacity: 0.7;
 }

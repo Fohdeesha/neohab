@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ItemState } from '../../api/types'
-import { commandFor, isActive, styleOf, toggleCommands } from './model'
+import { buttonFloor, commandFor, drawsFace, fillsTile, finishOf, isActive, styleOf, toggleCommands } from './model'
 
 const state = (s: string): ItemState => ({ state: s }) as ItemState
 
 describe('which style a stored config asks for', () => {
-  it('is a plain button unless the config says switch', () => {
+  it('is a plain button unless the config says otherwise', () => {
     expect(styleOf('switch')).toBe('switch')
+    expect(styleOf('card')).toBe('card')
     expect(styleOf('button')).toBe('button')
     expect(styleOf(undefined)).toBe('button')
   })
@@ -15,6 +16,44 @@ describe('which style a stored config asks for', () => {
     for (const junk of ['Switch', 'SWITCH', '', 0, 1, null, {}, [], true, 'constructor']) {
       expect(styleOf(junk), JSON.stringify(junk)).toBe('button')
     }
+  })
+
+  it('draws a face for every style but the switch', () => {
+    expect(drawsFace('button')).toBe(true)
+    expect(drawsFace('card')).toBe(true)
+    expect(drawsFace(undefined)).toBe(true)
+    expect(drawsFace('switch')).toBe(false)
+  })
+
+  it('asks for more room for a card, which stacks a chip over a name and a caption', () => {
+    expect(buttonFloor({ style: 'card' })).toBeGreaterThan(0)
+    expect(buttonFloor({ style: 'button' })).toBe(0)
+    expect(buttonFloor({ style: 'switch' })).toBe(0)
+    expect(buttonFloor({})).toBe(0)
+  })
+})
+
+describe('which finish a stored config asks for', () => {
+  it('is plain unless the config names one', () => {
+    for (const f of ['solid', 'glass', 'glow', 'edge', 'outline', 'sheen', 'bare', 'plain']) {
+      expect(finishOf(f), f).toBe(f)
+    }
+    expect(finishOf(undefined)).toBe('plain')
+  })
+
+  it('falls back to plain for anything a person could put there by hand', () => {
+    for (const junk of ['Solid', 'SOLID', '', 0, null, {}, [], true, 'constructor', 'toString']) {
+      expect(finishOf(junk), JSON.stringify(junk)).toBe('plain')
+    }
+  })
+
+  it('leaves the tile alone for plain, and fills it for a finish someone picked', () => {
+    expect(fillsTile({})).toBe(false)
+    expect(fillsTile({ finish: 'plain' })).toBe(false)
+    expect(fillsTile({ finish: 'glass' })).toBe(true)
+    expect(fillsTile({ style: 'card', finish: 'edge' })).toBe(true)
+    // a switch draws a track, not a face, so there is nothing to fill
+    expect(fillsTile({ style: 'switch', finish: 'solid' })).toBe(false)
   })
 })
 
@@ -34,7 +73,7 @@ describe('what a press sends', () => {
 
   it('does the same whichever style is drawing it', () => {
     const config = { command: 'OPEN', commandAlt: 'CLOSE', toggle: true }
-    for (const style of ['button', 'switch']) {
+    for (const style of ['button', 'card', 'switch']) {
       expect(commandFor({ ...config, style }, false), style).toBe('OPEN')
       expect(commandFor({ ...config, style }, true), style).toBe('CLOSE')
     }
@@ -73,7 +112,7 @@ describe('when a tile shows itself as on', () => {
   })
 
   it('reads the same way in either style: the look decides nothing', () => {
-    for (const style of ['button', 'switch']) {
+    for (const style of ['button', 'card', 'switch']) {
       expect(isActive({ style, command: 'ON', toggle: true }, state('50')), style).toBe(false)
       expect(isActive({ style, command: 'ON', toggle: true, nonZeroIsOn: true }, state('50')), style).toBe(true)
     }
