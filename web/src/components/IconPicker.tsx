@@ -5,6 +5,7 @@ import { CLASSIC_ICONS } from './classicIcons'
 import { saveCustomIcon, useConfigStore } from '../store/config'
 import { slugifyIconId } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from './iconUpload'
+import { scrollMoves } from './popover'
 import { errorText } from '../api/errors'
 
 interface IconPickerProps {
@@ -156,6 +157,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     }
     const onScroll = (e: Event) => {
       if (popRef.current && e.target instanceof Node && popRef.current.contains(e.target)) return
+      if (!scrollMoves(e.target, rootRef.current)) return
       // the focus-follow scroll of a just-tapped input is part of opening the popover, not the user scrolling away
       if (Date.now() - openedAt.current < 300) {
         placeList()

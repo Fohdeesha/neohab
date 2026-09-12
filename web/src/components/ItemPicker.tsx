@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
 import { ensureCatalog, useCatalogStore } from '../store/catalog'
+import { scrollMoves } from './popover'
 
 interface ItemPickerProps {
   id: string
@@ -81,6 +82,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     }
     const onScroll = (e: Event) => {
       if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return
+      if (!scrollMoves(e.target, rootRef.current)) return
       // same: follow that scroll rather than closing on it
       if (Date.now() - openedAt.current < 300) {
         placeList()
