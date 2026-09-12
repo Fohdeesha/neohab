@@ -1,7 +1,7 @@
 {
   "name": "neohab-web",
   "private": true,
-  "version": "1.27.0",
+  "version": "1.28.0",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

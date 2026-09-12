@@ -7,6 +7,51 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.28.0
+
+- Battery widget: the charge of anything with a battery, drawn eight ways (Neon to start), with its own input
+  range scaled to a percent, colour by level or by the tile's accent, an optional charging item
+  that lights a bolt, and the percent shown or hidden on every style.
+- A chart in a short tile draws a chart again. Its axes took a flat 50px each whatever was left, so on
+  a landscape phone the plot was squeezed to nothing and the widget showed a flat line with no values
+  against it. An axis now only takes its space while the plot keeps a usable share, and the room it
+  takes follows the text size, which also stops a two-line date label being cut off at the bottom of
+  the canvas. The range choosers stay on one row and scroll sideways rather than wrapping over the
+  plot, and a chart with a name puts its full-screen button in that name row instead of a row of its
+  own.
+- The timeline names its rows and shows its clock on a short tile. Both were being dropped when the
+  tile was short, though the names cost width rather than height, which left a landscape phone with
+  three unlabelled strips. The clock also reads the hour rather than the hour and minute on a window
+  of more than a few hours, so the times no longer run into each other on a phone.
+- The chart's range choosers, its x and y axis labels, the timeline's clock and the chart legend are set
+  at the tile's own text size instead of a fixed small one. The choosers were the worst of it: parked in
+  the widget's name row they inherited its size and then shrank again on top, which put them at 8.7px on
+  a normal dashboard. They follow the dashboard, device and per-widget text settings now, like everything
+  else a person reads.
+- A widget added while you were editing the desktop layout no longer lands on top of one that had been
+  moved on the tablet layout. It is fitted around the widgets that have a tablet position of their own,
+  which also repairs a dashboard that already overlaps.
+- Buttons have a look worth putting on a wall. Alongside the pressable tile and the sliding toggle
+  there is now a Card style, with the icon in a chip at one corner, a state pip at the other and the
+  name over its caption along the bottom. Both take a Finish: plain is the theme's own control and is
+  what every existing button keeps, while solid, glass, glow, edge, outline, sheen and bare fill the
+  tile edge to edge and take their colour from the widget's Accent color. A theme still restyles the
+  plain finish; the others keep the look you picked whichever theme is on.
+- The log widget keeps up with a chatty server without taking the browser with it. Every arriving line
+  was written to the store on its own, and each write re-drew every log tile's whole list, so a server
+  writing forty lines a second used a whole processor core. Lines are collected and drawn five times a
+  second now, and the rows scrolled out of sight are left for the browser to skip. Same log, a third of
+  the work, and nothing was growing without bound either way.
+- A log tile no longer stops following the newest line on its own. Anything that moved the box for a
+  frame, such as opening a settings panel beside it, could be read as the reader scrolling away, and
+  the tile then held its place and walked further from the newest line with every line that arrived.
+  Only your own scrolling stops it following now.
+- Typing into an item or icon picker is no longer interrupted by another widget on the same dashboard.
+  Anything scrolling anywhere in the page closed the list and put the stored name back under the
+  typing, and a log tile follows its newest line about once a second, so on a dashboard with one the
+  search was wiped a second or two after it was typed. Only a scroll that can actually move the field
+  closes the list now.
+
 ## 1.27.0
 
 - The switch widget is now a style of the button widget rather than a widget of its own. They were
