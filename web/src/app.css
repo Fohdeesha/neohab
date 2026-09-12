@@ -509,6 +509,230 @@ button {
   line-height: 1.35;
 }
 
+/* several themes flood the whole face when it is on, and the dim grey is unreadable on that; the caption
+   is still the quieter of the two, by size and weight */
+.nh-button--active .nh-button__caption {
+  color: inherit;
+}
+
+/* A finish other than plain fills the tile. Two boxes a few points of lightness apart, each with the same
+   border, is what made a button read as the plainest widget on the board; the face becomes the tile's
+   surface instead. Plain is .nh-button--plain on its own and the theme stylesheets restyle that alone,
+   so a finish someone picked survives a theme change - it is built from the tokens and the tile accent,
+   so it still follows the palette. */
+.nh-button {
+  --bt-accent: var(--nh-cellaccent, var(--nh-primary));
+  --bt-ink: var(--nh-accent-ink, #10161c);
+  --bt-sunk: color-mix(in srgb, var(--nh-bg) 55%, var(--nh-surface));
+  --bt-hair: color-mix(in srgb, var(--nh-text) 13%, transparent);
+}
+
+.nh-widget__body:has(> .nh-button--fill) {
+  padding: 0;
+}
+
+.nh-button--fill {
+  /* the face is the tile's surface now, so it takes the tile's corner; a negative radius would be invalid
+     and drop the whole declaration, which is why it is floored */
+  border-radius: max(0px, calc(var(--nh-radius) - 1px));
+}
+
+.nh-button--fill .nh-icon--mdi {
+  background-color: var(--bt-glyph, currentColor);
+}
+
+/* the theme's dim grey is unreadable on a face the accent has flooded, so a finish that floods hands the
+   caption its own ink instead */
+.nh-button--fill .nh-button__caption {
+  color: var(--bt-caption, var(--nh-text-dim));
+}
+
+.nh-button--fill.nh-button--active .nh-icon--mdi {
+  background-color: var(--bt-glyph-on, var(--bt-accent));
+}
+
+.nh-button--solid {
+  --bt-glyph: var(--nh-text-dim);
+  --bt-glyph-on: var(--bt-ink);
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text);
+}
+
+.nh-button--solid.nh-button--active {
+  --bt-caption: var(--bt-ink);
+  background: var(--bt-accent);
+  border-color: var(--bt-accent);
+  color: var(--bt-ink);
+  box-shadow: 0 7px 20px -5px color-mix(in srgb, var(--bt-accent) 42%, transparent);
+}
+
+.nh-button--glass {
+  --bt-glyph: var(--nh-text-dim);
+  background: linear-gradient(158deg, color-mix(in srgb, var(--nh-text) 9%, transparent), color-mix(in srgb, var(--nh-text) 3%, transparent));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--bt-hair);
+  color: var(--nh-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.nh-button--glass.nh-button--active {
+  background: linear-gradient(158deg, color-mix(in srgb, var(--bt-accent) 46%, transparent), color-mix(in srgb, var(--bt-accent) 15%, transparent));
+  border-color: color-mix(in srgb, var(--bt-accent) 64%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 24px -8px color-mix(in srgb, var(--bt-accent) 40%, transparent);
+}
+
+.nh-button--glow {
+  --bt-glyph: var(--nh-text-dim);
+  background: var(--bt-sunk);
+  border: 1px solid color-mix(in srgb, var(--nh-text) 7%, transparent);
+  color: var(--nh-text-dim);
+}
+
+.nh-button--glow.nh-button--active {
+  background: radial-gradient(
+      58% 52% at 50% 40%,
+      color-mix(in srgb, var(--bt-accent) 42%, transparent),
+      color-mix(in srgb, var(--bt-accent) 6%, transparent) 66%,
+      transparent 78%
+    ),
+    var(--bt-sunk);
+  border-color: color-mix(in srgb, var(--bt-accent) 30%, transparent);
+  color: var(--nh-text);
+}
+
+.nh-button--edge {
+  --bt-glyph: var(--nh-text-dim);
+  background: var(--bt-sunk);
+  border: none;
+  color: var(--nh-text-dim);
+  box-shadow: inset 0 0 0 1px var(--bt-hair);
+}
+
+.nh-button--edge.nh-button--active {
+  background: color-mix(in srgb, var(--bt-accent) 8%, var(--bt-sunk));
+  color: var(--nh-text);
+  box-shadow: inset 0 0 0 2px var(--bt-accent), 0 8px 24px -6px color-mix(in srgb, var(--bt-accent) 50%, transparent);
+}
+
+.nh-button--outline {
+  --bt-glyph: var(--nh-text-dim);
+  background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--nh-text-dim) 34%, transparent);
+  color: var(--nh-text-dim);
+}
+
+.nh-button--outline.nh-button--active {
+  background: color-mix(in srgb, var(--bt-accent) 10%, transparent);
+  border-color: var(--bt-accent);
+  color: var(--nh-text);
+}
+
+.nh-button--sheen {
+  --bt-glyph: var(--nh-text-dim);
+  --bt-glyph-on: var(--bt-ink);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 55%), var(--nh-surface-2);
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.nh-button--sheen.nh-button--active {
+  --bt-caption: var(--bt-ink);
+  background: linear-gradient(112deg, transparent 32%, rgba(255, 255, 255, 0.24) 47%, transparent 61%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.22), transparent 55%), var(--bt-accent);
+  border-color: var(--bt-accent);
+  color: var(--bt-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 7px 20px -6px color-mix(in srgb, var(--bt-accent) 36%, transparent);
+}
+
+.nh-button--bare {
+  --bt-glyph: var(--nh-text-dim);
+  background: transparent;
+  border: none;
+  color: var(--nh-text-dim);
+}
+
+.nh-button--bare.nh-button--active {
+  color: var(--nh-text);
+}
+
+/* Card: the parts go to the corners instead of the middle - a chip carrying the icon, a state pip, and the
+   name over its caption along the bottom. The chip and the pip take currentColor, so they read correctly
+   on a quiet face and on one the accent has flooded. */
+.nh-button--card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+  gap: 0;
+  padding: 12px;
+  text-align: left;
+}
+
+.nh-button__chip {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 0;
+  padding: 0.45em;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  overflow: hidden;
+}
+
+.nh-button--active .nh-button__chip {
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.nh-button__pip {
+  grid-area: 1 / 3;
+  position: relative;
+  align-self: center;
+  justify-self: end;
+  flex-shrink: 0;
+  width: 1.9em;
+  height: 1em;
+  border-radius: 0.5em;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.nh-button__pip::after {
+  content: '';
+  position: absolute;
+  top: 0.14em;
+  left: 0.14em;
+  width: 0.72em;
+  height: 0.72em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.nh-button--active .nh-button__pip::after {
+  transform: translateX(0.9em);
+  opacity: 1;
+}
+
+.nh-button__text {
+  grid-area: 3 / 1 / 4 / 4;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  align-self: end;
+}
+
+.nh-button--card .nh-button__media {
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 6px;
+}
+
 .nh-icon {
   display: inline-block;
   flex-shrink: 0;
@@ -2557,8 +2781,17 @@ button {
 
 .nh-chart__chips {
   display: flex;
-  flex-wrap: wrap;
+  /* one row that scrolls sideways, never a wrap: wrapped chips take their height from the plot, and
+     the plot is what the widget is for. A phone fits about six of them and swipes to the rest */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
   gap: 4px;
+}
+
+.nh-chart__chips::-webkit-scrollbar {
+  display: none;
 }
 
 .nh-widget__aside {
@@ -2568,14 +2801,11 @@ button {
   min-width: 0;
 }
 
-.nh-widget__aside .nh-chart__chips {
-  flex-wrap: nowrap;
-}
-
 .nh-chart__tools {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 6px;
 }
 
@@ -2642,11 +2872,13 @@ button {
 .nh-chartview .nh-chip {
   min-height: 30px;
   padding: 4px 10px;
-  font-size: 0.8rem;
 }
 
 .nh-chart__chip {
-  font-size: 0.68em;
+  /* the tile's own size wherever it sits: parked in the name row, an em would be 0.8 of it and this
+     control is one a person reads */
+  font-size: var(--nh-cellfont, 1em);
+  flex: 0 0 auto;
   line-height: 1;
   padding: 5px 9px;
   border-radius: 999px;
@@ -2676,7 +2908,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72em;
+  font-size: 1em;
   color: var(--nh-text-dim);
   background: none;
   border: none;
@@ -2717,7 +2949,7 @@ button {
 
 .nh-chart__tt-time {
   color: var(--nh-text-dim);
-  font-size: 11px;
+  font-size: 1em;
   margin-bottom: 4px;
   white-space: nowrap;
 }
@@ -3628,6 +3860,221 @@ button {
   border-top-color: color-mix(in srgb, #fff 26%, transparent);
 }
 
+.nh-battery {
+  --bt-good: var(--nh-good);
+  --bt-mid: #e0a526;
+  --bt-low: var(--nh-bad);
+  --bt-accent: var(--nh-cellaccent, var(--nh-primary));
+  --bt-unknown: var(--nh-text-dim);
+  --bt-c0: color-mix(in srgb, var(--bt-color) 55%, white);
+  --bt-c1: color-mix(in srgb, var(--bt-color) 75%, black);
+  --bt-unlit: color-mix(in srgb, var(--nh-text) 12%, transparent);
+  --bt-outline: color-mix(in srgb, var(--nh-text) 45%, transparent);
+  --bt-deep: color-mix(in srgb, var(--nh-bg) 75%, var(--nh-border));
+  --bt-edge: color-mix(in srgb, var(--nh-border) 85%, var(--nh-text));
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nh-battery__empty {
+  margin: auto;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.nh-battery__glyph {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.nh-battery__stack {
+  position: relative;
+  flex: none;
+}
+
+.nh-battery__over {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.nh-battery__over .nh-battery__cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+
+.nh-battery__side {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  height: 100%;
+}
+
+.nh-battery__side--alone {
+  justify-content: center;
+}
+
+.nh-battery__aside {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nh-battery__column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.nh-battery__column--left {
+  align-items: stretch;
+}
+
+.nh-battery__row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+}
+
+.nh-battery__rowbar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nh-battery__num {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.06em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--nh-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nh-battery__pct {
+  font-size: 0.5em;
+  font-weight: 600;
+}
+
+.nh-battery__cap {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+}
+
+.nh-battery__capbolt {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+/* these four take their paint from the stylesheet alone; everything else is painted inline, so no class here may set a fill */
+.nh-battery__nub {
+  fill: var(--nh-surface-2);
+  stroke: var(--nh-border);
+}
+
+.nh-battery--wave .nh-battery__nub {
+  fill: color-mix(in srgb, var(--nh-text) 18%, transparent);
+  stroke: none;
+}
+
+.nh-battery__body {
+  fill: var(--bt-deep);
+  stroke: var(--bt-edge);
+}
+
+.nh-battery__vessel {
+  fill: color-mix(in srgb, var(--nh-text) 4%, transparent);
+  stroke: color-mix(in srgb, var(--nh-text) 35%, transparent);
+}
+
+.nh-battery__sheen {
+  fill: rgba(255, 255, 255, 0.1);
+}
+
+.nh-battery__pod {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  background: var(--nh-surface-2);
+}
+
+.nh-battery__podfill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.nh-battery__disc {
+  --nh-iconscale: 1;
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1d242c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nh-battery__podbolt {
+  position: absolute;
+}
+
+.nh-battery__podtext {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.nh-battery__podcap {
+  max-width: 100%;
+  padding: 0 0.4em;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .nh-thermo {
   --th-heat: #f26a1b;
   --th-cool: #1f8cee;
@@ -4178,6 +4625,11 @@ button {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   line-height: 1.4;
   white-space: nowrap;
+  /* a tile holds 500 lines and shows a dozen: without this, a chatty server has the browser lay out and
+     paint all of them on every arrival. The size is this row's own height (line-height plus padding), in
+     em so it follows the text size, and `auto` replaces it with the real one once a row has been drawn */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1.64em;
 }
 
 .nh-log__time,
@@ -5094,7 +5546,7 @@ button {
   display: flex;
   justify-content: space-between;
   margin-left: calc(min(28%, 140px) + 8px);
-  font-size: 0.75em;
+  font-size: 1em;
   color: var(--nh-text-dim);
 }
 
@@ -6533,7 +6985,8 @@ button {
   container-type: size;
   /* named, so a widget that makes its own root a size container can still ask about the cell */
   container-name: nh-cell;
-  font-size: calc(1rem * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1));
+  --nh-cellfont: calc(1rem * var(--nh-textscale, 1) * var(--nh-devicescale, 1) * var(--nh-widgetscale, 1));
+  font-size: var(--nh-cellfont);
 }
 
 @container (max-height: 104px) {
@@ -7260,14 +7713,41 @@ button {
   }
 }
 
-@container (max-height: 150px) {
-  .nh-tl__name,
-  .nh-tl__axis,
-  .nh-tl__info {
+/* the name column costs width, not height. Shedding it by height is what left a landscape phone with
+   three unlabelled strips and no clock under them */
+@container (max-width: 15em) {
+  .nh-tl__name {
     display: none;
   }
 
+  .nh-tl__axis {
+    margin-left: 0;
+  }
+}
+
+@container (max-width: 11em) {
+  .nh-tl__axis span:nth-child(2),
+  .nh-tl__axis span:nth-child(3) {
+    display: none;
+  }
+}
+
+@container (max-height: 150px) {
+  /* squeeze the bands rather than drop the clock: at their full minimum a tile this short holds one
+     or the other, and the times are what say which window you are looking at */
+  .nh-tl__row,
+  .nh-tl__track {
+    min-height: 6px;
+  }
+
   .nh-tlwrap .nh-chart__chips {
+    display: none;
+  }
+}
+
+@container (max-height: 80px) {
+  .nh-tl__axis,
+  .nh-tl__info {
     display: none;
   }
 }

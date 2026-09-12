@@ -109,8 +109,9 @@ adopting it.
 | `.nh-tile` | A Home-screen dashboard tile. `.nh-tile--new` is the "+ New dashboard" one |
 | `.nh-dash__bar` | The top bar |
 | `.nh-side` | The dashboard sidebar |
-| `.nh-button`, `.nh-selection__btn`, `.nh-roller__btn`, `.nh-player__btn` | Controls, each with an `--active` modifier |
+| `.nh-button--plain`, `.nh-selection__btn`, `.nh-roller__btn`, `.nh-player__btn` | Controls, each with an `--active` modifier. The button widget's plain finish is the one to restyle: its other finishes (solid, glass, glow, edge, outline, sheen, bare) fill the tile and keep their own look in every theme on purpose, so target `.nh-button--plain` rather than `.nh-button`, which carries only the layout |
 | `.nh-step--plain .nh-step__box`, `.nh-step__ctl`, `.nh-step__split` | The stepper's buttons in its plain finish, which is the one a theme should restyle. Its other finishes (glass, glow, solid, sheen) keep their own look in every theme on purpose, so target `.nh-step--plain` rather than `.nh-step__box` alone |
+| `.nh-battery`, `.nh-battery__num`, `.nh-battery__cap` | The battery widget's root, its number and its charging caption. The root carries `--bt-good`, `--bt-mid` and `--bt-low` (the level colours, `mid` being the one amber the tokens do not have) and `--bt-accent`; `.nh-battery--glow` to `--meter` say which style is drawn, `[data-level]` which level is in force. The glyphs are painted inline from `--bt-color`, so a theme recolours them through those variables rather than through the SVG classes |
 | `.nh-thermo`, `.nh-thermo__btn`, `.nh-thermo__mbtn` | The thermostat: its root carries `--th-heat`, `--th-cool` and `--th-mid`, the colours its face and its temperature ramp are drawn in, which a theme can set there; `.nh-thermo--heat`, `--cool` and `--neutral` say which is in force |
 | `.nh-slider`, `.nh-slider__input`, `.nh-slider__value` | The plain range control: the slider widget in its plain style, and the one a long press or a floor-plan light puts in front of you. This is the one to restyle |
 | `.nh-fader__*` | The slider widget's four other styles (gradient, wedge, inset rail, bubble), which keep their own look in every theme on purpose. `.nh-fader__read` is the reading, `__bound` the ends of an inset scale, `__track` and `__fill` the two painted layers |
@@ -148,8 +149,9 @@ Gate yours on the complementary range:
 }
 ```
 
-**2. Style both halves of a control state.** `.nh-button` and `.nh-button--active` have the same
-specificity, so styling the base flattens the active state. Style both.
+**2. Style both halves of a control state.** `.nh-button--plain` and `.nh-button--plain.nh-button--active`
+have the same specificity, so styling the base flattens the active state. Style both. The editor says so
+as you type.
 
 **3. Never set `fill` or `stroke` on these.** Their paint is an **attribute** the widget computes,
 such as a per-instance gradient, a severity colour or a live tint, and a stylesheet declaration
@@ -186,8 +188,9 @@ internet, which is most of them.
 A flat theme with square corners and an outlined button:
 
 ```css
-/* Several controls carry a hardcoded radius, so the token alone will not square them. */
-.nh-button,
+/* Several controls carry a hardcoded radius, so the token alone will not square them. A finish the
+   user picked takes the tile's own radius, so the token is enough for those. */
+.nh-button--plain,
 .nh-iconbtn,
 .nh-selection__btn,
 .nh-switch__track,
@@ -205,8 +208,8 @@ A flat theme with square corners and an outlined button:
 }
 
 /* Both halves of the control state. */
-.nh-button { background: transparent; border: 1px solid var(--nh-border); }
-.nh-button--active { background: var(--nh-primary); color: var(--nh-accent-ink); }
+.nh-button--plain { background: transparent; border: 1px solid var(--nh-border); }
+.nh-button--plain.nh-button--active { background: var(--nh-primary); color: var(--nh-accent-ink); }
 ```
 
 ### Which built-in to copy

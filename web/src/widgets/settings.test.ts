@@ -3,6 +3,7 @@ import type { SettingField } from './types'
 import { lookOf as thermostatLookOf } from './thermostat/model'
 import { orientOf as sliderOrientOf, styleOf as sliderStyleOf } from './slider/model'
 import { keepOf as logKeepOf, minLevelOf as logMinLevelOf, sourceSetting as logSourceOf } from './log/model'
+import { colorModeOf as batteryColorModeOf, styleOf as batteryStyleOf } from './battery/model'
 
 const noopEvents = { addEventListener: () => {}, removeEventListener: () => {} }
 vi.stubGlobal('document', { ...noopEvents, documentElement: {}, visibilityState: 'visible' })
@@ -161,7 +162,7 @@ describe('every widget settings schema', () => {
     expect(instanceCommands('dial', { item: 'x', readOnly: true })).toBe(false)
     expect(instanceCommands('button', { item: 'x', action: 'command' })).toBe(true)
     expect(instanceCommands('button', { item: 'x', action: 'navigate' })).toBe(false)
-    for (const display of ['value', 'stat', 'chart', 'timeline', 'compass', 'weather']) {
+    for (const display of ['value', 'stat', 'chart', 'timeline', 'compass', 'weather', 'battery']) {
       expect(instanceCommands(display, { item: 'x' }), display).toBe(false)
     }
     for (const control of ['slider', 'color', 'selection', 'rollershutter', 'player']) {
@@ -410,6 +411,19 @@ describe('every widget settings schema', () => {
     const bare = instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b' })
     expect(bare).toBeGreaterThan(0)
     expect(instanceMinHeight('thermostat', { currentItem: 'a', setpointItem: 'b', modeItem: 'm' })).toBeGreaterThan(bare)
+  })
+
+  it('starts a battery where its readers fall back to, reads both its items and commands neither', () => {
+    const def = widgets.find((d) => d.type === 'battery')
+    expect(def?.defaultConfig().style).toBe(batteryStyleOf(undefined))
+    expect(def?.defaultConfig().colorMode).toBe(batteryColorModeOf(undefined))
+    expect(def?.defaultConfig()).toMatchObject({ min: 0, max: 100, showText: true })
+    expect(itemsForInstance('battery', { item: 'cell', chargingItem: 'plug' })).toEqual(['cell', 'plug'])
+    expect(itemsForInstance('battery', { item: 'cell' })).toEqual(['cell'])
+    expect(instanceCommands('battery', { item: 'cell', chargingItem: 'plug' })).toBe(false)
+    expect(instanceControl('battery', { item: 'cell', chargingItem: 'plug' }, 'cell')).toBeUndefined()
+    expect(instanceHasDetail('battery', { item: 'cell' })).toBe(true)
+    expect(readOnlyItems(def!)).toEqual(['nh_item', 'nh_chargingItem'])
   })
 
   it('starts a slider as the style its reader falls back to, and asks for a taller row on end', () => {

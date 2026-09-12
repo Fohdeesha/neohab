@@ -4,6 +4,7 @@ import { sliderWidget } from './slider'
 import { valueWidget } from './value'
 import { statWidget } from './stat'
 import { compassWidget } from './compass'
+import { batteryWidget } from './battery'
 import { weatherWidget } from './weather'
 import { labelWidget } from './label'
 import { clockWidget } from './clock'
@@ -40,6 +41,7 @@ export function registerBuiltinWidgets(): void {
   registerWidget(valueWidget)
   registerWidget(statWidget)
   registerWidget(compassWidget)
+  registerWidget(batteryWidget)
   registerWidget(weatherWidget)
   registerWidget(labelWidget)
   registerWidget(clockWidget)

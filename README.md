@@ -128,7 +128,8 @@ translate it.
   driven by a mouse the text keeps its normal size wherever the row can hold it, so a narrower
   window does not mean small labels), widget chrome slims down in tight cells so labels stay
   readable, and a big reading is sized to the tile it is in rather than clipped by it - a clock
-  in a landscape phone's short row shrinks to fit instead of losing half of itself. Text size is
+  in a landscape phone's short row shrinks to fit instead of losing half of itself, and a chart
+  that short spends what room it has on the plot rather than on its axes. Text size is
   adjustable per dashboard, per widget and per device.
 - **Tablet layouts.** An optional second arrangement with its own column count. Any widget can be
   left out on phones, tablets or desktops entirely.
@@ -211,12 +212,15 @@ translate it.
   from your own weather items, and your server's measurement system decides °F or °C. Rain chance
   is the day's, the way every forecast site quotes it; if the numbers look nothing like the
   forecast you usually read, pick another weather model (ECMWF, GFS, ICON, GEM) and see.
-- **Buttons and switches.** One widget, drawn either as a pressable tile or as a sliding toggle.
-  The style is only the look: both send the same commands, both can toggle between a command and
-  an alternate one, and both can show whether the item is on. How "on" is decided is a setting of
-  its own: exactly matching the command, or counting any value above 0, so a dimmer part way up or
-  a color with any brightness reads as on. Per-state icons throughout, and either style can open
-  another dashboard or a web address instead of sending anything.
+- **Buttons and switches.** One widget, drawn as a pressable tile, as a card with the icon and the
+  name in its corners, or as a sliding toggle. A tile or a card then picks a finish: plain follows
+  the theme, and solid, glass, glow, edge, outline, sheen and bare fill the tile and take the colour
+  from the widget's own Accent color, so a board can be as loud or as quiet as you want it. The
+  style and the finish are only the look: every one of them sends the same commands, can toggle
+  between a command and an alternate one, and can show whether the item is on. How "on" is decided
+  is a setting of its own: exactly matching the command, or counting any value above 0, so a dimmer
+  part way up or a color with any brightness reads as on. Per-state icons throughout, and any of
+  them can open another dashboard or a web address instead of sending anything.
 - **Cameras.** Live video from go2rtc, Frigate, an openHAB camera binding or any stream URL.
   MJPEG, HLS, MP4, snapshots and WebRTC are all understood. neohab tries the lowest-latency route
   first and falls back until one works. Streams stop when nobody is looking.
@@ -236,6 +240,13 @@ translate it.
   buttons, a carousel with position dots, a range bar), five finishes from the theme's plain
   controls to frosted glass, a neon glow, solid accent plates and a glossy sheen, and your choice
   of arrow glyph. A run of quick taps costs the device one command.
+- **Battery.** The charge of anything with a battery, drawn eight ways: a phone-shaped body lit
+  from the base, a neon tube, four cells, a tick ring, a lozenge with a caption and an icon, the
+  status-bar battery, a liquid wave, or a segment meter. The item is read as 0 to 100 unless you
+  give it its own range, which is scaled to a percent. Green, amber or red by level with the
+  thresholds yours to set, or the tile's accent colour; a charging item lights a bolt; the
+  percent can be shown or hidden on every style. Short and narrow tiles put the glyph beside the
+  number rather than clipping either.
 - **Log.** openhab.log, events.log or both, as they happen, on a tile: a console that follows the
   newest line, colours warnings and errors and dims debug output, and is filtered by a minimum
   level, logger names (`org.openhab.binding.mqtt`, or a glob) and a text the message must
