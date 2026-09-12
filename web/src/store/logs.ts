@@ -11,9 +11,36 @@ export interface LogsState {
 export const useLogsStore = create<LogsState>(() => ({ entries: [], status: 'idle' }))
 
 const STOP_GRACE_MS = 3000
+const FLUSH_MS = 200
+
+let pending: LogEntry[] = []
+let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+function flush(): void {
+  flushTimer = null
+  if (pending.length === 0) return
+  const batch = pending
+  pending = []
+  useLogsStore.setState((s) => ({ entries: trimEntries(s.entries.concat(batch), BUFFER_MAX) }))
+}
+
+function dropPending(): void {
+  pending = []
+  if (flushTimer) {
+    clearTimeout(flushTimer)
+    flushTimer = null
+  }
+}
 
 const socket = new LogSocket({
-  onEntries: (batch) => useLogsStore.setState((s) => ({ entries: trimEntries(s.entries.concat(batch), BUFFER_MAX) })),
+  // the server sends a message per line, and a store write per line re-renders every tile's whole list:
+  // a busy install writes dozens a second, which is enough to saturate the main thread. Arrivals are
+  // collected and written once a flush, which a reader cannot tell apart from line by line
+  onEntries: (batch) => {
+    for (const entry of batch) pending.push(entry)
+    if (pending.length > BUFFER_MAX) pending.splice(0, pending.length - BUFFER_MAX)
+    flushTimer ??= setTimeout(flush, FLUSH_MS)
+  },
   onStatus: (status) => useLogsStore.setState({ status })
 })
 
@@ -41,6 +68,8 @@ export function subscribeLogs(): () => void {
 }
 
 export function clearLogs(): void {
+  // a queued flush would put lines from before the clear straight back
+  dropPending()
   useLogsStore.setState({ entries: [] })
 }
 
