@@ -81,17 +81,26 @@ export function gapOf(dashboard: Dashboard): number {
 export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   const columns = mdColumnsOf(dashboard)
   const out = new Map<string, Rect>()
-  if (columns === columnsOf(dashboard)) {
-    for (const w of widgetsOf(dashboard)) out.set(w.id, clampRect(w.layout.md ?? rectOf(w), columns))
+  const pinned = widgetsOf(dashboard).some((w) => w.layout.md !== undefined)
+  // nothing has been moved on the tablet layout and the grid is the same width, so it IS the desktop one
+  if (!pinned && columns === columnsOf(dashboard)) {
+    for (const w of widgetsOf(dashboard)) out.set(w.id, clampRect(rectOf(w), columns))
     return out
   }
   const placed: Dashboard = { ...dashboard, columns, widgets: [] }
-  for (const w of stackedOrder(dashboard)) {
-    const stored = w.layout.md
-    const source = rectOf(w)
-    const rect = stored ? clampRect(stored, columns) : findFreeSpot(placed, Math.min(source.w, columns), source.h)
+  const put = (w: WidgetInstance, rect: Rect): void => {
     out.set(w.id, rect)
     placed.widgets = [...placed.widgets, { ...w, layout: { lg: rect } }]
+  }
+  // a stored tablet rect is where the author put it, so those go down first and the rest are fitted
+  // around them. Falling back to the desktop rect instead is how a widget added while editing the
+  // desktop layout landed on top of one the tablet layout had moved.
+  const order = stackedOrder(dashboard)
+  for (const w of order) if (w.layout.md) put(w, clampRect(w.layout.md, columns))
+  for (const w of order) {
+    if (w.layout.md) continue
+    const source = rectOf(w)
+    put(w, findFreeSpot(placed, Math.min(source.w, columns), source.h))
   }
   return out
 }

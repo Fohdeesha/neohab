@@ -283,19 +283,29 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
         ) : null}
       </div>
     ) : null
-  const toolsNode =
-    chipsNode || expandNode ? (
+  // a named chart already draws a header row, so the expand button rides there and costs nothing:
+  // a short tile then spends its whole body on the plot rather than on a row holding one button
+  const chipsInline = chipsNode !== null && !!label && wrapWidth >= 480
+  const headerTools =
+    label && (chipsInline || expandNode) ? (
+      <div className="nh-chart__tools">
+        {chipsInline ? chipsNode : null}
+        {expandNode}
+      </div>
+    ) : null
+  const bodyTools =
+    !label && (chipsNode || expandNode) ? (
       <div className="nh-chart__tools">
         {chipsNode}
         {expandNode}
       </div>
     ) : null
-  const chipsInline = toolsNode !== null && !!label && wrapWidth >= 480
 
   return (
-    <WidgetFrame label={label} aside={chipsInline ? toolsNode : undefined}>
+    <WidgetFrame label={label} aside={headerTools ?? undefined}>
       <div className="nh-chartwrap" ref={wrapRef}>
-        {chipsInline ? null : toolsNode}
+        {bodyTools}
+        {label && !chipsInline ? chipsNode : null}
         <div className={'nh-chart' + (heatmap ? ' nh-heatmap' : '')} ref={hostRef}>
           {status !== 'ready' ? (
             <span className="nh-chart__status">

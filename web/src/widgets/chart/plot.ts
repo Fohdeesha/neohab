@@ -1,5 +1,6 @@
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
+import { axesFit, axisRoom, axisWidthFor } from './model'
 
 export interface PlotSeries {
   label: string
@@ -61,6 +62,11 @@ function esc(s: string): string {
 export function createChart(p: PlotParams): ChartHandle {
   const host = p.host
   const theme = { dim: cssVar('--nh-text-dim'), grid: cssVar('--nh-border') }
+  // the axis and the labels on the plot are text a person reads, so they take the tile's own size, which
+  // already carries the dashboard, device and per-widget text scales. Sampled at mount like the colours
+  // above: a text-size change lands on the next rebuild.
+  const fontPx = Math.max(9, Math.round(parseFloat(getComputedStyle(host).fontSize) || 16))
+  const plotFont = `${fontPx}px system-ui, sans-serif`
   const hasY = p.series.some((s) => s.axis === 'y')
   const hasY2 = p.series.some((s) => s.axis === 'y2')
   const scaleFor = (axis: 'y' | 'y2'): 'y' | 'y2' => (axis === 'y2' ? (hasY2 ? 'y2' : 'y') : hasY ? 'y' : 'y2')
@@ -97,7 +103,7 @@ export function createChart(p: PlotParams): ChartHandle {
     stroke: theme.dim,
     grid: { stroke: theme.grid, width: 1 },
     ticks: { stroke: theme.grid, width: 1 },
-    font: '11px system-ui, sans-serif'
+    font: plotFont
   }
 
   const tt = document.createElement('div')
@@ -163,7 +169,7 @@ export function createChart(p: PlotParams): ChartHandle {
         ctx.fillRect(left, yA, width, yB - yA)
         if (t.label) {
           ctx.fillStyle = t.color
-          ctx.font = `${Math.round(10 * pxr)}px system-ui, sans-serif`
+          ctx.font = `${Math.round(fontPx * pxr)}px system-ui, sans-serif`
           ctx.textAlign = 'right'
           ctx.textBaseline = 'top'
           ctx.fillText(t.label, left + width - 6 * pxr, yA + 3 * pxr)
@@ -182,7 +188,7 @@ export function createChart(p: PlotParams): ChartHandle {
         ctx.setLineDash([])
         if (t.label) {
           ctx.fillStyle = t.color
-          ctx.font = `${Math.round(10 * pxr)}px system-ui, sans-serif`
+          ctx.font = `${Math.round(fontPx * pxr)}px system-ui, sans-serif`
           ctx.textAlign = 'right'
           ctx.textBaseline = 'bottom'
           ctx.fillText(t.label, left + width - 6 * pxr, y - 3 * pxr)
@@ -208,10 +214,41 @@ export function createChart(p: PlotParams): ChartHandle {
     }
   }
 
+  const fit = axesFit(host.clientWidth, host.clientHeight, fontPx)
+
+  // uPlot's flat 50px is sized for its own 12px font; ours is the tile's, and a two-line time label
+  // at 16px runs off the bottom of the canvas. Both sizes grow with the text and never shrink.
+  const xSize: uPlot.Axis.Size = (_u, values) => {
+    const lines = values && values.length > 0 ? Math.max(...values.map((v) => String(v).split('\n').length)) : 1
+    return axisRoom(fontPx, lines)
+  }
+  const ySize: uPlot.Axis.Size = (u, values) => {
+    if (!values || values.length === 0) return axisWidthFor(0)
+    const ctx = u.ctx
+    const prev = ctx.font
+    ctx.font = `${Math.round(fontPx * uPlot.pxRatio)}px system-ui, sans-serif`
+    let widest = 0
+    for (const v of values) widest = Math.max(widest, ctx.measureText(String(v)).width)
+    ctx.font = prev
+    return axisWidthFor(widest / uPlot.pxRatio)
+  }
+
+  // uPlot pads a side that carries no axis by a third of its default axis size, so the edge label of
+  // the perpendicular axis is not cut in half. That 17px is a constant sized for its own 12px font,
+  // and on a tile short enough to have lost its x-axis it is 40% of what is left - so there, pad by
+  // what the font actually needs. Every chart that still draws an x-axis keeps uPlot's own number.
+  const padY: uPlot.PaddingSide = (_u, side, sides) => {
+    const [hasTop, hasRgt, hasBtm, hasLft] = sides
+    if (!hasLft && !hasRgt) return 0
+    if (side === 0 ? hasTop : hasBtm) return 0
+    return hasBtm ? 17 : Math.ceil(fontPx * 0.7)
+  }
+
   const opts: uPlot.Options = {
     width: host.clientWidth,
     height: host.clientHeight,
     legend: { show: false },
+    padding: [padY, null, padY, null],
     cursor: {
       y: false,
       drag: { x: true, y: false },
@@ -227,6 +264,8 @@ export function createChart(p: PlotParams): ChartHandle {
     axes: [
       {
         ...axisStyle,
+        show: fit.x,
+        size: xSize,
         ...(category
           ? {
               splits: (_u: uPlot, _ax: number, min: number, max: number) => {
@@ -238,8 +277,8 @@ export function createChart(p: PlotParams): ChartHandle {
             }
           : {})
       },
-      ...(hasY ? [{ ...axisStyle, scale: 'y' } as uPlot.Axis] : []),
-      ...(hasY2 ? [{ ...axisStyle, scale: 'y2', side: 1, grid: { show: !hasY } } as uPlot.Axis] : [])
+      ...(hasY ? [{ ...axisStyle, scale: 'y', show: fit.y, size: ySize } as uPlot.Axis] : []),
+      ...(hasY2 ? [{ ...axisStyle, scale: 'y2', side: 1, show: fit.y, size: ySize, grid: { show: !hasY } } as uPlot.Axis] : [])
     ],
     series: [
       {},
@@ -270,7 +309,14 @@ export function createChart(p: PlotParams): ChartHandle {
   const u = new uPlot(opts, empty, host)
 
   const resizeObserver = new ResizeObserver(() => {
-    if (host.clientWidth > 0) u.setSize({ width: host.clientWidth, height: host.clientHeight })
+    if (host.clientWidth <= 0) return
+    // read on every resize: uPlot reads `show` when it lays the axes out, so a tile that grows past
+    // the threshold gets its axis back
+    const want = axesFit(host.clientWidth, host.clientHeight, fontPx)
+    u.axes.forEach((ax, i) => {
+      ax.show = i === 0 ? want.x : want.y
+    })
+    u.setSize({ width: host.clientWidth, height: host.clientHeight })
   })
   resizeObserver.observe(host)
 

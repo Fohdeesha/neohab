@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  axesFit,
+  axisRoom,
+  axisWidthFor,
   PERIODS,
   PERIOD_CHIPS,
   PERIOD_IDS,
@@ -127,5 +130,48 @@ describe('decimate', () => {
     const ys = [0, 100, 0, 0, 0, 0, 0, 0, 0, 0]
     const [, out] = decimate(xs, ys, 2)
     expect(out[0]!).toBeLessThan(50)
+  })
+})
+
+describe('axesFit', () => {
+  it('keeps both axes when the tile has room for them', () => {
+    expect(axesFit(400, 200, 12)).toEqual({ x: true, y: true })
+  })
+
+  it('drops the x axis rather than let it take the whole plot', () => {
+    // the measured landscape-phone tile: 64px of canvas, 50 of which the axis would have taken
+    expect(axesFit(467, 64, 12.8)).toEqual({ x: false, y: true })
+  })
+
+  it('drops the y axis in a tile too narrow for one', () => {
+    expect(axesFit(120, 300, 12)).toEqual({ x: true, y: false })
+  })
+
+  it('never leaves the plot with less height than it started with', () => {
+    for (const font of [11, 12, 16, 24, 32]) {
+      for (let h = 0; h <= 400; h++) {
+        const left = axesFit(500, h, font).x ? h - axisRoom(font, 2) : h
+        expect(left).toBeGreaterThanOrEqual(Math.min(h, 46))
+      }
+    }
+  })
+})
+
+describe('room for an axis', () => {
+  it('is never less than the 50px uPlot would have taken', () => {
+    expect(axisRoom(9, 1)).toBe(50)
+    expect(axisWidthFor(4)).toBe(50)
+  })
+
+  it('grows with the text, so a two-line time label is not cut off', () => {
+    // measured: a 16px font drew its date line 5px past the bottom of an 116px canvas
+    expect(axisRoom(16, 2)).toBeGreaterThan(50)
+    expect(axisRoom(16, 2)).toBeGreaterThanOrEqual(16 * 2 + 15)
+    expect(axisRoom(32, 2)).toBeGreaterThan(axisRoom(16, 2))
+  })
+
+  it('leaves room for the widest label a y axis has to write', () => {
+    expect(axisWidthFor(60)).toBe(75)
+    expect(axisWidthFor(120)).toBeGreaterThan(axisWidthFor(60))
   })
 })

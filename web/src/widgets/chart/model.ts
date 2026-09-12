@@ -131,3 +131,29 @@ export function effectiveSeries(config: ChartConfig): ChartSeries[] {
 export function effectiveThresholds(config: ChartConfig): ChartThreshold[] {
   return (Array.isArray(config.thresholds) ? config.thresholds : []).filter((t): t is ChartThreshold => !!t && typeof t === 'object')
 }
+
+// uPlot gives each axis a flat 50px, sized for its own 12px default font. Ours is the tile's, so a
+// time axis at 16px draws its date line 5px past the bottom of the canvas. The room an axis needs
+// is the tick, the gap and its lines of text - never less than uPlot's own number, so no chart that
+// fits today gets a narrower gutter.
+const AXIS_SIZE = 50
+const AXIS_TICK = 10
+const AXIS_GAP = 5
+const AXIS_LINE = 1.5
+const MIN_PLOT_H = 46
+const MIN_PLOT_W = 90
+
+export function axisRoom(fontPx: number, lines: number): number {
+  return Math.max(AXIS_SIZE, Math.ceil(AXIS_TICK + AXIS_GAP + lines * fontPx * AXIS_LINE))
+}
+
+export function axisWidthFor(labelPx: number): number {
+  return Math.max(AXIS_SIZE, Math.ceil(labelPx) + AXIS_TICK + AXIS_GAP)
+}
+
+// and it puts no floor under what is left, so a short tile ended up with a zero-height plot: a
+// straight line, no labels, nothing to read. An axis is worth its space only while the plot keeps a
+// usable share of the canvas.
+export function axesFit(width: number, height: number, fontPx: number): { x: boolean; y: boolean } {
+  return { x: height >= axisRoom(fontPx, 2) + MIN_PLOT_H, y: width >= AXIS_SIZE + MIN_PLOT_W }
+}

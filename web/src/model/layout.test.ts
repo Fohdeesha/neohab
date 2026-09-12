@@ -349,6 +349,30 @@ describe('the tablet layout', () => {
     expect(tabletRects(d).get('a')).toEqual({ x: 3, y: 1, w: 2, h: 2 })
   })
 
+  it('fits a widget with no tablet rect around the ones that have been moved', () => {
+    // the shape a real board reaches: a widget moved on the tablet layout, and one added later while
+    // editing the desktop layout, which has no tablet rect of its own
+    const moved: WidgetInstance = {
+      id: 'chart',
+      type: 'label',
+      config: {},
+      layout: { lg: { x: 0, y: 4, w: 6, h: 2 }, md: { x: 0, y: 4, w: 7, h: 2 } }
+    }
+    const added = w('timeline', { x: 6, y: 4, w: 6, h: 2 })
+    const rects = tabletRects(dash([moved, added], { columns: 12 }))
+    const a = rects.get('chart')!
+    const b = rects.get('timeline')!
+    expect(a).toEqual({ x: 0, y: 4, w: 7, h: 2 })
+    expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h).toBe(false)
+  })
+
+  it('leaves a dashboard nobody has given a tablet rect exactly where it is', () => {
+    const d = dash([w('a', { x: 3, y: 1, w: 2, h: 2 }), w('b', { x: 7, y: 0, w: 1, h: 1 })], { columns: 12 })
+    const rects = tabletRects(d)
+    expect(rects.get('a')).toEqual({ x: 3, y: 1, w: 2, h: 2 })
+    expect(rects.get('b')).toEqual({ x: 7, y: 0, w: 1, h: 1 })
+  })
+
   it('clamps a stored tablet rect that is wider than its grid', () => {
     const widget: WidgetInstance = {
       id: 'a',

@@ -62,6 +62,21 @@ export function partitionHistory(points: HistoryPoint[], windowStart: number, no
     .map((b) => (b.start < windowStart ? { ...b, start: windowStart } : b))
 }
 
+const MINUTE_SPAN = 3 * 3600e3
+const DAY_SPAN = 48 * 3600e3
+
+/**
+ * The clock under the bands. Ticks sit a third of the window apart, so minutes only say anything
+ * over a few hours - and printing them anyway is what ran "10:19 AM06:19 PM02:19 AM" together on a
+ * phone.
+ */
+export function axisTick(ms: number, spanMs: number): string {
+  const d = new Date(ms)
+  if (spanMs > DAY_SPAN) return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  if (spanMs <= MINUTE_SPAN) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return d.toLocaleTimeString([], { hour: 'numeric' })
+}
+
 export function autoRefreshSeconds(periodMs: number): number {
   return Math.min(900, Math.max(30, Math.round(periodMs / 1000 / 120)))
 }

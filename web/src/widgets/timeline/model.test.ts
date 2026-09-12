@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { autoRefreshSeconds, effectiveColorMaps, effectiveTimelineSeries, partitionHistory, thinBands, type TimelineConfig } from './model'
+import {
+  autoRefreshSeconds,
+  axisTick,
+  effectiveColorMaps,
+  effectiveTimelineSeries,
+  partitionHistory,
+  thinBands,
+  type TimelineConfig
+} from './model'
 
 describe('reading the configuration', () => {
   it('keeps the rows that name an item', () => {
@@ -97,5 +105,27 @@ describe('thinBands and the band that is current', () => {
       { state: 'c', start: 101_000, end: 101_000 }
     ]
     expect(thinBands(bands, 2400)).toHaveLength(2)
+  })
+})
+
+describe('axisTick', () => {
+  const at = Date.UTC(2026, 8, 9, 14, 19)
+
+  it('drops the minutes on a window whose ticks are hours apart', () => {
+    expect(axisTick(at, 24 * 3600e3)).not.toContain(':')
+  })
+
+  it('keeps them while the ticks are minutes apart', () => {
+    expect(axisTick(at, 3600e3)).toContain(':')
+  })
+
+  it('is a date once the window is longer than two days', () => {
+    const long = axisTick(at, 7 * 24 * 3600e3)
+    expect(long).not.toContain(':')
+    expect(/\d/.test(long)).toBe(true)
+  })
+
+  it('is shorter than the clock a band range is written with', () => {
+    expect(axisTick(at, 24 * 3600e3).length).toBeLessThan(axisTick(at, 3600e3).length)
   })
 })

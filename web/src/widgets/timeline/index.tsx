@@ -11,6 +11,7 @@ import { chartScheme, seriesColor } from '../chart/palette'
 import { stateMatches } from '../common/stateIcon'
 import {
   autoRefreshSeconds,
+  axisTick,
   effectiveColorMaps,
   effectiveTimelineSeries,
   partitionHistory,
@@ -225,7 +226,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
             ))}
             <div className="nh-tl__axis">
               {ticks.map((tms, i) => (
-                <span key={i}>{fmtTick(tms, windowMs)}</span>
+                <span key={i}>{axisTick(tms, windowMs)}</span>
               ))}
             </div>
             {info ? <div className="nh-tl__info">{info}</div> : null}
