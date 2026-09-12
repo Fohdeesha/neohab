@@ -102,7 +102,16 @@ const WIDGETS = [
     config: { label: 'Hostile', source: 'constructor', minLevel: 42, loggers: ['x'], contains: {}, keep: 'lots', wrap: 'yes' },
     layout: { lg: { x: 9, y: 15, w: 3, h: 6 } },
   },
+  // something with an item picker, so the picker can be typed into while the log tiles follow their newest line.
+  // Bound to nothing on purpose: a pick has to land a name where there was none for the check to mean anything
+  {
+    id: 'w-reading',
+    type: 'value',
+    config: { item: '', label: 'Reading' },
+    layout: { lg: { x: 3, y: 21, w: 3, h: 6 } },
+  },
 ]
+const LOG_TILES = WIDGETS.filter((w) => w.type === 'log').length
 
 const browser = await launchChromium({ channel: 'msedge', headless: true }).catch(() =>
   launchChromium({ channel: 'chrome', headless: true }).catch(() => launchChromium({ headless: true }))
@@ -201,7 +210,7 @@ try {
   await page.waitForSelector('.nh-log', { timeout: 20000 }).catch(() => {})
 
   const roots = await probe(page, () => document.querySelectorAll('.nh-log').length)
-  ok('every log tile renders', roots === WIDGETS.length, `${roots} of ${WIDGETS.length}`)
+  ok('every log tile renders', roots === LOG_TILES, `${roots} of ${LOG_TILES}`)
   const errTiles = await probe(page, () => document.querySelectorAll('.nh-widget--error').length)
   ok('no tile fell back to the error boundary', errTiles === 0, 'error tiles=' + errTiles)
   const live = await waitTile('Events', (t) => t.status === 'live', 15000)
@@ -314,24 +323,73 @@ try {
     JSON.stringify(geometry)
   )
 
+  // Counted, and waited for on the tile the claim is about: openHAB 5 hands the tile a hundred lines
+  // of history on connect, so on a re-run 'to 100' is already there and waiting for it returns before
+  // the burst has arrived - which read as the tile losing 53 of 60 lines under a battery's load.
+  const burstBefore = count(await tile('Events'), DIM)
   for (let v = 41; v <= 100; v++) await putState(v)
-  const fewTile = await waitTile('Few', (t) => has(t, 'to 100'), 12000)
-  const allTile = await tile('Events')
-  ok('a tile keeps no more than its setting says', fewTile && fewTile.lines.length <= 50 && has(fewTile, 'to 100') && count(allTile, DIM) > 50, `few=${fewTile?.lines.length} events=${count(allTile, DIM)}`)
+  const allTile = await waitTile('Events', (t) => count(t, DIM) >= burstBefore + 60, 15000)
+  const fewTile = await tile('Few')
+  const arrived = count(allTile, DIM) - burstBefore
+  // the 60 of that burst land in a handful of flushes, so this is also what says a flush loses none of them
+  ok(
+    'a tile keeps no more than its setting says, and a burst loses no lines',
+    fewTile && fewTile.lines.length <= 50 && arrived >= 60,
+    `few=${fewTile?.lines.length} events=${arrived} of 60 (${burstBefore} before)`
+  )
   const followed = await tile('Events')
   const atBottom = (t) => t && t.scrollHeight - t.scrollTop - t.clientHeight <= 12
   ok('the list follows the newest line', atBottom(followed) && followed.following === 'true' && !followed.jump && followed.scrollHeight > followed.clientHeight, JSON.stringify({ top: followed?.scrollTop, height: followed?.scrollHeight, client: followed?.clientHeight }))
+  // A scroll nobody made must not stop it following. Opening a settings panel moves this box for a
+  // frame, and measuring then left the tile stranded, walking further from the newest line with every
+  // trimmed one. Poking scrollTop is the same kind of scroll and needs no timing to reproduce.
   await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Events')
     const s = w?.querySelector('.nh-log__scroll')
     if (s) s.scrollTop = 0
   })
-  await sleep(300)
-  const up = await tile('Events')
-  ok('scrolling up pauses following and offers a way back', up && up.following === 'false' && up.jump && up.scrollTop < 20, JSON.stringify({ following: up?.following, jump: up?.jump, top: up?.scrollTop }))
+  const shoveLine = changeTo(7)
+  // counted rather than looked for: openHAB 5 hands the tile a hundred lines of history on connect,
+  // which on a re-run already holds this very line
+  const shoveBefore = count(followed, shoveLine)
   await putState(7)
-  const still = await waitTile('Events', (t) => has(t, 'from 100 to 7'))
-  ok('a new line does not drag the reader back down', still && still.scrollTop < 20 && has(still, 'from 100 to 7'), `top=${still?.scrollTop} arrived=${has(still, 'from 100 to 7')}`)
+  const shoved = await waitTile('Events', (t) => count(t, shoveLine) > shoveBefore && t.following === 'true')
+  const shoveArrived = count(shoved, shoveLine) > shoveBefore
+  ok(
+    'a scroll nobody made does not stop it following',
+    shoved && shoved.following === 'true' && !shoved.jump && atBottom(shoved) && shoveArrived,
+    JSON.stringify({ following: shoved?.following, jump: shoved?.jump, top: shoved?.scrollTop, height: shoved?.scrollHeight, arrived: shoveArrived })
+  )
+
+  // the reader's own wheel is what stops it, so drive the wheel rather than the property
+  const eventsBox = await page
+    .locator('.nh-widget:has(.nh-widget__labeltext:text-is("Events")) .nh-log__scroll')
+    .first()
+    .boundingBox()
+    .catch(() => null)
+  if (eventsBox) {
+    await page.mouse.move(eventsBox.x + eventsBox.width / 2, eventsBox.y + eventsBox.height / 2)
+    await page.mouse.wheel(0, -600)
+  }
+  const up = await waitTile('Events', (t) => t.following === 'false', 4000)
+  ok(
+    'the reader scrolling up pauses following and offers a way back',
+    up && up.following === 'false' && up.jump && !atBottom(up),
+    JSON.stringify({ following: up?.following, jump: up?.jump, top: up?.scrollTop, wasAt: shoved?.scrollTop })
+  )
+  const nudgedTo = up?.scrollTop ?? 0
+  const dragLine = changeTo(8)
+  const dragBefore = count(up, dragLine)
+  await putState(8)
+  const still = await waitTile('Events', (t) => count(t, dragLine) > dragBefore)
+  const dragArrived = count(still, dragLine) > dragBefore
+  // the trim walks the held view up the list so the reader keeps the lines they were reading, which is
+  // why this asks that it did not jump to the bottom rather than that the position never moved
+  ok(
+    'a new line does not drag the reader back down',
+    still && !atBottom(still) && still.scrollTop <= nudgedTo && dragArrived,
+    `top=${still?.scrollTop} of ${nudgedTo} arrived=${dragArrived}`
+  )
   await page.locator('.nh-widget:has(.nh-widget__labeltext:text-is("Events")) .nh-log__jump').first().click({ timeout: 4000 }).catch(() => {})
   await sleep(300)
   const jumped = await tile('Events')
@@ -442,8 +500,8 @@ try {
   })
   ok(
     'no tile draws past its cell, and no line reaches past its side',
-    spill && spill.scanned === WIDGETS.length && spill.lines > 50 && spill.spills.length === 0,
-    `scanned ${spill?.scanned} of ${WIDGETS.length}, ${spill?.lines} lines` + (spill?.spills.length ? ': ' + spill.spills.slice(0, 4).join(' | ') : '')
+    spill && spill.scanned === LOG_TILES && spill.lines > 50 && spill.spills.length === 0,
+    `scanned ${spill?.scanned} of ${LOG_TILES}, ${spill?.lines} lines` + (spill?.spills.length ? ': ' + spill.spills.slice(0, 4).join(' | ') : '')
   )
 
   const target = page.locator('.nh-widget:has(.nh-widget__labeltext:text-is("Events"))').first()
@@ -557,7 +615,9 @@ try {
     await sleep(150)
     after = (await pageHas(nextLine)) === true
   }
-  ok('clear empties the list, and the next line starts it again', beforeClear === true && cleared && cleared.marker === false && cleared.lines < 10 && after, JSON.stringify({ beforeClear, cleared, after }))
+  // a busy server writes lines between the clear and this read, so what the clear is for is that the
+  // lines that were there are gone and the ones after it arrive, never a count at an instant
+  ok('clear empties the list, and the next line starts it again', beforeClear === true && cleared && cleared.marker === false && after, JSON.stringify({ beforeClear, cleared, after }))
 
   const fromHash = await probe(page, () => location.hash)
   await page.locator('.nh-logview .nh-dash__bar .nh-iconbtn').first().click({ timeout: 4000 }).catch(() => {})
@@ -655,6 +715,47 @@ try {
   const wrap = await field('Wrap lines').locator('input[type="checkbox"]').count().catch(() => -1)
   const showName = await field('Show the name').count().catch(() => -1)
   ok('with the logger patterns, the text, the line count and the wrap toggle', loggers === 1 && contains === 1 && keepV === '500' && wrap === 1 && showName === 1, JSON.stringify({ loggers, contains, keepV, wrap, showName }))
+  // a log tile follows its newest line about once a second, and a scroll anywhere in the document used to close
+  // the item picker beside it and put the stored name back under whoever was typing
+  await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("Reading"))').first().click({ timeout: 5000 }).catch(() => {})
+  const picker = page.locator('.nh-sheet input[role="combobox"]').first()
+  await picker.waitFor({ timeout: 8000 }).catch(() => {})
+  await page.evaluate(() => {
+    window.__logScrolls = 0
+    document.addEventListener(
+      'scroll',
+      (e) => {
+        if (e.target instanceof Element && e.target.closest('.nh-log')) window.__logScrolls++
+      },
+      true
+    )
+  })
+  await picker.click({ timeout: 5000 }).catch(() => {})
+  await page.keyboard.type('e2e_logd', { delay: 60 })
+  for (const v of [7, 8, 9]) {
+    await putState(v)
+    await sleep(700)
+  }
+  const typed = await probe(page, () => ({
+    value: document.querySelector('.nh-sheet input[role="combobox"]')?.value ?? null,
+    list: !!document.querySelector('.nh-picker__list'),
+    options: [...document.querySelectorAll('.nh-picker__option .nh-picker__name')].map((n) => n.textContent),
+    scrolls: window.__logScrolls,
+  }))
+  ok(
+    'a log tile following its newest line leaves the item picker beside it alone',
+    typed && typed.scrolls > 0 && typed.value === 'e2e_logd' && typed.list === true && typed.options.includes(DIM),
+    JSON.stringify(typed)
+  )
+  await page
+    .locator(`.nh-picker__option:has(.nh-picker__name:text-is("${DIM}"))`)
+    .first()
+    .click({ timeout: 5000 })
+    .catch(() => {})
+  await sleep(300)
+  const picked = await probe(page, () => document.querySelector('.nh-sheet input[role="combobox"]')?.value ?? null)
+  ok('and the item under the pointer can still be picked', picked === DIM, String(picked))
+
   const wasEditing = await probe(page, () => !!document.querySelector('.nh-grid--edit'))
   await page.locator('button:has-text("Exit")').first().click({ timeout: 5000 }).catch(() => {})
   await sleep(600)

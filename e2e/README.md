@@ -190,13 +190,16 @@ Both items are deleted by name in cleanup, and it never touches file-provided it
 `e2e-button.mjs` drives the button widget in both its styles and the migration that folded the old
 switch widget into it, against two managed items it creates itself (`nh_e2e_btn`, a Dimmer, and
 `nh_e2e_btnstr`, a String, both bound to nothing), so its commands are real and reach no device. It
-seeds two dashboards: one in the shipped shape and one written the way a neohab from before the
+seeds three dashboards: one in the shipped shape, one written the way a neohab from before the
 merge would have, with `type: 'switch'`, no version field and the switch's own
-`onCommand`/`offCommand`. The shipped seed puts the same Dimmer on two tiles **in the same style**,
+`onCommand`/`offCommand`, and one carrying a tile per style and finish. That third one is read
+rather than pressed: everything about a finish is measured from the browser's own computed styles,
+so a class that resolves to no rule fails, and the contrast of a caption on a face the accent has
+flooded is a number rather than a judgement. The shipped seed puts the same Dimmer on two tiles **in the same style**,
 differing only by "Count any value above 0 as on", because that setting is what decides whether a
 tile reads as on and the style must be shown to decide nothing. **It is the one safe-additive suite
 that saves through the app**, because the migration has to be proved to reach the server and not
-only the screen, so it mints one version-history restore point exactly as a real edit does. Both
+only the screen, so it mints one version-history restore point exactly as a real edit does. All three
 dashboards and both items are deleted by name in cleanup.
 
 `e2e-audit2.mjs`, `e2e-editor.mjs` and `e2e-widgets.mjs` deliberately keep seeding `type: 'switch'`
@@ -208,6 +211,12 @@ against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist
 `nh_e2e_stepfan`, `nh_e2e_stepnull`, `nh_e2e_stepmany`, all bound to nothing), so its commands
 are real and reach no device. It enters edit mode once to inspect the settings panel and leaves
 without saving. The dashboard and all five items are deleted by name in cleanup.
+
+`e2e-battery.mjs` drives the battery widget - eight styles, the input scale, the level colours,
+the charging bolt and the shapes where a caption or a number runs out of room - against four
+managed items it creates itself (`nh_e2e_batt`, `nh_e2e_battchg`, `nh_e2e_battmv`,
+`nh_e2e_battnull`, bound to nothing). Every state is set over REST and the widget commands
+nothing, which is one of its checks. The dashboard and the items are deleted by name in cleanup.
 
 `e2e-slider.mjs` drives the slider widget - five styles, both orientations - against one managed
 Dimmer it creates itself (`nh_e2e_slide`, bound to nothing), so its commands are real and reach no

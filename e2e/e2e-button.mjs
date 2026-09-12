@@ -1,8 +1,9 @@
 // The button widget in both its styles, and the migration that folded the old switch widget into it.
 // The two styles differ in more than looks: a switch reads on from the item, a button matches its command
 // exactly, so every state check here is written to tell those two rules apart.
-// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-button and
-// dashboard:nh-e2e-btnlegacy (neohab:config), managed items nh_e2e_btn and nh_e2e_btnstr.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-button,
+// dashboard:nh-e2e-btnlegacy and dashboard:nh-e2e-btnface (neohab:config), managed items nh_e2e_btn and
+// nh_e2e_btnstr.
 // It SAVES through the app once, on purpose - the migration has to be proved to write back - so it mints
 // one version-history restore point, like any real edit.
 import { launchChromium } from './lib/browser.mjs'
@@ -10,6 +11,9 @@ import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-button'
 const LEGACY_UID = 'dashboard:nh-e2e-btnlegacy'
+const FACE_UID = 'dashboard:nh-e2e-btnface'
+const FINISHES = ['plain', 'solid', 'glass', 'glow', 'edge', 'outline', 'sheen', 'bare']
+const ACCENT = '#e0459a'
 const DIM = 'nh_e2e_btn'
 const STR = 'nh_e2e_btnstr'
 const HOLD_MS = 800 // comfortably past the 500ms threshold
@@ -87,6 +91,84 @@ const readPanel = () => {
     helpButtons: [...panel.querySelectorAll('.nh-field__helpbtn')].map((b) => b.textContent.trim()),
     hints: [...panel.querySelectorAll('.nh-field__hint')].map((p) => p.textContent.trim())
   }
+}
+
+// what a finish actually painted, and where the card put its parts. Everything here is read from the
+// browser rather than from the class name, so a class that resolves to no rule fails.
+const readFace = (label) => {
+  const round = (n) => Math.round(n)
+  const box = (el) => {
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { x: round(r.left), y: round(r.top), w: round(r.width), h: round(r.height), right: round(r.right), bottom: round(r.bottom) }
+  }
+  const cells = [...document.querySelectorAll('.nh-gcell, .nh-cell')]
+  const host = cells.find((c) => c.querySelector('.nh-button')?.getAttribute('aria-label') === label)
+  if (!host) return { found: false }
+  const btn = host.querySelector('.nh-button')
+  const tile = host.querySelector('.nh-widget')
+  const body = host.querySelector('.nh-widget__body')
+  const cs = getComputedStyle(btn)
+  const face = box(btn)
+  const outer = box(tile)
+  const spill = [...host.querySelectorAll('.nh-button, .nh-button *')]
+    .map((el) => box(el))
+    .filter((b) => b && b.w > 0 && b.h > 0)
+    .reduce((worst, b) => Math.max(worst, outer.x - b.x, b.right - outer.right, outer.y - b.y, b.bottom - outer.bottom), 0)
+  return {
+    found: true,
+    classes: btn.className,
+    on: btn.classList.contains('nh-button--active'),
+    surface: [cs.backgroundColor, cs.backgroundImage, cs.borderTopWidth, cs.borderTopColor, cs.boxShadow].join(' | '),
+    bg: cs.backgroundColor,
+    bgImage: cs.backgroundImage,
+    shadow: cs.boxShadow,
+    radius: cs.borderTopLeftRadius,
+    color: cs.color,
+    bodyPad: getComputedStyle(body).paddingTop,
+    glyph: getComputedStyle(host.querySelector('.nh-icon--mdi') ?? btn).backgroundColor,
+    inset: round(face.x - outer.x),
+    fillsWidth: outer.w - face.w <= 2,
+    chip: box(host.querySelector('.nh-button__chip')),
+    pip: box(host.querySelector('.nh-button__pip')),
+    text: box(host.querySelector('.nh-button__text')),
+    faceLabel: host.querySelector('.nh-button__label')?.textContent?.trim() ?? null,
+    caption: host.querySelector('.nh-button__caption')?.textContent?.trim() ?? null,
+    captionColor: (() => {
+      const c = host.querySelector('.nh-button__caption')
+      return c ? getComputedStyle(c).color : null
+    })(),
+    headerRows: host.querySelectorAll('.nh-widget__label').length,
+    face,
+    outer,
+    spill
+  }
+}
+
+// Chromium serialises a color-mix as color(srgb r g b / a) with 0..1 channels and everything else as
+// rgb()/rgba(), so both have to be read before anything can be composited
+const parseColor = (s) => {
+  if (!s) return null
+  const srgb = s.match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/)
+  if (srgb) return [+srgb[1] * 255, +srgb[2] * 255, +srgb[3] * 255, srgb[4] === undefined ? 1 : +srgb[4]]
+  const rgb = s.match(/^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)$/)
+  if (rgb) return [+rgb[1], +rgb[2], +rgb[3], rgb[4] === undefined ? 1 : +rgb[4]]
+  return null
+}
+const contrast = (fg, bg) => {
+  const f = parseColor(fg)
+  const b = parseColor(bg)
+  if (!f || !b) return 0
+  const over = f.slice(0, 3).map((c, i) => c * f[3] + b[i] * (1 - f[3]))
+  const lum = (c) => {
+    const [r, g, bl] = c.map((v) => {
+      const x = v / 255
+      return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+    })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const [hi, lo] = [lum(over), lum(b.slice(0, 3))].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
 }
 
 const readSheet = () => {
@@ -242,6 +324,91 @@ try {
   })
   ok('seed dashboard', seed.status === 200, 'status=' + seed.status)
 
+  // one tile per finish, all reading the same dimmer, so a single state change flips every one of them
+  const faceWidgets = FINISHES.map((finish, i) => ({
+    id: 'w-' + finish,
+    type: 'button',
+    config: {
+      item: DIM,
+      label: 'F ' + finish,
+      command: 'ON',
+      commandAlt: 'OFF',
+      toggle: true,
+      nonZeroIsOn: true,
+      finish,
+      icon: 'mdi:lightbulb',
+      iconSize: 28
+    },
+    layout: { lg: { x: (i % 4) * 3, y: Math.floor(i / 4) * 2, w: 3, h: 2 } }
+  }))
+  const card = (id, label, extra, x) => ({
+    id,
+    type: 'button',
+    config: {
+      style: 'card',
+      item: DIM,
+      label,
+      caption: 'Ground floor',
+      command: 'ON',
+      commandAlt: 'OFF',
+      toggle: true,
+      nonZeroIsOn: true,
+      icon: 'mdi:lightbulb',
+      iconSize: 28,
+      ...extra
+    },
+    layout: { lg: { x, y: 4, w: 3, h: 2 } }
+  })
+  const faceSeed = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: FACE_UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 2,
+        id: 'nh-e2e-btnface',
+        name: 'E2E Button Faces',
+        columns: 12,
+        rowHeight: 84,
+        gap: 8,
+        widgets: [
+          ...faceWidgets,
+          card('w-cardplain', 'Card plain', { finish: 'plain' }, 0),
+          card('w-cardsolid', 'Card solid', { finish: 'solid' }, 3),
+          card('w-cardaccent', 'Card accent', { finish: 'solid', accentColor: ACCENT }, 6),
+          // the same finish with a tile accent, which is the one setting that recolours it
+          {
+            id: 'w-accent',
+            type: 'button',
+            config: {
+              item: DIM,
+              label: 'F accent',
+              command: 'ON',
+              commandAlt: 'OFF',
+              toggle: true,
+              nonZeroIsOn: true,
+              finish: 'solid',
+              accentColor: ACCENT,
+              icon: 'mdi:lightbulb',
+              iconSize: 28
+            },
+            layout: { lg: { x: 9, y: 4, w: 3, h: 2 } }
+          },
+          // a one-row cell, where a card has to fit its chip, name and caption into 84px
+          { ...card('w-tinycard', 'Tiny card', { finish: 'edge' }, 0), layout: { lg: { x: 0, y: 6, w: 2, h: 1 } } },
+          {
+            id: 'w-tinysolid',
+            type: 'button',
+            config: { item: DIM, label: 'Tiny solid', command: 'ON', toggle: true, nonZeroIsOn: true, finish: 'solid', iconSize: 28 },
+            layout: { lg: { x: 2, y: 6, w: 2, h: 1 } }
+          }
+        ]
+      }
+    })
+  })
+  ok('seed face dashboard', faceSeed.status === 200, 'status=' + faceSeed.status)
+
   await page.goto(APP + '#/d/nh-e2e-button')
   // guarded: a build without the feature never draws this, and an unguarded wait would abort the run
   await page.waitForSelector('.nh-switch', { timeout: 20000 }).catch(() => {})
@@ -321,7 +488,11 @@ try {
   await page.waitForSelector('.nh-form', { timeout: 10000 }).catch(() => {})
 
   const asButton = await probe(page, readPanel)
-  ok('the panel offers a Style setting', asButton?.styleOptions?.join(',') === 'button,switch', JSON.stringify(asButton?.styleOptions))
+  ok(
+    'the panel offers a Style setting',
+    asButton?.styleOptions?.join(',') === 'button,card,switch',
+    JSON.stringify(asButton?.styleOptions)
+  )
   ok('it starts on the style the widget is drawing', asButton?.styleValue === 'button', String(asButton?.styleValue))
   const behaviour = ['Action', 'Command', 'Alternate command', 'Toggle with state', 'Count any value above 0 as on']
   ok(
@@ -338,7 +509,7 @@ try {
   await page.selectOption('.nh-field:has(.nh-field__label:text-is("Style")) select', 'switch', { timeout: 8000 }).catch(() => {})
   await sleep(400)
   const asSwitch = await probe(page, readPanel)
-  const faceOnly = ['Caption', 'Image URL', 'Icon only (hide the name)']
+  const faceOnly = ['Finish', 'Caption', 'Image URL', 'Icon only (hide the name)']
   ok(
     'choosing Switch takes away only the fields the button face draws',
     // the panel has to have been showing them first, or this passes on a build with no panel at all
@@ -531,11 +702,172 @@ try {
     JSON.stringify({ type: oldBare?.type, layout: oldBare?.layout?.lg })
   )
 
+  // ---- G. the look and the finish ----------------------------------------------------------------
+  await page.goto(APP + '#/d/nh-e2e-btnface')
+  await page.waitForSelector('.nh-button', { timeout: 20000 }).catch(() => {})
+  await putState(DIM, '60')
+  await sleep(1800)
+
+  const on = {}
+  for (const f of FINISHES) on[f] = await probe(page, readFace, 'F ' + f)
+  ok('every finish draws a face', FINISHES.every((f) => on[f]?.found), FINISHES.filter((f) => !on[f]?.found).join(',') || 'all 8')
+  ok(
+    'and carries the class its own rules are written against',
+    FINISHES.every((f) => on[f]?.classes?.includes('nh-button--' + f)),
+    FINISHES.filter((f) => !on[f]?.classes?.includes('nh-button--' + f)).join(',') || 'all 8'
+  )
+  ok('with all of them reading on, which is the state the rest of this section measures', FINISHES.every((f) => on[f]?.on === true))
+
+  const picked = FINISHES.filter((f) => f !== 'plain')
+  ok(
+    'a finish someone picked fills the tile',
+    picked.every((f) => on[f]?.fillsWidth === true && on[f]?.bodyPad === '0px'),
+    picked.map((f) => `${f}:${on[f]?.bodyPad}/${on[f]?.fillsWidth}`).join(' ')
+  )
+  ok(
+    'and plain keeps the box inside the tile it always drew',
+    on.plain?.fillsWidth === false && on.plain?.bodyPad === '12px' && on.plain?.inset === 13,
+    `pad=${on.plain?.bodyPad} inset=${on.plain?.inset}`
+  )
+  ok(
+    'a filled face takes the tile corner, so the two cannot disagree',
+    picked.every((f) => on[f]?.radius === '11px'),
+    picked.map((f) => `${f}:${on[f]?.radius}`).join(' ')
+  )
+
+  const surfaces = new Set(FINISHES.map((f) => on[f]?.surface))
+  ok('each finish paints something of its own', surfaces.size === FINISHES.length, `distinct=${surfaces.size} of ${FINISHES.length}`)
+  ok(
+    'the icon on a flooded face takes the readable ink, where a quiet one takes the accent',
+    on.solid?.glyph !== on.outline?.glyph && on.solid?.glyph !== on.solid?.bg && on.outline?.glyph === on.solid?.bg,
+    `flooded=${on.solid?.glyph} quiet=${on.outline?.glyph} accent=${on.solid?.bg}`
+  )
+
+  const accent = await probe(page, readFace, 'F accent')
+  ok(
+    'the tile Accent color is what sets the colour a face goes when it is on',
+    /224, 69, 154/.test(accent?.bg ?? '') && accent?.bg !== on.solid?.bg,
+    `accent=${accent?.bg} default=${on.solid?.bg}`
+  )
+
+  const cardOn = await probe(page, readFace, 'Card plain')
+  const cardSolid = await probe(page, readFace, 'Card solid')
+  const cardAccent = await probe(page, readFace, 'Card accent')
+  ok(
+    'a card puts the icon in a chip at the top left',
+    !!cardOn?.chip && !!cardOn?.text && cardOn.chip.y < cardOn.text.y && cardOn.chip.x < cardOn.face.x + cardOn.face.w / 2,
+    JSON.stringify({ chip: cardOn?.chip, text: cardOn?.text })
+  )
+  ok(
+    'a state pip at the top right',
+    !!cardOn?.pip && !!cardOn?.chip && cardOn.pip.x > cardOn.chip.right && cardOn.face.right - cardOn.pip.right < 20,
+    JSON.stringify({ pip: cardOn?.pip, faceRight: cardOn?.face?.right })
+  )
+  ok(
+    'and the name over its caption along the bottom, with no title bar of its own',
+    cardOn?.faceLabel === 'Card plain' &&
+      cardOn?.caption === 'Ground floor' &&
+      cardOn?.headerRows === 0 &&
+      !!cardOn?.text &&
+      !!cardOn?.chip &&
+      cardOn.text.bottom > cardOn.chip.bottom,
+    `name=${cardOn?.faceLabel} caption=${cardOn?.caption} headers=${cardOn?.headerRows}`
+  )
+  const captionOn = (t) => contrast(t?.captionColor, t?.bg)
+  ok(
+    'a caption stays readable on a face the accent has flooded',
+    captionOn(cardSolid) >= 4.5 && captionOn(cardAccent) >= 4.5,
+    `solid=${captionOn(cardSolid).toFixed(1)}:1 accent=${captionOn(cardAccent).toFixed(1)}:1`
+  )
+  ok(
+    'a card takes a finish and an accent like any other face',
+    cardSolid?.bg === on.solid?.bg && /224, 69, 154/.test(cardAccent?.bg ?? ''),
+    `solid=${cardSolid?.bg} accent=${cardAccent?.bg}`
+  )
+
+  await putState(DIM, '0')
+  await sleep(1800)
+  const dark = {}
+  for (const f of FINISHES) dark[f] = await probe(page, readFace, 'F ' + f)
+  ok('every finish reads off when the item does', FINISHES.every((f) => dark[f]?.on === false), FINISHES.filter((f) => dark[f]?.on).join(','))
+  ok(
+    'and every one of them looks different off from on, including the one that paints nothing',
+    FINISHES.every((f) => dark[f]?.surface !== on[f]?.surface || dark[f]?.color !== on[f]?.color),
+    FINISHES.filter((f) => dark[f]?.surface === on[f]?.surface && dark[f]?.color === on[f]?.color).join(',') || 'all 8 changed'
+  )
+  const offSurfaces = new Set(FINISHES.map((f) => dark[f]?.surface))
+  ok('each of them is still its own thing when it is off', offSurfaces.size === FINISHES.length, `distinct=${offSurfaces.size}`)
+
+  const labels = [...FINISHES.map((f) => 'F ' + f), 'F accent', 'Card plain', 'Card solid', 'Card accent', 'Tiny card', 'Tiny solid']
+  const spilled = []
+  for (const l of labels) {
+    const t = await probe(page, readFace, l)
+    if (!t?.found) spilled.push(l + ': missing')
+    else if (t.spill > 1) spilled.push(`${l} past by ${t.spill}px`)
+  }
+  ok('nothing a face draws leaves its tile, at any of the seeded sizes', spilled.length === 0 && labels.length === 14, spilled.join(' | '))
+
+  await page.click('[aria-label="Edit dashboard"]', { timeout: 10000 }).catch(() => {})
+  await page.waitForSelector('.nh-cell', { timeout: 10000 }).catch(() => {})
+  await page.click('.nh-cell:has(.nh-button[aria-label="F plain"]) .nh-cell__grip', { timeout: 10000 }).catch(() => {})
+  await page.waitForSelector('.nh-form', { timeout: 10000 }).catch(() => {})
+  const facePanel = await probe(page, readPanel)
+  ok(
+    'the panel offers Finish beside Style, and Card as a style',
+    facePanel?.labels?.includes('Finish') === true && facePanel?.styleOptions?.join(',') === 'button,card,switch',
+    JSON.stringify({ finish: facePanel?.labels?.includes('Finish'), styles: facePanel?.styleOptions })
+  )
+  await page.selectOption('.nh-field:has(.nh-field__label:text-is("Finish")) select', 'edge', { timeout: 8000 }).catch(() => {})
+  await sleep(500)
+  const previewed = await probe(page, readFace, 'F plain')
+  ok(
+    'picking one redraws the tile straight away',
+    previewed?.classes?.includes('nh-button--edge') === true && previewed?.bodyPad === '0px',
+    `classes=${previewed?.classes} pad=${previewed?.bodyPad}`
+  )
+  await page.click('button:has-text("Exit")', { timeout: 10000 }).catch(() => {})
+  await page.waitForSelector('.nh-gcell', { timeout: 10000 }).catch(() => {})
+  await sleep(400)
+  const restored = await probe(page, readFace, 'F plain')
+  ok(
+    'and leaving without saving puts it back',
+    previewed?.classes?.includes('nh-button--edge') === true && restored?.bodyPad === '12px' && !restored?.classes?.includes('--edge'),
+    `previewed=${previewed?.classes} restored=${restored?.classes}`
+  )
+
+  // a theme restyles the plain button and leaves a picked finish alone, which is the whole reason the
+  // built-in stylesheets are scoped to .nh-button--plain
+  const swissCtx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
+  const swissPage = await swissCtx.newPage()
+  await swissPage.addInitScript((t) => {
+    try {
+      localStorage.setItem('neohab:apiToken', t)
+      localStorage.setItem('neohab:themeOverride', 'swiss')
+      localStorage.setItem('neohab:language', 'en')
+    } catch {}
+  }, TOKEN)
+  await swissPage.goto(APP + '#/d/nh-e2e-btnface')
+  await swissPage.waitForSelector('.nh-button', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+  const swPlain = await probe(swissPage, readFace, 'F plain')
+  const swSolid = await probe(swissPage, readFace, 'F solid')
+  ok(
+    'a theme still restyles the plain button, all the way to no fill at all',
+    swPlain?.bg === 'rgba(0, 0, 0, 0)' && dark.plain?.bg !== 'rgba(0, 0, 0, 0)',
+    `swiss=${swPlain?.bg} dark=${dark.plain?.bg}`
+  )
+  ok(
+    'and a finish someone picked keeps its own surface under that theme',
+    swSolid?.bg !== 'rgba(0, 0, 0, 0)' && swSolid?.bg !== swPlain?.bg,
+    `solid=${swSolid?.bg} plain=${swPlain?.bg}`
+  )
+  await swissCtx.close()
+
   ok('no page or console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
-  for (const uid of [UID, LEGACY_UID]) {
+  for (const uid of [UID, LEGACY_UID, FACE_UID]) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   for (const item of [DIM, STR]) {
@@ -543,7 +875,7 @@ try {
   }
   const left = await fetch(NS, { headers: AUTH })
     .then((r) => r.json())
-    .then((cs) => cs.filter((c) => c.uid === UID || c.uid === LEGACY_UID).map((c) => c.uid))
+    .then((cs) => cs.filter((c) => [UID, LEGACY_UID, FACE_UID].includes(c.uid)).map((c) => c.uid))
     .catch(() => ['<unreadable>'])
   ok('cleanup: dashboards removed', left.length === 0, left.join(','))
   const items = []

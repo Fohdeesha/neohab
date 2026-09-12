@@ -251,6 +251,33 @@ try {
   ok('widening again gives a working grid, not an empty one', backToGrid === 2, String(backToGrid))
   await page.click('button:has-text("Exit")')
 
+  // the shape a real board reaches: one widget moved on the tablet layout and one added later while
+  // editing the desktop layout, which has no tablet rect of its own and used to land on top of it
+  const moved = { ...W('w-moved', 0, 0, 6, 2), layout: { lg: { x: 0, y: 0, w: 6, h: 2 }, md: { x: 0, y: 0, w: 7, h: 2 } } }
+  ok('seed a half-pinned tablet layout', await seed([moved, W('w-added', 6, 0, 6, 2)]))
+  await page.setViewportSize(TABLET)
+  await open()
+  const halfPinned = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('.nh-gcell')].map((c) => {
+      const r = c.getBoundingClientRect()
+      return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }
+    })
+    let overlaps = 0
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i]
+        const b = boxes[j]
+        if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlaps++
+      }
+    return { count: boxes.length, overlaps }
+  })
+  ok(
+    'a widget with no tablet rect is fitted around one that was moved, not laid on top of it',
+    halfPinned.count === 2 && halfPinned.overlaps === 0,
+    JSON.stringify(halfPinned)
+  )
+  await page.setViewportSize(DESKTOP)
+
   ok('seed all-hidden', await seed([W('w-x', 0, 0, 2, 2, { hideOn: ['phone', 'tablet', 'desktop'] })]))
   await open()
   const allHidden = await rendered()

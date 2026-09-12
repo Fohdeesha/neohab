@@ -1,11 +1,12 @@
 // Chart-v2 e2e: multi-series, palette colors, legend toggling, crosshair tooltip, period chips + refetch,
 // drag-zoom + reset, threshold band pixels.
-// SAFE with a live config: creates only dashboard:nh-e2e-charts and deletes exactly that in cleanup
-// (guarded, runs even if a section throws).
+// SAFE with a live config: creates only dashboard:nh-e2e-charts and dashboard:nh-e2e-chartfit and
+// deletes exactly those in cleanup (guarded, runs even if a section throws).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-charts'
+const FIT = 'dashboard:nh-e2e-chartfit'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -15,6 +16,56 @@ const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: cmd })
 
 const initialLevel = await getState(ITEMS.dimmer)
+
+// every string uPlot paints, with the box it paints it in: an axis whose allowance is too small
+// for the tile's font draws its label off the edge of the canvas, and nothing else can see that
+const CAPTURE_LABELS = () => {
+  window.__labels = []
+  const fill = CanvasRenderingContext2D.prototype.fillText
+  CanvasRenderingContext2D.prototype.fillText = function (text, x, y, ...rest) {
+    try {
+      const size = parseFloat(/([\d.]+)px/.exec(this.font)?.[1] ?? '12')
+      window.__labels.push({
+        t: String(text),
+        w: this.measureText(String(text)).width,
+        x,
+        y,
+        size,
+        align: this.textAlign,
+        baseline: this.textBaseline,
+        cw: this.canvas.width,
+        ch: this.canvas.height,
+      })
+    } catch {}
+    return fill.call(this, text, x, y, ...rest)
+  }
+}
+
+// a threshold sits at a value of its own, so when the item has not been near it for the window uPlot's
+// auto-range leaves it above the plot and its label is drawn up there and clipped, which is what the
+// clipping is for. This check is about the axis labels, whose room the widget works out for itself
+const THRESHOLD_LABELS = ['High']
+const labelsOutside = (target) =>
+  target.evaluate((skip) => {
+    const bad = []
+    for (const l of window.__labels ?? []) {
+      if (skip.includes(l.t)) continue
+      const left = l.align === 'right' ? l.x - l.w : l.align === 'center' ? l.x - l.w / 2 : l.x
+      const top = l.baseline === 'top' ? l.y : l.baseline === 'middle' ? l.y - l.size / 2 : l.y - l.size
+      if (left < -2 || left + l.w > l.cw + 2 || top < -2 || top + l.size > l.ch + 2) {
+        bad.push({
+          t: l.t,
+          left: Math.round(left),
+          right: Math.round(left + l.w),
+          top: Math.round(top),
+          bottom: Math.round(top + l.size),
+          cw: l.cw,
+          ch: l.ch,
+        })
+      }
+    }
+    return { drawn: (window.__labels ?? []).filter((l) => !skip.includes(l.t)).length, bad }
+  }, THRESHOLD_LABELS)
 
 function launch() {
   for (const channel of ['msedge', 'chrome']) {
@@ -28,7 +79,9 @@ const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
 page.on('dialog', (d) => d.accept())
-await page.addInitScript((t) => {
+await page.addInitScript(
+  ({ t, capture }) => {
+  const CAPTURE = new Function('return ' + capture)()
   try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
   window.__frames = []
   const cr = CanvasRenderingContext2D.prototype.clearRect
@@ -46,7 +99,10 @@ await page.addInitScript((t) => {
       return orig.apply(this, a)
     }
   }
-}, TOKEN)
+  CAPTURE()
+  },
+  { t: TOKEN, capture: CAPTURE_LABELS.toString() }
+)
 
 let persistCount = 0
 const persistUrls = []
@@ -197,6 +253,13 @@ try {
   await page.waitForSelector(chartSel(CELL.tt) + ' canvas', { timeout: 20000 })
   await sleep(700)
 
+  const deskLabels = await labelsOutside(page)
+  ok(
+    'every axis label is drawn inside its canvas',
+    deskLabels.drawn > 20 && deskLabels.bad.length === 0,
+    `${deskLabels.drawn} drawn, off the edge: ${JSON.stringify(deskLabels.bad.slice(0, 3))}`
+  )
+
   const keys = page.locator(cellSel(CELL.multi) + ' .nh-chart__key')
   ok('legend shows 3 series', (await keys.count()) === 3, String(await keys.count()))
   const dotColors = await page.$$eval(cellSel(CELL.multi) + ' .nh-chart__key .nh-chart__dot', (els) =>
@@ -216,6 +279,31 @@ try {
   ok(
     'chips hidden when picker: false',
     (await page.locator(cellSel(CELL.nothresh) + ' .nh-chart__chips').count()) === 0
+  )
+
+  // the range choosers, the axis labels and the legend are text a person reads, so they sit at the tile's
+  // own size. A chip that parks in the name row would otherwise inherit its 0.8em and shrink again on top
+  // of its own, which put it at 8.7px on a real dashboard.
+  const readable = await page.evaluate((sel) => {
+    const cell = document.querySelector(sel)
+    if (!cell) return null
+    const size = (el) => (el ? Math.round(parseFloat(getComputedStyle(el).fontSize) * 10) / 10 : null)
+    return {
+      cell: size(cell),
+      chip: size(cell.querySelector('.nh-chart__chip')),
+      key: size(cell.querySelector('.nh-chart__key')),
+      inHeader: !!cell.querySelector('.nh-widget__aside .nh-chart__chip')
+    }
+  }, cellSel(CELL.multi))
+  ok(
+    'a range chooser is set at the tile’s own text size, wherever it parks',
+    readable !== null && readable.chip === readable.cell && readable.cell >= 12,
+    JSON.stringify(readable)
+  )
+  ok(
+    'and so is a legend key',
+    readable !== null && readable.key === readable.cell,
+    `key=${readable?.key} cell=${readable?.cell}`
   )
 
   const chipsOf = (i) => page.$$eval(cellSel(i) + ' .nh-chart__chip', (els) => els.map((e) => e.textContent.trim()))
@@ -503,13 +591,121 @@ try {
     await page.unroute('**/rest/persistence/items/**')
     await page.unroute('**/rest/persistence')
   }
+
+  // --- a phone-sized tile: the plot is the thing the widget is for -------------------------------
+  // Jon's own geometry: 12 columns, gap 6, square rows, a chart 7 wide and 2 tall. On a landscape
+  // phone that is a 493x136 tile, and uPlot's flat 50px x-axis took every pixel the plot had.
+  const fitSeed = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: FIT,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-chartfit',
+        name: 'E2E Chart fit',
+        columns: 12,
+        gap: 6,
+        rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-short',
+            type: 'chart',
+            config: { label: 'Short', period: '24h', live: false, series: [{ item: ITEMS.dimmer, label: 'S' }] },
+            layout: { lg: { x: 0, y: 0, w: 7, h: 2 } },
+          },
+          {
+            id: 'w-narrow',
+            type: 'chart',
+            config: { label: 'Narrow', period: '24h', live: false, series: [{ item: ITEMS.dimmer, label: 'N' }] },
+            layout: { lg: { x: 7, y: 0, w: 2, h: 4 } },
+          },
+        ],
+      },
+    }),
+  })
+  ok('fit dashboard created', fitSeed.ok, String(fitSeed.status))
+
+  const phone = await browser.newPage({ viewport: { width: 873, height: 393 }, hasTouch: true, isMobile: true })
+  await phone.addInitScript(
+    ({ t, capture }) => {
+      const CAPTURE = new Function('return ' + capture)()
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+        localStorage.setItem('neohab:themeOverride', 'dark')
+      } catch {}
+      CAPTURE()
+    },
+    { t: TOKEN, capture: CAPTURE_LABELS.toString() }
+  )
+  await phone.goto(APP + '#/d/nh-e2e-chartfit', { waitUntil: 'domcontentloaded' })
+  await phone.waitForSelector('.nh-chart canvas', { timeout: 20000 }).catch(() => {})
+  await sleep(1500)
+
+  const fitBoxes = await phone.evaluate(() => {
+    const box = (el) => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { w: Math.round(r.width), h: Math.round(r.height) }
+    }
+    const of = (label) => {
+      const cell = [...document.querySelectorAll('.nh-gcell')].find(
+        (c) => c.querySelector('.nh-widget__labeltext')?.textContent === label
+      )
+      const chips = cell?.querySelector('.nh-chart__chips')
+      return {
+        cell: box(cell),
+        canvas: box(cell?.querySelector('.nh-chart canvas')),
+        plot: box(cell?.querySelector('.u-over')),
+        expandInHeader: !!cell?.querySelector('.nh-widget__label .nh-chart__expand'),
+        chips: box(chips),
+        chip: box(chips?.querySelector('.nh-chart__chip')),
+        chipsScroll: chips ? { scroll: chips.scrollWidth, client: chips.clientWidth } : null,
+      }
+    }
+    return { short: of('Short'), narrow: of('Narrow') }
+  })
+  await phone.close()
+  const short = fitBoxes.short
+  const narrow = fitBoxes.narrow
+  ok('short tile: the chart is drawn at all', !!short.canvas && short.canvas.h > 0, JSON.stringify(short.canvas))
+  ok(
+    'short tile: the axes leave the plot at least half the canvas',
+    !!short.plot && !!short.canvas && short.plot.h >= short.canvas.h * 0.5 && short.plot.h >= 40,
+    `plot=${JSON.stringify(short.plot)} canvas=${JSON.stringify(short.canvas)}`
+  )
+  ok('short tile: the expand button rides in the name row', short.expandInHeader === true, `inHeader=${short.expandInHeader}`)
+  ok(
+    'narrow tile: they leave it at least half the canvas width',
+    !!narrow.plot && !!narrow.canvas && narrow.plot.w >= narrow.canvas.w * 0.5,
+    `plot=${JSON.stringify(narrow.plot)} canvas=${JSON.stringify(narrow.canvas)}`
+  )
+  ok(
+    'narrow tile: the chips stay on one row',
+    !!narrow.chips && !!narrow.chip && narrow.chips.h <= narrow.chip.h * 1.5,
+    `chips=${JSON.stringify(narrow.chips)} chip=${JSON.stringify(narrow.chip)}`
+  )
+  ok(
+    'and the chips that do not fit are still reachable by scrolling',
+    !!narrow.chipsScroll && narrow.chipsScroll.scroll > narrow.chipsScroll.client,
+    JSON.stringify(narrow.chipsScroll)
+  )
+
 } catch (err) {
   ok('run completed', false, String(err))
 } finally {
   await browser.close()
   const del = await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
-  const gone = (await fetch(NS + '/' + UID, { headers: AUTH })).status === 404
-  ok('cleanup: suite dashboard deleted', (del.ok || del.status === 404) && gone, `del=${del.status}`)
+  const delFit = await fetch(NS + '/' + FIT, { method: 'DELETE', headers: AUTH })
+  const gone =
+    (await fetch(NS + '/' + UID, { headers: AUTH })).status === 404 &&
+    (await fetch(NS + '/' + FIT, { headers: AUTH })).status === 404
+  ok(
+    'cleanup: suite dashboards deleted',
+    (del.ok || del.status === 404) && (delFit.ok || delFit.status === 404) && gone,
+    `del=${del.status}/${delFit.status}`
+  )
   await sendCmd(ITEMS.dimmer, initialLevel)
   await sleep(1000)
   const lvl = await getState(ITEMS.dimmer)

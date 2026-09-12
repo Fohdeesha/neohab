@@ -1,13 +1,14 @@
 // Timeline widget + analog clock e2e: bands from real persistence, explicit color maps (numeric-tolerant),
 // the tap-for-details line, period chips.
-// SAFE with a live config: creates only dashboard:nh-e2e-timeclock and the imported dashboard:nh-e2e-hpx
-// (both deleted), commands only the configured dimmer item (initial.
+// SAFE with a live config: creates only dashboard:nh-e2e-timeclock, dashboard:nh-e2e-tlfit and the
+// imported dashboard:nh-e2e-hpx (all deleted), commands only the configured dimmer item (initial.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-timeclock'
 const IMPORTED = 'dashboard:nh-e2e-hpx'
+const TLFIT = 'dashboard:nh-e2e-tlfit'
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -106,6 +107,18 @@ try {
   ok('dimmer row has bands', dimBands > 0, `bands=${dimBands}`)
   ok('temperature row has bands', tempBands > 0, `bands=${tempBands}`)
   ok('axis has four tick labels', (await page.locator('.nh-tl__axis span').count()) === 4)
+  // the clock along the bottom is text a person reads, so it sits at the tile's own size
+  const axisSize = await page.evaluate(() => {
+    const axis = document.querySelector('.nh-tl__axis')
+    const cell = axis?.closest('.nh-gcell, .nh-cell')
+    const px = (el) => (el ? Math.round(parseFloat(getComputedStyle(el).fontSize) * 10) / 10 : null)
+    return { axis: px(axis), cell: px(cell) }
+  })
+  ok(
+    'and they are set at the tile’s own text size',
+    axisSize.axis !== null && axisSize.axis === axisSize.cell && axisSize.cell >= 12,
+    JSON.stringify(axisSize)
+  )
 
   const lastBand = page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').last()
   const lastColor = await (async () => {
@@ -146,6 +159,120 @@ try {
     .catch(() => {})
   const after = await page.locator('.nh-tl__row').nth(0).locator('.nh-tl__band').count()
   ok('live state change starts a new band', after > before, `${before} -> ${after}`)
+
+
+  // --- a phone: the names cost width, and the clock has to be readable ---------------------------
+  // A landscape phone tile is short and wide (a 421x136 cell on Jon's board). The row names cost no
+  // height at all, so shedding them there left three unlabelled strips with no clock under them.
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: TLFIT,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-tlfit',
+        name: 'nh-e2e-tlfit',
+        columns: 12,
+        gap: 6,
+        rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-tlshort',
+            type: 'timeline',
+            config: {
+              series: [
+                { item: dimmer, label: 'Dim' },
+                { item: ITEMS.temperature, label: 'Temp' },
+              ],
+              period: '24h',
+            },
+            layout: { lg: { x: 0, y: 0, w: 6, h: 2 } },
+          },
+          {
+            id: 'w-tlnarrow',
+            type: 'timeline',
+            config: { series: [{ item: dimmer, label: 'Dim' }], period: '24h' },
+            layout: { lg: { x: 6, y: 0, w: 2, h: 4 } },
+          },
+        ],
+      },
+    }),
+  })
+
+  const phone = await browser.newPage({ viewport: { width: 873, height: 393 }, hasTouch: true, isMobile: true })
+  await phone.addInitScript((t) => {
+    try {
+      localStorage.setItem('neohab:apiToken', t)
+      localStorage.setItem('neohab:themeOverride', 'dark')
+    } catch {}
+  }, TOKEN)
+  const measureTl = () =>
+    phone.evaluate(() => {
+      const shown = (el) => !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0
+      const cells = [...document.querySelectorAll('.nh-gcell')].filter((c) => c.querySelector('.nh-tl__row'))
+      const of = (cell) => {
+        if (!cell) return null
+        const axis = cell.querySelector('.nh-tl__axis')
+        const spans = [...(axis?.querySelectorAll('span') ?? [])]
+          .filter((s) => getComputedStyle(s).display !== 'none')
+          .map((s) => {
+            const r = s.getBoundingClientRect()
+            return { t: s.textContent ?? '', x: Math.round(r.x), right: Math.round(r.right) }
+          })
+        let overlaps = 0
+        for (let i = 1; i < spans.length; i++) if (spans[i].x < spans[i - 1].right + 2) overlaps++
+        return {
+          width: Math.round(cell.getBoundingClientRect().width),
+          height: Math.round(cell.getBoundingClientRect().height),
+          names: [...cell.querySelectorAll('.nh-tl__name')].filter(shown).map((n) => n.textContent),
+          axisShown: shown(axis),
+          spans,
+          overlaps,
+          spill: (() => {
+            const cr = cell.getBoundingClientRect()
+            return [...cell.querySelectorAll('.nh-tl__row, .nh-tl__axis')].some(
+              (el) => el.getBoundingClientRect().bottom > cr.bottom + 1
+            )
+          })(),
+        }
+      }
+      const byWidth = cells.slice().sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)
+      return { wide: of(byWidth[0]), narrow: of(byWidth[byWidth.length - 1]) }
+    })
+
+  await phone.goto(APP + '#/d/nh-e2e-tlfit', { waitUntil: 'domcontentloaded' })
+  await phone.waitForSelector('.nh-tl__row', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+  const land = await measureTl()
+  ok(
+    'landscape phone: a short tile still names its rows',
+    (land.wide?.names.length ?? 0) === 2,
+    JSON.stringify(land.wide?.names) + ' in ' + land.wide?.width + 'x' + land.wide?.height
+  )
+  ok('landscape phone: and still shows the clock', land.wide?.axisShown === true, JSON.stringify(land.wide?.spans))
+  ok(
+    'landscape phone: the times do not run into each other',
+    (land.wide?.spans.length ?? 0) >= 2 && land.wide?.overlaps === 0,
+    `${land.wide?.spans.length} labels, ${land.wide?.overlaps} touching`
+  )
+  ok('landscape phone: nothing hangs out of the tile', land.wide?.spill === false)
+  ok(
+    'a tile too narrow for a name column drops it, keeping the bands',
+    land.narrow !== null && land.narrow.names.length === 0 && land.narrow.width < 200,
+    `names=${JSON.stringify(land.narrow?.names)} width=${land.narrow?.width}`
+  )
+
+  await phone.setViewportSize({ width: 393, height: 830 })
+  await sleep(900)
+  const port = await measureTl()
+  ok(
+    'portrait phone: the times do not run into each other',
+    (port.wide?.spans.length ?? 0) >= 2 && port.wide?.overlaps === 0,
+    `${JSON.stringify(port.wide?.spans.map((s) => s.t))} ${port.wide?.overlaps} touching`
+  )
+  await phone.close()
 
   const face = page.locator('#w-ana .nh-clock__face, .nh-clock__face')
   ok('analog face renders', (await page.locator('.nh-clock__face').count()) === 1)
@@ -292,13 +419,14 @@ try {
 
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + IMPORTED, { method: 'DELETE', headers: AUTH })
+await fetch(NS + '/' + TLFIT, { method: 'DELETE', headers: AUTH })
 const settingsBack = await restoreSettings(settingsOrig)
 ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
 await postItem(dimmer, dimmerOrig)
 await sleep(1200)
 const dimmerAfter = (await getItem(dimmer)).state
 ok('cleanup: dimmer restored', String(dimmerAfter) === String(dimmerOrig), `${dimmerAfter} vs ${dimmerOrig}`)
-for (const uid of [UID, IMPORTED]) {
+for (const uid of [UID, IMPORTED, TLFIT]) {
   const r = await fetch(NS + '/' + uid, { headers: AUTH })
   ok(`cleanup: ${uid} absent`, !r.ok)
 }
