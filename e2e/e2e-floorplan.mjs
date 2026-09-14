@@ -1,7 +1,7 @@
 // Floor plan + lighting presets e2e: the plan image styling pipeline, live glows, marker popups
 // (color/dimmer controls), the preset bar (save/capture, activate.
-// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-fplan, -fplan2, -fplan3
-// (neohab:config), one background:<id>, from the upload in section H (its.
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-fplan, -fplan2, -fplan3,
+// -fplan-ink (neohab:config), one background:<id>, from the upload in section H (its.
 import { launchChromium } from './lib/browser.mjs'
 import { readFile } from 'node:fs/promises'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
@@ -9,6 +9,7 @@ import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.m
 const UID = 'dashboard:nh-e2e-fplan'
 const UID2 = 'dashboard:nh-e2e-fplan2'
 const UID3 = 'dashboard:nh-e2e-fplan3'
+const UID4 = 'dashboard:nh-e2e-fplan-ink'
 const SCENE_UID = 'nh-scene-nh-e2e-evening'
 const BRIDGE_UID = 'nh-bridge-' + SCENE_UID
 const SETTLE_A = 'nh-scene-nh-e2e-settle-a'
@@ -310,13 +311,27 @@ try {
     near(actionsByItem[ITEMS.color], '120,50,80', 3) && near(actionsByItem[ITEMS.dimmer], '42', 1),
     JSON.stringify(actionsByItem))
 
-  const chip = await probe(page, () => {
-    const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
-    const c = chips.find((x) => x.textContent === 'NH E2E Evening')
-    return { present: !!c, active: c ? c.classList.contains('nh-chip--on') : false }
-  })
+  // the highlight is drawn from what the SETTLING layer is showing, and these are real lights: a
+  // bulb that echoes its pre-fade value holds the display back for the steady window while the
+  // capture has already read the settled state over REST. Waiting for it costs nothing when it is
+  // already there, and a preset that never lights up still fails.
+  let chip = { present: false, active: false }
+  for (let i = 0; i < 14; i++) {
+    chip = await probe(page, () => {
+      const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+      const c = chips.find((x) => x.textContent === 'NH E2E Evening')
+      return { present: !!c, active: c ? c.classList.contains('nh-chip--on') : false }
+    })
+    if (chip.active) break
+    await sleep(500)
+  }
   ok('preset chip appears in the bar', chip.present === true)
-  ok('value-matched highlight while states hold (admin)', chip.active === true)
+  // the highlight is a comparison between what the scene commands and what the items are doing
+  // RIGHT NOW, so when it goes red both sides have to be in the detail - a bare true/false says
+  // nothing about which of them moved
+  const live = { [ITEMS.dimmer]: await itemState(ITEMS.dimmer), [ITEMS.color]: await itemState(ITEMS.color) }
+  ok('value-matched highlight while states hold (admin)', chip.active === true,
+    `scene ${JSON.stringify(actionsByItem)} against live ${JSON.stringify(live)}`)
 
   await sendItem(ITEMS.dimmer, '80')
   await sleep(1800)
@@ -481,7 +496,7 @@ try {
     .setInputFiles({ name: 'evil.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(hostile)) })
   await sleep(1000)
   const refusal = await probe(page, () => ({
-    notice: document.querySelector('.nh-settings__notice')?.textContent ?? '',
+    notice: document.querySelector('.nh-toast__text')?.textContent ?? '',
     confirmOpen: !!document.querySelector('.nh-settings__importchoice'),
   }))
   ok('hostile preset uid refused before any choice is offered',
@@ -1119,37 +1134,217 @@ try {
   await tap(page, '.nh-pmgr__bar .nh-iconbtn')
   await sleep(800)
 
+  // --- a light ground. Screen blending is how light behaves on a dark plan and does exactly
+  // nothing on a white one, so an ink plan drew the house and none of its lighting.
+  await fetch(NS + '/' + encodeURIComponent(UID4), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID4,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-fplan-ink',
+        name: 'E2E Floorplan Ink',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-ink',
+            type: 'floorplan',
+            config: {
+              image: PLAN_URI,
+              planStyle: 'ink',
+              markers: false,
+              presetBar: false,
+              lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 15, y: 85, label: 'Glow' }],
+            },
+            layout: { lg: { x: 0, y: 0, w: 10, h: 6 } },
+          },
+          // a square tile, where the shape a stacked plan keeps is taller than its floor, beside a
+          // widget authored at the same rect whose height still comes from the row count
+          {
+            id: 'w-square',
+            type: 'floorplan',
+            config: { label: 'Square', image: PLAN_URI, planStyle: 'ink', markers: false, presetBar: false, lights: [] },
+            layout: { lg: { x: 0, y: 6, w: 6, h: 6 } },
+          },
+          {
+            id: 'w-ruler',
+            type: 'label',
+            config: { text: 'ruler' },
+            layout: { lg: { x: 6, y: 6, w: 6, h: 6 } },
+          },
+        ],
+      },
+    }),
+  })
+  const ink = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+  await ink.addInitScript((t) => {
+    try {
+      localStorage.setItem('neohab:apiToken', t)
+      localStorage.setItem('neohab:themeOverride', 'light')
+    } catch {}
+  }, TOKEN)
+  await putState(GLOW_ITEM, '0,0,0')
+  await ink.goto(APP + '#/d/nh-e2e-fplan-ink')
+  await ink.waitForSelector('.nh-fplan__img', { timeout: 20000 }).catch(() => {})
+  await sleep(2500)
+
+  // the clip is worked out from the plan rather than from the glow, because an unlit light draws
+  // no element at all
+  const inkGeom = await probe(ink, () => {
+    const layer = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
+    return layer ? { x: layer.left + layer.width * 0.15 - 20, y: layer.top + layer.height * 0.85 - 20 } : {}
+  })
+  const clip = { x: Math.round(inkGeom.x ?? 0), y: Math.round(inkGeom.y ?? 0), width: 40, height: 40 }
+  ok('the ink plan is on screen to be measured', (inkGeom.x ?? 0) > 0 && (inkGeom.y ?? 0) > 0, JSON.stringify(clip))
+
+  const darkBlend = await probe(page, () => {
+    const g = document.querySelector('.nh-fplan__glow')
+    return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
+  })
+  ok('a blueprint plan still screens its glows onto the dark ground',
+    darkBlend.blend === 'screen' && (darkBlend.count ?? 0) > 0, `${darkBlend.blend} over ${darkBlend.count} glows`)
+
+  const offA = await ink.screenshot({ clip })
+  const offB = await ink.screenshot({ clip })
+  ok('the same unlit plan shoots identically twice, so a difference means the glow',
+    Buffer.compare(offA, offB) === 0, `${offA.length}B vs ${offB.length}B`)
+
+  await putState(GLOW_ITEM, '30,80,90')
+  await ink.waitForSelector('.nh-fplan__glow', { timeout: 15000 }).catch(() => {})
+  await sleep(2500) // past the steady window, or the display is still holding the old value
+  const litBlend = await probe(ink, () => {
+    const g = document.querySelector('.nh-fplan__glow')
+    return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
+  })
+  ok('an ink plan multiplies its glows instead', litBlend.blend === 'multiply' && (litBlend.count ?? 0) === 1,
+    `${litBlend.blend} over ${litBlend.count} glows`)
+
+  const lit = await ink.screenshot({ clip })
+  ok('and the light actually marks the paper', Buffer.compare(offA, lit) !== 0,
+    `unlit ${offA.length}B, lit ${lit.length}B`)
+
+  // the drawing is placed by object-fit and the lights by containRect: they have to agree, or
+  // every glow lands off the room it is in
+  const agree = (p) =>
+    probe(p, () => {
+      const el = document.querySelector('.nh-fplan__img')
+      const layer = document.querySelector('.nh-fplan__layer')
+      if (!el || !layer || !el.naturalWidth) return {}
+      const box = el.getBoundingClientRect()
+      const l = layer.getBoundingClientRect()
+      const s = Math.min(box.width / el.naturalWidth, box.height / el.naturalHeight)
+      const w = el.naturalWidth * s
+      const h = el.naturalHeight * s
+      return {
+        dx: Math.round(Math.abs(box.left + (box.width - w) / 2 - l.left)),
+        dy: Math.round(Math.abs(box.top + (box.height - h) / 2 - l.top)),
+        dw: Math.round(Math.abs(w - l.width)),
+        dh: Math.round(Math.abs(h - l.height)),
+      }
+    })
+  const inkAgree = await agree(ink)
+  ok('the glow layer sits exactly where the drawing is',
+    inkAgree.dx <= 1 && inkAgree.dy <= 1 && inkAgree.dw <= 1 && inkAgree.dh <= 1,
+    JSON.stringify(inkAgree))
+
+  // stacked, a plan keeps the proportion it was authored at while everything else keeps its rows:
+  // both of these were given the same 6x6 rect
+  await ink.setViewportSize({ width: 393, height: 850 })
+  await ink.reload()
+  await ink.waitForSelector('.nh-grid--stacked .nh-fplan__img', { timeout: 20000 }).catch(() => {})
+  await sleep(1500)
+  const cards = await probe(ink, () => {
+    const cells = [...document.querySelectorAll('.nh-gcell')]
+    const height = (cell) => (cell ? Math.round(cell.getBoundingClientRect().height) : null)
+    // the SQUARE plan, not whichever floor plan comes first: on a wide tile the answer comes from
+    // the minimum height instead and the check would pass without the shape rule doing anything
+    const square = cells.find((c) => c.querySelector('.nh-widget__label')?.textContent?.trim() === 'Square')
+    return { plan: height(square), label: height(cells.find((c) => c.querySelector('.nh-label'))), cells: cells.length }
+  })
+  ok('a stacked plan keeps its shape where anything else keeps its rows',
+    (cards.label ?? 0) > 0 && (cards.plan ?? 0) > 0 && cards.plan < cards.label * 0.75,
+    `square plan card ${cards.plan}px, label card ${cards.label}px at the same 6x6, over ${cards.cells} cells`)
+  await ink.close().catch(() => {})
+
   const phone = await anonCtx.newPage()
   await phone.setViewportSize({ width: 393, height: 850 })
   await phone.goto(APP + '#/d/nh-e2e-fplan')
   await phone.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 20000 }).catch(() => {})
   await sleep(1500)
   const stacked = await probe(phone, () => {
-    const bar = document.querySelector('.nh-fplan__bar')?.getBoundingClientRect()
+    const barEl = document.querySelector('.nh-fplan__bar')
+    const bar = barEl?.getBoundingClientRect()
     const img = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
     const box = document.querySelector('.nh-fplan')?.getBoundingClientRect()
+    const cell = document.querySelector('.nh-gcell')?.getBoundingClientRect()
     const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
     const rows = new Set(chips.map((c) => Math.round(c.getBoundingClientRect().top))).size
-    return bar && img && box
+    return bar && img && box && cell
       ? {
           rows,
           chips: chips.length,
+          overflows: barEl.scrollWidth > barEl.clientWidth + 1,
+          // `safe center` has to fall back to the start when they overflow, or the first chip is
+          // centred off the left edge with no way to scroll back to it
+          firstClipped: Math.round((chips[0]?.getBoundingClientRect().left ?? 0) - bar.left) < -1,
           barTop: Math.round(bar.top),
           barBottom: Math.round(bar.bottom),
           barH: Math.round(bar.height),
+          chipH: Math.round(chips[0]?.getBoundingClientRect().height ?? 0),
+          planH: Math.round(img.height),
           planBottom: Math.round(img.bottom),
           boxBottom: Math.round(box.bottom),
+          cellH: Math.round(cell.height),
           room: Math.round(box.bottom - img.bottom),
         }
       : {}
   })
-  const barFits = (stacked.room ?? 0) >= (stacked.barH ?? 0)
-  ok('the chip bar places itself by how tall it really is',
-    (stacked.rows ?? 0) >= 2 &&
-      (barFits ? stacked.barTop >= stacked.planBottom - 4 : stacked.barBottom >= stacked.boxBottom - 12),
-    `${stacked.chips} chips on ${stacked.rows} rows (${stacked.barH}px) with ${stacked.room}px under the plan; ` +
+  // a stacked card's height was derived rather than drawn, so the plan gives the chips their room
+  // instead of being covered by them
+  ok('the chip bar sits under the plan on a stacked card, never over it',
+    stacked.barTop >= stacked.planBottom - 4 && stacked.barBottom <= stacked.boxBottom + 1,
+    `${stacked.chips} chips (${stacked.barH}px) with ${stacked.room}px under the plan; ` +
       `bar ${stacked.barTop}-${stacked.barBottom}, plan ends ${stacked.planBottom}, widget ends ${stacked.boxBottom}`)
+  // more chips than the width holds used to wrap, and every row past the first covered the plan
+  ok('too many chips for the width scroll sideways rather than wrapping over the plan',
+    (stacked.chips ?? 0) >= 4 &&
+      stacked.overflows === true &&
+      stacked.rows === 1 &&
+      stacked.barH <= stacked.chipH + 4 &&
+      stacked.firstClipped === false,
+    `${stacked.chips} chips on ${stacked.rows} row(s), bar ${stacked.barH}px vs chip ${stacked.chipH}px, ` +
+      `overflows=${stacked.overflows}, first chip clipped=${stacked.firstClipped}`)
+  // the card used to take its height from the desktop row count, so a plan needing 214px sat in
+  // 708px of card with the chips floating in the middle of the dead space. Measured against ONE
+  // chip row rather than the bar's own height, or a bar that wrapped into five rows would fill the
+  // card and count as no waste at all
+  const dead = (stacked.cellH ?? 0) - (stacked.planH ?? 0) - (stacked.chipH ?? 0)
+  ok('the stacked card is sized for the plan, not for its desktop row count',
+    (stacked.cellH ?? 0) > 0 && dead <= 80,
+    `card ${stacked.cellH}px holds a ${stacked.planH}px plan and a ${stacked.chipH}px chip row, ${dead}px spare`)
+  const phoneAgree = await agree(phone)
+  ok('the glow layer sits where the drawing is on a phone too',
+    phoneAgree.dx <= 1 && phoneAgree.dy <= 1 && phoneAgree.dw <= 1 && phoneAgree.dh <= 1,
+    JSON.stringify(phoneAgree))
   await phone.close().catch(() => {})
+
+  // the other regime: a tile somebody drew keeps the plan at the size they chose, and the chips lie
+  // over it where there is no room, which is what the desktop has always done
+  const drawn = await probe(page, () => {
+    const el = document.querySelector('.nh-fplan__img')
+    const box = document.querySelector('.nh-fplan')?.getBoundingClientRect()
+    const layer = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
+    if (!el?.naturalWidth || !box || !layer) return {}
+    const s = Math.min(box.width / el.naturalWidth, box.height / el.naturalHeight)
+    return { full: Math.round(el.naturalHeight * s), drawn: Math.round(layer.height), box: Math.round(box.height) }
+  })
+  ok('a tile drawn by hand never shrinks its plan to make room for the chips',
+    (drawn.full ?? 0) > 0 && Math.abs(drawn.full - drawn.drawn) <= 1,
+    `plan drawn ${drawn.drawn}px where the whole box gives ${drawn.full}px, box ${drawn.box}px`)
   const barAfter = await probe(page, () => ({
     chips: [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].map((c) => c.textContent.trim()),
   }))
@@ -1162,7 +1357,7 @@ try {
 } finally {
   await anonCtx?.close().catch(() => {})
   await browser.close().catch(() => {})
-  for (const uid of [UID, UID2, UID3, bgUid].filter(Boolean)) {
+  for (const uid of [UID, UID2, UID3, UID4, bgUid].filter(Boolean)) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   for (const uid of [BRIDGE_UID, SCENE_UID, SETTLE_A, SETTLE_B, MGR_UID, DOOMED_UID]) {
@@ -1178,7 +1373,7 @@ try {
   const stray = postRuleUids.filter((u) => !preRunRuleUids.includes(u))
   ok('no stray rules left behind', stray.length === 0, stray.join(','))
   const cfgLeft = await (await fetch(NS, { headers: AUTH })).json()
-  const mine = [UID, UID2, UID3, bgUid].filter(Boolean)
+  const mine = [UID, UID2, UID3, UID4, bgUid].filter(Boolean)
   const leftovers = cfgLeft.filter((c) => mine.includes(c.uid)).map((c) => c.uid)
   ok('dashboards and the uploaded plan removed', leftovers.length === 0, leftovers.join(','))
   const itemsLeft = []

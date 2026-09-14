@@ -12,8 +12,9 @@ import { exportComponent } from '../editor/exportComponent'
 import { ThemeEditor } from './ThemeEditor'
 import { DeviceThemeField } from './DeviceThemeField'
 import { LanguageField } from './LanguageField'
+import type { NoticeFn } from '../store/notify'
 
-export function AppearanceSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const settings = useConfigStore((s) => s.settings)
   const customThemes = useConfigStore((s) => s.customThemes)

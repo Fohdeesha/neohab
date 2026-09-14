@@ -85,9 +85,16 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               </div>
             </>
           ) : canEdit ? (
-            <p className="nh-welcome__text">
-              {t('There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.')}
-            </p>
+            <>
+              <p className="nh-welcome__text">
+                {t('There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.')}
+              </p>
+              <p className="nh-welcome__text">
+                <a href="docs/getting-started.html" target="_blank" rel="noreferrer">
+                  {t('Read the five-minute guide first →')}
+                </a>
+              </p>
+            </>
           ) : (
             <p className="nh-welcome__text">{t('There are no dashboards yet. Sign in as an openHAB administrator to set neohab up.')}</p>
           )}
@@ -99,10 +106,10 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               <button type="button" className="nh-btn" onClick={generateFirst}>
                 {t('Generate from my items')}
               </button>
-              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
+              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings', section: 'habpanel' })}>
                 {t('Import from HABPanel')}
               </button>
-              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings' })}>
+              <button type="button" className="nh-btn" onClick={() => navigate({ name: 'settings', section: 'backup' })}>
                 {t('Restore a backup')}
               </button>
             </div>

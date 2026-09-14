@@ -301,6 +301,36 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
     { key: 'setpointItem', type: 'item', label: 'Setpoint item', itemTypes: ['Number', 'Dimmer'] },
     { key: 'label', type: 'text', label: 'Name' },
     {
+      key: 'min',
+      type: 'number',
+      label: 'Minimum',
+      hint: "Leave the range empty to use the item's own, or 10-30 by 0.5 for Celsius and 50-90 by 1 for Fahrenheit."
+    },
+    { key: 'max', type: 'number', label: 'Maximum' },
+    { key: 'step', type: 'number', label: 'Step' },
+    { key: 'unit', type: 'text', label: 'Unit suffix', hint: 'Leave empty to use the unit the items report.' },
+    { key: 'sec-mode-fan-and-aux', type: 'section', label: 'Mode, fan and aux' },
+    { key: 'modeItem', type: 'item', label: 'Mode item', hint: 'Heat or cool. Leave empty to hide the mode buttons.' },
+    { key: 'heatCommand', type: 'text', label: 'Heat command', placeholder: 'HEAT', showIf: hasMode },
+    { key: 'coolCommand', type: 'text', label: 'Cool command', placeholder: 'COOL', showIf: hasMode },
+    { key: 'fanItem', type: 'item', label: 'Fan item', hint: 'Auto or on. Leave empty to hide the fan buttons.' },
+    { key: 'fanAutoCommand', type: 'text', label: 'Fan auto command', placeholder: 'AUTO', showIf: hasFan },
+    { key: 'fanOnCommand', type: 'text', label: 'Fan on command', placeholder: 'ON', showIf: hasFan },
+    { key: 'auxItem', type: 'item', label: 'Auxiliary heat item', hint: 'Leave empty to hide the aux button.' },
+    { key: 'auxOnCommand', type: 'text', label: 'Aux on command', placeholder: 'ON', showIf: hasAux },
+    { key: 'auxOffCommand', type: 'text', label: 'Aux off command', placeholder: 'OFF', showIf: hasAux },
+    { key: 'sec-status', type: 'section', label: 'Status' },
+    {
+      key: 'statusItem',
+      type: 'item',
+      label: 'Status item',
+      readOnly: true,
+      hint: 'What the system is doing now, if your thermostat reports it. The panel then says Heating, Cooling or Idle.'
+    },
+    { key: 'heatingStates', type: 'text', label: 'States that mean heating', placeholder: 'heating, HEATING, 1', showIf: hasStatus },
+    { key: 'coolingStates', type: 'text', label: 'States that mean cooling', placeholder: 'cooling, COOLING, 2', showIf: hasStatus },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
+    {
       key: 'look',
       type: 'select',
       label: 'Style',
@@ -311,33 +341,6 @@ export const thermostatWidget: WidgetDefinition<ThermostatConfig> = {
         { value: 'ring', label: 'Ring' }
       ]
     },
-    { key: 'modeItem', type: 'item', label: 'Mode item', hint: 'Heat or cool. Leave empty to hide the mode buttons.' },
-    { key: 'heatCommand', type: 'text', label: 'Heat command', placeholder: 'HEAT', showIf: hasMode },
-    { key: 'coolCommand', type: 'text', label: 'Cool command', placeholder: 'COOL', showIf: hasMode },
-    { key: 'fanItem', type: 'item', label: 'Fan item', hint: 'Auto or on. Leave empty to hide the fan buttons.' },
-    { key: 'fanAutoCommand', type: 'text', label: 'Fan auto command', placeholder: 'AUTO', showIf: hasFan },
-    { key: 'fanOnCommand', type: 'text', label: 'Fan on command', placeholder: 'ON', showIf: hasFan },
-    { key: 'auxItem', type: 'item', label: 'Auxiliary heat item', hint: 'Leave empty to hide the aux button.' },
-    { key: 'auxOnCommand', type: 'text', label: 'Aux on command', placeholder: 'ON', showIf: hasAux },
-    { key: 'auxOffCommand', type: 'text', label: 'Aux off command', placeholder: 'OFF', showIf: hasAux },
-    {
-      key: 'statusItem',
-      type: 'item',
-      label: 'Status item',
-      readOnly: true,
-      hint: 'What the system is doing now, if your thermostat reports it. The panel then says Heating, Cooling or Idle.'
-    },
-    { key: 'heatingStates', type: 'text', label: 'States that mean heating', placeholder: 'heating, HEATING, 1', showIf: hasStatus },
-    { key: 'coolingStates', type: 'text', label: 'States that mean cooling', placeholder: 'cooling, COOLING, 2', showIf: hasStatus },
-    {
-      key: 'min',
-      type: 'number',
-      label: 'Minimum',
-      hint: "Leave the range empty to use the item's own, or 10-30 by 0.5 for Celsius and 50-90 by 1 for Fahrenheit."
-    },
-    { key: 'max', type: 'number', label: 'Maximum' },
-    { key: 'step', type: 'number', label: 'Step' },
-    { key: 'unit', type: 'text', label: 'Unit suffix', hint: 'Leave empty to use the unit the items report.' },
     { key: 'heatColor', type: 'color', label: 'Heating color' },
     { key: 'coolColor', type: 'color', label: 'Cooling color' }
   ],

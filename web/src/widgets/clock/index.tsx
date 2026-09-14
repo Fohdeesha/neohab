@@ -220,6 +220,8 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
     { key: 'showSeconds', type: 'boolean', label: 'Show seconds', showIf: (c) => c.hideTime !== true },
     { key: 'showNumbers', type: 'boolean', label: 'Show numerals', showIf: isAnalog },
     { key: 'hour12', type: 'boolean', label: '12-hour clock', showIf: (c) => isDigital(c) && c.hideTime !== true },
+    { key: 'tileBackground', type: 'boolean', label: 'Show the tile background' },
+    { key: 'sec-time-zones', type: 'section', label: 'Time zones' },
     {
       key: 'timeZone',
       type: 'timezone',
@@ -254,8 +256,7 @@ export const clockWidget: WidgetDefinition<ClockConfig> = {
       ],
       hint: 'Which clock this tile follows. The server’s is usually the better kept of the two; hold the tile to compare them.'
     },
-    { key: 'otherZones', type: 'clockzones', label: 'Other zones' },
-    { key: 'tileBackground', type: 'boolean', label: 'Show the tile background' }
+    { key: 'otherZones', type: 'clockzones', label: 'Other zones' }
   ],
   Component: ClockWidget,
   DetailView: ClockDetail

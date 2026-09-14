@@ -2,6 +2,7 @@
 // the settings UI (read-only source) and the result is.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
+import { confirmHabpanelImport } from './lib/ui.mjs'
 
 
 {
@@ -36,6 +37,13 @@ page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
 page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => localStorage.setItem('neohab:apiToken', t), TOKEN)
 
+const confirmImport = (opts) => confirmHabpanelImport(page, opts)
+
+const settingsTheme = async () => {
+  const res = await fetch(NS + '/settings')
+  return res.ok ? ((await res.json())?.config?.theme ?? null) : null
+}
+
 try {
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('section:has(h2:text-is("Migrate from HABPanel"))', { timeout: 10000 })
@@ -49,6 +57,7 @@ try {
     ok('server config detected with a dashboard count', Number.isFinite(rowDash) && rowDash > 0, rowText?.slice(0, 80))
 
     await page.locator('.nh-hpimport__row').first().locator('button').click()
+    await confirmImport()
     await page.waitForSelector('.nh-report__head', { timeout: 30000 })
     const head = (await page.locator('.nh-report__head').textContent()) ?? ''
     const repDash = Number(/(\d+) dashboards/.exec(head)?.[1] ?? NaN)
@@ -107,10 +116,30 @@ try {
   }
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('section:has(h2:text-is("Migrate from HABPanel"))')
-  await page
-    .locator('section:has(h2:text-is("Migrate from HABPanel")) input[type="file"]')
-    .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
+  const dropSynthetic = () =>
+    page
+      .locator('section:has(h2:text-is("Migrate from HABPanel")) input[type="file"]')
+      .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
+
+  // this file carries settings.theme, which is stored once for the whole server: the sheet has to
+  // say so before it writes, and has to obey a no
+  const themeBefore = await settingsTheme()
+  await dropSynthetic()
+  await page.waitForSelector('.nh-sheet .nh-hpconfirm', { timeout: 15000 })
+  const disclosure = await page.locator('.nh-hpconfirm__shared').textContent()
+  ok('the sheet names the shared setting it would change', /Theme/.test(disclosure ?? ''), (disclosure ?? 'none').slice(0, 90))
+  ok('and offers it ticked', await page.locator('.nh-hpconfirm__shared input[type="checkbox"]').isChecked())
+
+  await page.click('.nh-hpconfirm__shared input[type="checkbox"]')
+  await page.click('.nh-sheet .nh-form__footer button:has-text("Import")')
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
+  ok('declining leaves the shared theme alone', (await settingsTheme()) === themeBefore, `${themeBefore} -> ${await settingsTheme()}`)
+  ok(
+    'and the report says so rather than claiming it applied',
+    /left as they are/.test((await page.locator('.nh-report__list').textContent()) ?? ''),
+    'report notes'
+  )
+
   const head2 = await page.locator('.nh-report__head').textContent()
   ok('file import: 1 dashboard, 3 widgets (unknown skipped)', /1 dashboards/.test(head2) && /3 widgets/.test(head2), head2 ?? '')
   const skipNote = await page.locator('.nh-report__item--skip').textContent()
@@ -123,6 +152,17 @@ try {
     JSON.stringify(synthTypes) === JSON.stringify(['button', 'dial', 'timeline']),
     JSON.stringify(synthTypes)
   )
+
+  // the same file again, accepted this time: the shared theme it names is what should land.
+  // The previous report is still on screen, so wait for the WRITE rather than for the report.
+  await dropSynthetic()
+  await confirmImport()
+  let themeAfter = null
+  for (let i = 0; i < 30 && themeAfter !== 'material'; i++) {
+    await sleep(500)
+    themeAfter = await settingsTheme()
+  }
+  ok('accepting applies the shared theme', themeAfter === 'material', String(themeAfter))
 
   ok('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '))
 } catch (err) {

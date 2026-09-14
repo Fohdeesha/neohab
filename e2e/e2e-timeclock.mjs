@@ -4,6 +4,7 @@
 // imported dashboard:nh-e2e-hpx (all deleted), commands only the configured dimmer item (initial.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { confirmHabpanelImport } from './lib/ui.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-timeclock'
@@ -388,6 +389,7 @@ try {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(hpFile)),
   })
+  await confirmHabpanelImport(page)
   await page.waitForSelector('.nh-report', { timeout: 15000 })
   const report = await page.textContent('.nh-report')
   ok('import report shown', report?.includes('1 dashboards'), report?.slice(0, 120))

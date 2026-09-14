@@ -29,8 +29,10 @@ neohab is a community project and is not an official openHAB UI.
   HTTP, which is how most home openHAB servers are reached. Install below says what changes if
   you switch, including the certificate an app install needs and what happens to `http://`
   cameras.
-- Charts, timelines, gauge sparklines and stat trends read history from a **persistence service**.
-  Any one will do; the widgets say so if none is set up.
+- Charts, timelines, gauge sparklines and stat trends read history from a **persistence service**
+  that keeps a series and can be queried: rrd4j, InfluxDB, JDBC and the in-memory service all do.
+  MapDB is the exception - it stores only each item's last value, which is what restores states at
+  startup, so there is no history for a chart to draw. The widgets say so when they cannot read any.
 
 ## Install
 
@@ -41,7 +43,10 @@ neohab is a community project and is not an official openHAB UI.
    - Docker: whatever you mounted at `/openhab/addons` (the file has to be readable by uid 9001)
    - manual zip install: `<openhab-home>/addons`
 3. It is picked up in a few seconds, no restart. `openhab.log` says `Started neohab at /neohab`.
-4. Open **http://your-server:8080/neohab/**.
+4. Open **http://your-server:8080/neohab/**. It ships with a
+   [getting-started guide](docs/getting-started.md), served at `/neohab/docs/getting-started.html`
+   and linked from the welcome screen: signing in, a first dashboard, binding an item, the phone
+   layout and backups.
 
 It appears on the openHAB start page too. The jar is about 6 MB; a much smaller one did not build
 properly and will install cleanly and then serve nothing.
@@ -107,6 +112,11 @@ Import your panels from **Settings › Migrate from HABPanel**, either straight 
 from a `habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped across, and
 panel names become web addresses, so "Bedroom Lighting" arrives as `bedroom-lighting`. You get a
 report of what came over cleanly, what was approximated, and what needs a look.
+
+Before it writes anything it says what it found and what it would change. A panel configuration can
+carry a theme, a background image and the speech item, and those are stored once for the whole
+server rather than per device, so they are listed on their own and you can decline them and still
+take the dashboards.
 
 If nothing is found on your server, HABPanel is probably keeping your panels in the browser rather
 than in openHAB. Open HABPanel, save the panel configuration to the server or export it, and come
@@ -183,9 +193,10 @@ translate it.
 - **Timeline.** The same history as colored state bands, one row per item. The right shape for
   switches, presence and modes.
 
-  Anything that draws history (charts, timelines, gauge sparklines, stat trends) reads it from
-  whichever **persistence service** your openHAB uses. Any of them will do. If none is set up, the
-  widgets say so and tell you what to do about it.
+  Anything that draws history (charts, timelines, gauge sparklines, stat trends) reads it from a
+  **persistence service** that keeps a series and can be queried, which rrd4j, InfluxDB, JDBC and
+  the in-memory service all do. MapDB keeps only each item's last value, so there is nothing for a
+  chart to draw. If there is no history to read, the widgets say so and tell you what to do about it.
 - **Gauges.** Six looks, from a classic arc slider to an LED ring, tick ring, tachometer arc,
   block segments and a 3D clay face. All share color thresholds, alarm ranges, arcs and half
   gauges, tick scales, reference markers, zones, an inline history sparkline, and an optional
@@ -335,9 +346,11 @@ See **[Making a theme](docs/theming.md)** for the tokens, the class names and th
   merging. Lighting presets ride along when the exporting device may read them. A single
   dashboard, widget or theme exports on its own and takes what it uses with it, so it works on
   someone else's server.
-- **Version history.** Every change is preceded by a restore point. Look back through a dated
-  list, see exactly what changed field by field, and roll the whole configuration back.
-  Twenty-five are kept by default.
+- **Version history.** A restore point is taken before a change, and then not again for five
+  minutes, so a session of editing leaves one point you can go back to rather than one per
+  keystroke. Look back through a dated list, see exactly what changed field by field, and roll the
+  whole configuration back. Twenty-five points are kept, and both that and the five minutes are
+  settings.
 - **Hard to break.** Configuration that did not come from the editor is treated as untrusted
   wherever it is read, and a widget that cannot make sense of its own settings becomes one tile
   saying so rather than a blank page. Whatever a hand edit, an old backup or someone else's export

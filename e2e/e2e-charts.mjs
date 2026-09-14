@@ -592,6 +592,50 @@ try {
     await page.unroute('**/rest/persistence')
   }
 
+  // --- full screen: the plot IS the page --------------------------------------------------------
+  // The page existed since the feature landed and nothing had ever measured its plot, only where the
+  // expand button sits. A percentage height on the chart never resolved against the plot box, so the
+  // chart fell back to its 240px floor and left four fifths of a 1000px window empty.
+  {
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForSelector(chartSel(CELL.multi) + ' canvas', { timeout: 25000 })
+    await sleep(1500)
+    await page.click(cellSel(CELL.multi) + ' .nh-chart__expand')
+    await page.waitForSelector('.nh-chartview__plot canvas', { timeout: 25000 }).catch(() => {})
+    await sleep(2000)
+    const full = await page.evaluate(() => {
+      const box = (s) => {
+        const el = document.querySelector(s)
+        return el ? Math.round(el.getBoundingClientRect().height) : -1
+      }
+      return {
+        route: location.hash,
+        plot: box('.nh-chartview__plot'),
+        chart: box('.nh-chartview__plot .nh-chart'),
+        canvas: box('.nh-chartview__plot canvas'),
+        docH: document.documentElement.scrollHeight,
+        winH: innerHeight,
+      }
+    })
+    ok('full screen: the expand button opens the chart page', full.route.startsWith('#/c/'), full.route)
+    // the precondition the rest of this section needs: without a plot box far taller than the 240px
+    // floor, "the chart fills it" would be true of the broken build too
+    ok('full screen: the plot box has most of the window', full.plot > 700, `plot=${full.plot} win=${full.winH}`)
+    ok(
+      'full screen: the chart fills the plot box',
+      full.chart > 0 && full.plot - full.chart <= 30,
+      `chart=${full.chart} of plot=${full.plot}`
+    )
+    ok(
+      'full screen: the canvas is drawn at that height',
+      full.canvas > 0 && Math.abs(full.canvas - full.chart) <= 4,
+      `canvas=${full.canvas} chart=${full.chart}`
+    )
+    ok('full screen: the page does not scroll', full.docH <= full.winH + 2, `doc=${full.docH} win=${full.winH}`)
+    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+    await sleep(800)
+  }
+
   // --- a phone-sized tile: the plot is the thing the widget is for -------------------------------
   // Jon's own geometry: 12 columns, gap 6, square rows, a chart 7 wide and 2 tall. On a landscape
   // phone that is a 493x136 tile, and uPlot's flat 50px x-axis took every pixel the plot had.

@@ -4,6 +4,7 @@
 // check) and its own background:* uploads; the `settings`.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { confirmHabpanelImport } from './lib/ui.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
 const results = []
@@ -209,6 +210,7 @@ try {
   await page
     .locator('section:has(h2:text-is("Migrate from HABPanel")) input[type="file"]')
     .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
+  await confirmHabpanelImport(page)
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
   const importedSettings = await getSettings()
   ok('importer set the global background', importedSettings.config.background === 'https://example.invalid/habpanel-bg.jpg', String(importedSettings.config.background))

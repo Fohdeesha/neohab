@@ -5,8 +5,9 @@ import { setAudioSettings, useAudioStore } from '../store/audio'
 import { listVoices, onVoicesChanged, recognitionSupported, speak, ttsSupported } from '../audio/speech'
 import { ItemPicker } from '../components/ItemPicker'
 import { useEditingAllowed } from '../store/auth'
+import type { NoticeFn } from '../store/notify'
 
-export function VoiceAudioSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function VoiceAudioSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const audio = useAudioStore((s) => s.settings)
   const blocked = useAudioStore((s) => s.blocked)

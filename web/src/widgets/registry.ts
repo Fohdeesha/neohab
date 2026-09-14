@@ -39,6 +39,10 @@ export function instanceMinHeight(type: string, config: Record<string, unknown>)
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0
 }
 
+export function instanceFixedShape(type: string): boolean {
+  return registry.get(type)?.fixedShape === true
+}
+
 // one rule for "does this instance draw a title bar": the panel offers the name settings off it, and
 // WidgetHost honours labelMode: 'none' off it
 export function hasHeaderFor(def: AnyWidgetDefinition | undefined, config: Record<string, unknown>): boolean {

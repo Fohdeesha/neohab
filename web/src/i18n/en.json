@@ -13,6 +13,8 @@
   "{{count}} could not be restored because their stored image is gone._other": "{{count}} could not be restored because their stored image is gone.",
   "{{count}} custom widgets_one": "{{count}} custom widget",
   "{{count}} custom widgets_other": "{{count}} custom widgets",
+  "{{count}} dashboards_one": "{{count}} dashboard",
+  "{{count}} dashboards_other": "{{count}} dashboards",
   "{{count}} fields_one": "{{count}} field",
   "{{count}} fields_other": "{{count}} fields",
   "{{count}} group items, each with its members_one": "{{count}} group item, with its members",

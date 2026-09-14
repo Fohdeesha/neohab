@@ -138,18 +138,7 @@ export const statWidget: WidgetDefinition<StatConfig> = {
     { key: 'label', type: 'text', label: 'Name' },
     { key: 'unit', type: 'text', label: 'Unit suffix' },
     { key: 'caption', type: 'text', label: 'Caption', hint: 'A small line under the reading, naming what it measures.' },
-    {
-      key: 'align',
-      type: 'select',
-      label: 'Alignment',
-      options: [
-        { value: 'left', label: 'Left' },
-        { value: 'center', label: 'Center' },
-        { value: 'right', label: 'Right' }
-      ]
-    },
-    { key: 'color', type: 'color', label: 'Value color' },
-    { key: 'severity', type: 'gaugeseverity', label: 'Color stops' },
+    { key: 'sec-trend', type: 'section', label: 'Trend' },
     {
       key: 'trend',
       type: 'select',
@@ -185,9 +174,23 @@ export const statWidget: WidgetDefinition<StatConfig> = {
       hint: 'Arrows are drawn green when the reading moved the good way and red when it moved the other way.',
       showIf: trending
     },
+    { key: 'sec-second-reading', type: 'section', label: 'Second reading' },
     { key: 'subItem', type: 'item', label: 'Second reading' },
     { key: 'subText', type: 'text', label: 'Second reading (fixed text)', showIf: (c) => !c.subItem },
     { key: 'subCaption', type: 'text', label: 'Second caption' },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
+    {
+      key: 'align',
+      type: 'select',
+      label: 'Alignment',
+      options: [
+        { value: 'left', label: 'Left' },
+        { value: 'center', label: 'Center' },
+        { value: 'right', label: 'Right' }
+      ]
+    },
+    { key: 'color', type: 'color', label: 'Value color' },
+    { key: 'severity', type: 'gaugeseverity', label: 'Color stops' },
     { key: 'badge', type: 'text', label: 'Badge', hint: 'A short marker beside the reading, e.g. an exception code.' },
     { key: 'badgeColor', type: 'color', label: 'Badge color', showIf: (c) => typeof c.badge === 'string' && c.badge !== '' },
     { key: 'icon', type: 'icon', label: 'Icon' },

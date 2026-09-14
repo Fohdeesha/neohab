@@ -121,6 +121,21 @@ export const batteryWidget: WidgetDefinition<BatteryConfig> = {
     { key: 'item', type: 'item', label: 'openHAB Item', readOnly: true, hint: 'A Number or Dimmer item holding the charge.' },
     { key: 'label', type: 'text', label: 'Name' },
     {
+      key: 'min',
+      type: 'number',
+      label: 'Input minimum',
+      hint: 'The item value that means empty, and below the one that means full. Anything in between is scaled to a percent.'
+    },
+    { key: 'max', type: 'number', label: 'Input maximum' },
+    {
+      key: 'chargingItem',
+      type: 'item',
+      label: 'Charging item',
+      readOnly: true,
+      hint: 'An item that is ON, OPEN or above zero while charging. It lights the bolt.'
+    },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
+    {
       key: 'style',
       type: 'select',
       label: 'Style',
@@ -148,20 +163,6 @@ export const batteryWidget: WidgetDefinition<BatteryConfig> = {
     },
     { key: 'midBelow', type: 'number', label: 'Amber below', min: 0, max: 100, showIf: isLevel },
     { key: 'lowBelow', type: 'number', label: 'Red below', min: 0, max: 100, showIf: isLevel },
-    {
-      key: 'min',
-      type: 'number',
-      label: 'Input minimum',
-      hint: 'The item value that means empty, and below the one that means full. Anything in between is scaled to a percent.'
-    },
-    { key: 'max', type: 'number', label: 'Input maximum' },
-    {
-      key: 'chargingItem',
-      type: 'item',
-      label: 'Charging item',
-      readOnly: true,
-      hint: 'An item that is ON, OPEN or above zero while charging. It lights the bolt.'
-    },
     {
       key: 'caption',
       type: 'text',

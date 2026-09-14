@@ -4,6 +4,7 @@
 // import flow) dashboard:nh-tsimport; deletes exactly those in.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { confirmHabpanelImport } from './lib/ui.mjs'
 
 const UID = 'dashboard:nh-e2e-textsize'
 const IMPORT_UID = 'dashboard:nh-tsimport'
@@ -231,6 +232,7 @@ try {
   await hpSection
     .locator('input[type="file"]')
     .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
+  await confirmHabpanelImport(page)
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
   const imported = await (await fetch(NS + '/' + encodeURIComponent(IMPORT_UID), { headers: AUTH })).json()
   ok('font_scale 1.5 imports as textSize 150', Number(imported?.config?.textSize) === 150, String(imported?.config?.textSize))

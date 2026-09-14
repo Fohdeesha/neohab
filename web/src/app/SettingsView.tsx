@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useEditingAllowed } from '../store/auth'
+import { dismissNotice, notify, type NoticeFn } from '../store/notify'
+import { useRoute } from './router'
 import { NavButton } from './Sidebar'
 import { IncompatibleNotice } from '../components/IncompatibleNotice'
 import { AppearanceSection } from '../settings/AppearanceSection'
@@ -39,8 +41,30 @@ function Anchor({ id, children }: { id: string; children: ReactNode }) {
 
 export function SettingsView() {
   const { t } = useTranslation()
-  const [notice, setNotice] = useState<string | null>(null)
   const canEdit = useEditingAllowed()
+  const route = useRoute()
+  const wanted = route.name === 'settings' ? route.section : undefined
+
+  // the page is thousands of pixels long, so a message rendered at the top of it was routinely
+  // off-screen from wherever the reader had just pressed something
+  const raised = useRef<number | null>(null)
+  const setNotice = useCallback<NoticeFn>((message, kind) => {
+    if (raised.current !== null) dismissNotice(raised.current)
+    raised.current = message === null ? null : notify(message, { sticky: kind !== 'done' })
+  }, [])
+  useEffect(() => () => setNotice(null), [setNotice])
+
+  const jumpTo = (id: string) => document.getElementById('nh-sec-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  // a section named in the address arrives before the sections have rendered, and an id that names
+  // nothing (or an admin section this reader cannot see) simply leaves the page at the top
+  useEffect(() => {
+    if (!wanted) return
+    const at = requestAnimationFrame(() => {
+      document.getElementById('nh-sec-' + wanted)?.scrollIntoView({ block: 'start' })
+    })
+    return () => cancelAnimationFrame(at)
+  }, [wanted, canEdit])
 
   return (
     <div className="nh-dash">
@@ -50,17 +74,11 @@ export function SettingsView() {
       </header>
 
       <div className="nh-settings">
-        {notice ? <div className="nh-settings__notice">{notice}</div> : null}
-
         <IncompatibleNotice />
 
         <nav className="nh-settings__index" aria-label={t('Settings sections')}>
           {SECTIONS.filter((s) => canEdit || !s.admin).map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="nh-settings__indexlink"
-              onClick={() => document.getElementById('nh-sec-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+            <button key={s.id} type="button" className="nh-settings__indexlink" onClick={() => jumpTo(s.id)}>
               {t(s.label)}
             </button>
           ))}

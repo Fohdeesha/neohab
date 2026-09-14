@@ -188,6 +188,34 @@ export function textScale(dashboard: Dashboard, rowHeight: number, coarsePointer
   return dashTextScale(dashboard) * baseTextScale(dashboard, rowHeight, coarsePointer)
 }
 
+/**
+ * How tall one widget is in the stack.
+ *
+ * The row count is the rule for everything whose content stretches. It is the wrong rule for a
+ * widget drawing something with a shape of its own: a 12x6 floor plan is 2:1 on the desktop and
+ * becomes 0.6:1 full-width on a phone, so the plan letterboxes into a third of the card and the
+ * rest is dead space. Such a widget keeps the PROPORTION its author gave the tile instead.
+ *
+ * Only ever shorter than the row count, never taller - a tall narrow tile was letterboxed on the
+ * desktop too, and that is the author's own layout rather than something the stack invented.
+ */
+export function stackedCellHeight(
+  dashboard: Dashboard,
+  rect: Rect,
+  stackedWidth: number,
+  minPixelHeight: number,
+  fixedShape: boolean
+): number {
+  const { gap, colWidth, rowHeight } = cellMetrics(dashboard, STACK_REFERENCE_WIDTH)
+  const rows = rect.h * rowHeight
+  const min = Number.isFinite(minPixelHeight) ? minPixelHeight : 0
+  if (!fixedShape) return Math.round(Math.max(rows, min))
+  const authoredW = rect.w * colWidth + (rect.w - 1) * gap
+  const authoredH = rect.h * rowHeight + (rect.h - 1) * gap
+  const shaped = authoredW > 0 && stackedWidth > 0 ? (stackedWidth * authoredH) / authoredW : rows
+  return Math.round(Math.max(Math.min(rows, shaped), min))
+}
+
 export const STACK_COMFORT_HEIGHT = 96
 
 export function stackedTextScale(dashboard: Dashboard, unit: number, cellHeight: number, coarsePointer: boolean): number {

@@ -32,6 +32,7 @@ const widgets = listWidgetDefinitions()
 const UNIVERSAL_KEYS = ['labelMode', 'labelAlign', 'labelPosition', 'accent', 'accentColor', 'textSize', 'hideOn']
 
 const RENDERABLE: Record<SettingField['type'], true> = {
+  section: true,
   item: true,
   icon: true,
   text: true,
@@ -76,6 +77,16 @@ const readOnlyItems = (def: (typeof widgets)[number]): string[] =>
 type SelectField = Extract<SettingField, { type: 'select' }>
 const selectsOf = (def: (typeof widgets)[number]): SelectField[] =>
   (def.settings ?? []).filter((f): f is SelectField => f.type === 'select')
+
+const isSection = (f: SettingField): f is Extract<SettingField, { type: 'section' }> => f.type === 'section'
+const isBinding = (f: SettingField) => f.type === 'item' || f.type === 'itempattern'
+
+// what the panel actually draws for a widget nobody has configured yet: a field behind a showIf its
+// own defaults do not satisfy costs the reader nothing
+const visibleAtDefault = (def: (typeof widgets)[number]): SettingField[] => {
+  const effective = effectiveOf(def)
+  return (def.settings ?? []).filter((f) => isSection(f) || !f.showIf || f.showIf(effective))
+}
 
 describe('every widget settings schema', () => {
   it('has widgets registered to check', () => {
@@ -466,6 +477,50 @@ describe('every widget settings schema', () => {
     const all = widgets.flatMap((d) => (d.settings ?? []).filter((f) => f.type === 'text'))
     expect(all.some((f) => f.subresource === true)).toBe(true)
     expect(all.some((f) => f.subresource === false)).toBe(true)
+  })
+
+  it('asks what a widget is bound to before how it looks', () => {
+    const bound = widgets.filter((def) => visibleAtDefault(def).some(isBinding))
+    // the rule is worth nothing if no widget it applies to is on screen at its defaults
+    expect(bound.length).toBeGreaterThan(10)
+    const late: string[] = []
+    for (const def of bound) {
+      const fields = visibleAtDefault(def)
+      const at = fields.findIndex(isBinding)
+      if (at > 2) late.push(`${def.type}: first item field at ${at} (${fields[at].key})`)
+    }
+    expect(late).toEqual([])
+  })
+
+  it('folds a long panel into groups', () => {
+    const flat = widgets.filter((def) => (def.settings ?? []).length > 10 && !(def.settings ?? []).some(isSection))
+    expect(flat.map((d) => d.type)).toEqual([])
+    expect(widgets.filter((def) => (def.settings ?? []).some(isSection)).length).toBeGreaterThan(5)
+  })
+
+  it('never declares a group with nothing under it', () => {
+    const bad: string[] = []
+    for (const def of widgets) {
+      const fields = def.settings ?? []
+      fields.forEach((f, i) => {
+        if (!isSection(f)) return
+        const next = fields[i + 1]
+        if (!next || isSection(next)) bad.push(`${def.type}.${f.key}: no fields under it`)
+      })
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('names each of a widget’s groups once', () => {
+    const clashes: string[] = []
+    for (const def of widgets) {
+      const seen = new Set<string>()
+      for (const f of (def.settings ?? []).filter(isSection)) {
+        if (seen.has(f.label)) clashes.push(`${def.type}: two groups called “${f.label}”`)
+        seen.add(f.label)
+      }
+    }
+    expect(clashes).toEqual([])
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

@@ -189,6 +189,30 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
     { key: 'item', type: 'item', label: 'openHAB Item' },
     { key: 'label', type: 'text', label: 'Name' },
     {
+      key: 'mode',
+      type: 'select',
+      label: 'Value',
+      options: [
+        { value: 'number', label: 'Number' },
+        { value: 'list', label: 'List of choices' }
+      ],
+      hint: "A number steps by the step size within its range. A list cycles through the choices below, or the item's own options when none are given."
+    },
+    { key: 'min', type: 'number', label: 'Minimum', showIf: isNumber },
+    { key: 'max', type: 'number', label: 'Maximum', showIf: isNumber },
+    { key: 'step', type: 'number', label: 'Step', showIf: isNumber },
+    { key: 'unit', type: 'text', label: 'Unit suffix', showIf: isNumber },
+    {
+      key: 'choices',
+      type: 'multiline',
+      label: 'Choices (one per line, COMMAND=Label)',
+      placeholder: 'HDMI1=Apple TV\nHDMI2=Xbox',
+      showIf: isList,
+      hint: "Leave empty to use the item's own options."
+    },
+    { key: 'wrap', type: 'boolean', label: 'Wrap around at the ends', showIf: isList },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
+    {
       key: 'look',
       type: 'select',
       label: 'Style',
@@ -226,30 +250,7 @@ export const stepperWidget: WidgetDefinition<StepperConfig> = {
         { value: 'arrow', label: 'Straight arrows' }
       ],
       hint: 'Automatic uses plus and minus for a number and chevrons for a list.'
-    },
-    {
-      key: 'mode',
-      type: 'select',
-      label: 'Value',
-      options: [
-        { value: 'number', label: 'Number' },
-        { value: 'list', label: 'List of choices' }
-      ],
-      hint: "A number steps by the step size within its range. A list cycles through the choices below, or the item's own options when none are given."
-    },
-    { key: 'min', type: 'number', label: 'Minimum', showIf: isNumber },
-    { key: 'max', type: 'number', label: 'Maximum', showIf: isNumber },
-    { key: 'step', type: 'number', label: 'Step', showIf: isNumber },
-    { key: 'unit', type: 'text', label: 'Unit suffix', showIf: isNumber },
-    {
-      key: 'choices',
-      type: 'multiline',
-      label: 'Choices (one per line, COMMAND=Label)',
-      placeholder: 'HDMI1=Apple TV\nHDMI2=Xbox',
-      showIf: isList,
-      hint: "Leave empty to use the item's own options."
-    },
-    { key: 'wrap', type: 'boolean', label: 'Wrap around at the ends', showIf: isList }
+    }
   ],
   itemKeys: (c) => [c.item],
   canCommand: () => true,

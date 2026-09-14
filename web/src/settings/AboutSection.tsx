@@ -118,6 +118,17 @@ export function AboutSection() {
         <dt>{t('Persistence')}</dt>
         <dd>{persistence}</dd>
 
+        <dt>{t('Guides')}</dt>
+        <dd>
+          <a href="docs/getting-started.html" target="_blank" rel="noreferrer">
+            {t('Getting started')}
+          </a>
+          {' · '}
+          <a href="docs/theming.html" target="_blank" rel="noreferrer">
+            {t('Theming')}
+          </a>
+        </dd>
+
         <dt>{t('Project')}</dt>
         <dd>
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">

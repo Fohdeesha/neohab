@@ -11,6 +11,7 @@ import {
   isHiddenOn,
   projectDashboard,
   rectOf,
+  stackedCellHeight,
   stackedOrder,
   stackedTextScale,
   surfaceFor,
@@ -24,7 +25,7 @@ import {
   widgetTextScale,
   STACK_REFERENCE_WIDTH
 } from '../model/layout'
-import { instanceMinHeight } from '../widgets/registry'
+import { instanceFixedShape, instanceMinHeight } from '../widgets/registry'
 import { useEditingAllowed } from '../store/auth'
 import { WidgetHost } from './WidgetHost'
 import { useCoarsePointer } from './useCoarsePointer'
@@ -39,18 +40,20 @@ function Cell({
   style,
   instance,
   editing,
+  stacked,
   onDetail
 }: {
   className: string
   style: React.CSSProperties
   instance: WidgetInstance
   editing: boolean
+  stacked?: boolean
   onDetail: (w: WidgetInstance) => void
 }) {
   const press = useLongPress(() => onDetail(instance), !editing && instanceHasDetail(instance.type, instance.config))
   return (
     <div className={className} style={style} {...press}>
-      <WidgetHost instance={instance} editing={editing} />
+      <WidgetHost instance={instance} editing={editing} stacked={stacked} />
     </div>
   )
 }
@@ -112,12 +115,13 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
         }>
         {ordered.map((w) => {
           const min = instanceMinHeight(w.type, w.config)
-          const height = Math.round(Math.max(rectOf(w).h * unit, min))
+          const height = stackedCellHeight(dashboard, rectOf(w), width, min, instanceFixedShape(w.type))
           return (
             <Cell
               key={w.id}
               instance={w}
               editing={editing}
+              stacked
               onDetail={openDetail}
               className={
                 'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '') + (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')

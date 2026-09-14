@@ -7,6 +7,7 @@ import {
   hiddenSurfaces,
   iconScale,
   rectOf,
+  stackedCellHeight,
   stackedOrder,
   stackedTextScale,
   widgetAccent,
@@ -17,10 +18,11 @@ import {
   widgetTextScale,
   STACK_REFERENCE_WIDTH
 } from '../model/layout'
-import { instanceMinHeight } from '../widgets/registry'
+import { instanceFixedShape, instanceMinHeight } from '../widgets/registry'
 import { addToSelection, selectWidget, toggleWidgetSelection, updateDashboardMeta, useEditorStore } from '../store/editor'
 import { CellHandle } from './CellHandle'
 import { useCoarsePointer } from './useCoarsePointer'
+import { useContainerWidth } from './useContainerWidth'
 import { WidgetHost } from './WidgetHost'
 
 const LONG_PRESS_MS = 500
@@ -39,6 +41,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const [drag, setDrag] = useState<DragState | null>(null)
   const coarse = useCoarsePointer()
+  const gridRef = useRef<HTMLDivElement>(null)
+  const width = useContainerWidth(gridRef)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const longPressRef = useRef<number | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)
@@ -128,8 +132,13 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
 
   let nonDragged = 0
 
+  // the measured container stays mounted, like Grid: a cell whose height follows the stacked width
+  // would otherwise paint one frame at the wrong size and jump
+  if (width === 0) return <div ref={gridRef} className="nh-grid nh-grid--stacked nh-grid--stackedit" />
+
   return (
     <div
+      ref={gridRef}
       className="nh-grid nh-grid--stacked nh-grid--stackedit"
       style={
         {
@@ -142,7 +151,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
       onPointerCancel={() => setDrag(null)}>
       {ordered.map((widget) => {
         const min = instanceMinHeight(widget.type, widget.config)
-        const height = Math.round(Math.max(rectOf(widget).h * unit, min))
+        const height = stackedCellHeight(dashboard, rectOf(widget), width, min, instanceFixedShape(widget.type))
         const isDragging = drag?.id === widget.id
         const indicator = drag && !isDragging && nonDragged++ === drag.insertPos
         return (
@@ -172,7 +181,7 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                   transform: isDragging ? `translateY(${drag.dy}px)` : undefined
                 } as React.CSSProperties
               }>
-              <WidgetHost instance={widget} editing />
+              <WidgetHost instance={widget} editing stacked />
               {/* a real button, matching the wide grid: Tab reaches every widget, Enter selects */}
               <button
                 type="button"

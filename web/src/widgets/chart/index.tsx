@@ -408,6 +408,7 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       label: 'Default period',
       options: PERIOD_IDS.map((p) => ({ value: p, label: p }))
     },
+    { key: 'sec-ranges', type: 'section', label: 'Ranges' },
     {
       key: 'picker',
       type: 'boolean',
@@ -429,6 +430,7 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       label: 'Full-screen button',
       hint: 'Adds ⤢ to the chart, opening it full screen with calendar navigation (a day, week, month or year at a time).'
     },
+    { key: 'sec-axes-and-legend', type: 'section', label: 'Axes and legend' },
     {
       key: 'legend',
       type: 'boolean',
@@ -436,6 +438,12 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       hint: 'Shown when the chart has two or more series; clicking an entry hides its series.',
       showIf: isPlot
     },
+    { key: 'thresholds', type: 'chartthresholds', label: 'Thresholds', showIf: isPlot },
+    { key: 'yMin', type: 'number', label: 'Y axis min', showIf: (c) => isPlot(c) && yInUse(c) },
+    { key: 'yMax', type: 'number', label: 'Y axis max', showIf: (c) => isPlot(c) && yInUse(c) },
+    { key: 'y2Min', type: 'number', label: 'Right Y axis min', showIf: (c) => isPlot(c) && y2InUse(c) },
+    { key: 'y2Max', type: 'number', label: 'Right Y axis max', showIf: (c) => isPlot(c) && y2InUse(c) },
+    { key: 'sec-data', type: 'section', label: 'Data' },
     {
       key: 'live',
       type: 'boolean',
@@ -443,11 +451,6 @@ export const chartWidget: WidgetDefinition<ChartConfig> = {
       hint: 'Append item changes as they happen, between history refreshes.',
       showIf: (c) => isPlot(c) && !isGrouped(c)
     },
-    { key: 'thresholds', type: 'chartthresholds', label: 'Thresholds', showIf: isPlot },
-    { key: 'yMin', type: 'number', label: 'Y axis min', showIf: (c) => isPlot(c) && yInUse(c) },
-    { key: 'yMax', type: 'number', label: 'Y axis max', showIf: (c) => isPlot(c) && yInUse(c) },
-    { key: 'y2Min', type: 'number', label: 'Right Y axis min', showIf: (c) => isPlot(c) && y2InUse(c) },
-    { key: 'y2Max', type: 'number', label: 'Right Y axis max', showIf: (c) => isPlot(c) && y2InUse(c) },
     { key: 'service', type: 'text', label: 'Persistence service (optional)' },
     { key: 'refresh', type: 'number', label: 'Refresh (seconds)', min: 10 },
     {

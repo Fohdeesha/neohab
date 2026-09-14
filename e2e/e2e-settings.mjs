@@ -120,7 +120,7 @@ try {
   ok('import offers merge/replace choice', await page.locator('button:has-text("Merge into current")').isVisible())
   await page.click('button:has-text("Replace everything")')
   await sleep(2500)
-  ok('replace import reports success', await page.locator('.nh-settings__notice:has-text("Backup imported")').isVisible())
+  ok('replace import reports success', await page.locator('.nh-toast__text:has-text("Backup imported")').isVisible())
   const afterImport = await restGet(NS + '/settings')
   ok('config intact after replace round-trip', afterImport.status === 200 && afterImport.body?.config?.theme === 'oled')
 
@@ -137,7 +137,7 @@ try {
   await page.waitForSelector('.nh-settings__importchoice', { timeout: 5000 })
   await page.click('button:has-text("Merge into current")')
   await sleep(2500)
-  ok('merge import reports success', await page.locator('.nh-settings__notice:has-text("merged")').isVisible())
+  ok('merge import reports success', await page.locator('.nh-toast__text:has-text("merged")').isVisible())
   const survivor = await restGet(NS + '/dashboard:nh-e2e-merge')
   ok('merge keeps components not in the bundle', survivor.status === 200)
   const merged = await restGet(NS + '/dashboard:nh-e2e-set')

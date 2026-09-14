@@ -8,6 +8,9 @@ export interface WidgetContext {
   getItem: (name: string) => ItemState | undefined
   sendCommand: (item: string, command: string) => Promise<boolean>
   editing: boolean
+  // the stacked surface derives the cell's height rather than taking one the author drew, so a
+  // widget may fit its own parts into it. On a tile somebody sized by hand, it may not.
+  stacked?: boolean
 }
 
 export interface WidgetProps<C = Record<string, unknown>> {
@@ -21,7 +24,11 @@ interface SettingCommon {
 }
 
 export type SettingField = SettingCommon &
+  // not a value: it starts a named group, and everything after it belongs to that group until the
+  // next one. What comes BEFORE the first marker is the widget's essentials, shown with no heading
+  // and never folded away.
   (
+    | { key: string; type: 'section'; label: string }
     | { key: string; type: 'item'; label: string; itemTypes?: string[]; readOnly?: boolean }
     | { key: string; type: 'icon'; label: string }
     | { key: string; type: 'text'; label: string; placeholder?: string; subresource?: boolean }
@@ -62,6 +69,9 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   description: string
   defaultSize: { w: number; h: number }
   minPixelHeight?: number | ((config: C) => number)
+  // draws something with a shape of its own (a plan image), so the stacked surface keeps the
+  // proportion the author gave the tile instead of its row count - see stackedCellHeight
+  fixedShape?: boolean
   hasHeader?: boolean | ((config: C) => boolean)
   labelModes?: { options: { value: string; label: string }[]; hint?: string }
   defaultConfig: () => C

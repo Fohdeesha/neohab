@@ -19,6 +19,7 @@ import {
   projectDashboard,
   rectOf,
   SIDE_PANEL_WIDTH,
+  stackedCellHeight,
   stackedOrder,
   stackedTextScale,
   surfaceFor,
@@ -209,6 +210,51 @@ describe('scaling', () => {
     expect(widgetTextScale(w('a', { x: 0, y: 0, w: 1, h: 1 }, { textSize: '150' }))).toBeCloseTo(1.5)
     expect(widgetTextScale(w('a', { x: 0, y: 0, w: 1, h: 1 }, { textSize: 100 }))).toBeUndefined()
     expect(widgetTextScale(w('a', { x: 0, y: 0, w: 1, h: 1 }, { textSize: 'huge' }))).toBeUndefined()
+  })
+})
+
+describe('stackedCellHeight', () => {
+  const PHONE = 369
+  const rect = (over: Partial<Rect> = {}): Rect => ({ x: 0, y: 0, w: 12, h: 6, ...over })
+
+  it('keeps the row count for a widget whose content stretches', () => {
+    const d = dash([], { gap: 6 })
+    const unit = cellMetrics(d, 1280).rowHeight
+    expect(stackedCellHeight(d, rect(), PHONE, 0, false)).toBe(Math.round(6 * unit))
+  })
+
+  it('gives a fixed-shape widget the proportion it was authored at', () => {
+    const d = dash([], { gap: 6 })
+    const h = stackedCellHeight(d, rect(), PHONE, 0, true)
+    // authored 12 columns by 6 rows is 2:1 at the reference width, so full width on a phone is half of it
+    expect(h).toBeGreaterThan(PHONE / 2 - 4)
+    expect(h).toBeLessThan(PHONE / 2 + 4)
+    expect(h).toBeLessThan(stackedCellHeight(d, rect(), PHONE, 0, false))
+  })
+
+  it('never makes a tall narrow tile taller than the row count', () => {
+    const d = dash([], { gap: 6 })
+    const tall = rect({ w: 3, h: 8 })
+    expect(stackedCellHeight(d, tall, PHONE, 0, true)).toBe(stackedCellHeight(d, tall, PHONE, 0, false))
+  })
+
+  it('honours the minimum height either way', () => {
+    const d = dash([], { gap: 6 })
+    expect(stackedCellHeight(d, rect(), PHONE, 400, true)).toBe(400)
+    expect(stackedCellHeight(d, rect({ h: 1 }), PHONE, 400, false)).toBe(400)
+  })
+
+  it('follows a numeric row height rather than assuming square cells', () => {
+    const square = dash([], { gap: 6 })
+    const squat = dash([], { gap: 6, rowHeight: 40 })
+    expect(stackedCellHeight(squat, rect(), PHONE, 0, true)).toBeLessThan(stackedCellHeight(square, rect(), PHONE, 0, true))
+  })
+
+  it('survives a width of zero and a broken dashboard', () => {
+    const d = dash([], { gap: 6 })
+    expect(Number.isFinite(stackedCellHeight(d, rect(), 0, 0, true))).toBe(true)
+    const broken = dash([], { columns: 0 as number, gap: 6 })
+    expect(Number.isFinite(stackedCellHeight(broken, rect(), PHONE, 0, true))).toBe(true)
   })
 })
 

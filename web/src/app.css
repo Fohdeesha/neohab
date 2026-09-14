@@ -2022,6 +2022,7 @@ button {
   border-top: 1px solid var(--nh-border);
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .nh-form__error {
@@ -2857,15 +2858,17 @@ button {
   white-space: nowrap;
 }
 
+/* a column, like .nh-chartwrap: a percentage height on the chart never resolves here, so it fell
+   back to the 240px floor and drew a fifth of the page */
 .nh-chartview__plot {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
 }
 
 .nh-chartview__plot .nh-chart {
-  width: 100%;
-  height: 100%;
   min-height: 240px;
 }
 
@@ -4929,6 +4932,46 @@ button {
   letter-spacing: 0.05em;
 }
 
+/* deliberately no horizontal padding: the fields inside keep exactly the width they have outside a
+   group, so nothing in the 391px panel gets narrower for being grouped */
+.nh-form__group {
+  border-top: 1px solid var(--nh-border);
+}
+
+.nh-form__grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--nh-text);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.nh-form__grouphead::-webkit-details-marker {
+  display: none;
+}
+
+.nh-form__grouphead::before {
+  content: '▸';
+  display: inline-block;
+  color: var(--nh-text-dim);
+  transition: transform 120ms ease;
+}
+
+.nh-form__group[open] > .nh-form__grouphead::before {
+  transform: rotate(90deg);
+}
+
+.nh-form__groupbody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 6px;
+}
+
 .nh-form__section {
   margin: 14px 0 4px;
   font-size: 0.85rem;
@@ -5024,6 +5067,43 @@ button {
   border: 1px solid var(--nh-border);
   border-radius: 10px;
   font-size: 0.92rem;
+}
+
+.nh-hpimport__failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.nh-hpimport__failed .nh-settings__notice {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.nh-hpconfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nh-hpconfirm__list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nh-hpconfirm__shared {
+  padding: 12px 14px;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .nh-report {
@@ -6236,7 +6316,8 @@ button {
 .nh-fplan__glow {
   position: absolute;
   pointer-events: none;
-  mix-blend-mode: screen;
+  /* screen on a dark ground, multiply on a light one - the widget decides, see glowBlendFor */
+  mix-blend-mode: var(--nh-glow-blend, screen);
 }
 
 .nh-fplan__marker {
@@ -6291,9 +6372,20 @@ button {
   right: 8px;
   bottom: 8px;
   display: flex;
-  flex-wrap: wrap;
+  /* one row that scrolls sideways, like the chart's period chips: a house with several presets
+     wrapped to three or four rows on a phone, and every row past the first covered the plan and
+     the lights it controls. `safe` centres them until they overflow, then starts from the left so
+     the first chip is reachable */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
   gap: 6px;
-  justify-content: center;
+  justify-content: safe center;
+}
+
+.nh-fplan__bar::-webkit-scrollbar {
+  display: none;
 }
 
 .nh-chip--action {
@@ -6304,6 +6396,7 @@ button {
   min-height: 47px;
   padding: 8px 16px;
   font-size: 1.1rem;
+  flex: 0 0 auto;
 }
 
 .nh-fplan__scrim {

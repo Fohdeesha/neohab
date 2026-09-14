@@ -4,8 +4,9 @@ import { SignInSheet } from '../editor/SignInSheet'
 import { clearApiToken, getBasicCredentials, isLoggedIn, logout, onBasicCredentialsChange } from '../api/auth'
 import { refreshAuthStatus, useAuthStore } from '../store/auth'
 import { useConfigStore } from '../store/config'
+import type { NoticeFn } from '../store/notify'
 
-export function AccountSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function AccountSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const status = useAuthStore((s) => s.status)
   const authRequired = useConfigStore((s) => s.authRequired)
@@ -41,7 +42,7 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
             void logout()
             clearApiToken()
             void refreshAuthStatus()
-            onNotice(t('Signed out on this device.'))
+            onNotice(t('Signed out on this device.'), 'done')
           }}>
           {t('Sign out on this device')}
         </button>
@@ -71,7 +72,7 @@ export function AccountSection({ onNotice }: { onNotice: (m: string | null) => v
           onClose={() => setSignInOpen(false)}
           onToken={() => {
             setSignInOpen(false)
-            onNotice(t('Signed in on this device.'))
+            onNotice(t('Signed in on this device.'), 'done')
           }}
         />
       ) : null}

@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 export type Route =
   | { name: 'home' }
   | { name: 'dashboard'; id: string }
-  | { name: 'settings' }
+  | { name: 'settings'; section?: string }
   | { name: 'chart'; dashboard: string; widget: string }
   | { name: 'log'; dashboard: string; widget: string }
 
@@ -19,7 +19,8 @@ function decodeSegment(segment: string): string {
 
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, '').split('?')[0] || '/'
-  if (path === '/settings') return { name: 'settings' }
+  const settings = /^\/settings(?:\/([^/]+))?$/.exec(path)
+  if (settings) return settings[1] ? { name: 'settings', section: decodeSegment(settings[1]) } : { name: 'settings' }
   const chart = /^\/c\/([^/]+)\/(.+)$/.exec(path)
   if (chart) {
     return { name: 'chart', dashboard: decodeSegment(chart[1]), widget: decodeSegment(chart[2]) }
@@ -70,7 +71,7 @@ export function navigate(route: Route): void {
     route.name === 'dashboard'
       ? '/d/' + encodeURIComponent(route.id)
       : route.name === 'settings'
-        ? '/settings'
+        ? '/settings' + (route.section ? '/' + encodeURIComponent(route.section) : '')
         : route.name === 'chart'
           ? '/c/' + encodeURIComponent(route.dashboard) + '/' + encodeURIComponent(route.widget)
           : route.name === 'log'

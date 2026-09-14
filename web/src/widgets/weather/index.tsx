@@ -180,6 +180,7 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       hint: 'Degrees or a cardinal name; shown beside the wind speed.'
     },
     { key: 'precipProbItem', type: 'item', label: 'Precipitation chance item', itemTypes: ['Number'], showIf: isItems },
+    { key: 'sec-forecast', type: 'section', label: 'Forecast' },
     { key: 'showDaily', type: 'boolean', label: 'Daily forecast' },
     { key: 'days', type: 'number', label: 'Days', min: 1, max: 7, showIf: wantsDaily },
     { key: 'showHourly', type: 'boolean', label: 'Hourly forecast', showIf: isOm },
@@ -190,27 +191,6 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
       min: 3,
       max: 24,
       showIf: (c) => isOm(c) && c.showHourly !== false
-    },
-    {
-      key: 'stripOf',
-      type: 'select',
-      label: 'Strip shows',
-      options: [
-        { value: 'days', label: 'Days' },
-        { value: 'hours', label: 'Hours' }
-      ],
-      showIf: isStrip,
-      hint: 'Hours need the Open-Meteo source; in items mode the strip shows days.'
-    },
-    { key: 'stripCurrent', type: 'boolean', label: 'Current conditions beside the strip', showIf: isStrip },
-    { key: 'showFeels', type: 'boolean', label: 'Feels like', showIf: isHero },
-    { key: 'showHumidity', type: 'boolean', label: 'Humidity', showIf: isHero },
-    { key: 'showWind', type: 'boolean', label: 'Wind', showIf: isHero },
-    {
-      key: 'showPrecip',
-      type: 'boolean',
-      label: 'Precipitation',
-      hint: 'The chance of precipitation, on the current conditions and every forecast column.'
     },
     {
       key: 'dayHighPattern',
@@ -241,6 +221,28 @@ export const weatherWidget: WidgetDefinition<WeatherConfig> = {
         { value: 'today', label: 'Today' }
       ],
       showIf: itemsDaily
+    },
+    { key: 'sec-what-to-show', type: 'section', label: 'What to show' },
+    {
+      key: 'stripOf',
+      type: 'select',
+      label: 'Strip shows',
+      options: [
+        { value: 'days', label: 'Days' },
+        { value: 'hours', label: 'Hours' }
+      ],
+      showIf: isStrip,
+      hint: 'Hours need the Open-Meteo source; in items mode the strip shows days.'
+    },
+    { key: 'stripCurrent', type: 'boolean', label: 'Current conditions beside the strip', showIf: isStrip },
+    { key: 'showFeels', type: 'boolean', label: 'Feels like', showIf: isHero },
+    { key: 'showHumidity', type: 'boolean', label: 'Humidity', showIf: isHero },
+    { key: 'showWind', type: 'boolean', label: 'Wind', showIf: isHero },
+    {
+      key: 'showPrecip',
+      type: 'boolean',
+      label: 'Precipitation',
+      hint: 'The chance of precipitation, on the current conditions and every forecast column.'
     }
   ],
   itemKeys: (c) => {

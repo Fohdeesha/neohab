@@ -13,16 +13,21 @@ import type { FloorplanLight } from './model'
 
 const ONE_CHIP_ROW = 55
 
+// matches .nh-fplan__bar's own bottom inset: the room the bar needs is its height plus that
+export const BAR_INSET = 8
+
 export function PresetBar({
   ctx,
   lights,
   spaceBelow = 0,
-  toggleOff = false
+  toggleOff = false,
+  onHeight
 }: {
   ctx: WidgetContext
   lights: FloorplanLight[]
   spaceBelow?: number
   toggleOff?: boolean
+  onHeight?: (height: number) => void
 }) {
   const { t } = useTranslation()
   const admin = useIsAdmin()
@@ -43,7 +48,13 @@ export function PresetBar({
   const states = useItemsStore((s) => s.states)
   const settled = useSettledState()
 
-  if (!loaded || (summaries.length === 0 && !admin)) return null
+  const shown = loaded && (summaries.length > 0 || admin)
+  // the plan is fitted around the bar, so the widget has to be told when there is no bar at all
+  useEffect(() => {
+    onHeight?.(shown ? barHeight : 0)
+  }, [shown, barHeight, onHeight])
+
+  if (!shown) return null
 
   const stateOf = (item: string) => settled(item, states[item]?.state)
 

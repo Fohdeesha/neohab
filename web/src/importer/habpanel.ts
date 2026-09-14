@@ -35,16 +35,18 @@ export interface ImportNote {
   level: NoteLevel
   message: string
   params?: Record<string, string>
+  // reports something written to the SHARED settings, which the reader can decline before importing
+  shared?: boolean
 }
 
 class Report {
   notes = new Map<string, ImportNote & { count: number }>()
 
-  add(level: NoteLevel, message: string, params?: Record<string, string>): void {
+  add(level: NoteLevel, message: string, params?: Record<string, string>, shared?: boolean): void {
     const key = message + (params ? JSON.stringify(params) : '')
     const existing = this.notes.get(key)
     if (existing) existing.count++
-    else this.notes.set(key, { level, message, params, count: 1 })
+    else this.notes.set(key, { level, message, params, count: 1, shared })
   }
 
   list(): (ImportNote & { count: number })[] {
@@ -523,7 +525,8 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
         report.add(
           'info',
           'The “{{theme}}” theme was imported. Its colors are a port of HABPanel’s, and you can edit them under Settings › Appearance.',
-          { theme: hpTheme }
+          { theme: hpTheme },
+          true
         )
       }
     } else {
@@ -533,7 +536,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   const background = str(cfg.settings.background_image)
   if (background) {
     settingsPatch.background = background
-    report.add('info', 'The panel background image was imported as the global background')
+    report.add('info', 'The panel background image was imported as the global background', undefined, true)
   }
   const stylesheet = str(cfg.settings.additional_stylesheet_url)
   if (stylesheet) {
@@ -546,7 +549,7 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
   const speechItem = str(cfg.settings.speech_synthesis_item)
   if (speechItem) {
     settingsPatch.speechItem = speechItem
-    report.add('info', 'The speech item was imported; each device chooses whether (and with which voice) it speaks')
+    report.add('info', 'The speech item was imported; each device chooses whether (and with which voice) it speaks', undefined, true)
   }
   if (cfg.settings.hide_speak_button === true) {
     settingsPatch.voiceButton = false
@@ -554,4 +557,42 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
 
   const widgetCount = dashboards.reduce((sum, d) => sum + d.widgets.length, 0)
   return { dashboards, widgetDefs, settingsPatch, widgetCount, notes: report.list() }
+}
+
+export interface SharedSettingNote {
+  key: keyof AppSettings
+  label: string
+  value?: string
+}
+
+/**
+ * What an import would change for every device rather than only for this one. The settings
+ * component is shared, so a theme that rode in with someone's dashboards repainted their wall
+ * panels too - which the confirmation has to say before anything is written.
+ */
+export function sharedSettingsNotes(patch: Partial<AppSettings>): SharedSettingNote[] {
+  const notes: SharedSettingNote[] = []
+  if (patch.theme) notes.push({ key: 'theme', label: 'Theme', value: patch.theme })
+  if (patch.background) notes.push({ key: 'background', label: 'Background image' })
+  if (patch.speechItem) notes.push({ key: 'speechItem', label: 'Speech item', value: patch.speechItem })
+  if (patch.voiceButton === false) notes.push({ key: 'voiceButton', label: 'The voice button, hidden' })
+  return notes
+}
+
+// the dashboards and widgets, with nothing that reaches another device - and a report that does not
+// claim to have applied what it was told to leave alone
+export function withoutSharedSettings(result: HabpanelImportResult): HabpanelImportResult {
+  if (sharedSettingsNotes(result.settingsPatch).length === 0) return result
+  return {
+    ...result,
+    settingsPatch: {},
+    notes: [
+      ...result.notes.filter((n) => !n.shared),
+      {
+        level: 'info',
+        message: 'HABPanel’s shared settings were left as they are, as you asked.',
+        count: 1
+      }
+    ]
+  }
 }

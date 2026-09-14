@@ -38,6 +38,21 @@ jobs:
           java-version: 21
           cache: maven
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # the maven build runs `npm install`, which never lints, never runs the unit suite, and
+      # tolerates a lockfile that has drifted out of step with package.json - so a release could
+      # publish a jar from a tree CI would have refused
+      - name: Check the frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run check
+
       - name: Check the tag matches the version in pom.xml
         id: version
         run: |

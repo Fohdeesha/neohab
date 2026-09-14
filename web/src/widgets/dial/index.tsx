@@ -37,9 +37,12 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Dimmer', 'Number'] },
     { key: 'label', type: 'text', label: 'Name' },
-    { key: 'icon', type: 'icon', label: 'Icon' },
-    { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
-    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
+    { key: 'min', type: 'number', label: 'Minimum' },
+    { key: 'max', type: 'number', label: 'Maximum' },
+    { key: 'step', type: 'number', label: 'Step' },
+    { key: 'unit', type: 'text', label: 'Unit suffix' },
+    { key: 'readOnly', type: 'boolean', label: 'Read-only gauge' },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
     {
       key: 'style',
       type: 'select',
@@ -53,10 +56,25 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
         { value: '3d', label: '3D' }
       ]
     },
-    { key: 'min', type: 'number', label: 'Minimum' },
-    { key: 'max', type: 'number', label: 'Maximum' },
-    { key: 'step', type: 'number', label: 'Step' },
-    { key: 'unit', type: 'text', label: 'Unit suffix' },
+    { key: 'icon', type: 'icon', label: 'Icon' },
+    { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
+    { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
+    {
+      key: 'color',
+      type: 'color',
+      label: 'Color',
+      showIf: ring,
+      hint: 'Used when no color stop matches; clear it to follow the theme.'
+    },
+    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', showIf: ring },
+    {
+      key: 'centerLabel',
+      type: 'boolean',
+      label: 'Name inside the face',
+      showIf: ring,
+      hint: 'Draws the Name above the reading instead of in the tile header.'
+    },
+    { key: 'bloom', type: 'boolean', label: 'Center glow', showIf: ring },
     {
       key: 'showMax',
       type: 'boolean',
@@ -64,8 +82,8 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       showIf: ring,
       hint: 'Draws the reading over its scale maximum: "39 / 58".'
     },
-    { key: 'readOnly', type: 'boolean', label: 'Read-only gauge' },
     { key: 'ledCount', type: 'number', label: 'Segments', min: 8, max: 200, showIf: segmented },
+    { key: 'hideUnlit', type: 'boolean', label: 'Hide unlit LEDs', showIf: segmented },
     {
       key: 'arcSweep',
       type: 'number',
@@ -91,28 +109,13 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       showIf: ring,
       hint: 'Lights from zero - or the range midpoint - toward the value.'
     },
-    {
-      key: 'color',
-      type: 'color',
-      label: 'Color',
-      showIf: ring,
-      hint: 'Used when no color stop matches; clear it to follow the theme.'
-    },
-    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', showIf: ring },
-    {
-      key: 'centerLabel',
-      type: 'boolean',
-      label: 'Name inside the face',
-      showIf: ring,
-      hint: 'Draws the Name above the reading instead of in the tile header.'
-    },
-    { key: 'bloom', type: 'boolean', label: 'Center glow', showIf: ring },
-    { key: 'hideUnlit', type: 'boolean', label: 'Hide unlit LEDs', showIf: segmented },
+    { key: 'sec-scale-and-markers', type: 'section', label: 'Scale and markers' },
     { key: 'showTicks', type: 'boolean', label: 'Scale ticks', showIf: ring },
     { key: 'tickSteps', type: 'number', label: 'Scale steps', min: 1, max: 20, showIf: ringTicks },
     { key: 'showTickLabels', type: 'boolean', label: 'Scale labels', showIf: ringTicks },
     { key: 'markers', type: 'gaugemarkers', label: 'Markers', showIf: ring },
     { key: 'zones', type: 'gaugezones', label: 'Zones', showIf: ring },
+    { key: 'sec-alarm', type: 'section', label: 'Alarm' },
     {
       key: 'alarm',
       type: 'boolean',
@@ -122,6 +125,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     },
     { key: 'alarmFrom', type: 'number', label: 'Alarm from', showIf: ringAlarm },
     { key: 'alarmTo', type: 'number', label: 'Alarm to', showIf: ringAlarm },
+    { key: 'sec-history', type: 'section', label: 'History' },
     {
       key: 'history',
       type: 'boolean',
@@ -152,6 +156,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       ],
       showIf: ringHistory
     },
+    { key: 'sec-second-value', type: 'section', label: 'Second value' },
     {
       key: 'item2',
       type: 'item',

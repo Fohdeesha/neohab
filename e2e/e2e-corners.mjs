@@ -90,21 +90,21 @@ await section('1', async () => {
   const backupInput = page.locator('section:has(h2:text-is("Backup")) input[type="file"]')
   await backupInput.setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{not json at all') })
   await sleep(600)
-  ok('1. invalid JSON backup rejected with notice', /not valid JSON/.test(await page.locator('.nh-settings__notice').textContent()))
+  ok('1. invalid JSON backup rejected with notice', /not valid JSON/.test(await page.locator('.nh-toast__text').textContent()))
   await backupInput.setInputFiles({ name: 'y.json', mimeType: 'application/json', buffer: Buffer.from('{"foo": 1}') })
   await sleep(600)
-  ok('1. wrong-shape backup rejected', /Not a neohab backup/.test(await page.locator('.nh-settings__notice').textContent()))
+  ok('1. wrong-shape backup rejected', /Not a neohab backup/.test(await page.locator('.nh-toast__text').textContent()))
   const hpInput = page.locator('section:has(.nh-hpimport__row), section:has-text("Migrate from HABPanel")').locator('input[type="file"]')
   await hpInput.setInputFiles({ name: 'z.json', mimeType: 'application/json', buffer: Buffer.from('[[]]') })
   await sleep(600)
-  ok('1. malformed habpanel file rejected', /Could not read|Not a HABPanel/.test(await page.locator('.nh-settings__notice').textContent()))
+  ok('1. malformed habpanel file rejected', /Could not read|Not a HABPanel/.test(await page.locator('.nh-toast__text').textContent()))
   for (const [what, body] of [
     ['a bare empty array', '[]'],
     ['an empty dashboards list', '{"dashboards":[],"settings":{},"customwidgets":{}}'],
   ]) {
     await hpInput.setInputFiles({ name: 'e.json', mimeType: 'application/json', buffer: Buffer.from(body) })
     await sleep(900)
-    const notice = (await page.locator('.nh-settings__notice').textContent().catch(() => null)) ?? '(no notice)'
+    const notice = (await page.locator('.nh-toast__text').textContent().catch(() => null)) ?? '(no notice)'
     ok(`1. ${what} is rejected, not offered as an import`, /Could not read|Not a HABPanel/.test(notice), notice)
   }
   ok('1. no confirm dialog was raised by an empty file', dialogs.length === 0, dialogs.join(' | '))

@@ -7,8 +7,9 @@ import { Icon } from '../components/Icon'
 import { slugifyIconId, type CustomIcon } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from '../components/iconUpload'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
-export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function CustomIconsSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const customIcons = useConfigStore((s) => s.customIcons)
   const maxKB = useConfigStore((s) => s.settings.maxIconKB) ?? DEFAULT_MAX_ICON_KB
@@ -90,7 +91,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: (m: string | null) 
   )
 }
 
-function CustomIconRow({ icon, onNotice, onDelete }: { icon: CustomIcon; onNotice: (m: string | null) => void; onDelete: () => void }) {
+function CustomIconRow({ icon, onNotice, onDelete }: { icon: CustomIcon; onNotice: NoticeFn; onDelete: () => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState(icon.name)
 

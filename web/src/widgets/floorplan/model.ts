@@ -140,8 +140,30 @@ export function glowGeometry(direction: GlowDirection | undefined, size: number)
   return { width: size * d.wide, aspectRatio: `${d.wide} / ${d.tall}`, transform: d.transform }
 }
 
-export function glowCss(glow: Glow, direction?: GlowDirection): string {
-  const [r, g, b] = glow.rgb
+export type GlowBlend = 'screen' | 'multiply'
+
+/**
+ * Which blend a glow needs, decided by the GROUND it is painted on rather than by the theme.
+ *
+ * Screen is how light behaves on a dark ground and does nothing at all on a white one, so an ink
+ * plan showed a drawing with no lighting on it. Blueprint inverts any plan to light lines on dark
+ * and ink keeps it dark lines on white, whatever the theme is doing; only "as uploaded" is
+ * unknowable, and there the theme is the best guess at what the plan was paired with.
+ */
+export function glowBlendFor(style: PlanStyle, scheme: 'light' | 'dark'): GlowBlend {
+  if (style === 'blueprint') return 'screen'
+  if (style === 'ink') return 'multiply'
+  return scheme === 'light' ? 'multiply' : 'screen'
+}
+
+// multiply leaves white exactly as it found it, so a white lamp would mark white paper with
+// nothing. Darkening the colour first is what gives every light a pool to cast. Picked by
+// rendering the same plan at 0.85, 0.78, 0.65 and 0.5: below this the warm pools go grey and the
+// lights stop being told apart by colour.
+const INK_SCALE = 0.65
+
+export function glowCss(glow: Glow, direction?: GlowDirection, blend: GlowBlend = 'screen'): string {
+  const [r, g, b] = blend === 'multiply' ? (glow.rgb.map((c) => Math.round(c * INK_SCALE)) as [number, number, number]) : glow.rgb
   const a = Math.sqrt(clamp(glow.intensity, 0, 1))
   const stop = (alpha: number, at: number) => `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)}) ${at}%`
   const stops = `${stop(0.85 * a, 0)}, ${stop(0.4 * a, 45)}, ${stop(0, 72)}`

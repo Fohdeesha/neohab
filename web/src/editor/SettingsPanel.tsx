@@ -1,5 +1,8 @@
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
+import { useSidePanelDocked } from '../components/useEditSurface'
+import { groupFields } from './settingsGroups'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
 import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
@@ -103,37 +106,51 @@ const LABEL_POSITION_FIELD: SettingField = {
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
   const def = getWidgetDefinition(widget.type)
+  // a panel that covers the screen has no room to show everything at once; one docked beside the
+  // dashboard is a column of its own, where folding things away would only cost a click
+  const docked = useSidePanelDocked()
   if (!def) return null
 
   const effective = { ...def.defaultConfig(), ...widget.config }
   const customwidget = widget.type === 'template' ? (effective.customwidget as string | undefined) : undefined
+  const groups = groupFields(
+    def.settings
+      .filter((f) => !(customwidget && f.key === 'template'))
+      .filter((f) => f.type === 'section' || !f.showIf || f.showIf(effective))
+  )
+  const render = (field: SettingField) => <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
 
   return (
     <Sheet side title={t('{{name}} settings', { name: t(def.name) })} onClose={() => selectWidget(null)}>
       <div className="nh-form">
-        {def.settings
-          .filter((f) => !(customwidget && f.key === 'template'))
-          .filter((f) => !f.showIf || f.showIf(effective))
-          .map((field) => (
-            <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
-          ))}
+        {groups.map((group, at) =>
+          group.label === null ? (
+            group.fields.map(render)
+          ) : (
+            <FieldGroupBlock key={widget.type + '/' + group.label} label={t(group.label)} open={docked} first={at === 0}>
+              {group.fields.map(render)}
+            </FieldGroupBlock>
+          )
+        )}
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
-        {hasHeaderFor(def, effective) ? (
-          <>
-            {String(effective.label ?? '').trim() ? (
-              <Field field={labelModeField(def)} widget={widget} value={(effective.labelMode as string) || 'header'} />
-            ) : null}
-            <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? ''} />
-            <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
-          </>
-        ) : null}
-        {/* 'none' is the absence of an accent, so it is stored as absent - every other "unset"
-            choice in this form clears its key rather than writing a word meaning nothing. */}
-        <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? ''} />
-        <Field field={ACCENT_COLOR_FIELD} widget={widget} value={effective[ACCENT_COLOR_FIELD.key]} />
-        <Field field={GROUP_FIELD} widget={widget} value={effective[GROUP_FIELD.key]} />
-        <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
-        <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
+        <FieldGroupBlock key={widget.type + '/tile'} label={t('Tile')} open={docked} first={groups.length === 0}>
+          {hasHeaderFor(def, effective) ? (
+            <>
+              {String(effective.label ?? '').trim() ? (
+                <Field field={labelModeField(def)} widget={widget} value={(effective.labelMode as string) || 'header'} />
+              ) : null}
+              <Field field={LABEL_ALIGN_FIELD} widget={widget} value={(effective.labelAlign as string) ?? ''} />
+              <Field field={LABEL_POSITION_FIELD} widget={widget} value={(effective.labelPosition as string) ?? ''} />
+            </>
+          ) : null}
+          {/* 'none' is the absence of an accent, so it is stored as absent - every other "unset"
+              choice in this form clears its key rather than writing a word meaning nothing. */}
+          <Field field={ACCENT_FIELD} widget={widget} value={(effective.accent as string) ?? ''} />
+          <Field field={ACCENT_COLOR_FIELD} widget={widget} value={effective[ACCENT_COLOR_FIELD.key]} />
+          <Field field={GROUP_FIELD} widget={widget} value={effective[GROUP_FIELD.key]} />
+          <Field field={TEXT_SIZE_FIELD} widget={widget} value={effective[TEXT_SIZE_FIELD.key]} />
+          <Field field={HIDE_ON_FIELD} widget={widget} value={effective[HIDE_ON_FIELD.key]} />
+        </FieldGroupBlock>
       </div>
       <div className="nh-form__footer">
         <button
@@ -146,6 +163,18 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
         </button>
       </div>
     </Sheet>
+  )
+}
+
+function FieldGroupBlock({ label, open, first, children }: { label: string; open: boolean; first: boolean; children: ReactNode }) {
+  // uncontrolled after the first render on purpose: once somebody has opened or closed a group,
+  // that is their answer, not the layout's
+  const [isOpen, setIsOpen] = useState(open || first)
+  return (
+    <details className="nh-form__group" open={isOpen} onToggle={(e) => setIsOpen(e.currentTarget.open)}>
+      <summary className="nh-form__grouphead">{label}</summary>
+      <div className="nh-form__groupbody">{children}</div>
+    </details>
   )
 }
 

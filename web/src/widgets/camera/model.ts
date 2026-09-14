@@ -39,7 +39,7 @@ export const TRANSPORT_OPTIONS: { value: 'auto' | CameraTransport; label: string
   { value: 'mp4', label: 'MP4 stream' },
   { value: 'mjpeg', label: 'MJPEG' },
   { value: 'snapshot', label: 'Snapshots only' },
-  { value: 'iframe', label: "The server's own player" }
+  { value: 'iframe', label: 'The server’s own player' }
 ]
 
 export function normalizeServer(server: string | undefined): string {

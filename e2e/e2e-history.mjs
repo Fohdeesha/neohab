@@ -298,7 +298,7 @@ try {
   })
   const restoreBtn = page.locator('button:has-text("Restore everything to this point")')
   await restoreBtn.click()
-  await page.waitForFunction(() => /Restored|Restore failed/.test(document.querySelector('.nh-settings__notice')?.textContent ?? ''), { timeout: 30000 })
+  await page.waitForFunction(() => /Restored|Restore failed/.test(document.querySelector('.nh-toast__text')?.textContent ?? ''), { timeout: 30000 })
   const doneAt = Date.now()
   const disabledSamples = await page.evaluate(() => {
     const w = window
@@ -316,8 +316,8 @@ try {
       (firstLive ? `went live ${firstLive.t - lastRestoreWrite}ms after its last write` : 'never went live')
   )
   ok('the restore was still writing while that was sampled', configWrites >= 2, `${configWrites} config writes`)
-  await page.waitForSelector('.nh-settings__notice', { timeout: 30000 })
-  const notice = await page.locator('.nh-settings__notice').innerText()
+  await page.waitForSelector('.nh-toast__text', { timeout: 30000 })
+  const notice = await page.locator('.nh-toast__text').innerText()
   ok('the restore reports what it did', /Restored/.test(notice), notice)
 
   const afterRestore = await getJson(NS)
@@ -398,7 +398,7 @@ try {
   await page.locator('.nh-hist__row').nth(iconPointIndex).click()
   await page.waitForSelector('.nh-histdetail')
   await page.click('button:has-text("Restore everything to this point")')
-  await page.waitForSelector('.nh-settings__notice', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text', { timeout: 20000 })
   const restoredIcon = await getJson(NS + '/icon:nh-e2e-ico')
   ok('restoring brings the image back whole', restoredIcon?.config?.dataUri === dataUri)
 

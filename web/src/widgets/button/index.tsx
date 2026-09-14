@@ -143,6 +143,40 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     iconSize: 32
   }),
   settings: [
+    { key: 'item', type: 'item', label: 'openHAB Item' },
+    {
+      key: 'action',
+      type: 'select',
+      label: 'Action',
+      options: [
+        { value: 'command', label: 'Send command' },
+        { value: 'navigate', label: 'Navigate (neohab)' }
+      ]
+    },
+    { key: 'command', type: 'text', label: 'Command', hint: 'Sent when you press it, or to switch on.' },
+    {
+      key: 'commandAlt',
+      type: 'text',
+      label: 'Alternate command',
+      showIf: isCommand,
+      hint: 'Sent to switch off, when the tile is already showing as on.'
+    },
+    {
+      key: 'toggle',
+      type: 'boolean',
+      label: 'Toggle with state',
+      hint: 'The tile shows whether the item is on, and a press then sends Alternate command instead.'
+    },
+    {
+      key: 'nonZeroIsOn',
+      type: 'boolean',
+      label: 'Count any value above 0 as on',
+      hint: 'For a dimmer or a color light: 50% counts as on. Without this, only a state exactly equal to Command counts.'
+    },
+    { key: 'navigateDashboard', type: 'dashboard', label: 'Go to dashboard', showIf: isNavigate },
+    { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate, subresource: false },
+    { key: 'label', type: 'text', label: 'Name' },
+    { key: 'appearance', type: 'section', label: 'Appearance' },
     {
       key: 'style',
       type: 'select',
@@ -171,44 +205,11 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
       showIf: hasFace,
       hint: 'What the face is made of. Plain follows the theme; the rest fill the tile and use the accent color.'
     },
-    { key: 'label', type: 'text', label: 'Name' },
     { key: 'caption', type: 'text', label: 'Caption', showIf: hasFace },
     { key: 'imageUrl', type: 'text', label: 'Image URL', placeholder: 'https://…', subresource: true, showIf: hasFace },
     ...STATE_ICON_SETTINGS,
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
-    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)', showIf: hasFace },
-    {
-      key: 'action',
-      type: 'select',
-      label: 'Action',
-      options: [
-        { value: 'command', label: 'Send command' },
-        { value: 'navigate', label: 'Navigate (neohab)' }
-      ]
-    },
-    { key: 'item', type: 'item', label: 'openHAB Item' },
-    { key: 'command', type: 'text', label: 'Command', hint: 'Sent when you press it, or to switch on.' },
-    {
-      key: 'commandAlt',
-      type: 'text',
-      label: 'Alternate command',
-      showIf: isCommand,
-      hint: 'Sent to switch off, when the tile is already showing as on.'
-    },
-    {
-      key: 'toggle',
-      type: 'boolean',
-      label: 'Toggle with state',
-      hint: 'The tile shows whether the item is on, and a press then sends Alternate command instead.'
-    },
-    {
-      key: 'nonZeroIsOn',
-      type: 'boolean',
-      label: 'Count any value above 0 as on',
-      hint: 'For a dimmer or a color light: 50% counts as on. Without this, only a state exactly equal to Command counts.'
-    },
-    { key: 'navigateDashboard', type: 'dashboard', label: 'Go to dashboard', showIf: isNavigate },
-    { key: 'navigateUrl', type: 'text', label: 'Open URL', showIf: isNavigate, subresource: false }
+    { key: 'hideLabel', type: 'boolean', label: 'Icon only (hide the name)', showIf: hasFace }
   ],
   itemKeys: (c) => (c.item ? [c.item] : []),
   canCommand: (c) => c.action !== 'navigate',

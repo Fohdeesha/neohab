@@ -4,10 +4,11 @@ import { deleteWidgetDef, saveSettings, saveWidgetDef, useConfigStore } from '..
 import { defSettings, defTemplate, type CustomWidgetDef, type WidgetDefSetting } from '../model/widgetdef'
 import { exportComponent } from '../editor/exportComponent'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
 const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
 
-export function WidgetDefManager({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function WidgetDefManager({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const defs = useConfigStore((s) => s.widgetDefs)
   const allowJs = useConfigStore((s) => s.settings.allowJsWidgets === true)
@@ -120,7 +121,7 @@ function DefEditor({
   exists: boolean
   onChange: (d: CustomWidgetDef) => void
   onClose: () => void
-  onNotice: (m: string | null) => void
+  onNotice: NoticeFn
 }) {
   const { t } = useTranslation()
   const isJs = def.kind === 'js'

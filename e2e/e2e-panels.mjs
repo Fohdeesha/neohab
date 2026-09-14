@@ -102,7 +102,9 @@ try {
 
   const offenders = { clipped: [], crushed: [], blank: [], overflow: [] }
   let inspected = 0
+  let controlsSeen = 0
   const record = (name, m) => {
+    controlsSeen += m.controls
     if (m.clipped.length) offenders.clipped.push(`${name}: ${m.clipped.join('; ')}`)
     if (m.crushed.length) offenders.crushed.push(`${name}: ${m.crushed.join('; ')}`)
     if (m.blank.length) offenders.blank.push(`${name}: ${m.blank.join('; ')}`)
@@ -173,10 +175,108 @@ try {
   }
 
   ok('every widget was inspected', inspected >= names.length - 1, `${inspected} of ${names.length}`)
+  // the scan above skips a control it cannot see, so a panel that folded everything away would
+  // report no offenders at all. Say how much was actually measured.
+  ok('and the scan actually had controls to measure', controlsSeen > 250, `${controlsSeen} controls across ${inspected} panels`)
   ok('no control is pushed outside the settings panel', offenders.clipped.length === 0, offenders.clipped.slice(0, 4).join(' | '))
   ok(`no editable box is narrower than ${PANEL_MIN_CONTROL}px`, offenders.crushed.length === 0, offenders.crushed.slice(0, 4).join(' | '))
   ok('no select renders blank', offenders.blank.length === 0, offenders.blank.slice(0, 4).join(' | '))
   ok('the settings panel never scrolls sideways', offenders.overflow.length === 0, offenders.overflow.slice(0, 4).join(' | '))
+
+  // A panel docked beside the dashboard shows every group; one covering a phone folds them away,
+  // leaving the widget's essentials on screen. Both regimes are asserted: a collapsed group is
+  // still in the DOM, so a build that folded them everywhere would look fine to any check that
+  // only ever drove the wide one.
+  {
+    const groupState = (p) =>
+      p.evaluate(() => {
+        const sheet = document.querySelector('.nh-sheet')
+        if (!sheet) return { title: 'no sheet', groups: [], loose: 0, item: false }
+        // a CLOSED <details> keeps its content in the layout tree with a real box (Chrome hides it
+        // with content-visibility), so a rect measurement calls it visible. checkVisibility does not.
+        const visible = (el) => el.checkVisibility({ contentVisibilityAuto: true, visibilityProperty: true, opacityProperty: true })
+        return {
+          // which widget this actually is: a check that measures the wrong panel must say so
+          title: sheet.querySelector('.nh-sheet__title')?.textContent?.trim() ?? '?',
+          groups: [...sheet.querySelectorAll('.nh-form__group')].map((d) => ({
+            label: d.querySelector('summary')?.textContent?.trim() ?? '',
+            open: d.open,
+            shown: [...d.querySelectorAll('.nh-form__groupbody .nh-field')].filter(visible).length
+          })),
+          // fields before the first marker: the essentials, never folded
+          loose: [...sheet.querySelectorAll('.nh-field')].filter((f) => !f.closest('.nh-form__groupbody') && visible(f)).length,
+          // an item binding, by the control rather than by a label: widgets name theirs differently
+          // ("Current temperature item", "Setpoint item"), and only the picker says what it is
+          item: [...sheet.querySelectorAll('.nh-picker')].some((p) => !p.closest('.nh-form__groupbody') && visible(p))
+        }
+      })
+
+    // Thermostat, not Dial: a dial's default style is 'classic', which hides every ring-only field,
+    // so four of its five groups are legitimately empty and dropped. The check needs a widget whose
+    // DEFAULTS put something in several groups, or it fails on an app that is behaving correctly.
+    const PANEL_WIDGET = 'Thermostat'
+
+    const addWidget = async (p, name, surface, picker) => {
+      await p.click('[aria-label="Add widget"], button:has-text("+") >> nth=0').catch(() => {})
+      await p.waitForSelector('.nh-palette__card', { timeout: 10000 })
+      await p.click(`.nh-palette__card:has(.nh-palette__name:text-is(${JSON.stringify(name)}))`)
+      await sleep(700)
+      const n = await p.locator(`${surface} .nh-cell`).count()
+      if (n === 0) return false
+      await p.click(`${surface} .nh-cell >> nth=${n - 1} >> ${picker}`).catch(() => {})
+      await p.waitForSelector('.nh-sheet .nh-form', { timeout: 10000 }).catch(() => {})
+      await sleep(400)
+      return true
+    }
+
+    await addWidget(page, PANEL_WIDGET, '.nh-grid--edit', '.nh-cell__grip')
+    const wide = await groupState(page)
+    ok(
+      'a docked panel puts a long list of settings into groups',
+      wide.groups.length >= 4 && wide.groups.some((g) => g.label === 'Appearance'),
+      wide.title + ': ' + wide.groups.map((g) => g.label).join(', ')
+    )
+    ok(
+      'and every group is open, with its fields on screen',
+      wide.groups.length > 0 && wide.groups.every((g) => g.open && g.shown > 0),
+      wide.groups.map((g) => `${g.label}:${g.open ? 'open' : 'shut'}/${g.shown}`).join(' ')
+    )
+    ok('the item binding is on screen without opening anything', wide.item && wide.loose > 0, `${wide.loose} ungrouped fields`)
+
+    const phone = await browser.newPage({ viewport: { width: 393, height: 850 }, hasTouch: true, isMobile: true })
+    await phone.route('**/rest/items/*', (r) => (r.request().method() === 'POST' ? r.abort() : r.continue()))
+    await phone.addInitScript((t) => {
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+        localStorage.setItem('neohab:themeOverride', 'dark')
+      } catch {}
+    }, TOKEN)
+    await phone.goto(APP + '#/d/nh-e2e-panels', { waitUntil: 'domcontentloaded' })
+    await phone.waitForSelector('.nh-dash', { timeout: 25000 })
+    await phone.click('[aria-label="Edit dashboard"]')
+    await phone.waitForSelector('.nh-grid--stackedit', { timeout: 15000 }).catch(() => {})
+    await sleep(600)
+    const added = await addWidget(phone, PANEL_WIDGET, '.nh-grid--stackedit', '.nh-cell__overlay')
+    const narrow = await groupState(phone)
+    ok('a phone panel has the same groups', added && narrow.groups.length === wide.groups.length, `${narrow.groups.length} groups`)
+    ok(
+      'and folds every one of them away',
+      narrow.groups.length > 0 && narrow.groups.every((g) => !g.open && g.shown === 0),
+      narrow.title + ' ' + narrow.groups.map((g) => `${g.label}:${g.open ? 'open' : 'shut'}/${g.shown}`).join(' ')
+    )
+    ok('while the item binding is still on screen', narrow.item && narrow.loose > 0, `${narrow.loose} ungrouped fields`)
+
+    await phone.click('.nh-sheet .nh-form__group >> nth=0 >> summary').catch(() => {})
+    await sleep(400)
+    const opened = await groupState(phone)
+    ok(
+      'pressing a group heading opens it',
+      opened.groups[0]?.open === true && (opened.groups[0]?.shown ?? 0) > 0,
+      `${opened.groups[0]?.label}: ${opened.groups[0]?.open ? 'open' : 'shut'}/${opened.groups[0]?.shown}`
+    )
+    await phone.click('button:has-text("Exit")').catch(() => {})
+    await phone.close()
+  }
 
   await page.click('button:has-text("Exit")').catch(() => {})
   await sleep(800)

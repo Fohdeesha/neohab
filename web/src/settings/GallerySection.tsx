@@ -6,6 +6,7 @@ import { saveWidgetDef, useConfigStore } from '../store/config'
 import { useEditingAllowed } from '../store/auth'
 import { REMOTE_INDEX, loadBundledGallery, loadGalleryWidget, loadRemoteGallery, type GalleryEntry } from '../gallery/gallery'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
 const BUNDLED_URL = 'gallery/index.json'
 
@@ -15,7 +16,7 @@ function sameDef(a: CustomWidgetDef, b: CustomWidgetDef): boolean {
   return norm(a) === norm(b)
 }
 
-export function GallerySection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function GallerySection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const defs = useConfigStore((s) => s.widgetDefs)
   const canEdit = useEditingAllowed()
@@ -61,7 +62,7 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       const def = await loadGalleryWidget(entry, entry.remote && remoteUrl ? remoteUrl : BUNDLED_URL)
       const existing = defs.find((d) => d.id === def.id)
       if (existing && sameDef(existing, def)) {
-        onNotice(t('“{{name}}” is already installed.', { name: def.name }))
+        onNotice(t('“{{name}}” is already installed.', { name: def.name }), 'done')
         return
       }
       // a local edit under the same id is someone's work: install beside it, never over it
@@ -71,7 +72,8 @@ export function GallerySection({ onNotice }: { onNotice: (m: string | null) => v
       onNotice(
         id === def.id
           ? t('Installed “{{name}}” - it is now in the widget palette.', { name })
-          : t('Installed as “{{name}}”, leaving your edited copy alone.', { name })
+          : t('Installed as “{{name}}”, leaving your edited copy alone.', { name }),
+        'done'
       )
     } catch (err) {
       onNotice(

@@ -6,9 +6,11 @@ import { useBoxSize } from '../../components/useBoxSize'
 import { useConfigStore } from '../../store/config'
 import { useSettledState } from '../../store/settling'
 import { resolveBackgroundRef } from '../../model/background'
+import { useActiveTheme } from '../../themes/active'
 import {
   containRect,
   DEFAULT_GLOW_SIZE,
+  glowBlendFor,
   glowCss,
   glowFor,
   glowGeometry,
@@ -19,7 +21,11 @@ import {
   type FloorplanLight
 } from './model'
 import { LightPopup } from './LightPopup'
-import { PresetBar } from './PresetBar'
+import { BAR_INSET, PresetBar } from './PresetBar'
+
+const PLAN_FLOOR = 220
+// one chip row plus the insets either side of it, measured on a phone rather than assumed
+const CHIP_ROW_ROOM = 63
 
 export function PlanCanvas({
   config,
@@ -39,22 +45,39 @@ export function PlanCanvas({
   const { width: boxW, height: boxH } = useBoxSize(boxRef)
   const [img, setImg] = useState<{ w: number; h: number } | null>(null)
   const [popup, setPopup] = useState<FloorplanLight | null>(null)
+  const [barH, setBarH] = useState(0)
 
   const settled = useSettledState()
+  const scheme = useActiveTheme().scheme
 
   const lights = lightsOf(config)
   const scale = glowScaleOf(config)
-  const rect = img ? containRect(boxW, boxH, img.w, img.h) : null
+  const style = planStyleOf(config)
+  const blend = glowBlendFor(style, scheme === 'light' ? 'light' : 'dark')
+  // A tile taller than the plan needs used to split the spare room above and below it, so the chips
+  // floated in the middle of the card with the plan hanging over them. The bar gets that room
+  // first. On a tile somebody drew, the reserve stops at the room going spare, so the plan is never
+  // made smaller than the size they chose and the chips lie over it where there is none. A stacked
+  // card's height was derived rather than drawn, so there the plan gives up what the chips need -
+  // capped, so it always keeps most of the card.
+  const spare = img ? Math.max(0, boxH - containRect(boxW, boxH, img.w, img.h).height) : 0
+  const room = ctx.stacked ? Math.max(spare, boxH * 0.35) : spare
+  const reserved = Math.min(barH > 0 ? barH + BAR_INSET : 0, room)
+  const rect = img ? containRect(boxW, boxH - reserved, img.w, img.h) : null
   const interactive = !ctx.editing && !children
 
   return (
-    <div className="nh-fplan" ref={boxRef}>
+    <div className="nh-fplan" ref={boxRef} style={{ '--nh-glow-blend': blend } as React.CSSProperties}>
       {src ? (
         <img
-          className={'nh-fplan__img nh-fplan__img--' + planStyleOf(config)}
+          className={'nh-fplan__img nh-fplan__img--' + style}
           src={src}
           alt=""
           draggable={false}
+          // object-fit centres the drawing in this box, and containRect works out where the glows
+          // and markers go: both have to be told about the room the chips took, or the lights land
+          // off the rooms they are in
+          style={{ height: `calc(100% - ${reserved}px)` }}
           onLoad={(e) => setImg({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
         />
       ) : (
@@ -79,7 +102,7 @@ export function PlanCanvas({
                   width: `${geom.width}%`,
                   aspectRatio: geom.aspectRatio,
                   transform: geom.transform,
-                  backgroundImage: glowCss(glow, l.glowDir)
+                  backgroundImage: glowCss(glow, l.glowDir, blend)
                 }}
               />
             )
@@ -106,6 +129,7 @@ export function PlanCanvas({
           ctx={ctx}
           lights={lights}
           toggleOff={config.presetToggleOff === true}
+          onHeight={setBarH}
           spaceBelow={rect && rect.width > 0 ? Math.round(boxH - rect.top - rect.height) : 0}
         />
       ) : null}
@@ -127,7 +151,10 @@ export const floorplanWidget: WidgetDefinition<FloorplanConfig> = {
   name: 'Floor plan',
   description: 'Lights glowing live on a plan of the house, with preset scenes',
   defaultSize: { w: 8, h: 6 },
-  minPixelHeight: 220,
+  // the stacked floor, and the chips are part of it: a phone card sized for the plan alone puts
+  // them over the rooms they switch
+  minPixelHeight: (c) => (c.presetBar === false ? PLAN_FLOOR : PLAN_FLOOR + CHIP_ROW_ROOM),
+  fixedShape: true,
   hasHeader: true,
   defaultConfig: () => ({ markers: true, presetBar: true, planStyle: 'blueprint' }),
   settings: [

@@ -13,6 +13,7 @@ import {
 import { looksPartial, validatePartialBundle, type PartialBundle, type PartialImportMode, type PartialPlan } from '../model/partial'
 import { downloadJson } from '../components/download'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
 function PartialImportCard({
   state,
@@ -70,7 +71,7 @@ function PartialImportCard({
   )
 }
 
-export function BackupSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function BackupSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const backgrounds = useConfigStore((s) => s.backgrounds)
   const fileRef = useRef<HTMLInputElement>(null)

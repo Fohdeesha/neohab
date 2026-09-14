@@ -145,7 +145,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
   else if (!wanted) overlay = null
   else if (status.phase === 'connecting') overlay = t('Connecting…')
   else if (status.phase === 'failed')
-    overlay = t('No stream. Tried: {{list}}', { list: status.failed.map((f) => TRANSPORT_LABEL[f]).join(', ') || '-' })
+    overlay = t('No stream. Tried: {{list}}', { list: status.failed.map((f) => t(TRANSPORT_LABEL[f])).join(', ') || '-' })
 
   const labelMode = config.labelMode ?? 'header'
   const name = (config.label ?? '').trim()
@@ -170,7 +170,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
 
         {/* Configuration feedback belongs in the editor, not on a working wall panel. */}
         {ctx.editing && status.phase === 'playing' && status.transport ? (
-          <div className="nh-camera__badge">{TRANSPORT_LABEL[status.transport]}</div>
+          <div className="nh-camera__badge">{t(TRANSPORT_LABEL[status.transport])}</div>
         ) : null}
         {ctx.editing && wsRefused ? (
           <div className="nh-camera__hint">
@@ -228,17 +228,6 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
   settings: [
     { key: 'label', type: 'text', label: 'Name' },
     {
-      key: 'overlayColor',
-      type: 'select',
-      label: 'Name color over the picture',
-      options: [
-        { value: 'white', label: 'White' },
-        { value: 'black', label: 'Black' }
-      ],
-      hint: 'Each is carried on a shadow of the opposite color. White suits most scenes; black reads better against snow, pale ground or a bright sky.',
-      showIf: (c) => c.labelMode === 'overlay' && !!String(c.label ?? '').trim()
-    },
-    {
       key: 'source',
       type: 'select',
       label: 'Camera server',
@@ -274,21 +263,13 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
       options: TRANSPORT_OPTIONS,
       hint: 'Automatic tries the lowest-latency option first and falls back until one works. Pick a specific one to stop it varying.'
     },
+    { key: 'sec-playback', type: 'section', label: 'Playback' },
     {
       key: 'posterUrl',
       type: 'text',
       label: 'Still image URL (optional)',
       subresource: true,
       hint: 'Shown before the stream starts and while it is stopped. Derived from the camera server when left empty.'
-    },
-    {
-      key: 'fit',
-      type: 'select',
-      label: 'Scaling',
-      options: [
-        { value: 'contain', label: 'Fit (show the whole picture)' },
-        { value: 'cover', label: 'Fill (crop to the cell)' }
-      ]
     },
     { key: 'audio', type: 'boolean', label: 'Play audio', hint: 'Browsers only allow sound after you interact with the page.' },
     {
@@ -308,6 +289,7 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
       ],
       hint: 'Stopping frees the connection when the widget is scrolled away, the dashboard is not open, or the tab is in the background.'
     },
+    { key: 'sec-on-tap', type: 'section', label: 'On tap' },
     {
       key: 'tapAction',
       type: 'select',
@@ -323,7 +305,28 @@ export const cameraWidget: WidgetDefinition<CameraConfig> = {
     { key: 'tapDashboard', type: 'dashboard', label: 'Go to dashboard', showIf: (c) => c.tapAction === 'dashboard' },
     { key: 'tapUrl', type: 'text', label: 'Open URL', showIf: (c) => c.tapAction === 'url', subresource: false },
     { key: 'tapItem', type: 'item', label: 'openHAB Item', showIf: (c) => c.tapAction === 'command' },
-    { key: 'tapCommand', type: 'text', label: 'Command', showIf: (c) => c.tapAction === 'command' }
+    { key: 'tapCommand', type: 'text', label: 'Command', showIf: (c) => c.tapAction === 'command' },
+    { key: 'sec-appearance', type: 'section', label: 'Appearance' },
+    {
+      key: 'overlayColor',
+      type: 'select',
+      label: 'Name color over the picture',
+      options: [
+        { value: 'white', label: 'White' },
+        { value: 'black', label: 'Black' }
+      ],
+      hint: 'Each is carried on a shadow of the opposite color. White suits most scenes; black reads better against snow, pale ground or a bright sky.',
+      showIf: (c) => c.labelMode === 'overlay' && !!String(c.label ?? '').trim()
+    },
+    {
+      key: 'fit',
+      type: 'select',
+      label: 'Scaling',
+      options: [
+        { value: 'contain', label: 'Fit (show the whole picture)' },
+        { value: 'cover', label: 'Fill (crop to the cell)' }
+      ]
+    }
   ],
   Component: CameraWidget
 }

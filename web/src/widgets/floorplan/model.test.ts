@@ -3,6 +3,7 @@ import {
   containRect,
   DEFAULT_GLOW_SIZE,
   GLOW_DIRECTION_OPTIONS,
+  glowBlendFor,
   glowCss,
   glowDirectionOf,
   glowFor,
@@ -177,6 +178,48 @@ describe('glowCss', () => {
     expect(glowCss(lit)).toBe(plain)
     expect(glowCss(lit, 'all')).toBe(plain)
     expect(glowCss(lit, 'nonsense' as GlowDirection)).toBe(plain)
+    expect(glowCss(lit, 'all', 'screen')).toBe(plain)
+  })
+
+  it('darkens the colour for multiply, or a white lamp would mark white paper with nothing', () => {
+    const white = { rgb: [255, 255, 255] as [number, number, number], intensity: 1 }
+    const css = glowCss(white, 'all', 'multiply')
+    expect(css).not.toContain('rgba(255, 255, 255')
+    const channel = Number(/rgba\((\d+)/.exec(css)?.[1])
+    expect(channel).toBeGreaterThan(150)
+    expect(channel).toBeLessThan(230)
+  })
+
+  it('keeps the stops and the geometry when it darkens', () => {
+    const lit = { rgb: [200, 100, 50] as [number, number, number], intensity: 1 }
+    const multiplied = glowCss(lit, 'left', 'multiply')
+    expect(multiplied).toContain('at 100% 50%')
+    expect(multiplied).toContain('0.850')
+    expect(multiplied).toContain('0.000) 72%')
+  })
+})
+
+describe('glowBlendFor', () => {
+  it('screens onto the dark ground blueprint makes, in either theme', () => {
+    expect(glowBlendFor('blueprint', 'dark')).toBe('screen')
+    expect(glowBlendFor('blueprint', 'light')).toBe('screen')
+  })
+
+  it('multiplies onto the white ground ink keeps, in either theme', () => {
+    expect(glowBlendFor('ink', 'light')).toBe('multiply')
+    expect(glowBlendFor('ink', 'dark')).toBe('multiply')
+  })
+
+  it('falls back to the theme for an image it cannot know the ground of', () => {
+    expect(glowBlendFor('plain', 'dark')).toBe('screen')
+    expect(glowBlendFor('plain', 'light')).toBe('multiply')
+  })
+
+  it('answers every style the editor offers', () => {
+    for (const style of ['blueprint', 'ink', 'plain'] as const) {
+      expect(['screen', 'multiply']).toContain(glowBlendFor(style, 'light'))
+      expect(['screen', 'multiply']).toContain(glowBlendFor(style, 'dark'))
+    }
   })
 })
 

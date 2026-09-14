@@ -5,8 +5,9 @@ import { useIsAdmin } from '../store/auth'
 import { activatePreset, deletePreset, loadPresets, savePreset, usePresetsStore } from '../store/presets'
 import type { Preset, StatusState } from '../model/presets'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
-export function PresetsSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function PresetsSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const admin = useIsAdmin()
   const { loaded, summaries, full, bridged, error } = usePresetsStore()

@@ -8,8 +8,9 @@ import { ItemPicker } from '../components/ItemPicker'
 import { NumberSetting } from '../components/NumberSetting'
 import { useEditingAllowed } from '../store/auth'
 import { appGoFullscreen } from '../app/ohapp'
+import type { NoticeFn } from '../store/notify'
 
-export function KioskSection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const kioskSettings = useKioskStore((s) => s.settings)
   const sessionKiosk = useKioskStore((s) => s.sessionKiosk)

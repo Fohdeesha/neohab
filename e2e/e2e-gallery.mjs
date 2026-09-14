@@ -90,8 +90,8 @@ try {
 
   const first = index.widgets.find((w) => w.id === 'gallery-progress') ?? index.widgets[0]
   await card(first.name).locator('button').click()
-  await page.waitForSelector('.nh-settings__notice', { timeout: 20000 })
-  const notice = await page.textContent('.nh-settings__notice')
+  await page.waitForSelector('.nh-toast__text', { timeout: 20000 })
+  const notice = await page.textContent('.nh-toast__text')
   ok('installing reports success', /Installed/.test(notice ?? ''), String(notice))
   const stored = await get('widgetdef:' + first.id)
   ok('a widgetdef component was created', stored !== null)
@@ -101,7 +101,7 @@ try {
   ok('the card now says installed', (await card(first.name).locator('.nh-gallery__badge:text-is("installed")').count()) === 1)
 
   await card(first.name).locator('button').click()
-  await page.waitForSelector('.nh-settings__notice:has-text("already installed")', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text:has-text("already installed")', { timeout: 20000 })
   ok('re-installing says it is already installed', true)
   ok('and made no copy', (await get('widgetdef:' + first.id + '-2')) === null)
 
@@ -116,7 +116,7 @@ try {
   await openSettings()
   await card(first.name).locator('button').click()
   await page
-    .waitForSelector('.nh-settings__notice:has-text("Installed as")', { timeout: 20000 })
+    .waitForSelector('.nh-toast__text:has-text("Installed as")', { timeout: 20000 })
     .catch(() => {})
   const copy = await get('widgetdef:' + first.id + '-2')
   ok('the gallery version installed under a free id', copy !== null)
@@ -126,7 +126,7 @@ try {
   await del('widgetdef:' + first.id)
   await openSettings()
   await card(first.name).locator('button').click()
-  await page.waitForSelector('.nh-settings__notice:has-text("Installed")', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text:has-text("Installed")', { timeout: 20000 })
   ok(
     'seed a dashboard using it',
     await put({
@@ -195,7 +195,7 @@ try {
   ok('marked as online', (await page.locator('.nh-gallery__card:has-text("Remote Test Widget") .nh-gallery__badge:text-is("online")').count()) === 1)
   await page.route('**/nope.json', (route) => route.fulfill({ status: 404, body: '' }))
   await card('Remote Test Widget').locator('button').click()
-  await page.waitForSelector('.nh-settings__notice:has-text("Could not install")', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text:has-text("Could not install")', { timeout: 20000 })
   ok('a broken entry reports instead of installing', (await get('widgetdef:gallery-remote-test')) === null)
 
   const realErrs = errs.filter((e) => !/raw\.githubusercontent|nope\.json|ERR_FAILED|404/.test(e))

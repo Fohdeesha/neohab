@@ -14,6 +14,8 @@ export interface TokenSpec {
   fallback: string
 }
 
+const SERIES_LABELS = ['Series 1', 'Series 2', 'Series 3', 'Series 4', 'Series 5', 'Series 6', 'Series 7', 'Series 8']
+
 export const TOKEN_SPECS: TokenSpec[] = [
   {
     key: 'bg',
@@ -111,7 +113,9 @@ export const TOKEN_SPECS: TokenSpec[] = [
     key: `chart-${i + 1}`,
     group: 'Chart palette' as const,
     kind: 'color' as const,
-    label: `Series ${i + 1}`,
+    // written out rather than built from the index: this label goes through t(), and a string put
+    // together at runtime is one no extractor and no coverage check can see
+    label: SERIES_LABELS[i],
     fallback: 'built-in',
     hint:
       i === 0

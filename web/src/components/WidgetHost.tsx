@@ -8,7 +8,7 @@ import { selectStates, subscribeItems, useItemsStore } from '../store/items'
 import { commandItem } from '../widgets/common/command'
 import { WidgetBoundary } from './WidgetBoundary'
 
-export function WidgetHost({ instance, editing }: { instance: WidgetInstance; editing: boolean }) {
+export function WidgetHost({ instance, editing, stacked }: { instance: WidgetInstance; editing: boolean; stacked?: boolean }) {
   const { t } = useTranslation()
   const def = getWidgetDefinition(instance.type)
 
@@ -34,9 +34,10 @@ export function WidgetHost({ instance, editing }: { instance: WidgetInstance; ed
       widgetId: instance.id,
       getItem: (name) => states[name],
       sendCommand: (item, command) => commandItem(item, command),
-      editing
+      editing,
+      stacked
     }),
-    [states, editing, instance.id]
+    [states, editing, stacked, instance.id]
   )
 
   if (!def) {

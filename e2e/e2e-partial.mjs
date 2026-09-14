@@ -167,16 +167,16 @@ try {
   ok('theme export: kind theme', themeExport.json.manifest.kind === 'theme')
 
   await importFile({ ...dashFile, manifest: { ...dashFile.manifest, formatVersion: 3 } })
-  await page.waitForSelector('.nh-settings__notice', { timeout: 10000 })
-  const versionNotice = await page.textContent('.nh-settings__notice')
+  await page.waitForSelector('.nh-toast__text', { timeout: 10000 })
+  const versionNotice = await page.textContent('.nh-toast__text')
   ok('unknown file version is refused', /Unsupported file version/.test(versionNotice ?? ''), String(versionNotice))
   ok('refusing a file offers no import buttons', (await page.locator('button:has-text("Import as a copy")').count()) === 0)
 
   const noticeOrCard = async () => {
     await page
-      .waitForSelector('.nh-settings__notice, .nh-settings__importchoice', { timeout: 10000 })
+      .waitForSelector('.nh-toast__text, .nh-settings__importchoice', { timeout: 10000 })
       .catch(() => {})
-    return (await page.locator('.nh-settings__notice').textContent().catch(() => null)) ?? ''
+    return (await page.locator('.nh-toast__text').textContent().catch(() => null)) ?? ''
   }
 
   const settingsBefore = await get('settings')
@@ -221,8 +221,8 @@ try {
   ok('overwrite says how much it would replace', /replaces 1 item/.test(card ?? ''), String(card).slice(0, 200))
 
   await page.click('button:has-text("Import as a copy")')
-  await page.waitForSelector('.nh-settings__notice:has-text("Imported as a copy")', { timeout: 20000 })
-  const copyNotice = await page.textContent('.nh-settings__notice')
+  await page.waitForSelector('.nh-toast__text:has-text("Imported as a copy")', { timeout: 20000 })
+  const copyNotice = await page.textContent('.nh-toast__text')
   ok('copy notice names the new id', /nh-e2e-pdash-2/.test(copyNotice ?? ''), String(copyNotice))
 
   const copy = await get(uid('dashboard', DASH + '-2'))
@@ -246,7 +246,7 @@ try {
   await importFile(dashFile)
   await page.waitForSelector('button:has-text("Import as a copy")', { timeout: 15000 })
   await page.click('button:has-text("Import as a copy")')
-  await page.waitForSelector('.nh-settings__notice:has-text("Imported as a copy")', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text:has-text("Imported as a copy")', { timeout: 20000 })
   const copy2 = await get(uid('dashboard', DASH + '-2'))
   const copiedDef = await get(uid('widgetdef', DEF + '-2'))
   ok('a differing definition is copied, not overwritten', copiedDef !== null)
@@ -278,7 +278,7 @@ try {
   await page.waitForSelector('button:has-text("Overwrite existing")', { timeout: 15000 })
   dialogs.length = 0
   await page.click('button:has-text("Overwrite existing")')
-  await page.waitForSelector('.nh-settings__notice:has-text("Imported")', { timeout: 20000 })
+  await page.waitForSelector('.nh-toast__text:has-text("Imported")', { timeout: 20000 })
   ok('overwrite asks first', dialogs.some((d) => /Overwrite/.test(d)), dialogs.join(' | '))
   const overwritten = await get(uid('dashboard', DASH))
   ok('overwrite restored the file content', overwritten?.config.name === 'E2E Partial', String(overwritten?.config.name))
@@ -300,8 +300,8 @@ try {
   ok('no overwrite button when nothing collides', (await page.locator('button:has-text("Overwrite existing")').count()) === 0)
   ok('button reads Import, not Import as a copy', (await page.locator('button:has-text("Import as a copy")').count()) === 0 && (await page.locator('.nh-settings__importchoice button:has-text("Import")').count()) === 1)
   await page.click('.nh-settings__importchoice button:has-text("Import")')
-  await page.waitForSelector('.nh-settings__notice:has-text("Imported")', { timeout: 20000 })
-  const restoredNotice = await page.textContent('.nh-settings__notice')
+  await page.waitForSelector('.nh-toast__text:has-text("Imported")', { timeout: 20000 })
+  const restoredNotice = await page.textContent('.nh-toast__text')
   ok('fresh import reports the count', /Imported 4 items/.test(restoredNotice ?? ''), String(restoredNotice))
   ok('dashboard restored under its own id', (await get(uid('dashboard', DASH))) !== null)
   ok('definition restored under its own id', (await get(uid('widgetdef', DEF))) !== null)

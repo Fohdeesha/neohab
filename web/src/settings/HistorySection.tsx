@@ -14,10 +14,11 @@ import {
 import { saveSettings, useConfigStore } from '../store/config'
 import { currentEntries, getSnapshot, loadHistory, renameSnapshot, restoreSnapshot, useHistoryStore } from '../store/history'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
 type CompareMode = 'step' | 'now'
 
-export function HistorySection({ onNotice }: { onNotice: (m: string | null) => void }) {
+export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
   const { t } = useTranslation()
   const historyLimit = useConfigStore((s) => s.settings.historyLimit)
   const historyWindow = useConfigStore((s) => s.settings.historyWindowMin)
@@ -141,7 +142,7 @@ function HistoryDetail({
   snapshot: SnapshotMeta
   previousId: string | null
   busy: boolean
-  onNotice: (m: string | null) => void
+  onNotice: NoticeFn
   onRestored: () => void
 }) {
   const { t } = useTranslation()

@@ -7,6 +7,7 @@ import { checkThemeCss, type ThemeCssIssue } from '../themes/cssRules'
 import { CONTRAST_PAIRS, contrastLevel, contrastOf, type ContrastLevel } from '../themes/contrast'
 import { TOKEN_SPECS } from '../themes/tokens'
 import { errorText } from '../api/errors'
+import type { NoticeFn } from '../store/notify'
 
 function applyLiveTheme(): void {
   applyTheme(getActiveTheme())
@@ -21,7 +22,7 @@ export function ThemeEditor({
   theme: Theme
   onChange: (t: Theme) => void
   onClose: () => void
-  onNotice: (msg: string | null) => void
+  onNotice: NoticeFn
 }) {
   const { t } = useTranslation()
   const sharedThemeId = useConfigStore((s) => s.settings.theme)
@@ -57,7 +58,8 @@ export function ThemeEditor({
       onNotice(
         makeShared
           ? t('Theme saved and set as the shared theme.')
-          : t('Theme saved. Pick it above, or under “Theme on this device”, to use it.')
+          : t('Theme saved. Pick it above, or under “Theme on this device”, to use it.'),
+        'done'
       )
       onClose()
     } catch (err) {
