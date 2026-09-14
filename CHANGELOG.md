@@ -7,6 +7,44 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.29.0
+
+- The theme editor speaks your language. Its colour list named every token in English in all six
+  translations (18 of the 19), and so did the readability panel beside it, the contrast verdicts
+  and the chart palette's eight series. The camera's stream badge was never translated at all, and
+  two notes in the HABPanel import report had been missed. 45 strings, all seven catalogs.
+- Widget settings start with what the widget is bound to. A new Button asked for its style, finish,
+  caption, image and five icon settings before it ever asked which item it switches, which on a phone
+  put that field about 1,300px down the panel. The item, the action and the command are first now.
+- Every widget's settings are grouped, and the panel folds the groups away where it covers a phone
+  screen: a dial that was 41 fields in one list opens as its item, range and name, with Appearance,
+  Scale and markers, Alarm, History and Second value each one press away. Where the panel is docked
+  beside the dashboard it shows everything, as before.
+- A message from the settings page is shown where you are looking. The page is thousands of pixels
+  long and every message appeared at the top of it, so an import that refused a file reported it
+  roughly 2,700px above the button that was pressed. Failures now stay on screen until dismissed.
+- Importing from HABPanel says what it would change for every device before it writes anything. A
+  panel configuration can carry a theme, a background image and the speech item, all of which are
+  stored once for the whole server, and the old confirmation only said that existing dashboards were
+  kept. The confirmation lists them and they can be declined, with the dashboards imported anyway.
+- A server that cannot be asked about HABPanel says so instead of reporting an empty one. Any failed
+  lookup read as "no HABPanel configuration is saved on this server", which sent people off to export
+  their panels by hand rather than trying again.
+- The welcome screen's "Import from HABPanel" and "Restore a backup" open Settings at that section
+  rather than at the top of the page.
+- A getting-started guide ships with the add-on, linked from the welcome screen and from Settings
+  About: signing in, a first dashboard, binding an item, the phone layout and backups.
+- A chart opened full screen fills the page. It had been drawing at its smallest allowed height
+  whatever room the window gave it, so on a 1080p screen roughly four fifths of the page was empty.
+- A floor plan on a light theme shows its lighting. Glows were blended the way light behaves on a
+  dark plan, which does nothing at all on a white one, so an ink-styled plan drew the house and
+  none of the lights on it.
+- A floor plan on a phone is sized for the plan rather than for the row count it was given on the
+  desktop. A wide plan used to sit in a card three times the height it needed, with the preset
+  chips floating in the dead space, and several presets wrapped into rows that covered the rooms
+  they switch. The chips now stay on one row that scrolls sideways, and they sit under the plan
+  instead of over it wherever there is room.
+
 ## 1.28.0
 
 - Battery widget: the charge of anything with a battery, drawn eight ways (Neon to start), with its own input
@@ -53,7 +91,6 @@ Anything not listed here yet is on `main` and ships with the next release.
   closes the list now.
 
 ## 1.27.0
-
 - The switch widget is now a style of the button widget rather than a widget of its own. They were
   two ways of drawing the same job, and the palette offered both with no way to tell which you
   wanted. The Style setting is only the look, a pressable tile or a sliding toggle; both send the
