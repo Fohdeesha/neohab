@@ -43,7 +43,7 @@ export function PaletteSheet() {
   }
 
   return (
-    <Sheet title={t('Add a widget')} collapsed={placing !== null} onClose={() => setPaletteOpen(false)}>
+    <Sheet wide title={t('Add a widget')} collapsed={placing !== null} onClose={() => setPaletteOpen(false)}>
       {canDrag ? <p className="nh-palette__hint">{t('Tap to add, or drag onto the dashboard to place it.')}</p> : null}
       <div className="nh-palette">
         {definitions.map((def) => (

@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.ui.bundles</groupId>
   <artifactId>org.openhab.ui.neohab</artifactId>
-  <version>1.29.0</version>
+  <version>1.30.0</version>
   <packaging>jar</packaging>
 
   <name>neohab</name>
@@ -149,6 +149,15 @@
                 <resource>
                   <directory>web/dist</directory>
                   <targetPath>web</targetPath>
+                </resource>
+                <!-- MIT, Apache-2.0 and OFL all want their notices to travel with the bytes -->
+                <resource>
+                  <directory>${project.basedir}</directory>
+                  <targetPath>META-INF</targetPath>
+                  <includes>
+                    <include>LICENSE</include>
+                    <include>NOTICE</include>
+                  </includes>
                 </resource>
               </resources>
             </configuration>

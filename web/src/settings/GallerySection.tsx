@@ -4,11 +4,9 @@ import { nextFreeId } from '../model/components'
 import type { CustomWidgetDef } from '../model/widgetdef'
 import { saveWidgetDef, useConfigStore } from '../store/config'
 import { useEditingAllowed } from '../store/auth'
-import { REMOTE_INDEX, loadBundledGallery, loadGalleryWidget, loadRemoteGallery, type GalleryEntry } from '../gallery/gallery'
+import { loadBundledGallery, loadGalleryWidget, type GalleryEntry } from '../gallery/gallery'
 import { errorText } from '../api/errors'
 import type { NoticeFn } from '../store/notify'
-
-const BUNDLED_URL = 'gallery/index.json'
 
 function sameDef(a: CustomWidgetDef, b: CustomWidgetDef): boolean {
   const norm = (d: CustomWidgetDef) =>
@@ -21,7 +19,6 @@ export function GallerySection({ onNotice }: { onNotice: NoticeFn }) {
   const defs = useConfigStore((s) => s.widgetDefs)
   const canEdit = useEditingAllowed()
   const [entries, setEntries] = useState<GalleryEntry[] | null>(null)
-  const [remoteUrl, setRemoteUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -34,32 +31,11 @@ export function GallerySection({ onNotice }: { onNotice: NoticeFn }) {
       })
   }, [])
 
-  const browseRemote = async () => {
-    setError(null)
-    setBusy('remote')
-    try {
-      const index = await loadRemoteGallery()
-      setRemoteUrl(REMOTE_INDEX)
-      setEntries((prev) => {
-        const have = new Set((prev ?? []).map((e) => e.id))
-        return [...(prev ?? []), ...index.widgets.filter((e) => !have.has(e.id))]
-      })
-    } catch (err) {
-      setError(
-        t('Could not reach the online gallery ({{error}}). The widgets below ship with neohab and always work.', {
-          error: errorText(err)
-        })
-      )
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const install = async (entry: GalleryEntry) => {
     onNotice(null)
     setBusy(entry.id)
     try {
-      const def = await loadGalleryWidget(entry, entry.remote && remoteUrl ? remoteUrl : BUNDLED_URL)
+      const def = await loadGalleryWidget(entry)
       const existing = defs.find((d) => d.id === def.id)
       if (existing && sameDef(existing, def)) {
         onNotice(t('“{{name}}” is already installed.', { name: def.name }), 'done')
@@ -109,7 +85,6 @@ export function GallerySection({ onNotice }: { onNotice: NoticeFn }) {
               <div className="nh-gallery__card" key={entry.id}>
                 <div className="nh-gallery__head">
                   <span className="nh-gallery__name">{entry.name}</span>
-                  {entry.remote ? <span className="nh-gallery__badge">{t('online')}</span> : null}
                   {installed ? <span className="nh-gallery__badge">{t('installed')}</span> : null}
                 </div>
                 {entry.description ? <p className="nh-gallery__desc">{entry.description}</p> : null}
@@ -124,11 +99,6 @@ export function GallerySection({ onNotice }: { onNotice: NoticeFn }) {
           })}
         </div>
       )}
-      {remoteUrl === null ? (
-        <button type="button" className="nh-btn nh-btn--ghost" disabled={busy !== null} onClick={() => void browseRemote()}>
-          {busy === 'remote' ? t('Looking…') : t('Look for more online')}
-        </button>
-      ) : null}
       <p className="nh-settings__text">
         {t(
           'Widgets shared on the openHAB community forum cannot be listed here: the forum only answers its own site, and its posts carry no licence to redistribute. A HABPanel widget from a forum post can still be imported - paste it into a new custom widget, or bring in a whole HABPanel configuration above.'

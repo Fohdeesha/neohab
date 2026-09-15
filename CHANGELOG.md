@@ -1,171 +1,102 @@
 # Changelog
 
-What changed in each release, in a few lines. The release workflow publishes the matching section
-as the release notes, so this file is what people read on the releases page.
+One line per change. The release workflow publishes the matching section as the release notes.
 
 Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.30.0
+
+- The widget gallery only offers what ships in the add-on. It could also pull widget code off
+  GitHub at runtime, which is not something an add-on should do.
+- Added a NOTICE file listing every icon set, font and library in the jar, with licenses. It ships
+  inside the jar.
+- Sign in, New dashboard, Add a widget, Generate and the HABPanel import are centred dialogs on a
+  desktop instead of full width bottom sheets. A 1920px screen used to give you a 1890px box to
+  type a dashboard name into. Still full width on a phone.
+- The five minute guide is linked from the first screen, not only after you sign in.
+- Links in neohab's own screens use the theme colour instead of browser blue.
+- The README is about a quarter of the length it was.
+
 ## 1.29.0
 
-- The theme editor speaks your language. Its colour list named every token in English in all six
-  translations (18 of the 19), and so did the readability panel beside it, the contrast verdicts
-  and the chart palette's eight series. The camera's stream badge was never translated at all, and
-  two notes in the HABPanel import report had been missed. 45 strings, all seven catalogs.
-- Widget settings start with what the widget is bound to. A new Button asked for its style, finish,
-  caption, image and five icon settings before it ever asked which item it switches, which on a phone
-  put that field about 1,300px down the panel. The item, the action and the command are first now.
-- Every widget's settings are grouped, and the panel folds the groups away where it covers a phone
-  screen: a dial that was 41 fields in one list opens as its item, range and name, with Appearance,
-  Scale and markers, Alarm, History and Second value each one press away. Where the panel is docked
-  beside the dashboard it shows everything, as before.
-- A message from the settings page is shown where you are looking. The page is thousands of pixels
-  long and every message appeared at the top of it, so an import that refused a file reported it
-  roughly 2,700px above the button that was pressed. Failures now stay on screen until dismissed.
-- Importing from HABPanel says what it would change for every device before it writes anything. A
-  panel configuration can carry a theme, a background image and the speech item, all of which are
-  stored once for the whole server, and the old confirmation only said that existing dashboards were
-  kept. The confirmation lists them and they can be declined, with the dashboards imported anyway.
-- A server that cannot be asked about HABPanel says so instead of reporting an empty one. Any failed
-  lookup read as "no HABPanel configuration is saved on this server", which sent people off to export
-  their panels by hand rather than trying again.
-- The welcome screen's "Import from HABPanel" and "Restore a backup" open Settings at that section
-  rather than at the top of the page.
-- A getting-started guide ships with the add-on, linked from the welcome screen and from Settings
-  About: signing in, a first dashboard, binding an item, the phone layout and backups.
-- A chart opened full screen fills the page. It had been drawing at its smallest allowed height
-  whatever room the window gave it, so on a 1080p screen roughly four fifths of the page was empty.
-- A floor plan on a light theme shows its lighting. Glows were blended the way light behaves on a
-  dark plan, which does nothing at all on a white one, so an ink-styled plan drew the house and
-  none of the lights on it.
-- A floor plan on a phone is sized for the plan rather than for the row count it was given on the
-  desktop. A wide plan used to sit in a card three times the height it needed, with the preset
-  chips floating in the dead space, and several presets wrapped into rows that covered the rooms
-  they switch. The chips now stay on one row that scrolls sideways, and they sit under the plan
-  instead of over it wherever there is room.
+- Translated 45 strings that were still English, mostly theme editor token names and contrast
+  verdicts.
+- Widget settings ask which item first, instead of after nine appearance settings.
+- Widget settings are grouped, and the groups fold away where the panel covers a phone screen.
+- Messages on the settings page appear where you are looking, not at the top of a very long page.
+- The HABPanel import lists what it would change for every device before writing anything, and you
+  can decline any of it.
+- A server that cannot be asked about HABPanel says so instead of reporting an empty one.
+- The welcome screen's import and restore buttons open Settings at that section.
+- A getting started guide ships with the add-on.
+- A chart opened full screen fills the page instead of sitting at its smallest height.
+- Floor plan lighting shows up on light themes.
+- A floor plan on a phone is sized for the plan, and the preset chips no longer cover it.
 
 ## 1.28.0
 
-- Battery widget: the charge of anything with a battery, drawn eight ways (Neon to start), with its own input
-  range scaled to a percent, colour by level or by the tile's accent, an optional charging item
-  that lights a bolt, and the percent shown or hidden on every style.
-- A chart in a short tile draws a chart again. Its axes took a flat 50px each whatever was left, so on
-  a landscape phone the plot was squeezed to nothing and the widget showed a flat line with no values
-  against it. An axis now only takes its space while the plot keeps a usable share, and the room it
-  takes follows the text size, which also stops a two-line date label being cut off at the bottom of
-  the canvas. The range choosers stay on one row and scroll sideways rather than wrapping over the
-  plot, and a chart with a name puts its full-screen button in that name row instead of a row of its
-  own.
-- The timeline names its rows and shows its clock on a short tile. Both were being dropped when the
-  tile was short, though the names cost width rather than height, which left a landscape phone with
-  three unlabelled strips. The clock also reads the hour rather than the hour and minute on a window
-  of more than a few hours, so the times no longer run into each other on a phone.
-- The chart's range choosers, its x and y axis labels, the timeline's clock and the chart legend are set
-  at the tile's own text size instead of a fixed small one. The choosers were the worst of it: parked in
-  the widget's name row they inherited its size and then shrank again on top, which put them at 8.7px on
-  a normal dashboard. They follow the dashboard, device and per-widget text settings now, like everything
-  else a person reads.
-- A widget added while you were editing the desktop layout no longer lands on top of one that had been
-  moved on the tablet layout. It is fitted around the widgets that have a tablet position of their own,
-  which also repairs a dashboard that already overlaps.
-- Buttons have a look worth putting on a wall. Alongside the pressable tile and the sliding toggle
-  there is now a Card style, with the icon in a chip at one corner, a state pip at the other and the
-  name over its caption along the bottom. Both take a Finish: plain is the theme's own control and is
-  what every existing button keeps, while solid, glass, glow, edge, outline, sheen and bare fill the
-  tile edge to edge and take their colour from the widget's Accent color. A theme still restyles the
-  plain finish; the others keep the look you picked whichever theme is on.
-- The log widget keeps up with a chatty server without taking the browser with it. Every arriving line
-  was written to the store on its own, and each write re-drew every log tile's whole list, so a server
-  writing forty lines a second used a whole processor core. Lines are collected and drawn five times a
-  second now, and the rows scrolled out of sight are left for the browser to skip. Same log, a third of
-  the work, and nothing was growing without bound either way.
-- A log tile no longer stops following the newest line on its own. Anything that moved the box for a
-  frame, such as opening a settings panel beside it, could be read as the reader scrolling away, and
-  the tile then held its place and walked further from the newest line with every line that arrived.
-  Only your own scrolling stops it following now.
-- Typing into an item or icon picker is no longer interrupted by another widget on the same dashboard.
-  Anything scrolling anywhere in the page closed the list and put the stored name back under the
-  typing, and a log tile follows its newest line about once a second, so on a dashboard with one the
-  search was wiped a second or two after it was typed. Only a scroll that can actually move the field
-  closes the list now.
+- Battery widget, drawn eight ways, with its own input range, colour by level and a charging bolt.
+- Charts work in short tiles again. The axes took a fixed 50px each and squeezed the plot to
+  nothing on a landscape phone.
+- The timeline keeps its row names and its clock on a short tile.
+- Chart and timeline text follows the tile's text size instead of a fixed small one. The range
+  chips were 8.7px.
+- A widget added on the desktop layout no longer lands on top of one moved on the tablet layout.
+- Buttons have a Card style, and eight finishes from plain to glass, glow and neon.
+- The log widget keeps up with a chatty server. It was using a whole core at forty lines a second.
+- A log tile stops following the newest line only when you scroll it yourself.
+- Typing in an item or icon picker is no longer interrupted by a log tile scrolling elsewhere.
 
 ## 1.27.0
-- The switch widget is now a style of the button widget rather than a widget of its own. They were
-  two ways of drawing the same job, and the palette offered both with no way to tell which you
-  wanted. The Style setting is only the look, a pressable tile or a sliding toggle; both send the
-  same commands and behave the same way. Dashboards that already have switches are converted when
-  they load, keeping their commands, icons and names, and are written back in the new shape the
-  next time you save.
-- How a tile decides it is on is now a setting rather than a side effect of which widget you
-  picked. "Count any value above 0 as on" makes a dimmer at 50% or a color with any brightness
-  read as on, which is what the switch widget used to do; leave it off and the tile lights up only
-  when the item matches its command exactly. It works on either style.
-- A new widget now arrives set to toggle between its command and its alternate, so it does
-  something useful the moment you give it an item.
-- Panel group, its explanation and the "Theme default" name-alignment option are translated. They
-  had never been in the catalogs, so they showed in English in all six languages.
+
+- The switch widget is now a style of the button widget. Existing switches convert when they load.
+- "Count any value above 0 as on" is its own setting, so a dimmer part way up can read as on
+  whichever style is drawing it.
+- A new button arrives set to toggle, so it does something the moment you give it an item.
+- Translated the Panel group and the Theme default alignment option.
 
 ## 1.26.0
 
-- Adding neohab to a phone's home screen while a dashboard is open now pins that dashboard. The
-  icon is named after it and opens straight into it, and a second dashboard gets a second icon
-  rather than replacing the first. Adding it from the dashboard list still gives a plain neohab
-  icon.
-- The app icon no longer has the top of its arch cut off on Android. A launcher only shows about
-  the middle two thirds of an icon, so the mark now sits centred and small enough to survive that.
+- Adding a dashboard to a phone's home screen pins that dashboard, with its own icon.
+- The app icon is no longer cut off by Android launchers.
 
 ## 1.25.0
 
-- neohab has a logo: the name in Poppins with a doorway for its n and its windows lit in the
-  openHAB orange. It is the wordmark on the home screen, the favicon, the app icon and the tile
-  on openHAB's start page.
-- Signing out now ends the session on the server, not just on the device.
-- A server that shows nothing without an account works properly: signing in loads your dashboards
-  straight away, a deep link asks you to sign in instead of claiming the dashboard does not exist,
-  and a failed sign-in says so rather than leaving you looking at an unchanged screen.
-- A save the server refuses now offers a sign-in and saves again afterwards, keeping your work.
-  Leaving the editor with unsaved changes asks first, whichever way you leave.
-- Failures are written in words instead of REST calls and status codes, throughout.
-- Editing on a phone: the toolbar no longer pushes Save off the screen.
+- neohab has a logo: the name in Poppins with a lit doorway for the n.
+- Signing out ends the session on the server, not just on the device.
+- Servers that show nothing without an account work properly.
+- A save the server refuses offers a sign in and saves again after, keeping your work.
+- Failures are written in words instead of REST calls and status codes.
+- The editor toolbar no longer pushes Save off a phone screen.
 - A browser too old to run neohab is told so instead of rendering a broken page.
-- Settings has an index at the top, and says which of its options are shared and which belong to
-  this device only.
-- Escape closes any panel or sheet; a new tile is named after the item you bind to it; new widgets
-  start at a more sensible size.
-- The slider's gradient and bubble styles run copper to verdigris instead of cyan to magenta,
-  and the gradient's reading is tinted toward the theme's ink so it reads on a light theme too.
-- Serving neohab over HTTPS is supported and tested. Where an `http://` address cannot be loaded
-  into an https page - a camera stream, a framed page, an image - the widget says so instead of
-  showing an empty box, and the settings field warns while you are typing it.
-- A log widget: openhab.log, events.log or both on a tile, live, following the newest line and
-  filtered by level, logger and text. A pause button at the top right stops the tile so a line
-  can be read, and picks up where it left off. Holding it opens the log full screen with a
-  search box, level and source chips, pause, clear and copy.
+- Settings has an index, and says which options are shared and which belong to this device.
+- Escape closes any panel or sheet.
+- HTTPS is supported and tested. An `http://` camera or framed page inside an https page says so
+  instead of showing an empty box.
+- Log widget: openhab.log, events.log or both, live on a tile, filtered by level, logger and text.
 
 ## 1.24.0
 
-- Sliders in five styles - gradient, wedge, inset rail, value bubble, and the theme's own - and any
-  of them can stand on end as a fader.
-- A HABPanel vertical slider now imports as one.
+- Sliders in five styles, and any of them can stand on end as a fader.
+- A HABPanel vertical slider imports as one.
 
 ## 1.23.0
 
 - Thermostat widget: room temperature and setpoint, buttons and a draggable ring, plus mode, fan
-  and auxiliary heat, each bound to whatever item your binding gives you. Four looks.
+  and auxiliary heat. Four looks.
 
 ## 1.22.0
 
-- Stepper widget: step a value or cycle a list, in six looks and five finishes. A run of taps costs
-  the device one command.
+- Stepper widget: step a value or cycle a list, in six looks and five finishes.
 - Swiss Sheet redone flat against its reference, and it no longer bundles a font.
 - On a screen driven by a mouse, text keeps its normal size wherever the row can hold it.
 - A bottom sheet stays clear of a pinned sidebar.
 
 ## 1.21.0
 
-- The colour picker's on and off buttons are shown by default, stack on the swatch, and keep one
-  fixed pair of colours instead of changing with the light.
+- The colour picker's on and off buttons show by default and keep one fixed pair of colours.
 
 ## 1.20.1
 
@@ -173,39 +104,37 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## 1.20.0
 
-- Colour picker: Off switches the light off and openHAB keeps its colour; On restores the
-  brightness it was last seen at. No extra item, nothing written to the server.
+- Colour picker: Off switches the light off and keeps its colour, On restores the brightness it was
+  last seen at. No extra item, nothing written to the server.
 
 ## 1.19.0
 
-- Weather and clock tiles answer a hold with a view of their own: the whole forecast, or the date,
-  the seconds and the time zone.
+- Weather and clock tiles answer a hold with a view of their own.
 - Clocks can be set to any time zone, and follow the openHAB server's clock by default.
 - A big reading is sized to the tile it is in rather than clipped by it.
 
 ## 1.18.0
 
-- Faders and floor-plan glows move once and settle where the device settles, instead of jumping
+- Faders and floor plan glows move once and settle where the device settles, instead of jumping
   about while a light fades.
 - The clock widget has a card like every other widget, and can be told not to.
-- The weather panel fits its tile, and its rain chance is the day's, as every forecast site quotes
-  it.
+- The weather panel fits its tile, and its rain chance is the day's.
 
 ## 1.17.0
 
-- What you see while editing is what a save produces: the editor's chrome is drawn only on the
+- What you see while editing is what a save produces. The editor's chrome is drawn only on the
   widget you point at, and opening a settings panel zooms the grid rather than squeezing it.
 - Every widget calls its title its Name, and can be told not to show one.
 
 ## 1.16.0
 
 - Weather widget, in three looks, from Open-Meteo or your own items.
-- Hold or right-click any tile for its current value, when it last changed, and recent history.
+- Hold or right click any tile for its current value, when it last changed, and recent history.
 - Charts gained 3h and 6h ranges, and a say in which ranges they offer.
 
 ## 1.15.1
 
-- Editing is administrators-only, like openHAB's own UIs.
+- Editing is administrators only, like openHAB's own UIs.
 
 ## 1.14.0
 

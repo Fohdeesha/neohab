@@ -102,10 +102,16 @@ export const myWidget: WidgetDefinition<MyConfig> = {
 }
 ```
 
-Register it in `src/widgets/index.ts`. That is the whole contract. The grid, the editor, the
-settings panel, copy and paste, exports and the per-widget universal settings all come for free.
+Register it in `src/widgets/index.ts`. The grid, the editor, the settings panel, copy and paste,
+exports and the per-widget universal settings all come for free.
 
-Three things to know:
+A widget that binds an item owes the registry two more answers, and `src/widgets/settings.test.ts`
+will fail you until it gets them: `canCommand`, and `controlFor`, which says what control the hold
+sheet should offer for this widget's own configuration. If the widget only reads its item, mark the
+field `readOnly: true` and return `undefined`. The default is a slider on a 0-100 scale, which is
+wrong for a sensor and wrong for anything with a scale of its own.
+
+Three more things to know:
 
 - **Stored configuration is untrusted.** A backup, a shared export or a hand edit is written
   verbatim, so guard every value you do arithmetic on at the point you read it, not at the point

@@ -47,6 +47,12 @@ body {
   overscroll-behavior: none;
 }
 
+/* the app's own links only: a template widget's content is in a shadow root, so a user's markup
+   keeps whatever it asked for */
+a {
+  color: var(--nh-primary);
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -1953,7 +1959,7 @@ button {
 
 .nh-sheet {
   position: fixed;
-  left: 0;
+  left: var(--nh-sheet-inset, 0px);
   right: 0;
   bottom: 0;
   z-index: 50;
@@ -1966,6 +1972,25 @@ button {
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.5);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Off a phone this is a dialog, not a bottom sheet: full width gives a 1890px field for a dashboard
+   name. Centred with `margin-inline`, never a transform, because `.nh-sheet--collapsed` owns that
+   property and a second declaration would silently win. The 70vh cap above stays: lifting it let a
+   palette with enough cards grow over the edit bar and swallow the button that opens it. */
+@media (min-width: 760px) {
+  .nh-sheet:not(.nh-sheet--side) {
+    width: min(560px, 100%);
+    margin-inline: auto;
+    bottom: 24px;
+    border-bottom: 1px solid var(--nh-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  .nh-sheet--wide:not(.nh-sheet--side) {
+    width: min(1040px, 100%);
+  }
 }
 
 .nh-sheet__head {
@@ -2154,7 +2179,6 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 26rem;
 }
 
 .nh-signin__text {

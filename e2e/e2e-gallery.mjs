@@ -169,37 +169,29 @@ try {
   await page.click('.nh-sheet__close')
   await page.click('button:has-text("Exit")')
 
+  // a gallery widget carries a template or a script that the app then runs, so the catalogue has to be the
+  // jar's own: pressing everything the section offers must not reach a single URL off this origin
   await openSettings()
-  await page.route('**/raw.githubusercontent.com/**', (route) => route.abort())
-  await page.click('button:has-text("Look for more online")')
-  await page.waitForSelector('.nh-settings__notice', { timeout: 20000 })
-  const remoteNotice = await page.textContent('.nh-settings__notice')
-  ok('an unreachable online catalogue says so', /Could not reach the online gallery/.test(remoteNotice ?? ''), String(remoteNotice).slice(0, 90))
-  ok('and the bundled cards are still listed', (await page.locator('.nh-gallery__card').count()) === index.widgets.length)
-  await page.unroute('**/raw.githubusercontent.com/**')
+  const section = page.locator('section:has(h2:text-is("Widget gallery"))')
+  const allButtons = await section.locator('button').count()
+  const cardButtons = await section.locator('.nh-gallery__card button').count()
+  ok('the gallery offers nothing beyond its own cards', allButtons === cardButtons, `${allButtons} buttons, ${cardButtons} on cards`)
+  ok('and no card came from somewhere else', (await page.locator('.nh-gallery__badge:text-is("online")').count()) === 0)
+  ok('the cards are the bundled ones', (await page.locator('.nh-gallery__card').count()) === index.widgets.length)
 
-  await page.route('**/raw.githubusercontent.com/**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        formatVersion: 1,
-        widgets: [{ id: 'gallery-remote-test', name: 'Remote Test Widget', description: 'from a catalogue', file: 'nope.json' }],
-      }),
-    })
-  )
-  await openSettings()
-  await page.click('button:has-text("Look for more online")')
-  await page.waitForSelector('.nh-gallery__card:has-text("Remote Test Widget")', { timeout: 20000 })
-  ok('a reachable online catalogue adds its widgets', (await page.locator('.nh-gallery__card:has-text("Remote Test Widget")').count()) === 1)
-  ok('marked as online', (await page.locator('.nh-gallery__card:has-text("Remote Test Widget") .nh-gallery__badge:text-is("online")').count()) === 1)
-  await page.route('**/nope.json', (route) => route.fulfill({ status: 404, body: '' }))
-  await card('Remote Test Widget').locator('button').click()
-  await page.waitForSelector('.nh-toast__text:has-text("Could not install")', { timeout: 20000 })
-  ok('a broken entry reports instead of installing', (await get('widgetdef:gallery-remote-test')) === null)
+  const origin = new URL(APP).origin
+  const offOrigin = []
+  page.on('request', (r) => {
+    const u = r.url()
+    if (!u.startsWith(origin) && !u.startsWith('data:') && !u.startsWith('blob:')) offOrigin.push(u)
+  })
+  for (let i = 0; i < allButtons; i++) {
+    await section.locator('button').nth(i).click()
+    await sleep(1200)
+  }
+  ok('pressing every one of them stays inside the add-on', offOrigin.length === 0, offOrigin.slice(0, 3).join(' | '))
 
-  const realErrs = errs.filter((e) => !/raw\.githubusercontent|nope\.json|ERR_FAILED|404/.test(e))
-  ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
+  ok('console clean', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (err) {
   ok('suite ran to completion', false, String(err).slice(0, 250))
 } finally {

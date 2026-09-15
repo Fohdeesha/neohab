@@ -1,8 +1,9 @@
 import type { CustomWidgetDef } from '../model/widgetdef'
 
+// the catalogue ships in the add-on and is deliberately the only source: a widget carries a template or a
+// script that the app then runs, so fetching one from anywhere but this jar would be running code from a
+// server the user doesn't control
 const BUNDLED_INDEX = 'gallery/index.json'
-
-export const REMOTE_INDEX = 'https://raw.githubusercontent.com/Fohdeesha/neohab/main/web/public/gallery/index.json'
 
 export interface GalleryEntry {
   id: string
@@ -12,7 +13,6 @@ export interface GalleryEntry {
   license?: string
   kind?: 'template' | 'js'
   file: string
-  remote?: boolean
 }
 
 export interface GalleryIndex {
@@ -41,17 +41,12 @@ export function loadBundledGallery(): Promise<GalleryIndex> {
   return fetchIndex(BUNDLED_INDEX)
 }
 
-export async function loadRemoteGallery(url: string = REMOTE_INDEX): Promise<GalleryIndex> {
-  const index = await fetchIndex(url)
-  return { ...index, widgets: index.widgets.map((w) => ({ ...w, remote: true })) }
+export function entryUrl(entry: GalleryEntry): string {
+  return new URL(entry.file, new URL(BUNDLED_INDEX, window.location.href)).toString()
 }
 
-export function entryUrl(entry: GalleryEntry, indexUrl: string): string {
-  return new URL(entry.file, new URL(indexUrl, window.location.href)).toString()
-}
-
-export async function loadGalleryWidget(entry: GalleryEntry, indexUrl: string): Promise<CustomWidgetDef> {
-  const res = await fetch(entryUrl(entry, indexUrl), { cache: 'no-cache' })
+export async function loadGalleryWidget(entry: GalleryEntry): Promise<CustomWidgetDef> {
+  const res = await fetch(entryUrl(entry), { cache: 'no-cache' })
   if (!res.ok) throw new Error(`${res.status}`)
   const raw = (await res.json()) as Partial<CustomWidgetDef>
   const kind = raw.kind === 'js' ? 'js' : 'template'

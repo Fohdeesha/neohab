@@ -189,7 +189,7 @@ function ConfirmSheet({
   const attention = converted.notes.filter((n) => n.level !== 'info').length
 
   return (
-    <Sheet title={t('Import from HABPanel')} onClose={onCancel}>
+    <Sheet wide title={t('Import from HABPanel')} onClose={onCancel}>
       <div className="nh-hpconfirm">
         <p className="nh-settings__text">{t('From {{source}}:', { source })}</p>
         <ul className="nh-hpconfirm__list">

@@ -18,12 +18,14 @@ its implicit user role turned off. Signing in is the whole answer.
 
 ## 2. Your first dashboard
 
-The welcome screen offers two ways in.
+The welcome screen offers four ways in. Two build something new:
 
 - **Create your first dashboard** gives you an empty one to fill.
 - **Generate from my items** reads the items you already have, groups them by room or by what they
   are, and builds a dashboard you can then edit. On a house that already has semantic tags it is
   usually the faster start.
+
+The other two bring something with you: **Import from HABPanel** and **Restore a backup**.
 
 Either way you end up on a dashboard with the ✎ button in the top bar. That button is edit mode,
 and it is where everything else in this page happens.
@@ -38,7 +40,8 @@ In edit mode:
 
 The first field is **openHAB Item**. Start typing part of an item's name and pick it from the list.
 For a Button, the two fields under it are **Action** and **Command**, which is everything a light
-switch needs. The name fills itself in from the item's label, and you can overwrite it.
+switch needs. **Name** is what the tile says, and a widget that starts without one takes the item's
+label when you bind it.
 
 Anything about how the tile looks is in the **Appearance** group below, and anything that belongs
 to the tile rather than the widget (its accent, its text size, which screen sizes show it) is in

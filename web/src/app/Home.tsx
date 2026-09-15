@@ -89,15 +89,19 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
               <p className="nh-welcome__text">
                 {t('There are no dashboards yet. Create your first one, bring your HABPanel setup along, or restore a neohab backup.')}
               </p>
-              <p className="nh-welcome__text">
-                <a href="docs/getting-started.html" target="_blank" rel="noreferrer">
-                  {t('Read the five-minute guide first →')}
-                </a>
-              </p>
             </>
           ) : (
             <p className="nh-welcome__text">{t('There are no dashboards yet. Sign in as an openHAB administrator to set neohab up.')}</p>
           )}
+          {/* the guide answers "what is this and what do I do now", which is the signed-out
+              visitor's question too, so it sits outside the branch that needs an admin */}
+          {!error ? (
+            <p className="nh-welcome__text">
+              <a href="docs/getting-started.html" target="_blank" rel="noreferrer">
+                {t('Read the five-minute guide first →')}
+              </a>
+            </p>
+          ) : null}
           {canEdit && !authRequired ? (
             <div className="nh-welcome__actions">
               <button type="button" className="nh-btn nh-btn--primary" onClick={createFirst}>

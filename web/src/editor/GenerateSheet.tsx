@@ -98,7 +98,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
     step === 'preview' ? t('Review what will be created') : step === 'source' ? t('Generate dashboards') : t('Choose what to include')
 
   return (
-    <Sheet title={title} onClose={onClose} scrollResetKey={step}>
+    <Sheet wide title={title} onClose={onClose} scrollResetKey={step}>
       {!survey ? (
         <p className="nh-settings__text">
           {catalogLoading || !index ? t('Reading your items…') : t('No items could be read from this server.')}
