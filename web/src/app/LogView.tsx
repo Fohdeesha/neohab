@@ -48,6 +48,7 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
   useEffect(() => (isLog ? subscribeLogs() : undefined), [isLog])
   const live = useLogsStore((s) => s.entries)
   const status = useLogsStore((s) => s.status)
+  const serverVersion = useLogsStore((s) => s.serverVersion)
   const admin = useIsAdmin()
   const [signIn, setSignIn] = useState(false)
 
@@ -120,11 +121,29 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
 
   const title = typeof config.label === 'string' && config.label.trim() !== '' ? config.label : t('Log')
   const needsSignIn = status === 'refused' && !admin
-  const state = paused ? 'paused' : status === 'live' ? 'live' : status === 'connecting' || status === 'idle' ? 'connecting' : 'down'
+  const unsupported = status === 'unsupported'
+  const state = paused
+    ? 'paused'
+    : unsupported
+      ? 'unsupported'
+      : status === 'live'
+        ? 'live'
+        : status === 'connecting' || status === 'idle'
+          ? 'connecting'
+          : 'down'
   const stateText =
-    state === 'paused' ? t('Paused') : state === 'live' ? t('Live') : state === 'connecting' ? t('Connecting…') : t('Reconnecting…')
-  const empty =
-    status === 'connecting' || status === 'idle'
+    state === 'paused'
+      ? t('Paused')
+      : state === 'unsupported'
+        ? t('Unavailable')
+        : state === 'live'
+          ? t('Live')
+          : state === 'connecting'
+            ? t('Connecting…')
+            : t('Reconnecting…')
+  const empty = unsupported
+    ? t('The server log needs openHAB 4.1 or newer.')
+    : status === 'connecting' || status === 'idle'
       ? t('Connecting…')
       : entries.length === 0
         ? t('Waiting for log entries…')
@@ -139,10 +158,10 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
         <span className="nh-dash__title">{title}</span>
         <span className="nh-dash__spacer" />
         <span className={'nh-logview__state nh-logview__state--' + state}>{stateText}</span>
-        <button type="button" className="nh-btn nh-btn--ghost" onClick={togglePause}>
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={togglePause} disabled={unsupported}>
           {paused ? t('Resume') : t('Pause')}
         </button>
-        <button type="button" className="nh-btn nh-btn--ghost" onClick={clear}>
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={clear} disabled={unsupported}>
           {t('Clear')}
         </button>
         <button type="button" className="nh-btn nh-btn--ghost" onClick={copy} disabled={shown.length === 0}>
@@ -196,7 +215,9 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
           ) : (
             <LogLines entries={shown} wrap full empty={empty} lang={i18n.language} />
           )}
-          {status === 'down' || (status === 'refused' && admin) ? (
+          {unsupported && serverVersion ? (
+            <div className="nh-log__status">{t('This server is openHAB {{version}}.', { version: serverVersion })}</div>
+          ) : status === 'down' || (status === 'refused' && admin) ? (
             <div className="nh-log__status">{t('Could not reach the server’s log. Retrying…')}</div>
           ) : null}
         </div>

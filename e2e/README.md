@@ -83,8 +83,8 @@ item's initial state first and restores it in cleanup, even when checks fail.
 
 ### More than one server
 
-neohab supports openHAB 4.x and 5.x, so the suites are meant to be run against both. Keep a
-target file per server and pick one with `NEOHAB_E2E_TARGET`:
+neohab runs on openHAB 3.1 through 5.x, so the suites are meant to be run against more than one
+line. Keep a target file per server and pick one with `NEOHAB_E2E_TARGET`:
 
 ```
 NEOHAB_E2E_TARGET=/path/to/target.oh5.json node run.mjs
@@ -92,6 +92,12 @@ NEOHAB_E2E_TARGET=/path/to/target.oh5.json node run.mjs
 
 Any `e2e/target.*.json` is gitignored except `target.example.json`. Deploy the **same jar** to
 both servers first and check the bundle in the banner matches, or the two runs are not comparable.
+
+**Some suites cannot pass on an older server, and that is the server rather than a regression.**
+On openHAB below 4.1 `e2e-log` fails almost entirely, because that openHAB registers no log
+websocket; below 4.0, `e2e-floorplan` loses its two signed-out preset checks and `e2e-generate`
+its console-error check, since `/rest/tags` does not exist there. Measured on 3.4.5 (56 of 60
+suites) and 4.0.0 (57 of 60); 4.1 and up should be clean.
 
 A server's own state changes what the suites can see, and two differences matter enough to plan
 for:

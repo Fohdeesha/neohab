@@ -6,6 +6,17 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.31.0
+
+- Installs on openHAB 3.1 and up. It refused anything older than 4.3 before, and said so only in
+  the server log.
+- The log widget says "needs openHAB 4.1 or newer" and names your version, instead of retrying for
+  ever on a server that has no log feed at all.
+- Settings, About lists anything your openHAB is too old to do, so you are not left guessing why a
+  widget is empty.
+- The dashboard generator no longer asks openHAB 3 for semantic tags it does not have, which was a
+  404 in the browser console on every open.
+
 ## 1.30.0
 
 - The widget gallery only offers what ships in the add-on. It could also pull widget code off

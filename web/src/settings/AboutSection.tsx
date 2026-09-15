@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { getRootInfo } from '../api/items'
 import { listPersistenceServices } from '../api/persistence'
 import { serviceNames, type PersistenceService } from '../model/persistence'
+import { parseServerVersion, serverGaps } from '../model/serverVersion'
 import { useAuthStore } from '../store/auth'
 import { useConfigStore } from '../store/config'
 import { useItemsStore } from '../store/items'
@@ -45,6 +46,8 @@ export function AboutSection() {
       dead = true
     }
   }, [authStatus])
+
+  const gaps = serverGaps(parseServerVersion(oh?.version))
 
   const role =
     authStatus === 'admin'
@@ -111,6 +114,23 @@ export function AboutSection() {
 
         <dt>{t('openHAB')}</dt>
         <dd>{oh?.version ? `${oh.version}${oh.build ? ` (${oh.build})` : ''}` : t('not reachable')}</dd>
+
+        {gaps.length > 0 ? (
+          <>
+            <dt>{t('Not on this server')}</dt>
+            <dd>
+              <ul className="nh-about__gaps">
+                {gaps.includes('logSocket') ? <li>{t('The log widget needs openHAB 4.1 or newer.')}</li> : null}
+                {gaps.includes('semanticTags') ? (
+                  <li>{t('Semantic tags you define yourself need openHAB 4.0 or newer. The built-in ones still work.')}</li>
+                ) : null}
+                {gaps.includes('anonymousPresets') ? (
+                  <li>{t('Floor plan presets are hidden from signed-out viewers on openHAB 3.')}</li>
+                ) : null}
+              </ul>
+            </dd>
+          </>
+        ) : null}
 
         <dt>{t('This device')}</dt>
         <dd>{live ? t('{{role}}, receiving live item states', { role }) : t('{{role}}, no live item states', { role })}</dd>

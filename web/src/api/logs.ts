@@ -1,6 +1,7 @@
 import { getAccessToken } from './auth'
 import { ohUrl } from './base'
 import { getRootInfo } from './items'
+import { hasLogSocket, parseServerVersion, type ServerVersion } from '../model/serverVersion'
 import {
   filterMessage,
   keepaliveMessage,
@@ -17,10 +18,11 @@ export type LogSocketStatus =
   | 'live'
   | 'refused' // the last attempt never opened: refused by the server, or the server is unreachable
   | 'down' // it was open and dropped; a retry is scheduled
+  | 'unsupported' // this openHAB has no log websocket at all, so there is nothing to retry
 
 export interface LogSocketHandlers {
   onEntries: (entries: LogEntry[]) => void
-  onStatus: (status: LogSocketStatus) => void
+  onStatus: (status: LogSocketStatus, serverVersion: string | null) => void
 }
 
 const KEEPALIVE_MS = 8000
@@ -28,16 +30,24 @@ const RETRY_MIN_MS = 1000
 const RETRY_MAX_MS = 30_000
 const RETRY_REFUSED_MS = 60_000
 
-let protocolProbe: Promise<LogProtocol> | null = null
+interface ServerFacts {
+  protocol: LogProtocol
+  version: ServerVersion | null
+}
 
-function logProtocol(): Promise<LogProtocol> {
-  protocolProbe ??= getRootInfo()
-    .then((info) => protocolFor(info.runtimeInfo?.version ?? info.version))
-    .catch(() => {
-      protocolProbe = null
-      return 'object' as const
+let factsProbe: Promise<ServerFacts> | null = null
+
+function serverFacts(): Promise<ServerFacts> {
+  factsProbe ??= getRootInfo()
+    .then((info) => {
+      const raw = info.runtimeInfo?.version ?? info.version
+      return { protocol: protocolFor(raw), version: parseServerVersion(raw) }
     })
-  return protocolProbe
+    .catch(() => {
+      factsProbe = null
+      return { protocol: 'object' as const, version: null }
+    })
+  return factsProbe
 }
 
 export class LogSocket {
@@ -50,8 +60,13 @@ export class LogSocket {
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private keepalive: ReturnType<typeof setInterval> | null = null
   private generation = 0
+  private serverVersion: string | null = null
 
   constructor(private handlers: LogSocketHandlers) {}
+
+  private report(status: LogSocketStatus): void {
+    this.handlers.onStatus(status, this.serverVersion)
+  }
 
   start(): void {
     if (!this.closed) return
@@ -66,7 +81,7 @@ export class LogSocket {
     const ws = this.ws
     this.ws = null
     ws?.close()
-    this.handlers.onStatus('idle')
+    this.report('idle')
   }
 
   restart(): void {
@@ -88,9 +103,18 @@ export class LogSocket {
 
   private async connect(): Promise<void> {
     const gen = ++this.generation
-    this.handlers.onStatus('connecting')
-    const [protocol, token] = await Promise.all([logProtocol(), getAccessToken()])
+    this.report('connecting')
+    const [facts, token] = await Promise.all([serverFacts(), getAccessToken()])
     if (this.closed || gen !== this.generation) return
+    this.serverVersion = facts.version?.raw ?? null
+
+    // openHAB registers no log websocket before 4.1, so connecting would fail every time and a
+    // "retrying" notice would be a lie. Say what the server is instead, and stop.
+    if (!hasLogSocket(facts.version)) {
+      this.report('unsupported')
+      return
+    }
+    const protocol = facts.protocol
 
     let ws: WebSocket
     try {
@@ -111,7 +135,7 @@ export class LogSocket {
       this.keepalive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(keepaliveMessage(protocol))
       }, KEEPALIVE_MS)
-      this.handlers.onStatus('live')
+      this.report('live')
     }
 
     ws.onmessage = (e: MessageEvent) => {
@@ -133,7 +157,7 @@ export class LogSocket {
   }
 
   private schedule(wasOpen: boolean): void {
-    this.handlers.onStatus(wasOpen ? 'down' : 'refused')
+    this.report(wasOpen ? 'down' : 'refused')
     const delay = wasOpen ? this.retryDelay : RETRY_REFUSED_MS
     if (wasOpen) this.retryDelay = Math.min(this.retryDelay * 2, RETRY_MAX_MS)
     this.retryTimer = setTimeout(() => {

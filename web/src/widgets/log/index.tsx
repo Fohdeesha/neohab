@@ -24,6 +24,7 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
   useEffect(() => subscribeLogs(), [])
   const live = useLogsStore((s) => s.entries)
   const status = useLogsStore((s) => s.status)
+  const serverVersion = useLogsStore((s) => s.serverVersion)
   const admin = useIsAdmin()
   const [signIn, setSignIn] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -36,28 +37,31 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
   const shown = useMemo(() => lastMatching(entries, filter, keep), [entries, filter, keep])
 
   const needsSignIn = status === 'refused' && !admin
-  const empty =
-    status === 'connecting' || status === 'idle'
+  const unsupported = status === 'unsupported'
+  const empty = unsupported
+    ? t('The server log needs openHAB 4.1 or newer.')
+    : status === 'connecting' || status === 'idle'
       ? t('Connecting…')
       : entries.length === 0
         ? t('Waiting for log entries…')
         : t('Nothing matches the filters yet.')
 
-  const pause = needsSignIn ? undefined : (
-    <button
-      type="button"
-      className={'nh-log__pause' + (paused ? ' nh-log__pause--on' : '')}
-      aria-pressed={paused}
-      aria-label={paused ? t('Resume') : t('Pause')}
-      title={paused ? t('Resume') : t('Pause')}
-      onClick={() => {
-        if (!paused) setFrozen(live)
-        setPaused(!paused)
-      }}>
-      <PauseGlyph paused={paused} />
-      {paused ? <span className="nh-log__pausetext">{t('Paused')}</span> : null}
-    </button>
-  )
+  const pause =
+    needsSignIn || unsupported ? undefined : (
+      <button
+        type="button"
+        className={'nh-log__pause' + (paused ? ' nh-log__pause--on' : '')}
+        aria-pressed={paused}
+        aria-label={paused ? t('Resume') : t('Pause')}
+        title={paused ? t('Resume') : t('Pause')}
+        onClick={() => {
+          if (!paused) setFrozen(live)
+          setPaused(!paused)
+        }}>
+        <PauseGlyph paused={paused} />
+        {paused ? <span className="nh-log__pausetext">{t('Paused')}</span> : null}
+      </button>
+    )
 
   return (
     <WidgetFrame label={config.label} aside={pause}>
@@ -72,7 +76,9 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
         ) : (
           <LogLines entries={shown} wrap={wrapOf(config.wrap)} empty={empty} lang={i18n.language} />
         )}
-        {status === 'down' || (status === 'refused' && admin) ? (
+        {unsupported && serverVersion ? (
+          <div className="nh-log__status">{t('This server is openHAB {{version}}.', { version: serverVersion })}</div>
+        ) : status === 'down' || (status === 'refused' && admin) ? (
           <div className="nh-log__status">{t('Could not reach the server’s log. Retrying…')}</div>
         ) : null}
       </div>

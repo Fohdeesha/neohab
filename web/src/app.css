@@ -7178,6 +7178,15 @@ button {
   min-width: 0;
 }
 
+.nh-about__gaps {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.nh-about__gaps li + li {
+  margin-top: 4px;
+}
+
 .nh-about__report {
   white-space: pre-wrap;
   overflow-wrap: break-word;

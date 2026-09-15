@@ -8,11 +8,23 @@
 A dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for phones,
 tablets and wall panels, built and configured entirely in the browser. No file editing.
 
-**Status:** in daily use, latest release **1.30.0**. A community project, not an official openHAB UI.
+**Status:** in daily use, latest release **1.31.0**. A community project, not an official openHAB UI.
 
 ## Requirements
 
-- **openHAB 4.3 or newer**, including 5.x. One jar covers both.
+- **openHAB 4.1 or newer, including 5.x: everything works.** One jar covers every version.
+- **openHAB 3.1 to 4.0: supported, with four gaps.** It installs and runs, and Settings shows you
+  which of these apply to your server. openHAB 3.0 and older cannot run it at all, because the
+  add-on interface neohab plugs into did not exist yet.
+- **openHAB 4.3 is what CI builds against**, and the version this has been used on daily.
+
+| Needs | What you lose on an older server |
+|---|---|
+| openHAB **4.1** | The **log widget**. openHAB added the log feed it reads in 4.1, so on anything older the widget says so rather than pretending to retry. |
+| openHAB **4.0** | **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them. |
+| openHAB **4.0** | **Semantic tags you define yourself**, in the dashboard generator. The built-in tags work everywhere, so generation still works. |
+| openHAB **4.1** | Nothing functional: older servers send no default number format, so a temperature can read `21.5` where a newer one rounds it to `22`. |
+
 - **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121. An older one is
   told so rather than rendering a broken page.
 - **Nothing else.** Only openHAB's public REST and SSE APIs. No server-side code of ours, no

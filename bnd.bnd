@@ -7,9 +7,11 @@ Automatic-Module-Name: org.openhab.ui.neohab
 # no other openHAB line would then resolve the bundle. The widened imports below do the job.
 -contract: -*
 
-# compiled against 4.3.x, must resolve on 4.x and 5.x, so the ranges are widened by hand
+# compiled against 4.3.x, must resolve on 3.1 through 5.x, so the ranges are widened by hand.
+# openHAB exports this package at its own release version, so the floor here IS the oldest
+# openHAB that can load the bundle - 3.1, where the tiles package first appeared.
 Import-Package: \
-  org.openhab.core.ui.tiles;version="[4.3,6)",\
+  org.openhab.core.ui.tiles;version="[3.1,6)",\
   javax.servlet;version="[3.1,6)",\
   javax.servlet.http;version="[3.1,6)",\
   org.slf4j;version="[1.7,3)",\

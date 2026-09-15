@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.ui.bundles</groupId>
   <artifactId>org.openhab.ui.neohab</artifactId>
-  <version>1.30.0</version>
+  <version>1.31.0</version>
   <packaging>jar</packaging>
 
   <name>neohab</name>
@@ -21,7 +21,9 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
+    <!-- openHAB 3.x runs on Java 11. bnd turns this into Require-Capability osgi.ee, which is a
+         hard resolution constraint, so 17 here locks the bundle out of every openHAB 3. -->
+    <maven.compiler.release>11</maven.compiler.release>
     <!-- oldest supported openHAB core API line; runtime range is widened in bnd.bnd -->
     <ohc.version>4.3.11</ohc.version>
     <bnd.version>7.1.0</bnd.version>
@@ -48,8 +50,11 @@
     </dependency>
     <dependency>
       <groupId>org.osgi</groupId>
+      <!-- 1.4, not 1.5: the annotation version becomes a Require-Capability on the DS extender,
+           and openHAB 3.x ships Felix SCR 2.1.x, which provides 1.4. Constructor injection, the
+           only 1.4+ feature used here, is in 1.4. -->
       <artifactId>org.osgi.service.component.annotations</artifactId>
-      <version>1.5.1</version>
+      <version>1.4.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

@@ -6,9 +6,11 @@ import { useAuthStore } from './auth'
 export interface LogsState {
   entries: LogEntry[]
   status: LogSocketStatus
+  /** what the server calls itself, so an unsupported notice can name it rather than say "too old" */
+  serverVersion: string | null
 }
 
-export const useLogsStore = create<LogsState>(() => ({ entries: [], status: 'idle' }))
+export const useLogsStore = create<LogsState>(() => ({ entries: [], status: 'idle', serverVersion: null }))
 
 const STOP_GRACE_MS = 3000
 const FLUSH_MS = 200
@@ -41,7 +43,7 @@ const socket = new LogSocket({
     if (pending.length > BUFFER_MAX) pending.splice(0, pending.length - BUFFER_MAX)
     flushTimer ??= setTimeout(flush, FLUSH_MS)
   },
-  onStatus: (status) => useLogsStore.setState({ status })
+  onStatus: (status, serverVersion) => useLogsStore.setState({ status, serverVersion })
 })
 
 let refs = 0
@@ -77,6 +79,8 @@ export function clearLogs(): void {
 // only churn
 useAuthStore.subscribe((s, prev) => {
   if (s.status === prev.status || refs === 0) return
+  // no credential makes a websocket appear on a server that has none
+  if (useLogsStore.getState().status === 'unsupported') return
   const credentialsMoved = s.status === 'anonymous' || prev.status === 'anonymous'
   if (credentialsMoved || useLogsStore.getState().status !== 'live') socket.restart()
 })

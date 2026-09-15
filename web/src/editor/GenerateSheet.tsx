@@ -37,7 +37,7 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const controller = new AbortController()
     getSemanticTags(controller.signal)
-      .then((tags) => setIndex(buildTagIndex(tags)))
+      .then((tags) => setIndex(buildTagIndex(tags ?? undefined)))
       .catch(() => setIndex(buildTagIndex()))
     return () => controller.abort()
   }, [])
