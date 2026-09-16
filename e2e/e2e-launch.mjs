@@ -1,6 +1,6 @@
 // The first-run and failure paths a public-launch review went through by hand.
 import { launchChromium } from './lib/browser.mjs'
-import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { BASE, NS, TOKEN, AUTH, ITEMS, UNREACHABLE } from './lib/target.mjs'
 
 const APP = BASE + '/neohab/index.html'
 const UID = 'dashboard:nh-e2e-launch'
@@ -396,10 +396,160 @@ try {
     ok('with a button that does it', (await page.locator('.nh-update button', { hasText: /reload/i }).count()) === 1)
     await ctx.close()
   }
+
+  // The live-updates notice has to name the reason THIS server cannot stream, which is not the
+  // same question as whether the reader is signed out: once signed in the config loads fine, and
+  // the item-state stream is still an EventSource that cannot carry the token. Both halves are
+  // produced here by answering the app's own requests, so no server setting is touched.
+  {
+    // openHAB with its implicit user role off refuses a request that carries NO token and serves
+    // one that does, so the fake has to do the same. Answering 401 to everything would reproduce
+    // being signed out, which is not the case under test: signed out there is no dashboard at all.
+    let probesSeen = 0
+    const liveNotice = async ({ implicitRole }) => {
+      const { ctx, page } = await open()
+      await page.route('**/rest/events/states**', (r) => r.abort()) // never connects
+      if (!implicitRole) {
+        await page.route('**/rest/**', (r) => {
+          const auth = r.request().headers()['authorization']
+          if (auth) return r.continue()
+          probesSeen++
+          return r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":{"message":"Authentication required"}}' })
+        })
+      }
+      await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.nh-dash', { timeout: 20000 })
+      await page.waitForSelector('.nh-live', { timeout: 20000 }).catch(() => {})
+      await sleep(1500) // the probe answers after the notice is already up
+      const text = await probe(page, () => document.querySelector('.nh-live')?.innerText.replace(/\s+/g, ' ') ?? '')
+      await ctx.close()
+      return text ?? ''
+    }
+
+    const refused = await liveNotice({ implicitRole: false })
+    ok('a server that refuses a signed-out read still raises the live-updates notice', /live updates unavailable/i.test(refused), refused.slice(0, 80))
+    ok('the app asked a question the token would have answered wrongly', probesSeen > 0, 'credential-free requests seen: ' + probesSeen)
+    ok(
+      'and it blames the user role rather than the reader, with a token in hand',
+      /user role/i.test(refused) && !/proxy/i.test(refused),
+      refused.slice(0, 200)
+    )
+
+    const allowed = await liveNotice({ implicitRole: true })
+    ok('a server that serves reads but will not stream also raises it', /live updates unavailable/i.test(allowed), allowed.slice(0, 80))
+    ok('and that one does blame the plumbing', /proxy/i.test(allowed) && !/user role/i.test(allowed), allowed.slice(0, 200))
+  }
+
+  // A widget bound to an item this server does not have reported the control's floor - a slider
+  // and a dial both read 0, which looks exactly like a light that is off.
+  {
+    const GHOST = 'nh_e2e_launch_ghost'
+    await fetch(NS + '/' + UID + '-ghost', { method: 'DELETE', headers: AUTH }).catch(() => {})
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: UID + '-ghost',
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: DASH + '-ghost',
+          name: 'E2E Launch ghost',
+          columns: 12,
+          rowHeight: 60,
+          widgets: [
+            { id: 'ghost', type: 'slider', config: { label: 'Gone', item: GHOST }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
+            { id: 'real', type: 'slider', config: { label: 'Here', item: ITEMS.dimmer }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } }
+          ]
+        }
+      })
+    })
+
+    const read = async (route) => {
+      const { ctx, page } = await open()
+      if (route) await page.route('**/rest/items?fields=name**', route)
+      await page.goto(APP + '#/d/' + DASH + '-ghost', { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.nh-gcell', { timeout: 20000 })
+      await sleep(3500)
+      const out = await probe(page, () => {
+        const cells = [...document.querySelectorAll('.nh-gcell')]
+        // a failed tile no longer carries the widget's own name, so find it by the item it names
+        const of = (t) => cells.find((c) => c.innerText.toLowerCase().includes(t))
+        const ghost = of('nh_e2e_launch_ghost') ?? of('gone')
+        return {
+          ghost: (ghost?.innerText ?? '').replace(/\s+/g, ' ').trim(),
+          ghostIsError: !!ghost?.querySelector('.nh-widget--error'),
+          real: (of('here')?.innerText ?? '').replace(/\s+/g, ' ').trim(),
+          realIsError: !!of('here')?.querySelector('.nh-widget--error'),
+          sliders: document.querySelectorAll('.nh-gcell input[type="range"]').length
+        }
+      })
+      await ctx.close()
+      return out ?? {}
+    }
+
+    const seen = await read(null)
+    ok('a widget whose item is not on the server says so', /not on this openhab server/i.test(seen.ghost ?? ''), (seen.ghost ?? '').slice(0, 90))
+    ok('and it names the item, so the reader knows which', (seen.ghost ?? '').includes(GHOST), (seen.ghost ?? '').slice(0, 90))
+    ok('rather than drawing a control at its floor', seen.sliders === 1, 'range inputs on the page: ' + seen.sliders)
+    ok('a widget whose item IS on the server keeps its control', seen.realIsError === false, (seen.real ?? '').slice(0, 60))
+    ok('and still shows that item’s value', /\d/.test(seen.real ?? ''), (seen.real ?? '').slice(0, 60))
+
+    // the other half: not knowing is not the same as knowing it is missing
+    const refused = await read((r) =>
+      r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":{"message":"Authentication required"}}' })
+    )
+    ok(
+      'a server that will not list its items is never used to call an item missing',
+      refused.ghostIsError === false,
+      (refused.ghost ?? '').slice(0, 90)
+    )
+  }
+
+  // An image whose address does not answer drew an empty tile: no picture and nothing said,
+  // where the same widget is clear about a missing, unsafe or mixed-content address.
+  {
+    const { ctx, page } = await open()
+    await fetch(NS + '/' + UID + '-img', { method: 'DELETE', headers: AUTH }).catch(() => {})
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: UID + '-img',
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: DASH + '-img',
+          name: 'E2E Launch image',
+          columns: 12,
+          rowHeight: 60,
+          widgets: [
+            // 192.0.2.0/24 is TEST-NET-1 and is guaranteed not to route, but the request is
+            // failed here anyway so the check never waits on a timeout
+            // the scheme has to follow the PAGE's: a hardcoded http:// address in an https page is
+            // blocked as mixed content, which the widget reports differently and on purpose, so the
+            // check would be measuring that instead of a host that does not answer
+            { id: 'img', type: 'image', config: { label: 'Cam', url: UNREACHABLE + '192.0.2.77/snapshot.jpg' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } }
+          ]
+        }
+      })
+    })
+    await page.route('**/192.0.2.77/**', (r) => r.abort())
+    await page.goto(APP + '#/d/' + DASH + '-img', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-gcell', { timeout: 20000 })
+    await sleep(2500)
+    const shown = await probe(page, () => ({
+      text: (document.querySelector('.nh-gcell')?.innerText ?? '').replace(/\s+/g, ' ').trim(),
+      stillAnImg: document.querySelectorAll('.nh-gcell img').length
+    }))
+    ok('an image that cannot be loaded says so', /could not be loaded/i.test(shown?.text ?? ''), (shown?.text ?? '(blank tile)').slice(0, 90))
+    ok('and the broken image element is gone', shown?.stillAnImg === 0, 'img elements: ' + shown?.stillAnImg)
+    await ctx.close()
+  }
 } catch (err) {
   ok('suite ran without crashing', false, String(err))
 } finally {
-  for (const uid of [UID, UID + '-empty']) {
+  for (const uid of [UID, UID + '-empty', UID + '-ghost', UID + '-img']) {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }

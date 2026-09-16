@@ -8,7 +8,7 @@
 A dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for phones,
 tablets and wall panels, built and configured entirely in the browser. No file editing.
 
-**Status:** in daily use, latest release **1.31.0**. A community project, not an official openHAB UI.
+**Status:** in daily use, latest release **1.32.0**. A community project, not an official openHAB UI.
 
 ## Requirements
 
@@ -48,8 +48,10 @@ tablets and wall panels, built and configured entirely in the browser. No file e
 There is a [five-minute guide](docs/getting-started.md) in the add-on, linked from the welcome
 screen and served at `/neohab/docs/getting-started.html`.
 
-**Upgrading:** delete the old jar, wait for it to stop, then copy the new one in. Two jars at once
-register the same page twice. Open tabs offer to reload themselves.
+**Upgrading:** delete the old jar, wait for it to stop, then copy the new one in. Leaving the old
+one beside the new one is the thing to avoid: openHAB keeps whichever it read last and logs a
+warning rather than an error, so you can end up still running the old version with nothing obvious
+to show for it. Open tabs offer to reload themselves.
 
 **Removing it:** delete the jar. Dashboards stay in openHAB's JSON database under the three
 `neohab:*` namespaces, so putting the jar back brings everything with it.
@@ -101,8 +103,8 @@ one for that page load, changing nothing.
 - **Voice and audio.** openHAB's Web Audio sink plays through the browser, a speech item announces
   changes, and a microphone button sends spoken commands to the interpreter.
 - **Backups.** Export and import the whole configuration as JSON, or a single dashboard, widget or
-  theme on its own. A restore point is taken before each change, twenty-five are kept, and you can
-  see what changed field by field and roll back.
+  theme on its own. A restore point is taken before each change, the last twenty-five are kept by
+  default, and you can see what changed field by field and roll back.
 - **Languages.** English, German, Spanish, French, Italian, Dutch and Polish, from the browser
   language with a per-device override.
 

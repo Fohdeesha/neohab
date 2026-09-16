@@ -13,12 +13,17 @@ interface ImageConfig {
 function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   const { t } = useTranslation()
   const [cacheBust, setCacheBust] = useState(0)
+  const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     if (!config.refresh || config.refresh <= 0) return
     const id = setInterval(() => setCacheBust(Date.now()), config.refresh * 1000)
     return () => clearInterval(id)
   }, [config.refresh])
+
+  // a new address, or the next refresh, is a fresh try: a camera snapshot that 404s once should
+  // not leave the tile saying so for ever
+  useEffect(() => setFailed(false), [config.url, cacheBust])
 
   const url = safeUrl(config.url)
   if (!url) {
@@ -41,9 +46,19 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
 
   const src = cacheBust > 0 ? appendParam(url, '_', String(cacheBust)) : url
 
+  if (failed) {
+    return (
+      <WidgetFrame label={config.label} center>
+        <span className="nh-image__placeholder">
+          {t('That image could not be loaded. Check the address and that the host is reachable.')}
+        </span>
+      </WidgetFrame>
+    )
+  }
+
   return (
     <WidgetFrame label={config.label} bare>
-      <img className="nh-image" src={src} alt={config.label ?? 'image'} />
+      <img className="nh-image" src={src} alt={config.label ?? 'image'} onError={() => setFailed(true)} />
     </WidgetFrame>
   )
 }

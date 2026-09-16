@@ -5,6 +5,7 @@ import { getWidgetDefinition, hasHeaderFor, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
+import { ensureItemNames, missingFrom, useCatalogStore } from '../store/catalog'
 import { commandItem } from '../widgets/common/command'
 import { WidgetBoundary } from './WidgetBoundary'
 
@@ -18,6 +19,14 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
   useEffect(() => subscribeItems(itemsKey ? itemsKey.split('\n') : []), [itemsKey])
 
   const states = useItemsStore(useShallow((s) => selectStates(s.states, itemNames)))
+
+  // An item the server does not have never reports a state, and a control with no state draws its
+  // floor: a slider and a dial both read 0, which is indistinguishable from a light that is off.
+  // Asked here rather than in each widget, so one that forgot cannot show the wrong number.
+  useEffect(() => {
+    if (itemsKey) ensureItemNames()
+  }, [itemsKey])
+  const missing = useCatalogStore(useShallow((s) => missingFrom(s.names, s.namesStatus, itemNames)))
 
   // definition defaults under the stored config, memoised so widgets are not handed a new object every render
   const config = useMemo(() => {
@@ -47,6 +56,15 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
         <span className="nh-widget__errhint">
           {t('It may come from a newer version of neohab, or from a configuration this one cannot read.')}
         </span>
+      </div>
+    )
+  }
+
+  if (missing.length > 0) {
+    return (
+      <div className="nh-widget nh-widget--error">
+        <span className="nh-widget__errtitle">{missing.join(', ')}</span>
+        <span className="nh-widget__errhint">{t('Not on this openHAB server. It may have been renamed or removed.')}</span>
       </div>
     )
   }

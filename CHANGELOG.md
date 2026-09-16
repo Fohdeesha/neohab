@@ -6,6 +6,18 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.32.0
+
+- A timeline widget with nothing to draw covered the whole dashboard with an invisible box and
+  swallowed every click on it. It did that while loading history too, so any dashboard with a
+  timeline was dead to the touch for a second or two on every load.
+- A widget bound to an item your server does not have now says so and names the item, instead of
+  drawing a slider at 0 or a dial at empty as though the device were off.
+- An image that cannot be loaded says so instead of leaving a blank tile.
+- When live values stop arriving, the reason given is the right one. A server that shows nothing
+  without an account used to be reported as a proxy problem to anyone signed in.
+- The stepper's Glass finish gets its blur back on Safari 17 and older.
+
 ## 1.31.0
 
 - Installs on openHAB 3.1 and up. It refused anything older than 4.3 before, and said so only in

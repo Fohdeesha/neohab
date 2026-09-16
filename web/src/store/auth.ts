@@ -3,6 +3,8 @@ import { api, ApiError } from '../api/client'
 import { getAccessToken, getApiToken, isLoggedIn } from '../api/auth'
 import { forgetPersistenceServices } from '../api/persistence'
 import { forgetWebAudioSink } from '../api/audioEvents'
+import { forgetAnonymousRead } from '../api/items'
+import { forgetCatalog } from './catalog'
 
 export type AuthStatus =
   | 'unknown' // probe not run yet, or it failed for a non-auth reason (server unreachable)
@@ -34,6 +36,10 @@ export async function refreshAuthStatus(): Promise<void> {
   const gen = ++generation
   forgetPersistenceServices()
   forgetWebAudioSink()
+  // signing in can turn a refused item list into a readable one, and signing out the reverse;
+  // proxy credentials change what a credential-free read is allowed to do
+  forgetCatalog()
+  forgetAnonymousRead()
   if (!isLoggedIn()) {
     useAuthStore.setState({ status: 'anonymous' })
     return

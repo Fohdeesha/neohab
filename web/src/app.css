@@ -340,6 +340,8 @@ button {
 .nh-widget__errtitle {
   color: var(--nh-text);
   font-weight: 600;
+  /* an item name is one unbroken token, and Some_Long_Item_Name does not wrap at its underscores */
+  overflow-wrap: anywhere;
 }
 
 .nh-widget__errtext {
@@ -354,6 +356,31 @@ button {
 .nh-widget__errhint {
   font-size: 0.9em;
   opacity: 0.8;
+  display: none;
+}
+
+/* Three regimes, because a message that does not fit is a message nobody reads. Full: title and
+   hint. Middle: the title alone, wrapping. Compact: one line with an ellipsis and the padding cut,
+   for a row so short that 20px of padding is most of it - a 40px row at 130% text has 38px, where
+   the title alone wants 24px and two lines want 46px. Measured at 16px and 20.8px cell fonts. */
+@container nh-cell (max-height: calc(2.6em + 20px)) {
+  .nh-widget--error {
+    padding: 4px 8px;
+  }
+  .nh-widget__errtitle {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* The hint is two lines of about 2em on top of the title and the padding, so it only earns its
+   place once the tile can hold all of it: an 88px tile fits it at 16px and not at 20.8px. */
+@container nh-cell (min-height: calc(3.6em + 24px)) {
+  .nh-widget__errhint {
+    display: revert;
+  }
 }
 
 .nh-widget__label {
@@ -3409,6 +3436,7 @@ button {
   border: 1px solid var(--st-border);
   box-shadow: var(--st-shadow);
   backdrop-filter: blur(var(--st-blur));
+  -webkit-backdrop-filter: blur(var(--st-blur));
 }
 
 .nh-step__box:hover {
@@ -3542,6 +3570,7 @@ button {
   border-radius: calc(var(--st-radius) + 1px);
   box-shadow: var(--st-shadow);
   backdrop-filter: blur(var(--st-blur));
+  -webkit-backdrop-filter: blur(var(--st-blur));
 }
 
 .nh-step__half {
@@ -3570,6 +3599,7 @@ button {
   border-radius: calc(var(--st-radius) + 2px);
   box-shadow: var(--st-shadow);
   backdrop-filter: blur(var(--st-blur));
+  -webkit-backdrop-filter: blur(var(--st-blur));
 }
 
 .nh-step__zone {
@@ -5600,6 +5630,10 @@ button {
 
 .nh-tl--status {
   align-items: center;
+  /* .nh-chart__status is absolute + inset 0. The cell's container-type does NOT make it a
+     containing block for an absolute child (measured: only contain:layout or a position does),
+     so without this the message is laid out against the viewport and covers the whole dashboard */
+  position: relative;
 }
 
 .nh-tl__row {

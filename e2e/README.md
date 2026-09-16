@@ -180,12 +180,22 @@ so the suite cannot invent one.
 
 `e2e-launch.mjs` drives the screens people meet when something is wrong: a configuration that
 cannot be read, a server that shows nothing without an account, a save the server refuses, an
-upgrade under an open tab. Every one of those is produced by answering the app's own requests
-locally, so the server is never reconfigured and nothing is written by a refused save. It creates
-`dashboard:nh-e2e-launch` and `dashboard:nh-e2e-launch-empty` and deletes both by exact uid; it
-commands nothing. Like `e2e-audit2` it does leave version-history restore points behind: the
-refused save is refused at the configuration namespace, and the history capture that runs before
-every write is a different namespace and goes through.
+upgrade under an open tab, a widget bound to an item the server does not have, an image whose
+address does not answer, and the notice that explains why live values stopped. Every one of those
+is produced by answering the app's own requests locally, so the server is never reconfigured and
+nothing is written by a refused save. It creates `dashboard:nh-e2e-launch` and its `-empty`,
+`-ghost` and `-img` siblings and deletes all four by exact uid; it commands nothing. Like
+`e2e-audit2` it does leave version-history restore points behind: the refused save is refused at
+the configuration namespace, and the history capture that runs before every write is a different
+namespace and goes through.
+
+Two of those sections are worth knowing about before editing them. The live-updates one fakes a
+server with openHAB's implicit user role off, and it does that by refusing only the requests that
+carry **no** `Authorization` header - refusing everything would reproduce being signed out, which
+is a different state with no dashboard in it, and a check written that way passes whether the app
+asks the right question or not. The missing-item one seeds a real dashboard with a name no server
+has, and also checks the converse: a server that will not list its items must never be used to
+call an item missing.
 
 `e2e-fade.mjs` replays what a DMX strip reports while it fades - the sequences were taken from a
 real server's `events.log` - onto two managed items it creates itself (`nh_e2e_fadecol`,
@@ -211,6 +221,13 @@ dashboards and both items are deleted by name in cleanup.
 `e2e-audit2.mjs`, `e2e-editor.mjs` and `e2e-widgets.mjs` deliberately keep seeding `type: 'switch'`
 dashboards, so the battery drives the migration end to end rather than only where it is tested on
 purpose. Do not "modernise" those seeds.
+
+`e2e-audit2.mjs` also creates four managed Switch items named `constructor`, `toString`,
+`hasOwnProperty` and `__proto__` (openHAB accepts all four), bound to nothing, and deletes them by
+name in cleanup. They used to be names nobody had, which was fine until a widget bound to an item
+the server does not have started saying so instead of rendering: the section would have gone on
+passing while testing nothing at all. Real items are what make the lookup tables actually get a
+`constructor` to look up.
 
 `e2e-stepper.mjs` drives the stepper widget - six looks, five finishes, a number and a list -
 against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist`,
@@ -260,6 +277,19 @@ nothing pushed outside the panel, no editable box too narrow to use, no select s
 row, no sideways scrolling. The widget list comes from the palette, so a widget added later is
 covered without editing the suite. It saves nothing (the draft is discarded on Exit) and binds no
 items.
+
+`e2e-runfit.mjs` adds one of **every** widget the palette offers, saves, and measures the result in
+**run mode**, which is a different question from the settings panel above: does each widget render,
+and does it keep everything it draws inside its own tile. The second half is the point. A grid cell
+is `container-type: size`, which reads like it contains an absolutely positioned child and does not
+- only a position, a transform or `contain: layout` does - so an `inset: 0` overlay under a static
+chain is laid out against the viewport instead, invisible to the DOM and to every spill scan that
+measures children against their parent, and sitting on top of the whole dashboard eating its clicks.
+The editor cannot show it either, since its cells are absolutely positioned and so do contain it.
+It saves once through the app, which mints one restore point, because the bug it exists for only
+appears on a saved dashboard being viewed. The widget list comes from the palette, so a widget added
+later is covered without editing the suite. It creates and deletes exactly
+`dashboard:nh-e2e-runfit`, binds no items and intercepts commands.
 
 `e2e-weather.mjs` answers every Open-Meteo request from `fixtures/` via route interception, so the
 battery never waits on a third-party service and the readings it asserts come from the same file

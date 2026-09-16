@@ -15,6 +15,28 @@ const put = async (comp) => {
   return r.ok
 }
 
+/**
+ * The prototype-named bindings have to be items the server REALLY has. They used to be names
+ * nobody had, which stopped exercising anything the day a widget bound to an absent item started
+ * saying so instead of rendering - the section would have gone on passing while testing nothing.
+ * openHAB accepts all four as item names (checked: 201 on create, and they come back in
+ * /rest/items), so the lookup tables are now driven by a real `constructor` all the way through.
+ */
+const PROTO_ITEMS = ['constructor', 'toString', 'hasOwnProperty', '__proto__']
+const madeItems = []
+for (const name of PROTO_ITEMS) {
+  const r = await fetch(BASE + '/rest/items/' + name, {
+    method: 'PUT',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'Switch', name, label: 'E2E audit2 ' + name })
+  })
+  if (r.ok) madeItems.push(name)
+}
+await new Promise((r) => setTimeout(r, 800))
+for (const name of PROTO_ITEMS) {
+  await fetch(BASE + '/rest/items/' + name + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: 'OFF' })
+}
+
 await put({
   uid: 'dashboard:nh-e2e-a2',
   component: 'neohab:dashboard',
@@ -259,6 +281,8 @@ try {
         label: c.querySelector('.nh-widget__labeltext')?.textContent ?? '',
       }))
     )
+    // the section is worthless unless the server really has them, so say so rather than assume
+    ok('the four prototype-named items were created on the server', madeItems.length === 4, madeItems.join(', '))
     ok('all four prototype-named bindings render', tiles.length === 4, JSON.stringify(tiles))
     ok(
       'none of them becomes the boundary error tile',
@@ -519,6 +543,13 @@ try {
   }
   const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-a2'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
+
+  for (const name of madeItems) {
+    await fetch(BASE + '/rest/items/' + name, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
+  const names = await (await fetch(BASE + '/rest/items?fields=name', { headers: AUTH })).json()
+  const stray = PROTO_ITEMS.filter((n) => names.some((i) => i.name === n))
+  ok('cleanup: the prototype-named items are gone', stray.length === 0, stray.join(', '))
 }
 
 let pass = 0
