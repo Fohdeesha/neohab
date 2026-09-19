@@ -1,7 +1,7 @@
 {
   "name": "neohab-web",
   "private": true,
-  "version": "1.32.0",
+  "version": "1.33.0",
   "license": "EPL-2.0",
   "type": "module",
   "engines": {

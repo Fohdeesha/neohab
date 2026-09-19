@@ -29,7 +29,17 @@ export type SettingField = SettingCommon &
   // and never folded away.
   (
     | { key: string; type: 'section'; label: string }
-    | { key: string; type: 'item'; label: string; itemTypes?: string[]; readOnly?: boolean }
+    // optional: the widget still does its job with this one empty, so WidgetHost must not replace it
+    // with "no item yet". A navigate button is the case: it goes somewhere whether or not it also
+    // follows an item's state.
+    | {
+        key: string
+        type: 'item'
+        label: string
+        itemTypes?: string[]
+        readOnly?: boolean
+        optional?: (config: Record<string, unknown>) => boolean
+      }
     | { key: string; type: 'icon'; label: string }
     | { key: string; type: 'text'; label: string; placeholder?: string; subresource?: boolean }
     | { key: string; type: 'multiline'; label: string; placeholder?: string }

@@ -20,6 +20,7 @@ import {
   snapToStep,
   stepIndex,
   stepNumber,
+  valueDecimals,
   wrapOf
 } from './model'
 import { stepperWidget } from './index'
@@ -110,6 +111,21 @@ describe('stepping a number', () => {
     expect(formatNumber(72, 1)).toBe('72')
     expect(formatNumber(undefined, 1)).toBe('-')
     expect(formatNumber(NaN, 1)).toBe('-')
+  })
+
+  it('never rounds away precision the item itself reports', () => {
+    // the step says how precise a press is; an item holding 3.6 under a step of 1 still holds 3.6
+    expect(formatNumber(3.6, 1)).toBe('3.6')
+    expect(formatNumber(21.5, 1)).toBe('21.5')
+    expect(formatNumber(4, 1)).toBe('4')
+    // the step still wins where it is the finer of the two
+    expect(formatNumber(21.5, 0.25)).toBe('21.50')
+    // float noise must not claim seventeen decimals
+    expect(formatNumber(0.1 + 0.2, 1)).toBe('0.3')
+    expect(valueDecimals(3.6)).toBe(1)
+    expect(valueDecimals(4)).toBe(0)
+    expect(valueDecimals(0.1 + 0.2)).toBe(1)
+    expect(valueDecimals(1.23456)).toBe(3)
   })
 
   it('places a value in its range for the bar', () => {

@@ -8,7 +8,7 @@
 A dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for phones,
 tablets and wall panels, built and configured entirely in the browser. No file editing.
 
-**Status:** in daily use, latest release **1.32.0**. A community project, not an official openHAB UI.
+**Status:** in daily use, latest release **1.33.0**. A community project, not an official openHAB UI.
 
 ## Requirements
 
@@ -59,9 +59,9 @@ to show for it. Open tabs offer to reload themselves.
 ## Widgets
 
 Buttons and switches, sliders, dials, steppers, colour pickers, selections, rollershutters,
-thermostats and media players. Value and stat readouts, compasses, batteries, clocks, weather and
-plain labels. Charts, timelines, floor plans with live light glows, cameras, images, embedded
-pages and the server log.
+thermostats and media players. One value readout drawn eight ways (plain, stat, sparkline, split,
+bar, segment, pill and hero), plus compasses, batteries, clocks, weather and plain labels. Charts,
+timelines, floor plans with live light glows, cameras, images, embedded pages and the server log.
 Anything missing can be built as a custom widget from an HTML template, with an optional sandboxed
 JavaScript API.
 

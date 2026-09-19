@@ -23,9 +23,9 @@ const DASH = {
     rowHeight: 'match',
     gap: 5,
     widgets: [
-      { id: 's-long', type: 'button', config: { label: 'Guest Bedroom Accents', icon: 'oh:colorwheel', iconSize: 75, command: 'ON' }, layout: { lg: { x: 0, y: 0, w: 1, h: 1 } } },
-      { id: 's-token', type: 'button', config: { label: 'Laptop>Studio AVB', icon: 'oh:screen', iconSize: 70, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
-      { id: 's-desc', type: 'button', config: { label: 'gggjjjyyy ppqq', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
+      { id: 's-long', type: 'button', config: { item: ITEMS.switch, label: 'Guest Bedroom Accents', icon: 'oh:colorwheel', iconSize: 75, command: 'ON' }, layout: { lg: { x: 0, y: 0, w: 1, h: 1 } } },
+      { id: 's-token', type: 'button', config: { item: ITEMS.switch, label: 'Laptop>Studio AVB', icon: 'oh:screen', iconSize: 70, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
+      { id: 's-desc', type: 'button', config: { item: ITEMS.switch, label: 'gggjjjyyy ppqq', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
       { id: 's-roll', type: 'rollershutter', config: { item: 'nh_e2e_no_such_roller', label: 'Garage Door' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
       {
         id: 's-tpl',

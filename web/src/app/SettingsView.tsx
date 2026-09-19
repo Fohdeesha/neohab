@@ -12,7 +12,6 @@ import { WidgetDefManager } from '../settings/WidgetDefManager'
 import { PresetsSection } from '../settings/PresetsSection'
 import { CustomIconsSection } from '../settings/CustomIconsSection'
 import { HabpanelImport } from '../settings/HabpanelImport'
-import { GallerySection } from '../settings/GallerySection'
 import { BackupSection } from '../settings/BackupSection'
 import { HistorySection } from '../settings/HistorySection'
 import { AccountSection } from '../settings/AccountSection'
@@ -26,7 +25,6 @@ const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
   { id: 'presets', label: 'Lighting presets', admin: true },
   { id: 'icons', label: 'Custom icons', admin: true },
   { id: 'habpanel', label: 'Migrate from HABPanel', admin: true },
-  { id: 'gallery', label: 'Widget gallery', admin: true },
   { id: 'backup', label: 'Backup', admin: true },
   { id: 'history', label: 'Version history', admin: true },
   { id: 'account', label: 'Account' },
@@ -112,10 +110,6 @@ export function SettingsView() {
 
             <Anchor id="habpanel">
               <HabpanelImport onNotice={setNotice} />
-            </Anchor>
-
-            <Anchor id="gallery">
-              <GallerySection onNotice={setNotice} />
             </Anchor>
 
             <Anchor id="backup">

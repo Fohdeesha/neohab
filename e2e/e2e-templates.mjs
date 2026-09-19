@@ -87,7 +87,7 @@ await post({
       {
         id: 'w3',
         type: 'button',
-        config: { label: 'plainbtn', command: 'ON' },
+        config: { item: ITEMS.switch, label: 'plainbtn', command: 'ON' },
         layout: { lg: { x: 10, y: 0, w: 2, h: 2 } },
       },
     ],

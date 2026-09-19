@@ -4,7 +4,7 @@
 // and restores it VERBATIM, commands only the configured dimmer.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { getSettings, patchSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
 
 const UID = 'dashboard:nh-e2e-voice'
 const results = []
@@ -30,6 +30,12 @@ const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
 console.log(`snapshot: settings ${settingsOrig ? 'present' : 'absent'}, ${dimmer}=${dimmerOrig}`)
+
+// the mic button follows a SHARED setting, so establish it rather than assume whoever runs this
+// server left it alone - absent is its default, which is on. Before the browser exists: after a page
+// has fetched the configuration once, the next navigation in that context reads its own cached copy.
+const micReady = await putComponent(NS, settingsWithoutKeys(settingsOrig, ['voiceButton']))
+console.log(`voice button setting established for this run: ${micReady.status}`)
 
 const browser = await launch()
 
@@ -60,7 +66,7 @@ try {
     ok('speak toggle present and on by default', await page.isChecked('#nh-set-speak'))
     ok('per-device voice select present', (await page.locator('#nh-set-voice').count()) === 1)
     ok('Test voice button present', (await page.locator('button:has-text("Test voice")').count()) === 1)
-    const unavailable = await page.locator('text=Voice input (the microphone button) is not available here').count()
+    const unavailable = await page.locator('text=The microphone button needs a Chromium browser and HTTPS.').count()
     ok(
       HTTPS
         ? 'no unavailable notice over HTTPS, where voice input can work'

@@ -193,6 +193,8 @@ try {
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#nh-set-devicetheme', { timeout: 10000 })
   ok('device theme select defaults to follow', (await page.inputValue('#nh-set-devicetheme')) === '')
+  // what the shared theme actually looks like here, so the check below works whatever it is set to
+  const bgShared = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
   await page.selectOption('#nh-set-devicetheme', 'oled')
   await sleep(400)
   const bgOverride = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
@@ -208,11 +210,12 @@ try {
   const bgReload = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
   ok('override still applied after reload', bgReload === 'rgb(0, 0, 0)', bgReload)
 
-  const bgSharedBefore = bgReload
   await page.selectOption('#nh-set-devicetheme', '')
   await sleep(400)
   const bgCleared = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-  ok('clearing returns to the shared theme', bgCleared !== bgSharedBefore || settingsBefore?.config?.theme === 'oled', bgCleared)
+  // back to the shared theme's own background, rather than merely "changed": a server whose shared
+  // theme is itself black made that weaker form fail
+  ok('clearing returns to the shared theme', bgCleared === bgShared, `${bgCleared} want ${bgShared}`)
 
   const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
   ok('no page/console errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))

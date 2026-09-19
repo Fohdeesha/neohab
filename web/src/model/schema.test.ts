@@ -236,6 +236,130 @@ describe('folding the switch widget into the button (dashboard 1 -> 2)', () => {
   })
 })
 
+describe('folding the stat widget into the value (dashboard 2 -> 3)', () => {
+  const dash = (widgets: unknown[]): Record<string, unknown> => ({ version: 2, id: 'kitchen', name: 'Kitchen', widgets })
+  const run = (widgets: unknown[]): Record<string, unknown> => {
+    const result = migrateConfig('dashboard', dash(widgets))
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') throw new Error('refused')
+    return result.config
+  }
+  const first = (widgets: unknown[]) => (run(widgets).widgets as Record<string, unknown>[])[0]
+  const stat = (config: Record<string, unknown>) => ({ id: 'w-1', type: 'stat', config, layout: { lg: { x: 1, y: 2, w: 3, h: 4 } } })
+
+  it('turns a stat into a value in stat style', () => {
+    const w = first([stat({ item: 'Grid_Power', label: 'Power' })])
+    expect(w.type).toBe('value')
+    expect(w.config).toMatchObject({ style: 'stat', item: 'Grid_Power', label: 'Power' })
+  })
+
+  it('writes the style out rather than letting the merged default decide', () => {
+    // a stat carries no style key of its own and the value's default is the plain look, so a
+    // migration that left it off would redraw every stored stat as a centred readout
+    expect(first([stat({ item: 'i' })]).config).toMatchObject({ style: 'stat' })
+  })
+
+  it('pins the alignment a stat laid its column out with', () => {
+    // the stat column started from the left whatever it had stored, so one written without the key
+    // has to say so - the value offers the same three alignments and must not move it
+    expect(first([stat({ item: 'i' })]).config).toMatchObject({ align: 'left' })
+    expect(first([stat({ item: 'i', align: 'center' })]).config).toMatchObject({ align: 'center' })
+    expect(first([stat({ item: 'i', align: 'right' })]).config).toMatchObject({ align: 'right' })
+  })
+
+  it('keeps the widget where it was, under the id it had', () => {
+    const w = first([stat({ item: 'i' })])
+    expect(w.id).toBe('w-1')
+    expect(w.layout).toEqual({ lg: { x: 1, y: 2, w: 3, h: 4 } })
+  })
+
+  it('carries every setting the stat had across untouched', () => {
+    const w = first([
+      stat({
+        item: 'i',
+        unit: 'W',
+        caption: 'grid draw',
+        badge: 'PEAK',
+        badgeColor: '#ff0000',
+        trend: 'history',
+        trendPeriod: '7d',
+        goodDirection: 'down',
+        subItem: 'other',
+        subCaption: 'yesterday',
+        color: '#00ff00',
+        severity: [{ value: 10, color: '#111111' }],
+        icon: 'mdi:flash',
+        iconSize: 48,
+        accent: 'filled',
+        textSize: 120
+      })
+    ])
+    expect(w.config).toMatchObject({
+      unit: 'W',
+      caption: 'grid draw',
+      badge: 'PEAK',
+      badgeColor: '#ff0000',
+      trend: 'history',
+      trendPeriod: '7d',
+      goodDirection: 'down',
+      subItem: 'other',
+      subCaption: 'yesterday',
+      color: '#00ff00',
+      severity: [{ value: 10, color: '#111111' }],
+      icon: 'mdi:flash',
+      iconSize: 48,
+      accent: 'filled',
+      textSize: 120
+    })
+  })
+
+  it('leaves a stored value exactly as it was, so it keeps falling through to the plain look', () => {
+    const value = { id: 'w-2', type: 'value', config: { item: 'd', label: 'Level', unit: '%' }, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } }
+    const widgets = run([value, stat({ item: 'i' })]).widgets as Record<string, unknown>[]
+    expect(widgets[0]).toEqual(value)
+    expect(widgets[0].config).not.toHaveProperty('style')
+    expect(widgets[1].type).toBe('value')
+  })
+
+  it('leaves every other widget type exactly as it was', () => {
+    const slider = { id: 'w-3', type: 'slider', config: { item: 'd', min: 0, max: 100 }, layout: {} }
+    const widgets = run([slider, stat({ item: 'i' })]).widgets as Record<string, unknown>[]
+    expect(widgets[0]).toEqual(slider)
+  })
+
+  it('lands the dashboard on the current version either way', () => {
+    expect(run([stat({ item: 'i' })]).version).toBe(SCHEMA_VERSIONS.dashboard)
+    expect(run([{ id: 'w-4', type: 'clock', config: {}, layout: {} }]).version).toBe(SCHEMA_VERSIONS.dashboard)
+  })
+
+  it('runs both steps for a dashboard stored before either merge', () => {
+    const widgets = migrateConfig('dashboard', {
+      version: 1,
+      widgets: [
+        { id: 'a', type: 'switch', config: { item: 'i' }, layout: {} },
+        { id: 'b', type: 'stat', config: { item: 'j' }, layout: {} }
+      ]
+    })
+    expect(widgets.status).toBe('ok')
+    if (widgets.status !== 'ok') return
+    const list = widgets.config.widgets as Record<string, unknown>[]
+    expect(list[0]).toMatchObject({ type: 'button', config: { style: 'switch' } })
+    expect(list[1]).toMatchObject({ type: 'value', config: { style: 'stat' } })
+    expect(widgets.config.version).toBe(SCHEMA_VERSIONS.dashboard)
+  })
+
+  it('survives a stored shape no editor would ever write', () => {
+    expect(() => migrateConfig('dashboard', { version: 2, widgets: 'not a list' })).not.toThrow()
+    expect(migrateConfig('dashboard', { version: 2 }).status).toBe('ok')
+    const odd = run([null, 'nope', 7, { type: 'stat' }, { type: 'stat', config: ['array'] }, { type: 'stat', config: { align: 9 } }])
+    const widgets = odd.widgets as unknown[]
+    expect(widgets.slice(0, 3)).toEqual([null, 'nope', 7])
+    expect((widgets[3] as Record<string, unknown>).config).toMatchObject({ style: 'stat', align: 'left' })
+    expect((widgets[4] as Record<string, unknown>).config).toMatchObject({ style: 'stat', align: 'left' })
+    expect((widgets[5] as Record<string, unknown>).config).toMatchObject({ style: 'stat', align: 'left' })
+  })
+})
+
 describe('the table and the declared versions agree', () => {
   it('has exactly one step per version above the first, for every kind', () => {
     for (const kind of Object.keys(SCHEMA_VERSIONS) as ComponentKind[]) {

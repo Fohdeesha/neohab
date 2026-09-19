@@ -96,7 +96,8 @@ try {
         rowHeight: 'match',
         gap: 0,
         widgets: [
-          w('s-full', 'stat', 0, 0, 4, 3, {
+          w('s-full', 'value', 0, 0, 4, 3, {
+            style: 'stat',
             item: ITEMS.dimmer,
             label: 'Full',
             unit: '%',
@@ -111,7 +112,8 @@ try {
             severity: [{ value: 200, color: '#a3ce4a' }],
             group: 'panel',
           }),
-          w('s-bad', 'stat', 4, 0, 4, 3, {
+          w('s-bad', 'value', 4, 0, 4, 3, {
+            style: 'stat',
             item: ITEMS.dimmer,
             label: 'Bad',
             trend: 'item',
@@ -120,7 +122,8 @@ try {
             align: 'center',
             group: 'panel',
           }),
-          w('s-flat', 'stat', 8, 0, 4, 3, {
+          w('s-flat', 'value', 8, 0, 4, 3, {
+            style: 'stat',
             item: ITEMS.dimmer,
             label: 'Flat',
             trend: 'item',
@@ -129,7 +132,13 @@ try {
             subText: 'fixed text',
             subCaption: 'Static',
           }),
-          w('s-solo', 'stat', 12, 0, 4, 3, { item: ITEMS.dimmer, label: 'Solo', group: 'other', accentColor: '#ff00ff' }),
+          w('s-solo', 'value', 12, 0, 4, 3, {
+            style: 'stat',
+            item: ITEMS.dimmer,
+            label: 'Solo',
+            group: 'other',
+            accentColor: '#ff00ff',
+          }),
 
           w('g-ticks', 'dial', 0, 3, 5, 5, {
             item: ITEMS.dimmer,

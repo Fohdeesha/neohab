@@ -52,7 +52,7 @@ export function PresetBridgeFields({
       </label>
       <p className="nh-field__hint">
         {t(
-          'Leave this off while another system still reacts to the item, or the lights would be set twice. With it on, neohab adds a small rule so the wall switch drives this preset directly.'
+          'With this on, neohab adds a rule so the wall switch runs the preset. Leave it off if something else already reacts to that item.'
         )}
       </p>
     </>

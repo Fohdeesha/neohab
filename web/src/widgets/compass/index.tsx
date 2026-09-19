@@ -39,14 +39,6 @@ function CompassWidget({ config, ctx }: WidgetProps<CompassConfig>) {
   const center = config.centerItem ? splitValueUnit(displayValue(centerState)) : undefined
   const centerUnit = config.centerItem ? config.centerUnit || center?.unit : undefined
 
-  if (!config.item) {
-    return (
-      <WidgetFrame label={config.label} center>
-        <div className="nh-compass__empty">{t('No item configured')}</div>
-      </WidgetFrame>
-    )
-  }
-
   return (
     <WidgetFrame label={config.label} center>
       <svg className="nh-compass" viewBox="0 0 100 100" role="img" aria-label={t('Compass')}>

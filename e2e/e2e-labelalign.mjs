@@ -59,19 +59,19 @@ const near = (a, b, tol = 2.5) => Math.abs(a - b) <= tol
 
 try {
   const widgets = [
-    { id: 'w-left', type: 'slider', config: { label: 'Studio Trim' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
-    { id: 'w-center', type: 'slider', config: { label: 'Centered', labelAlign: 'center' }, layout: { lg: { x: 4, y: 0, w: 4, h: 3 } } },
-    { id: 'w-right', type: 'slider', config: { label: 'Righty', labelAlign: 'right' }, layout: { lg: { x: 8, y: 0, w: 4, h: 3 } } },
-    { id: 'w-bottom', type: 'value', config: { item: '', label: 'Bottom Name', labelPosition: 'bottom' }, layout: { lg: { x: 0, y: 3, w: 3, h: 3 } } },
-    { id: 'w-cb', type: 'slider', config: { label: 'CenterBottom', labelAlign: 'center', labelPosition: 'bottom' }, layout: { lg: { x: 3, y: 3, w: 3, h: 3 } } },
-    { id: 'w-garb', type: 'slider', config: { label: 'Garbage', labelAlign: 'diagonal' }, layout: { lg: { x: 6, y: 3, w: 3, h: 3 } } },
+    { id: 'w-left', type: 'slider', config: { item: ITEMS.dimmer, label: 'Studio Trim' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
+    { id: 'w-center', type: 'slider', config: { item: ITEMS.dimmer, label: 'Centered', labelAlign: 'center' }, layout: { lg: { x: 4, y: 0, w: 4, h: 3 } } },
+    { id: 'w-right', type: 'slider', config: { item: ITEMS.dimmer, label: 'Righty', labelAlign: 'right' }, layout: { lg: { x: 8, y: 0, w: 4, h: 3 } } },
+    { id: 'w-bottom', type: 'value', config: { item: ITEMS.dimmer, label: 'Bottom Name', labelPosition: 'bottom' }, layout: { lg: { x: 0, y: 3, w: 3, h: 3 } } },
+    { id: 'w-cb', type: 'slider', config: { item: ITEMS.dimmer, label: 'CenterBottom', labelAlign: 'center', labelPosition: 'bottom' }, layout: { lg: { x: 3, y: 3, w: 3, h: 3 } } },
+    { id: 'w-garb', type: 'slider', config: { item: ITEMS.dimmer, label: 'Garbage', labelAlign: 'diagonal' }, layout: { lg: { x: 6, y: 3, w: 3, h: 3 } } },
     { id: 'w-plain', type: 'label', config: { text: 'Plain text' }, layout: { lg: { x: 9, y: 3, w: 3, h: 3 } } },
     { id: 'w-chart', type: 'chart', config: { label: 'Chips Chart', labelAlign: 'center', series: [{ item: ITEMS.temperature }], period: '24h' }, layout: { lg: { x: 0, y: 6, w: 9, h: 4 } } },
     { id: 'w-tpl', type: 'template', config: { label: 'Tpl Name', labelAlign: 'right', template: '<div>hi</div>' }, layout: { lg: { x: 9, y: 6, w: 3, h: 4 } } },
-    { id: 'w-shed', type: 'slider', config: { label: 'Shed Top' }, layout: { lg: { x: 0, y: 10, w: 4, h: 2 } } },
-    { id: 'w-shedb', type: 'slider', config: { label: 'Shed Bottom', labelPosition: 'bottom' }, layout: { lg: { x: 4, y: 10, w: 4, h: 2 } } },
-    { id: 'w-tiny', type: 'slider', config: { label: 'TinyTop' }, layout: { lg: { x: 0, y: 12, w: 4, h: 1 } } },
-    { id: 'w-tinyb', type: 'slider', config: { label: 'TinyBottom', labelPosition: 'bottom' }, layout: { lg: { x: 4, y: 12, w: 4, h: 1 } } },
+    { id: 'w-shed', type: 'slider', config: { item: ITEMS.dimmer, label: 'Shed Top' }, layout: { lg: { x: 0, y: 10, w: 4, h: 2 } } },
+    { id: 'w-shedb', type: 'slider', config: { item: ITEMS.dimmer, label: 'Shed Bottom', labelPosition: 'bottom' }, layout: { lg: { x: 4, y: 10, w: 4, h: 2 } } },
+    { id: 'w-tiny', type: 'slider', config: { item: ITEMS.dimmer, label: 'TinyTop' }, layout: { lg: { x: 0, y: 12, w: 4, h: 1 } } },
+    { id: 'w-tinyb', type: 'slider', config: { item: ITEMS.dimmer, label: 'TinyBottom', labelPosition: 'bottom' }, layout: { lg: { x: 4, y: 12, w: 4, h: 1 } } },
   ]
   const seed = await fetch(NS, {
     method: 'POST',

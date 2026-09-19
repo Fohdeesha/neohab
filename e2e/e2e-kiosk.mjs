@@ -342,7 +342,7 @@ try {
     await page.waitForSelector('#kiosk-wake', { timeout: 15000 })
     const api = await page.evaluate(() => 'wakeLock' in navigator)
     const enabled = await page.isEnabled('#kiosk-wake')
-    const hint = await page.locator('text=only offer the wake lock over HTTPS').count()
+    const hint = await page.locator('text=Browsers only offer this over HTTPS').count()
     ok(`${SCHEME}: the wake lock API is ${HTTPS ? 'available' : 'absent'}`, api === HTTPS, 'api ' + api)
     ok(`${SCHEME}: the toggle is ${HTTPS ? 'usable' : 'disabled'}`, enabled === HTTPS, 'enabled ' + enabled)
     ok(`${SCHEME}: the HTTPS hint is ${HTTPS ? 'not shown' : 'shown'}`, hint === (HTTPS ? 0 : 1), 'hints ' + hint)

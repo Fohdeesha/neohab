@@ -39,8 +39,8 @@ const DASH = {
     gap: 4,
     widgets: [
       { id: 'r-btn1', type: 'button', config: { label: 'Main Room Lights', icon: 'oh:slider', iconSize: 60, item: SWITCH_ITEM, command: 'ON', commandAlt: 'OFF', toggle: true }, layout: { lg: { x: 0, y: 0, w: 1, h: 1 } } },
-      { id: 'r-btn2', type: 'button', config: { label: 'A Fairly Long Button Label Indeed', icon: 'mdi:lightbulb-group', iconSize: 120, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
-      { id: 'r-btn3', type: 'button', config: { label: 'No Icon Button', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
+      { id: 'r-btn2', type: 'button', config: { item: ITEMS.switch, label: 'A Fairly Long Button Label Indeed', icon: 'mdi:lightbulb-group', iconSize: 120, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
+      { id: 'r-btn3', type: 'button', config: { item: ITEMS.switch, label: 'No Icon Button', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
       { id: 'r-color', type: 'color', config: { item: COLOR_ITEM, label: 'E2E Color' }, layout: { lg: { x: 3, y: 0, w: 3, h: 1 } } },
       { id: 'r-slider', type: 'slider', config: { item: SLIDER_ITEM, label: 'E2E Slider', min: 0, max: 100, step: 1 }, layout: { lg: { x: 6, y: 0, w: 3, h: 1 } } },
       { id: 'r-switch', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, item: SWITCH_ITEM, label: 'E2E Switch', icon: 'mdi:lightbulb', iconSize: 32 }, layout: { lg: { x: 9, y: 0, w: 2, h: 2 } } },

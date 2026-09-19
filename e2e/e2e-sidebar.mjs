@@ -172,7 +172,18 @@ try {
 
     await page.click('.nh-side__trigger')
     await page.waitForTimeout(300)
-    await page.mouse.click(130, 700) // empty space in the list
+    // below the last row rather than a fixed y: with enough dashboards on the server that point is a
+    // row, and clicking a row navigates and closes the sidebar
+    const gap = await page.evaluate(() => {
+      const list = document.querySelector('.nh-side__list')
+      const rows = [...list.querySelectorAll('.nh-side__item')]
+      const last = rows[rows.length - 1].getBoundingClientRect()
+      const box = list.getBoundingClientRect()
+      const y = Math.round(Math.min(last.bottom + 12, box.bottom - 4))
+      return { x: Math.round(box.left + 20), y, onRow: !!document.elementFromPoint(Math.round(box.left + 20), y)?.closest('.nh-side__item') }
+    })
+    ok('a point inside the sidebar that is not a row', !gap.onRow, JSON.stringify(gap))
+    await page.mouse.click(gap.x, gap.y)
     await page.waitForTimeout(300)
     ok('clicking inside the sidebar keeps it open', await sideOpen(page))
     await ctx.close()

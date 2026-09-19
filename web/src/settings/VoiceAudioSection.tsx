@@ -37,7 +37,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Voice & audio')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Rules can play sounds through openHAB’s “Web Audio” sink and announce values via a speech item - every open dashboard is a speaker. Whether THIS device plays along is chosen here; the shared configuration at the bottom needs an administrator.'
+          'Every open dashboard is a speaker for openHAB’s Web Audio sink. This device’s own choices are here; the shared ones are at the bottom.'
         )}
       </p>
 
@@ -87,20 +87,10 @@ export function VoiceAudioSection({ onNotice }: { onNotice: NoticeFn }) {
         </>
       ) : null}
 
-      {blocked ? (
-        <p className="nh-settings__text">
-          {t(
-            'The browser blocked sound because this page has not been interacted with yet - tap or click anywhere once (kiosk browsers usually allow it outright).'
-          )}
-        </p>
-      ) : null}
+      {blocked ? <p className="nh-settings__text">{t('The browser is blocking sound until you tap the page once.')}</p> : null}
 
       {!recognitionSupported() ? (
-        <p className="nh-settings__text">
-          {t(
-            'Voice input (the microphone button) is not available here: it needs a Chromium-based browser and HTTPS for microphone access.'
-          )}
-        </p>
+        <p className="nh-settings__text">{t('The microphone button needs a Chromium browser and HTTPS.')}</p>
       ) : null}
 
       {canEdit ? (
@@ -123,9 +113,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: NoticeFn }) {
             </div>
           ) : null}
           <p className="nh-settings__text">
-            {t(
-              'A String item whose new value is spoken aloud whenever it changes - write to it from rules to make announcements. Each device chooses above whether (and with which voice) it speaks.'
-            )}
+            {t('Anything a rule writes to this String item is spoken aloud. Each device picks its own voice above.')}
           </p>
 
           <label className="nh-field nh-field--row" htmlFor="nh-set-voicebtn">
@@ -134,7 +122,7 @@ export function VoiceAudioSection({ onNotice }: { onNotice: NoticeFn }) {
           </label>
           <p className="nh-settings__text">
             {t(
-              'Shows a microphone in the dashboard header on devices that support speech recognition. What you say is sent to openHAB’s human-language interpreter, and its answer appears as a notice.'
+              'Puts a microphone in the dashboard header. What you say goes to openHAB’s interpreter, and its answer appears as a notice.'
             )}
           </p>
         </>

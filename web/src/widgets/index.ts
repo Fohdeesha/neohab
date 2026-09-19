@@ -2,7 +2,6 @@ import { registerWidget } from './registry'
 import { buttonWidget } from './button'
 import { sliderWidget } from './slider'
 import { valueWidget } from './value'
-import { statWidget } from './stat'
 import { compassWidget } from './compass'
 import { batteryWidget } from './battery'
 import { weatherWidget } from './weather'
@@ -39,7 +38,6 @@ export function registerBuiltinWidgets(): void {
   registerWidget(rollershutterWidget)
   registerWidget(playerWidget)
   registerWidget(valueWidget)
-  registerWidget(statWidget)
   registerWidget(compassWidget)
   registerWidget(batteryWidget)
   registerWidget(weatherWidget)
@@ -65,5 +63,6 @@ export {
   instanceControl,
   instanceDetailRoute,
   instanceHasDetail,
+  instanceNeedsItem,
   widgetDetailView
 } from './registry'

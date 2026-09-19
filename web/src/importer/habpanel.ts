@@ -500,7 +500,10 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
     const id = slugifyDashboardId(d.id, taken)
     if (id !== tidy) report.add('info', 'Some dashboard ids already existed and were renamed')
     else if (id !== d.id) {
-      report.add('info', 'Dashboard names were turned into web addresses (“Bedroom Lighting” becomes “bedroom-lighting”)')
+      report.add(
+        'info',
+        'Web addresses come from HABPanel’s own dashboard ids, tidied for a URL (“Bedroom Lighting” becomes “bedroom-lighting”), so one you renamed in HABPanel keeps its old id'
+      )
     }
     d.id = id
     taken.add(id)

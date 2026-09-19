@@ -64,7 +64,7 @@ try {
         widgets: [
           { id: 'w-v', type: 'value', config: { item: ITEMS.temperature, label: 'Bedroom Temp' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
           { id: 'w-c', type: 'clock', config: {}, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-          { id: 'w-b', type: 'button', config: { label: 'Never Clicked', icon: 'oh:light' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+          { id: 'w-b', type: 'button', config: { item: ITEMS.switch, label: 'Never Clicked', icon: 'oh:light' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
           {
             id: 'w-ba',
             type: 'button',

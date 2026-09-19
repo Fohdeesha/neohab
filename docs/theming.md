@@ -40,7 +40,7 @@ colours or all 27.
 
 | Token | What it paints |
 |---|---|
-| `good` | A reading that moved the way you want (a stat tile's trend arrow) |
+| `good` | A reading that moved the way you want (the value widget's trend arrow) |
 | `bad` | A reading that moved the wrong way |
 | `accent-ink` | Text drawn **on** the accent: filled tiles, chips, badges |
 
@@ -117,8 +117,9 @@ adopting it.
 | `.nh-fader__*` | The slider widget's four other styles (gradient, wedge, inset rail, bubble), which keep their own look in every theme on purpose. `.nh-fader__read` is the reading, `__bound` the ends of an inset scale, `__track` and `__fill` the two painted layers |
 | `.nh-log`, `.nh-log__line`, `.nh-log__level` | The log widget's console. The root carries `--lg-warn`, the one colour the tokens do not have (errors use `bad`); `.nh-log__line--warn` and `--error` mark the lines that carry it, `__time`, `__logger` and `__msg` are the columns, and `.nh-log__jump` is the pill that takes the reader back to the newest line |
 | `.nh-switch__track`, `.nh-switch__thumb` | The sliding toggle, which is the button widget drawn in its switch style. `.nh-switch--on` marks the on state, and `.nh-switch__state` is the ON/OFF caption under it |
-| `.nh-value__text`, `.nh-value__unit` | A reading and its unit, set separately |
-| `.nh-stat__value`, `.nh-stat__caption`, `.nh-stat__badge` | The stat tile |
+| `.nh-value__text`, `.nh-value__unit` | A reading and its unit in the value widget's plain style, set separately |
+| `.nh-stat__value`, `.nh-stat__frac`, `.nh-stat__unit`, `.nh-stat__caption`, `.nh-stat__badge` | The reading, its tenths, its unit, the small line under it and the marker beside it. The value widget's other seven styles all draw through these, so one rule reaches every one of them. `.nh-stat` is the stat style's own column, with `--center` and `--right` for its alignment |
+| `.nh-read`, `.nh-read__main` | The root of the six styles added after plain and stat, with `.nh-read--spark` through `--hero` saying which is drawn. `__plot`, `__line` and `__area` are the sparkline, `__track` and `__fill` the bar, `__disc` the split's icon circle, `__pill` the pill. Sizing the reading itself belongs on `.nh-stat__value` above, not here |
 | `.nh-clock__time`, `.nh-clock__date` | The clock |
 | `.nh-chart__chip`, `.nh-chart__legend` | Chart chrome |
 | `.nh-gauge__*`, `.nh-dial__*` | Gauge and dial internals |

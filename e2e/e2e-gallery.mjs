@@ -1,5 +1,5 @@
-// Widget gallery e2e. Covers: the bundled catalogue is served from the add-on itself (so it works with no
-// internet and no cross-origin permission).
+// Bundled widget examples e2e - the "Start from an example" row inside Custom widgets. Covers: the
+// catalogue is served from the add-on itself (so it works with no internet and no cross-origin permission).
 // SAFE with a live config: creates only widgetdef:gallery-* (+ any -2 copy) and dashboard:nh-e2e-gal,
 // deletes exactly those, and commands NOTHING.
 import { launchChromium } from './lib/browser.mjs'
@@ -56,10 +56,10 @@ await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t
 const openSettings = async () => {
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('section:has(h2:text-is("Widget gallery"))', { timeout: 20000 })
-  await page.waitForSelector('.nh-gallery__card', { timeout: 20000 })
+  await page.waitForSelector('section:has(h2:text-is("Custom widgets"))', { timeout: 20000 })
+  await page.waitForSelector('.nh-examples button', { timeout: 20000 })
 }
-const card = (name) => page.locator('.nh-gallery__card', { hasText: name }).first()
+const example = (name) => page.locator('.nh-examples button').filter({ hasText: name }).first()
 
 try {
   const indexRes = await fetch(BASE + '/neohab/gallery/index.json')
@@ -83,26 +83,39 @@ try {
   ok('every catalogue entry has a valid widget file', filesOk === index.widgets.length, `${filesOk}/${index.widgets.length}`)
 
   await openSettings()
-  const cards = await page.locator('.nh-gallery__card').count()
-  ok('every catalogue entry is offered as a card', cards === index.widgets.length, `${cards} vs ${index.widgets.length}`)
-  ok('cards name their licence', /EPL-2.0/.test((await page.textContent('.nh-gallery__meta')) ?? ''), String(await page.textContent('.nh-gallery__meta')))
-  ok('nothing is marked installed yet', (await page.locator('.nh-gallery__badge:text-is("installed")').count()) === 0)
+  const labels = (await page.locator('.nh-examples button').allTextContents()).map((s) => s.trim()).sort()
+  const names = index.widgets.map((w) => w.name).sort()
+  // the row IS the bundled catalogue, neither short of it nor carrying anything that came from elsewhere
+  ok('the row offers exactly the bundled entries', JSON.stringify(labels) === JSON.stringify(names), labels.join(' | '))
+  ok('and nothing else stands in the row', (await page.locator('.nh-examples button').count()) === index.widgets.length)
 
   const first = index.widgets.find((w) => w.id === 'gallery-progress') ?? index.widgets[0]
-  await card(first.name).locator('button').click()
+  ok(
+    'each one carries its description',
+    (await example(first.name).getAttribute('title')) === first.description,
+    String(await example(first.name).getAttribute('title'))
+  )
+  const before = await page.locator('.nh-deflist__row').count()
+
+  await example(first.name).click()
   await page.waitForSelector('.nh-toast__text', { timeout: 20000 })
   const notice = await page.textContent('.nh-toast__text')
-  ok('installing reports success', /Installed/.test(notice ?? ''), String(notice))
+  ok('adding reports success', /Added/.test(notice ?? ''), String(notice))
   const stored = await get('widgetdef:' + first.id)
   ok('a widgetdef component was created', stored !== null)
   ok('with the catalogue id', stored?.config.id === first.id, String(stored?.config.id))
   ok('and its template', typeof stored?.config.template === 'string' && stored.config.template.length > 20)
   ok('marked as coming from the gallery', stored?.config.source === 'gallery', String(stored?.config.source))
-  ok('the card now says installed', (await card(first.name).locator('.nh-gallery__badge:text-is("installed")').count()) === 1)
+  await page.waitForFunction((n) => document.querySelectorAll('.nh-deflist__row').length === n + 1, before, { timeout: 20000 }).catch(() => {})
+  ok(
+    'and it joins the custom widget list above',
+    (await page.locator('.nh-deflist__row').filter({ hasText: first.name }).count()) === 1,
+    `${before} rows before, ${await page.locator('.nh-deflist__row').count()} after`
+  )
 
-  await card(first.name).locator('button').click()
-  await page.waitForSelector('.nh-toast__text:has-text("already installed")', { timeout: 20000 })
-  ok('re-installing says it is already installed', true)
+  await example(first.name).click()
+  await page.waitForSelector('.nh-toast__text:has-text("already in your custom widgets")', { timeout: 20000 })
+  ok('adding it again says it is already there', true)
   ok('and made no copy', (await get('widgetdef:' + first.id + '-2')) === null)
 
   ok(
@@ -114,19 +127,19 @@ try {
     })
   )
   await openSettings()
-  await card(first.name).locator('button').click()
+  await example(first.name).click()
   await page
-    .waitForSelector('.nh-toast__text:has-text("Installed as")', { timeout: 20000 })
+    .waitForSelector('.nh-toast__text:has-text("Added as")', { timeout: 20000 })
     .catch(() => {})
   const copy = await get('widgetdef:' + first.id + '-2')
-  ok('the gallery version installed under a free id', copy !== null)
+  ok('the bundled version landed under a free id', copy !== null)
   ok('and my edited one is untouched', (await get('widgetdef:' + first.id))?.config.template === '<div>my own version</div>')
   await del('widgetdef:' + first.id + '-2')
 
   await del('widgetdef:' + first.id)
   await openSettings()
-  await card(first.name).locator('button').click()
-  await page.waitForSelector('.nh-toast__text:has-text("Installed")', { timeout: 20000 })
+  await example(first.name).click()
+  await page.waitForSelector('.nh-toast__text:has-text("Added")', { timeout: 20000 })
   ok(
     'seed a dashboard using it',
     await put({
@@ -163,21 +176,18 @@ try {
   await page.click('[aria-label="Add widget"]')
   await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
   ok(
-    'the installed widget is offered in the palette',
+    'the added widget is offered in the palette',
     (await page.locator('.nh-palette__card', { hasText: first.name }).count()) >= 1
   )
   await page.click('.nh-sheet__close')
   await page.click('button:has-text("Exit")')
 
-  // a gallery widget carries a template or a script that the app then runs, so the catalogue has to be the
-  // jar's own: pressing everything the section offers must not reach a single URL off this origin
+  // an example carries a template or a script that the app then runs, so the catalogue has to be the
+  // jar's own: pressing every one of them must not reach a single URL off this origin
   await openSettings()
-  const section = page.locator('section:has(h2:text-is("Widget gallery"))')
-  const allButtons = await section.locator('button').count()
-  const cardButtons = await section.locator('.nh-gallery__card button').count()
-  ok('the gallery offers nothing beyond its own cards', allButtons === cardButtons, `${allButtons} buttons, ${cardButtons} on cards`)
-  ok('and no card came from somewhere else', (await page.locator('.nh-gallery__badge:text-is("online")').count()) === 0)
-  ok('the cards are the bundled ones', (await page.locator('.nh-gallery__card').count()) === index.widgets.length)
+  const buttons = page.locator('.nh-examples button')
+  const count = await buttons.count()
+  ok('every bundled example is pressable', count === index.widgets.length, `${count} vs ${index.widgets.length}`)
 
   const origin = new URL(APP).origin
   const offOrigin = []
@@ -185,8 +195,8 @@ try {
     const u = r.url()
     if (!u.startsWith(origin) && !u.startsWith('data:') && !u.startsWith('blob:')) offOrigin.push(u)
   })
-  for (let i = 0; i < allButtons; i++) {
-    await section.locator('button').nth(i).click()
+  for (let i = 0; i < count; i++) {
+    await buttons.nth(i).click()
     await sleep(1200)
   }
   ok('pressing every one of them stays inside the add-on', offOrigin.length === 0, offOrigin.slice(0, 3).join(' | '))

@@ -65,8 +65,8 @@
   "Restored {{count}} components from {{when}}._other": "Restored {{count}} components from {{when}}.",
   "Review {{count}} items_one": "Review {{count}} item",
   "Review {{count}} items_other": "Review {{count}} items",
-  "Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} item(s)._one": "Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} item.",
-  "Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} item(s)._other": "Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} items.",
+  "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._one": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} item.",
+  "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._other": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items.",
   "Using {{kb}} KB across {{count}} icons._one": "Using {{kb}} KB across {{count}} icon.",
   "Using {{kb}} KB across {{count}} icons._other": "Using {{kb}} KB across {{count}} icons."
 }

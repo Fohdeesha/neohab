@@ -161,8 +161,8 @@ try {
   ok('rose letters only when asked', (await pa.locator('.nh-compass__rose').count()) === 8)
   const customFill = await pa.locator('.nh-gcell:has(.nh-compass__rose) .nh-compass__cardinal').getAttribute('fill', { timeout: 4000 }).catch(() => null)
   ok('explicit color reaches the cardinal (attribute, not class)', customFill === '#00ff88', customFill ?? 'none')
-  const emptyText = await pa.locator('.nh-compass__empty').textContent().catch(() => '')
-  ok('unconfigured compass explains itself', emptyText === 'No item configured', emptyText)
+  const emptyText = await pa.locator('.nh-widget__unset').first().innerText().catch(() => '')
+  ok('unconfigured compass explains itself', /pick one in this widget/i.test(emptyText), emptyText.replace(/\s+/g, ' '))
 
   if (FORMATTED_ITEM) {
     const fmtState = await (await fetch(itemUrl(FORMATTED_ITEM), { headers: AUTH })).json()

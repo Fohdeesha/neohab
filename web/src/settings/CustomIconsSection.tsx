@@ -26,11 +26,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: NoticeFn }) {
       const id = slugifyIconId(name, new Set(customIcons.map((i) => i.id)))
       await saveCustomIcon({ version: 1, id, name, ...processed })
     } catch (err) {
-      onNotice(
-        t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
-          error: errorText(err)
-        })
-      )
+      onNotice(t('Upload failed: {{error}}', { error: errorText(err) }))
     } finally {
       setUploading(false)
     }
@@ -50,9 +46,7 @@ export function CustomIconsSection({ onNotice }: { onNotice: NoticeFn }) {
     <section>
       <h2 className="nh-settings__h">{t('Custom icons')}</h2>
       <p className="nh-settings__text">
-        {t(
-          "Upload your own icons (PNG, JPG, GIF, WebP, BMP or SVG - transparency and GIF animation survive) and pick them from the icon picker's Custom tab on any widget. They are stored in the openHAB configuration, so backups and exports include them."
-        )}
+        {t('PNG, JPG, GIF, WebP, BMP or SVG. They appear on the icon picker’s Custom tab, and backups include them.')}
         {customIcons.length > 0 ? ' ' + t('Using {{kb}} KB across {{count}} icons.', { kb: totalKB, count: customIcons.length }) : ''}
       </p>
       {customIcons.length > 0 ? (

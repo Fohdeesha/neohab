@@ -71,7 +71,7 @@ async function main() {
     check(/Swiss Sheet/.test(label2 ?? ''), 'it follows a per-device theme override', label2 ?? '')
 
     const note = await probe(page, () =>
-      [...document.querySelectorAll('.nh-settings__text')].some((p) => /This device is showing/.test(p.textContent))
+      [...document.querySelectorAll('.nh-settings__text')].some((p) => /This device shows/.test(p.textContent))
     )
     check(note === true, 'the screen says the highlighted card is the shared theme, not this one')
 

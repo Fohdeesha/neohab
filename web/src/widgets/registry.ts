@@ -31,6 +31,24 @@ export function itemsForInstance(type: string, config: Record<string, unknown>):
   return def.itemKeys(effective(def, config)).filter((v): v is string => typeof v === 'string' && v.length > 0)
 }
 
+// A widget whose every item field is still empty draws its floor - a slider at 0, a dial at 0 - which
+// reads as a device that is off rather than as a tile nobody has finished. Asked of the settings
+// schema rather than of each widget, so one added later cannot forget. Fields hidden by showIf do not
+// count: a weather widget reading Open-Meteo has item fields it is not using.
+export function instanceNeedsItem(type: string, config: Record<string, unknown>): boolean {
+  const def = registry.get(type)
+  // itemKeys is the widget saying items are its subject. A camera has an item field too - the target
+  // of a tap - but it is a camera with or without one, and it must not be replaced by this.
+  if (!def?.itemKeys) return false
+  const merged = effective(def, config)
+  const fields = def.settings.filter((f) => f.type === 'item' && (!f.showIf || f.showIf(merged)) && !(f.optional && f.optional(merged)))
+  if (fields.length === 0) return false
+  return fields.every((f) => {
+    const v = merged[f.key]
+    return typeof v !== 'string' || v === ''
+  })
+}
+
 export function instanceMinHeight(type: string, config: Record<string, unknown>): number {
   const def = registry.get(type)
   if (!def) return 0

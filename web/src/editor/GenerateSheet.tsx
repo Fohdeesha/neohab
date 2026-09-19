@@ -219,25 +219,9 @@ function ClusterStep({
   }
   return (
     <div className="nh-form">
-      <div className="nh-gen__list">
-        {clusters.map((cluster) => (
-          <label key={cluster.id} className="nh-gen__row">
-            <input type="checkbox" checked={chosen.has(cluster.id)} onChange={() => toggle(cluster.id)} />
-            <span className="nh-gen__rowname">{cluster.name}</span>
-            <span className="nh-gen__meta">{t('{{count}} items', { count: cluster.count })}</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="nh-gen__actions">
-        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setChosen(new Set(clusters.map((c) => c.id)))}>
-          {t('Select all')}
-        </button>
-        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setChosen(new Set())}>
-          {t('Select none')}
-        </button>
-      </div>
-
+      {/* Ahead of the list, which is long enough to scroll on its own: below the list these two sat
+          under the sticky footer at first render, so on a laptop only one of them was visible and on
+          a phone neither was. Choosing the shape before what goes in it also reads better. */}
       <fieldset className="nh-gen__modes">
         <legend className="nh-field__label">{t('Create')}</legend>
         <label className="nh-gen__mode">
@@ -260,6 +244,25 @@ function ClusterStep({
           <input id="nh-gen-name" value={name} placeholder={selected[0]?.name ?? t('My home')} onChange={(e) => setName(e.target.value)} />
         </label>
       ) : null}
+
+      <div className="nh-gen__list">
+        {clusters.map((cluster) => (
+          <label key={cluster.id} className="nh-gen__row">
+            <input type="checkbox" checked={chosen.has(cluster.id)} onChange={() => toggle(cluster.id)} />
+            <span className="nh-gen__rowname">{cluster.name}</span>
+            <span className="nh-gen__meta">{t('{{count}} items', { count: cluster.count })}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="nh-gen__actions">
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setChosen(new Set(clusters.map((c) => c.id)))}>
+          {t('Select all')}
+        </button>
+        <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setChosen(new Set())}>
+          {t('Select none')}
+        </button>
+      </div>
 
       <StepFooter
         onBack={onBack}

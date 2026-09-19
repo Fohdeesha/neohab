@@ -56,9 +56,7 @@ export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
     <section>
       <h2 className="nh-settings__h">{t('Kiosk & wall panel')}</h2>
       <p className="nh-settings__text">
-        {t(
-          'These settings apply to this device only, so a wall panel and a phone can each have their own. The dashboard-control item at the bottom is the exception - it is shared.'
-        )}
+        {t('This device only, so a wall panel and a phone each keep their own. The control item at the bottom is shared.')}
       </p>
 
       <label className="nh-field" htmlFor="kiosk-pinned">
@@ -88,9 +86,7 @@ export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
       </label>
       {!wakeLockSupported() ? (
         <p className="nh-settings__text">
-          {t(
-            'Not available here: browsers only offer the wake lock over HTTPS (or on localhost). Kiosk-browser apps usually keep the screen on themselves instead.'
-          )}
+          {t('Browsers only offer this over HTTPS. Kiosk browser apps usually keep the screen on themselves.')}
         </p>
       ) : kioskSettings.wakeLock ? (
         <p className="nh-settings__text">
@@ -134,7 +130,7 @@ export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
       </label>
       <p className="nh-settings__text">
         {t(
-          'Hides all navigation and editing controls so the dashboard fills the screen. To exit, tap any screen corner five times in a row, or open the app with {{off}} in the address. {{on}} turns it on for one session - handy as the pinned address in a kiosk-browser app.',
+          'Hides all navigation so the dashboard fills the screen. To leave, tap any corner five times, or add {{off}} to the address. {{on}} turns it on for one session.',
           { off: '?kiosk=off', on: '?kiosk=on' }
         )}
       </p>
@@ -170,7 +166,7 @@ export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
           ) : null}
           <p className="nh-settings__text">
             {t(
-              "A String item whose state names a dashboard (by id, or by name). When a rule changes it, every device that follows it switches to that dashboard - the classic way to drive wall panels remotely. Saving it needs an administrator sign-in; whether a device follows it is that device's own choice above (kiosk-mode devices follow by default)."
+              'A String item holding a dashboard name. Write to it from a rule and every device following it switches - the usual way to drive wall panels.'
             )}
           </p>
         </>

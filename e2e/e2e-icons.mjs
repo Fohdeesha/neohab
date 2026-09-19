@@ -29,8 +29,8 @@ await fetch(NS, {
       widgets: [
         { id: 'b1', type: 'button', config: { label: 'MDI', icon: 'mdi:lightbulb', iconSize: 40, command: 'ON', item: ITEMS.switch, toggle: true, commandAlt: 'OFF' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
         { id: 'b2', type: 'button', config: { label: 'OH', icon: 'oh:light', iconSize: 40, command: 'ON', item: ITEMS.switch }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-        { id: 'b3', type: 'button', config: { label: 'HiddenLabel', icon: 'mdi:garage', hideLabel: true, command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
-        { id: 'b4', type: 'button', config: { label: 'Typo', icon: 'mdi:lightbub', iconSize: 40, command: 'ON' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
+        { id: 'b3', type: 'button', config: { item: ITEMS.switch, label: 'HiddenLabel', icon: 'mdi:garage', hideLabel: true, command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+        { id: 'b4', type: 'button', config: { item: ITEMS.switch, label: 'Typo', icon: 'mdi:lightbub', iconSize: 40, command: 'ON' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
         { id: 'c1', type: 'color', config: { label: 'Color', item: ITEMS.color }, layout: { lg: { x: 0, y: 2, w: 4, h: 3 } } },
       ],
     },

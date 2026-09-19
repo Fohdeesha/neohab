@@ -143,7 +143,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
     iconSize: 32
   }),
   settings: [
-    { key: 'item', type: 'item', label: 'openHAB Item' },
+    { key: 'item', type: 'item', label: 'openHAB Item', optional: isNavigate },
     {
       key: 'action',
       type: 'select',

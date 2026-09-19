@@ -119,7 +119,11 @@ try {
   await pickItem(ITEMS.player)
 
   await addWidget('Rollershutter')
-  await sleep(200)
+  // its picker only offers Rollershutter items, and no target names one, so take whatever this
+  // server has. With none, the widget correctly says it has no item yet and there is nothing to draw.
+  const rollerItem = (await (await fetch(`${BASE}/rest/items?type=Rollershutter&fields=name`, { headers: { Authorization: 'Bearer ' + TOKEN } })).json())[0]?.name
+  if (rollerItem) await pickItem(rollerItem)
+  else await sleep(200)
 
   const cellCount = await page.locator('.nh-cell').count()
   ok('all six widgets added (8+6 cells)', cellCount === 14, `cells=${cellCount}`)
@@ -164,7 +168,11 @@ try {
   ok('player renders transport controls (not clicked)', playerBtns === 3, `buttons=${playerBtns}`)
 
   const rollerBtns = await page.locator('.nh-roller__btn').count()
-  ok('rollershutter renders controls (unbound)', rollerBtns === 3, `buttons=${rollerBtns}`)
+  ok(
+    rollerItem ? 'rollershutter renders controls (not clicked)' : 'rollershutter with no item says so, and draws none',
+    rollerBtns === (rollerItem ? 3 : 0),
+    `buttons=${rollerBtns} item=${rollerItem ?? 'none on this server'}`
+  )
 
   ok('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '))
 } catch (err) {

@@ -41,7 +41,7 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Version history')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Before each change, neohab keeps a copy of your whole configuration. Highlight a point to see what changed there, and put everything back to it if you need to. Restore points are stored separately from your configuration, so they are not part of a backup file.'
+          'A copy of your whole configuration is kept before each change. Pick a point to see what changed, or to put everything back to it. Backups do not include them.'
         )}
       </p>
 
@@ -67,11 +67,10 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
       </div>
       <p className="nh-settings__text">
         {limit === 0
-          ? t('History is off: no restore points are kept, and existing ones are removed at the next change.')
-          : t(
-              'Changes made within {{minutes}} minutes of each other share one restore point, so a single editing session leaves one entry rather than dozens.',
-              { minutes: windowMin }
-            )}
+          ? t('History is off. Existing points are removed at the next change.')
+          : t('Changes within {{minutes}} minutes of each other share one point, so an editing session leaves one entry.', {
+              minutes: windowMin
+            })}
       </p>
 
       {error ? <p className="nh-settings__text">{t('The history could not be read: {{error}}', { error })}</p> : null}

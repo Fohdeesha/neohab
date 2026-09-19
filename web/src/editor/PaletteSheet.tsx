@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { useGridEditSurface } from '../components/useEditSurface'
@@ -14,8 +14,16 @@ export function PaletteSheet() {
   const placing = useEditorStore((s) => s.placing)
   const canDrag = useGridEditSurface()
   const pressRef = useRef<{ x: number; y: number; start: () => void } | null>(null)
-  const definitions = listWidgetDefinitions()
-  const templateSize = definitions.find((d) => d.type === 'template')?.defaultSize ?? { w: 3, h: 3 }
+  const all = listWidgetDefinitions()
+  const templateSize = all.find((d) => d.type === 'template')?.defaultSize ?? { w: 3, h: 3 }
+
+  // 23 built-ins plus every custom widget: after a HABPanel import that was 35 cards, most of them
+  // below the fold. Matched against the description too, so "graph" finds the chart.
+  const [search, setSearch] = useState('')
+  const needle = search.trim().toLowerCase()
+  const hits = (...parts: (string | undefined)[]) => needle === '' || parts.some((p) => (p ?? '').toLowerCase().includes(needle))
+  const definitions = all.filter((d) => hits(t(d.name), d.name, d.description ? t(d.description) : undefined, d.description))
+  const customs = customDefs.filter((d) => hits(d.name))
 
   const cardHandlers = (start: () => void) => {
     if (!canDrag) return {}
@@ -45,6 +53,14 @@ export function PaletteSheet() {
   return (
     <Sheet wide title={t('Add a widget')} collapsed={placing !== null} onClose={() => setPaletteOpen(false)}>
       {canDrag ? <p className="nh-palette__hint">{t('Tap to add, or drag onto the dashboard to place it.')}</p> : null}
+      <input
+        className="nh-palette__search"
+        type="search"
+        value={search}
+        placeholder={t('Search widgets…')}
+        aria-label={t('Search widgets…')}
+        onChange={(e) => setSearch(e.target.value)}
+      />
       <div className="nh-palette">
         {definitions.map((def) => (
           <button
@@ -58,11 +74,11 @@ export function PaletteSheet() {
           </button>
         ))}
       </div>
-      {customDefs.length > 0 ? (
+      {customs.length > 0 ? (
         <>
           <h3 className="nh-palette__section">{t('Custom widgets')}</h3>
           <div className="nh-palette">
-            {customDefs.map((def) => {
+            {customs.map((def) => {
               const overrides = { label: def.name, customwidget: def.id, config: {} }
               return (
                 <button
@@ -78,6 +94,9 @@ export function PaletteSheet() {
             })}
           </div>
         </>
+      ) : null}
+      {definitions.length === 0 && customs.length === 0 ? (
+        <p className="nh-palette__hint">{t('No widget matches “{{search}}”.', { search: search.trim() })}</p>
       ) : null}
     </Sheet>
   )

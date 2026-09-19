@@ -18,9 +18,7 @@ export function LanguageField() {
           </option>
         ))}
       </select>
-      <span className="nh-field__hint">
-        {t('Applies to this device only. Dashboard content is your own text and stays as you wrote it.')}
-      </span>
+      <span className="nh-field__hint">{t('This device only. Your own dashboard text is untouched.')}</span>
     </label>
   )
 }

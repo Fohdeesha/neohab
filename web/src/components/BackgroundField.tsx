@@ -33,11 +33,9 @@ export function BackgroundField({
       await saveBackground({ version: 1, id: bgId, ...processed })
       await onChange(BG_REF_PREFIX + bgId)
     } catch (err) {
-      notify(
-        t('Upload failed: {{error}} - uploads need an administrator sign-in.', {
-          error: errorText(err)
-        })
-      )
+      // errorText already says "sign in as an openHAB administrator" when that is really the reason,
+      // so no suffix here: it told a signed-in admin to sign in whenever a file was simply the wrong kind
+      notify(t('Upload failed: {{error}}', { error: errorText(err) }))
     } finally {
       setBusy(false)
     }

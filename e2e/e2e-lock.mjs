@@ -137,7 +137,7 @@ try {
   pages.push(user)
   await user.page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await user.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
-  await user.page.waitForSelector('section:has(h2:text-is("Account")):has-text("no administrator rights")', { timeout: 10000 })
+  await user.page.waitForSelector('section:has(h2:text-is("Account")):has-text("not an administrator")', { timeout: 10000 })
   ok('user-level: account explains missing admin rights', true)
   ok('user-level: Backup section hidden', (await user.page.locator('section:has(h2:text-is("Backup"))').count()) === 0)
   await user.page.goto(APP + '#/d/nh-e2e-lock')

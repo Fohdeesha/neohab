@@ -99,8 +99,18 @@ export function glyphFor(arrows: StepperArrows, mode: StepperMode, axis: 'vertic
   return { shape, dir: dir > 0 ? 'right' : 'left' }
 }
 
+// The step says how precise a press is, not how precise the item is: a Number reporting 3.6 under a
+// step of 1 is still 3.6, and a readout of "4" is a value the item does not hold. Rounded to three
+// places first, or float noise (0.1 + 0.2) would claim seventeen decimals.
+export function valueDecimals(v: number): number {
+  const s = String(Math.round(v * 1000) / 1000)
+  const at = s.indexOf('.')
+  return at < 0 ? 0 : s.length - at - 1
+}
+
 export function formatNumber(v: number | undefined, step: number): string {
-  return v === undefined || !Number.isFinite(v) ? '-' : v.toFixed(stepDecimals(step))
+  if (v === undefined || !Number.isFinite(v)) return '-'
+  return v.toFixed(Math.max(stepDecimals(step), valueDecimals(v)))
 }
 
 export function positionsIn(scale: NumericScale): number {

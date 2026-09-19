@@ -3,7 +3,7 @@
 // SAFE with a live config: creates only dashboard:nh-e2e-portrait{,-tight} (deleted afterwards, cleanup
 // guarded), reads the server's own dashboards strictly read-only.
 import { launchChromium } from './lib/browser.mjs'
-import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
@@ -13,7 +13,7 @@ const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detai
 const btn = (id, label, x, y, w = 1, h = 1, iconSize = 36) => ({
   id,
   type: 'button',
-  config: { label, icon: 'oh:light', iconSize, command: 'ON' },
+  config: { item: ITEMS.switch, label, icon: 'oh:light', iconSize, command: 'ON' },
   layout: { lg: { x, y, w, h } },
 })
 
@@ -33,7 +33,7 @@ const ROOMY = {
       btn('p-long', 'Guest Bedroom Accents', 1, 0),
       btn('p-token', 'Laptop>Studio AVB', 2, 0, 1, 1, 70),
       btn('p-desc', 'gggjjjyyy ppqq', 3, 0),
-      { id: 'p-slider', type: 'slider', config: { label: 'Master Bed Lights' }, layout: { lg: { x: 0, y: 1, w: 3, h: 1 } } },
+      { id: 'p-slider', type: 'slider', config: { item: ITEMS.dimmer, label: 'Master Bed Lights' }, layout: { lg: { x: 0, y: 1, w: 3, h: 1 } } },
     ],
   },
 }
@@ -52,7 +52,7 @@ const TIGHT = {
     widgets: [
       btn('t-short', 'Short Row', 0, 0, 2, 1), // ~32px stacked
       btn('t-tall', 'Tall Row', 3, 0, 4, 6), // ~190px stacked
-      { id: 't-color', type: 'color', config: { label: 'Colour' }, layout: { lg: { x: 8, y: 0, w: 4, h: 1 } } }, // minPixelHeight floor
+      { id: 't-color', type: 'color', config: { item: ITEMS.color, label: 'Colour' }, layout: { lg: { x: 8, y: 0, w: 4, h: 1 } } }, // minPixelHeight floor
     ],
   },
 }

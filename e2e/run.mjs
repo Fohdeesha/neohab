@@ -36,6 +36,7 @@ const SAFE_SUITES = [
   'e2e-fade',
   'e2e-stepper',
   'e2e-battery',
+  'e2e-value',
   'e2e-slider',
   'e2e-thermostat',
   'e2e-log',

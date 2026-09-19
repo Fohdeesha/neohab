@@ -4,6 +4,7 @@ import { deleteWidgetDef, saveSettings, saveWidgetDef, useConfigStore } from '..
 import { defSettings, defTemplate, type CustomWidgetDef, type WidgetDefSetting } from '../model/widgetdef'
 import { exportComponent } from '../editor/exportComponent'
 import { errorText } from '../api/errors'
+import { WidgetExamples } from './WidgetExamples'
 import type { NoticeFn } from '../store/notify'
 
 const SETTING_TYPES = ['string', 'number', 'boolean', 'item', 'color', 'choices', 'icon', 'heading'] as const
@@ -54,7 +55,7 @@ export function WidgetDefManager({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Custom widgets')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Template widgets are HTML with expressions (HABPanel-compatible) and are always safe to run. JavaScript widgets execute code, but only inside a sandbox that cannot reach this dashboard, your session or your token. Turn them off to stop them running at all.'
+          'Template widgets are HTML with expressions, like HABPanel’s. JavaScript widgets run sandboxed, with no reach into your session or token.'
         )}
       </p>
       <label className="nh-field nh-field--row" htmlFor="allow-js">
@@ -101,6 +102,8 @@ export function WidgetDefManager({ onNotice }: { onNotice: NoticeFn }) {
           {t('New JavaScript widget')}
         </button>
       </div>
+
+      <WidgetExamples onNotice={onNotice} />
 
       {/* new widgets (and an anchor that vanished from the list) edit down here */}
       {editing && !defs.some((d) => d.id === anchor) ? (
@@ -183,9 +186,7 @@ function DefEditor({
             disabled={exists}
             onChange={(e) => onChange({ ...def, id: e.target.value.toLowerCase().replace(/[^a-z0-9-_]+/g, '-') })}
           />
-          <span className="nh-field__hint">
-            {t('How dashboards refer to this widget. It cannot change later, because every instance points at it.')}
-          </span>
+          <span className="nh-field__hint">{t('How dashboards refer to this widget. It cannot change later.')}</span>
         </label>
         <label className="nh-field" htmlFor="def-body">
           <span className="nh-field__label">{isJs ? t('Script (runs sandboxed, use the `oh` SDK)') : t('Template (HTML)')}</span>

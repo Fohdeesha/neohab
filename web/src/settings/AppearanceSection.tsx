@@ -53,10 +53,9 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
             is going on, or the screen looks like it is ignoring the theme they picked. */}
         {urlThemeForced ? (
           <p className="nh-settings__notice">
-            {t(
-              'Loaded with “{{name}}” because the address contains ?theme=. Nothing has been changed - reload without it to go back to your own theme, or edit or delete the one causing trouble below.',
-              { name: activeTheme.name }
-            )}
+            {t('Showing “{{name}}” because of ?theme= in the address. Nothing was saved - reload without it to go back.', {
+              name: activeTheme.name
+            })}
           </p>
         ) : null}
 
@@ -68,9 +67,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
         {canEdit ? (
           <>
             <p className="nh-settings__text">
-              {t(
-                'Shared with every device: the theme, the background image and the sidebar. The rest of this section is this device’s own.'
-              )}
+              {t('Theme, background and sidebar are shared with every device. The rest here is this device only.')}
             </p>
             <div className="nh-themes">
               {listThemes(customThemes).map((theme) => (
@@ -110,7 +107,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
                 on screen. Say so, or the highlight reads as a bug. */}
             {activeTheme.id !== settings.theme ? (
               <p className="nh-settings__text">
-                {t('The highlighted theme is the shared one. This device is showing “{{name}}” instead, set below.', {
+                {t('The highlight is the shared theme. This device shows “{{name}}” instead.', {
                   name: activeTheme.name
                 })}
               </p>
@@ -139,9 +136,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
                 void collectUnusedBackgrounds()
               }}
             />
-            <span className="nh-field__hint">
-              {t('Shown behind the Home screen and every dashboard that has no background of its own.')}
-            </span>
+            <span className="nh-field__hint">{t('Behind the Home screen and any dashboard with no background of its own.')}</span>
           </div>
         ) : null}
 
@@ -157,9 +152,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
               />
             </label>
             <p className="nh-settings__text">
-              {t(
-                'Adds a ☰ to the top-left of every screen that slides out the dashboard list, so you can switch dashboards without going back Home. Turn it off to navigate from the Home screen only.'
-              )}
+              {t('Puts a ☰ in the top-left that slides out the dashboard list, so you can switch without going Home.')}
             </p>
           </>
         ) : null}
@@ -177,11 +170,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
           min={50}
           max={300}
           step={5}
-          hint={
-            <span className="nh-field__hint">
-              {t('Scales dashboard text on this device only - other devices and the dashboards themselves are unchanged. 100 = normal.')}
-            </span>
-          }
+          hint={<span className="nh-field__hint">{t('This device only. 100 = normal.')}</span>}
           onCommit={setDeviceTextSize}
         />
       </section>

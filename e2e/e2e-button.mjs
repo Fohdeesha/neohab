@@ -17,6 +17,12 @@ const ACCENT = '#e0459a'
 const DIM = 'nh_e2e_btn'
 const STR = 'nh_e2e_btnstr'
 const HOLD_MS = 800 // comfortably past the 500ms threshold
+// The legacy dashboard below carries no version field at all, which reads as 1, and a save has to
+// land it on today's. Named so the next schema bump is a visible one-line edit rather than a check
+// that quietly starts asserting the wrong number - SCHEMA_VERSIONS.dashboard in
+// web/src/model/schema.ts is the source of truth.
+const LEGACY_SCHEMA = 1
+const CURRENT_SCHEMA = 3
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -673,7 +679,11 @@ try {
   const widgets = stored?.config?.widgets ?? []
   const old = widgets.find((w) => w.id === 'w-old')
   const oldBare = widgets.find((w) => w.id === 'w-oldbare')
-  ok('saving writes the dashboard back at the current version', Number(stored?.config?.version) === 2, 'version=' + stored?.config?.version)
+  ok(
+    'saving writes the dashboard back at the current version',
+    Number(stored?.config?.version) === CURRENT_SCHEMA && CURRENT_SCHEMA > LEGACY_SCHEMA,
+    `version=${stored?.config?.version}, seeded at ${LEGACY_SCHEMA}, current is ${CURRENT_SCHEMA}`
+  )
   ok('the switch is stored as a button in switch style', old?.type === 'button' && old?.config?.style === 'switch', JSON.stringify(old?.type))
   ok(
     'with the behaviours it used to imply written out beside it',

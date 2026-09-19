@@ -46,10 +46,7 @@ function PartialImportCard({
         {nothingToDo
           ? t('This file matches what you already have, so there is nothing to import.')
           : conflicts > 0
-            ? t(
-                'Something with the same name is already here. Importing a copy leaves it untouched and adds a numbered copy; overwriting replaces {{count}} item(s).',
-                { count: conflicts }
-              )
+            ? t('That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items.', { count: conflicts })
             : t('Nothing here has these names, so nothing of yours is touched.')}
       </p>
       <div className="nh-settings__row">
@@ -183,7 +180,7 @@ export function BackupSection({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Backup')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Export your complete configuration (dashboards, themes, settings) as a JSON file to back it up or share it. Importing can replace everything or merge the backup into what you have. The same Import button also takes a single dashboard, custom widget or theme file - those are offered as a copy so nothing of yours is replaced.'
+          'Your whole configuration as one JSON file, to keep or to share. Import can merge it or replace everything, and it also takes a single dashboard, widget or theme file.'
         )}
       </p>
       {backgrounds.length > 0 ? (
@@ -193,9 +190,7 @@ export function BackupSection({ onNotice }: { onNotice: NoticeFn }) {
             <input id="nh-export-bg" type="checkbox" checked={withBackgrounds} onChange={(e) => setWithBackgrounds(e.target.checked)} />
           </label>
           <p className="nh-settings__text">
-            {t(
-              'Uploaded background images can make the export large. Turn this off for a smaller, easier-to-read file - dashboards will then reference images the export does not contain.'
-            )}
+            {t('They make the file big. Leave them out and dashboards will point at images the file does not carry.')}
           </p>
         </>
       ) : null}
@@ -225,7 +220,7 @@ export function BackupSection({ onNotice }: { onNotice: NoticeFn }) {
         <div className="nh-settings__importchoice">
           <p className="nh-settings__text">
             {t(
-              'Backup contains {{dashboards}} dashboard(s), {{components}} components. Merge keeps your current configuration and overwrites only what the backup also contains; replace deletes everything first.',
+              '{{dashboards}} dashboards, {{components}} components. Merge overwrites only what the backup also has; replace deletes everything first.',
               {
                 dashboards: pending.components.filter((c) => c.uid.startsWith('dashboard:')).length,
                 components: pending.components.length

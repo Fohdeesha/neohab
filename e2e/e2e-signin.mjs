@@ -100,11 +100,11 @@ try {
 
     await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
     await page
-      .waitForSelector('text=This device is signed in as an administrator.', { timeout: 10000 })
+      .waitForSelector('text=Signed in as an administrator.', { timeout: 10000 })
       .catch(() => {})
     ok(
       'exchange: admin role read from the session token',
-      (await page.locator('text=This device is signed in as an administrator.').count()) === 1
+      (await page.locator('text=Signed in as an administrator.').count()) === 1
     )
 
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
@@ -131,7 +131,8 @@ try {
     ok('sign-out: refresh token forgotten', await page.evaluate(() => !localStorage.getItem('neohab:refreshToken')))
     ok(
       'sign-out: account section back to anonymous',
-      (await page.locator('text=This device is not signed in').count()) === 1
+      // scoped to Account: About renders the same words as a role ("not signed in, no live item states")
+      (await page.locator('section:has(h2:text-is("Account")) >> text=Not signed in').count()) === 1
     )
     ok('sign-out: the server accepted the revocation', logoutStatus === 200, 'status=' + logoutStatus)
     const reuse = await fetch(BASE + '/rest/auth/token', {

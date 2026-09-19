@@ -1,12 +1,13 @@
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
-import { getWidgetDefinition, hasHeaderFor, itemsForInstance } from '../widgets'
+import { getWidgetDefinition, hasHeaderFor, instanceNeedsItem, itemsForInstance } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
 import { ensureItemNames, missingFrom, useCatalogStore } from '../store/catalog'
 import { commandItem } from '../widgets/common/command'
+import { WidgetFrame } from '../widgets/common/WidgetFrame'
 import { WidgetBoundary } from './WidgetBoundary'
 
 export function WidgetHost({ instance, editing, stacked }: { instance: WidgetInstance; editing: boolean; stacked?: boolean }) {
@@ -38,6 +39,9 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
     return merged
   }, [def, instance.config])
 
+  // off the config rather than per render: this runs for every widget on every arriving item state
+  const needsItem = useMemo(() => instanceNeedsItem(instance.type, config), [instance.type, config])
+
   const ctx: WidgetContext = useMemo(
     () => ({
       widgetId: instance.id,
@@ -51,7 +55,7 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
 
   if (!def) {
     return (
-      <div className="nh-widget nh-widget--error">
+      <div className="nh-widget nh-widget--notice nh-widget--error">
         <span className="nh-widget__errtitle">{t('Unknown widget type “{{type}}”', { type: instance.type })}</span>
         <span className="nh-widget__errhint">
           {t('It may come from a newer version of neohab, or from a configuration this one cannot read.')}
@@ -62,10 +66,19 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
 
   if (missing.length > 0) {
     return (
-      <div className="nh-widget nh-widget--error">
+      <div className="nh-widget nh-widget--notice nh-widget--error">
         <span className="nh-widget__errtitle">{missing.join(', ')}</span>
         <span className="nh-widget__errhint">{t('Not on this openHAB server. It may have been renamed or removed.')}</span>
       </div>
+    )
+  }
+
+  // the tile keeps its frame and its name: this is a widget nobody has finished, not a broken one
+  if (needsItem) {
+    return (
+      <WidgetFrame label={typeof config.label === 'string' ? config.label : undefined} center>
+        <span className="nh-widget__unset">{t('No item yet - pick one in this widget’s settings.')}</span>
+      </WidgetFrame>
     )
   }
 

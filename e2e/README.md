@@ -162,7 +162,7 @@ id (`kitchen` becomes `kitchen-2`), which is one of the things that suite checks
 Four more deliberate exceptions, each for the same reason: the feature under test decides the id,
 so the suite cannot invent one.
 
-- `e2e-gallery.mjs` installs gallery widgets, which land under the catalogue's own ids
+- `e2e-gallery.mjs` adds the bundled example widgets, which land under the catalogue's own ids
   (`widgetdef:gallery-*`). It deletes exactly that prefix, before and after.
 - `e2e-partial.mjs` imports partial exports, which can create a numbered copy
   (`dashboard:nh-e2e-pdash-2`). It deletes its own prefixes, and because importing legitimately

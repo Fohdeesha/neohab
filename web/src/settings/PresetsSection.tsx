@@ -30,7 +30,7 @@ export function PresetsSection({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Lighting presets')}</h2>
       <p className="nh-settings__text">
         {t(
-          'A preset is an openHAB scene: it lives in your openHAB configuration, other rules can run it, and Main UI shows it too. Create one from a floor plan widget’s “Save preset”, then manage it here. Linking a status item makes your existing wall-switch items both trigger the preset and light up the active chip on every panel.'
+          'A preset is an openHAB scene, so rules and Main UI can use it too. Make one from a floor plan’s “Save preset”. Linking a status item lets a wall switch run it and show it as active.'
         )}
       </p>
       {error ? <p className="nh-settings__text">{t('Presets could not be loaded: {{error}}', { error })}</p> : null}

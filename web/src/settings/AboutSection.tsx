@@ -178,11 +178,7 @@ export function AboutSection() {
         </dd>
       </dl>
 
-      <p className="nh-settings__text">
-        {t(
-          'If you report a problem, paste the block below into the issue - it says what you are running. It contains no addresses, credentials or item names.'
-        )}
-      </p>
+      <p className="nh-settings__text">{t('Paste this into a bug report. It carries no addresses, credentials or item names.')}</p>
       <pre className="nh-about__report" ref={reportRef}>
         {report}
       </pre>

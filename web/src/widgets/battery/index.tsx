@@ -52,14 +52,6 @@ function BatteryWidget({ config, ctx }: WidgetProps<BatteryConfig>) {
     typeof config.chargingItem === 'string' && config.chargingItem !== '' ? chargingOf(ctx.getItem(config.chargingItem)) : false
   const color = pct === null ? 'var(--bt-unknown)' : mode === 'accent' ? 'var(--bt-accent)' : LEVEL_COLOR[level ?? 'good']
 
-  if (!config.item) {
-    return (
-      <WidgetFrame label={config.label} center>
-        <div className="nh-battery__empty">{t('No item configured')}</div>
-      </WidgetFrame>
-    )
-  }
-
   const view: BatteryView = {
     pct: pct ?? 0,
     known: pct !== null,

@@ -4,6 +4,7 @@ import { lookOf as thermostatLookOf } from './thermostat/model'
 import { orientOf as sliderOrientOf, styleOf as sliderStyleOf } from './slider/model'
 import { keepOf as logKeepOf, minLevelOf as logMinLevelOf, sourceSetting as logSourceOf } from './log/model'
 import { colorModeOf as batteryColorModeOf, styleOf as batteryStyleOf } from './battery/model'
+import { alignOf as valueAlignOf, styleOf as valueStyleOf } from './value/model'
 
 const noopEvents = { addEventListener: () => {}, removeEventListener: () => {} }
 vi.stubGlobal('document', { ...noopEvents, documentElement: {}, visibilityState: 'visible' })
@@ -22,6 +23,7 @@ const {
   instanceHasDetail,
   instanceHasHeader,
   instanceMinHeight,
+  instanceNeedsItem,
   itemsForInstance,
   listWidgetDefinitions
 } = await import('./registry')
@@ -173,7 +175,7 @@ describe('every widget settings schema', () => {
     expect(instanceCommands('dial', { item: 'x', readOnly: true })).toBe(false)
     expect(instanceCommands('button', { item: 'x', action: 'command' })).toBe(true)
     expect(instanceCommands('button', { item: 'x', action: 'navigate' })).toBe(false)
-    for (const display of ['value', 'stat', 'chart', 'timeline', 'compass', 'weather', 'battery']) {
+    for (const display of ['value', 'chart', 'timeline', 'compass', 'weather', 'battery']) {
       expect(instanceCommands(display, { item: 'x' }), display).toBe(false)
     }
     for (const control of ['slider', 'color', 'selection', 'rollershutter', 'player']) {
@@ -189,6 +191,48 @@ describe('every widget settings schema', () => {
   it('has no switch widget of its own: the button draws that now', () => {
     expect(widgets.map((d) => d.type)).not.toContain('switch')
     expect(instanceCommands('switch', { item: 'x' })).toBe(false)
+  })
+
+  it('has no stat widget of its own: the value draws that now', () => {
+    expect(widgets.map((d) => d.type)).not.toContain('stat')
+    expect(instanceCommands('stat', { item: 'x' })).toBe(false)
+    // the fields the stat brought with it are on the value, whatever style is drawing it
+    const keys = new Set((widgets.find((d) => d.type === 'value')?.settings ?? []).map((f) => f.key))
+    for (const key of ['caption', 'badge', 'trend', 'trendPeriod', 'trendItem', 'goodDirection', 'subItem', 'severity', 'align']) {
+      expect(keys.has(key), key).toBe(true)
+    }
+    // and so are the ones the value had of its own
+    for (const key of ['stateIcons', 'unit', 'iconSize']) expect(keys.has(key), key).toBe(true)
+  })
+
+  it('starts a value where its readers fall back to, and reads every item it binds', () => {
+    const def = widgets.find((d) => d.type === 'value')
+    expect(def?.defaultConfig().style).toBe(valueStyleOf(undefined))
+    expect(def?.defaultConfig().align).toBe(valueAlignOf(undefined))
+    expect(itemsForInstance('value', { item: 'a', subItem: 'b', trend: 'item', trendItem: 'c' })).toEqual(['a', 'b', 'c'])
+    // a comparison item is only read when it is the thing being compared with
+    expect(itemsForInstance('value', { item: 'a', trend: 'history', trendItem: 'c' })).toEqual(['a'])
+    expect(readOnlyItems(def!)).toEqual(['nh_item', 'nh_trendItem', 'nh_subItem'])
+  })
+
+  it('gives the value the same behaviour in every style: the look decides nothing', () => {
+    for (const style of ['plain', 'stat', 'spark', 'split', 'bar', 'segment', 'pill', 'hero', 'nonsense']) {
+      const bound = { item: 'x', style, subItem: 'y' }
+      expect(instanceCommands('value', bound), style).toBe(false)
+      expect(instanceControl('value', bound, 'x'), style).toBeUndefined()
+      expect(instanceControl('value', bound, 'y'), style).toBeUndefined()
+      expect(itemsForInstance('value', bound), style).toEqual(['x', 'y'])
+      expect(instanceHasHeader('value', bound), style).toBe(true)
+    }
+  })
+
+  it('asks for a taller stacked row only in the styles that need one', () => {
+    expect(instanceMinHeight('value', { style: 'plain' })).toBe(0)
+    expect(instanceMinHeight('value', { style: 'stat' })).toBe(0)
+    expect(instanceMinHeight('value', {})).toBe(0)
+    for (const style of ['spark', 'bar', 'split']) {
+      expect(instanceMinHeight('value', { style }), style).toBeGreaterThan(0)
+    }
   })
 
   it('answers the header question per instance, not only per widget type', () => {
@@ -521,6 +565,55 @@ describe('every widget settings schema', () => {
       }
     }
     expect(clashes).toEqual([])
+  })
+
+  // A widget that binds items and has none draws its floor - a slider at 0 reads as a light that is
+  // off. WidgetHost says so instead, and it decides from the settings schema, so this is what keeps
+  // that decision honest across the whole registry rather than for the widget that prompted it.
+  describe('a widget with no item yet', () => {
+    it('says so for every widget whose fresh settings offer an item field', () => {
+      const wrong: string[] = []
+      for (const def of widgets) {
+        const fresh = def.defaultConfig()
+        const offersItem =
+          def.itemKeys !== undefined && (def.settings ?? []).some((f) => f.type === 'item' && (!f.showIf || f.showIf(fresh)))
+        const says = instanceNeedsItem(def.type, fresh)
+        if (offersItem !== says) wrong.push(`${def.type}: offers an item field=${offersItem} but says it needs one=${says}`)
+      }
+      expect(wrong).toEqual([])
+    })
+
+    it('never replaces a widget whose item is an extra rather than its subject', () => {
+      // the camera's only item field is the target of a tap: it is a camera with or without one
+      expect(instanceNeedsItem('camera', { tapAction: 'command' })).toBe(false)
+      expect(instanceNeedsItem('camera', {})).toBe(false)
+      // and a second, optional item does not keep the notice up once the first one is filled
+      expect(instanceNeedsItem('battery', { item: 'nh_dimmer' })).toBe(false)
+      expect(instanceNeedsItem('compass', { item: 'nh_decimal' })).toBe(false)
+      expect(instanceNeedsItem('thermostat', { modeItem: 'nh_switch' })).toBe(false)
+    })
+
+    it('goes quiet as soon as one of those fields is filled', () => {
+      const still: string[] = []
+      for (const def of widgets) {
+        const fresh = def.defaultConfig()
+        const field = (def.settings ?? []).find((f) => f.type === 'item' && (!f.showIf || f.showIf(fresh)))
+        if (!field) continue
+        if (instanceNeedsItem(def.type, { ...fresh, [field.key]: 'nh_test' })) still.push(def.type)
+      }
+      expect(still).toEqual([])
+    })
+
+    it('leaves a widget alone whose item fields are not in use', () => {
+      // weather reading Open-Meteo has item fields behind a showIf and is perfectly configured without them
+      expect(instanceNeedsItem('weather', { source: 'openmeteo' })).toBe(false)
+      expect(instanceNeedsItem('weather', { source: 'items' })).toBe(true)
+      // and a widget with no item fields at all never claims to need one
+      expect(instanceNeedsItem('clock', {})).toBe(false)
+      expect(instanceNeedsItem('label', {})).toBe(false)
+      expect(instanceNeedsItem('chart', {})).toBe(false)
+      expect(instanceNeedsItem('nosuchwidget', {})).toBe(false)
+    })
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

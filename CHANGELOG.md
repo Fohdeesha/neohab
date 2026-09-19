@@ -6,6 +6,31 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.33.0
+
+- Value and Stat are one widget now, with a Style setting. Stored stat tiles keep their look and
+  everything they had set.
+- Six new looks for it: sparkline, split, bar, segment, pill and hero.
+- Every value tile can now take a trend arrow, colour stops, a caption, a badge and a second
+  reading. Those were stat-only before.
+- And every stat tile can take per-state icons, which were value-only.
+- The Settings page reads a lot shorter. Every explanation on it was rewritten to say the same thing
+  in a line or two.
+- The Widget gallery section is gone. Its five widgets are example templates, so they now sit in
+  Custom widgets as a "Start from an example" row, which is where a copy of one ends up anyway.
+- A widget you have not picked an item for yet says so, instead of drawing a slider at 0 or a dial
+  at empty as though the device were off.
+- A long item name no longer spills out of a small tile on the "not on this server" message.
+- The palette has a search box. It also matches what a widget does, so "graph" finds the chart.
+- Dialogs use the height of the screen on a desktop, so fewer widgets sit below the fold.
+- The dashboard generator shows both layout choices without scrolling. One of them was hidden under
+  the buttons on a laptop, and both were on a phone.
+- A stepper shows the value the item actually holds. An item at 3.6 read "4" when the step was 1.
+- An upload that fails because the file is the wrong kind no longer tells you to sign in.
+- "No matching icons" no longer renders one icon wide.
+- The HABPanel report says where a dashboard's web address comes from. It said names became
+  addresses, when they come from HABPanel's own dashboard ids.
+
 ## 1.32.0
 
 - A timeline widget with nothing to draw covered the whole dashboard with an invisible box and

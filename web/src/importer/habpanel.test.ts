@@ -453,7 +453,11 @@ describe('dashboard ids', () => {
     const { dashboards, notes } = importFixture()
     expect(dashboards.map((d) => d.id)).toEqual(['ground-floor', 'first-floor'])
     expect(dashboards.map((d) => d.name)).toEqual(['Ground Floor', 'First Floor'])
-    expect(notes.some((n) => n.message.includes('turned into web addresses'))).toBe(true)
+    // the note has to say the address comes from HABPanel's id, not from the name: a dashboard
+    // renamed in HABPanel keeps its old id, so "Home" can land at /d/final
+    const note = notes.find((n) => n.message.includes('Web addresses come from'))
+    expect(note?.message).toContain('dashboard ids')
+    expect(note?.message).not.toContain('names were turned')
   })
 
   it('de-duplicates against dashboards already on the server without overwriting them', () => {

@@ -34,7 +34,8 @@ and it is where everything else in this page happens.
 
 In edit mode:
 
-1. Press **+** to open the palette and pick a widget. A Button is the one to start with.
+1. Press **+** to open the palette and pick a widget, or type in its search box. A Button is the
+   one to start with.
 2. It lands on the grid. Drag it about, drag a corner to resize.
 3. Tap it to open its settings.
 
@@ -93,4 +94,4 @@ the whole configuration back.
 - **Settings › Kiosk & wall panel** is for a screen on a wall: no chrome, no menu, and the screen
   kept awake.
 - **Settings › Custom widgets** is where you write your own tile out of HTML when no built-in one
-  fits.
+  fits. Five examples ship with it, and starting from one is usually quicker than a blank page.

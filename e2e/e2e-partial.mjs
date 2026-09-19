@@ -3,7 +3,7 @@
 // `icon:nh-e2e-p`, `background:nh-e2e-p`, `theme:nh-e2e-p` (plus the `-2`.
 import { readFileSync } from 'node:fs'
 import { launchChromium } from './lib/browser.mjs'
-import { APP, NS, TOKEN, AUTH, HISTORY_NS, HISTORY_DATA_NS } from './lib/target.mjs'
+import { APP, NS, TOKEN, AUTH, ITEMS, HISTORY_NS, HISTORY_DATA_NS } from './lib/target.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -60,7 +60,7 @@ const dashComponent = (id = DASH, name = 'E2E Partial') => ({
     stackOrder: ['w-two', 'w-one', 'w-three'],
     widgets: [
       { id: 'w-one', type: 'template', config: { label: 'Tpl', customwidget: DEF, config: {} }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-      { id: 'w-two', type: 'button', config: { label: 'Btn', icon: 'custom:' + ICON, action: 'command' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
+      { id: 'w-two', type: 'button', config: { item: ITEMS.switch, label: 'Btn', icon: 'custom:' + ICON, action: 'command' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
       { id: 'w-three', type: 'clock', config: {}, layout: { lg: { x: 5, y: 0, w: 3, h: 2 } } },
     ],
   },
@@ -216,7 +216,7 @@ try {
   await importFile(dashFile)
   await page.waitForSelector('button:has-text("Import as a copy")', { timeout: 15000 })
   const card = await page.textContent('.nh-settings__importchoice')
-  ok('a conflicting file warns that the name is taken', /same name is already here/.test(card ?? ''), String(card).slice(0, 160))
+  ok('a conflicting file warns that the name is taken', /name is already taken/.test(card ?? ''), String(card).slice(0, 160))
   ok('a conflicting file offers overwrite', (await page.locator('button:has-text("Overwrite existing")').count()) === 1)
   ok('overwrite says how much it would replace', /replaces 1 item/.test(card ?? ''), String(card).slice(0, 200))
 

@@ -1,6 +1,6 @@
 // Audit fixes for configuration that did not come from the editor.
 import { launchChromium } from './lib/browser.mjs'
-import { BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
@@ -45,7 +45,7 @@ await put({
     version: 1, id: 'nh-e2e-a2', name: 'E2E Audit2', columns: 12, rowHeight: 'match', gap: 5,
     widgets: [
       { id: 'a2-label', type: 'label', config: { text: 'Scaled', fontSize: 40 }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-      { id: 'a2-btn', type: 'button', config: { label: 'Pick', command: 'ON' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
+      { id: 'a2-btn', type: 'button', config: { item: ITEMS.switch, label: 'Pick', command: 'ON' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
     ],
   },
 })

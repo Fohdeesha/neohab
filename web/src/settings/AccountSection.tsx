@@ -19,13 +19,13 @@ export function AccountSection({ onNotice }: { onNotice: NoticeFn }) {
   const statusText = !signedIn
     ? // Whether viewing works without an account is the SERVER's choice, and on one with
       authRequired
-      ? t('This device is not signed in, and this server shows nothing to signed-out visitors.')
-      : t('This device is not signed in. Viewing works without an account; editing needs an openHAB administrator sign-in.')
+      ? t('Not signed in, and this server shows nothing to signed-out visitors.')
+      : t('Not signed in. Viewing works without an account; editing needs an openHAB administrator.')
     : status === 'admin'
-      ? t('This device is signed in as an administrator.')
+      ? t('Signed in as an administrator.')
       : status === 'user'
-        ? t('This device is signed in, but the account has no administrator rights, so it cannot save changes.')
-        : t('This device is signed in for editing (openHAB login or a stored API token).')
+        ? t('Signed in, but this account is not an administrator, so it cannot save changes.')
+        : t('Signed in for editing, with an openHAB login or a stored API token.')
 
   return (
     <section>
@@ -56,7 +56,7 @@ export function AccountSection({ onNotice }: { onNotice: NoticeFn }) {
           question that follows. */}
       <p className="nh-settings__text">
         {t(
-          'Settings marked “on this device” are kept in this browser: the theme override, language, text size, kiosk and audio choices, and whether the sidebar is pinned. They are not part of a backup, and every device sets its own.'
+          'Anything marked “on this device” lives in this browser only: theme, language, text size, kiosk and audio. Backups do not carry them.'
         )}
       </p>
       {/* A proxy sign-in is a different thing from an openHAB one, and is needed just as much on a

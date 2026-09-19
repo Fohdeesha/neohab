@@ -3,7 +3,7 @@ import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, SETTINGS_UID, THEME_P
 export type ComponentKind = 'dashboard' | 'theme' | 'widgetdef' | 'icon' | 'background' | 'settings'
 
 export const SCHEMA_VERSIONS: Record<ComponentKind, number> = {
-  dashboard: 2,
+  dashboard: 3,
   theme: 1,
   widgetdef: 1,
   icon: 1,
@@ -61,8 +61,29 @@ const switchToButtonStyle: Migration = (config) => {
   return changed ? { ...config, widgets: migrated } : config
 }
 
+// 2 -> 3: the stat widget folded into the value as its stat style. Both keys the merge could let a
+// default decide are written out: style, because a stat carries none and the value's default is the
+// plain look, and align, because a stat laid out its column from the left whatever it had stored.
+const statToValueStyle: Migration = (config) => {
+  const widgets = config.widgets
+  if (!Array.isArray(widgets)) return config
+  let changed = false
+  const migrated = widgets.map((entry) => {
+    const widget = plainObject(entry)
+    if (widget.type !== 'stat') return entry
+    changed = true
+    const stored = plainObject(widget.config)
+    return {
+      ...widget,
+      type: 'value',
+      config: { ...stored, style: 'stat', align: typeof stored.align === 'string' ? stored.align : 'left' }
+    }
+  })
+  return changed ? { ...config, widgets: migrated } : config
+}
+
 export const MIGRATIONS: Record<ComponentKind, Migration[]> = {
-  dashboard: [switchToButtonStyle],
+  dashboard: [switchToButtonStyle, statToValueStyle],
   theme: [],
   widgetdef: [],
   icon: [],

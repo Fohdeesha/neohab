@@ -105,7 +105,7 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
       <h2 className="nh-settings__h">{t('Migrate from HABPanel')}</h2>
       <p className="nh-settings__text">
         {t(
-          'Bring your HABPanel dashboards into neohab. Widgets are mapped to their closest neohab equivalents and a report shows anything that needs attention. Your HABPanel configuration is never modified.'
+          'Brings your HABPanel dashboards across, with a report of anything that did not map cleanly. Your HABPanel configuration is left alone.'
         )}
       </p>
 
@@ -135,7 +135,7 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
       ) : probe.state === 'read' ? (
         <p className="nh-settings__text">
           {t(
-            'No HABPanel configuration is saved on this server. If your panels only exist in HABPanel’s own browser storage, open HABPanel, save the panel configuration to the server or export it, and come back with the file.'
+            'Nothing saved on this server. If your panels live only in HABPanel’s browser storage, export them there and bring the file here.'
           )}
         </p>
       ) : probe.state === 'failed' ? (
@@ -219,9 +219,7 @@ function ConfirmSheet({
                 )
               })}
             </ul>
-            <p className="nh-field__hint">
-              {t('These are saved on the openHAB server, so they change what every device sees, not only this one.')}
-            </p>
+            <p className="nh-field__hint">{t('Saved on the server, so every device sees them.')}</p>
           </div>
         ) : null}
       </div>

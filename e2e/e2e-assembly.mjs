@@ -112,7 +112,7 @@ try {
             toggle: true, command: switchState,
           }),
           w('b3', 'button', 6, 2, 2, 1, {
-            label: 'Zone C', command: 'noop', icon: 'mdi:factory', caption: 'Vision line',
+            item: ITEMS.switch, label: 'Zone C', command: 'noop', icon: 'mdi:factory', caption: 'Vision line',
             imageUrl:
               "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23123f24'/%3E%3C/svg%3E",
           }),
@@ -121,8 +121,8 @@ try {
             toggle: true, command: 'never-match',
           }),
           w('l1', 'label', 0, 2, 2, 1, { text: 'Bare Label' }),
-          w('s1', 'stat', 2, 2, 2, 1, { item: ITEMS.dimmer, label: 'Stat', icon: 'mdi:factory', group: 'Panel' }),
-          w('s2', 'stat', 4, 2, 2, 1, { item: ITEMS.dimmer, label: 'Stat 2', group: 'Panel' }),
+          w('s1', 'value', 2, 2, 2, 1, { style: 'stat', item: ITEMS.dimmer, label: 'Stat', icon: 'mdi:factory', group: 'Panel' }),
+          w('s2', 'value', 4, 2, 2, 1, { style: 'stat', item: ITEMS.dimmer, label: 'Stat 2', group: 'Panel' }),
         ],
       },
     }),

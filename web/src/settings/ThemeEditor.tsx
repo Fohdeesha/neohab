@@ -83,7 +83,7 @@ export function ThemeEditor({
   return (
     <section className="nh-themeeditor">
       <h2 className="nh-settings__h">{t('Theme editor')}</h2>
-      <p className="nh-settings__text">{t('Changes preview on this screen as you make them. Nothing is stored until you save.')}</p>
+      <p className="nh-settings__text">{t('Previews as you type. Nothing is stored until you save.')}</p>
 
       <div className="nh-form">
         <label className="nh-field" htmlFor="theme-name">
@@ -233,9 +233,7 @@ function ContrastReport({ theme }: { theme: Theme }) {
       </div>
       <p className="nh-field__hint">
         {worst !== null && worst < 4.5
-          ? t(
-              'Some text on this theme falls below the 4.5:1 the accessibility guidelines ask for. It will still render - this is a warning, not a limit.'
-            )
+          ? t('Some text is under the 4.5:1 the guidelines ask for. It still renders - this is a warning, not a limit.')
           : t('Contrast between the colors that meet on screen. 4.5:1 is the guideline for normal text, 3:1 for large.')}
       </p>
     </div>
@@ -247,32 +245,25 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
   switch (issue.rule) {
     case 'attributePaint':
       return t(
-        '“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself - a gradient, or a color that follows the value. Your rule wins, and pins it to one color. Style its width or opacity instead.',
+        '“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself. Your rule wins and pins it to one color - style width or opacity instead.',
         p
       )
     case 'ungatedPadding':
       return t(
-        '“{{selector}}” sets padding outside a @container gate, so it also applies in cells too small for it and text will clip. Wrap it in @container (min-height: 105px) and (min-width: 121px).',
+        '“{{selector}}” sets padding with no @container gate, so text clips in small cells. Wrap it in @container (min-height: 105px) and (min-width: 121px).',
         p
       )
     case 'activeState':
-      return t(
-        '.{{control}} is styled but .{{control}}--active is not. They have the same specificity, so this flattens the on state - style both.',
-        p
-      )
+      return t('.{{control}} is styled but .{{control}}--active is not, so the on state looks the same. Style both.', p)
     case 'borderImageRadius':
       return t(
         'border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.',
         p
       )
     case 'bareWidget':
-      return t(
-        'Every widget is painted, including the label and clock widgets that asked for no card. Add a .nh-widget--bare rule undoing it.'
-      )
+      return t('This paints every widget, including the ones that asked for no card. Add a .nh-widget--bare rule undoing it.')
     case 'newTile':
-      return t(
-        'Every tile is painted, including the “+ New dashboard” one, which should stay a dashed invitation. Add a .nh-tile--new rule.'
-      )
+      return t('This paints every tile, including “+ New dashboard”, which should stay a dashed outline. Add a .nh-tile--new rule.')
     case 'externalAsset':
       return t(
         '“{{url}}” is not bundled with neohab, so it will not load on a server with no route to the internet. Use a fonts/, backgrounds/ or icons/ path, or a data: URI.',
@@ -325,9 +316,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
       />
       <StylesheetIssues css={theme.css ?? ''} radius={theme.tokens.radius ?? '12px'} />
       <span className="nh-field__hint">
-        {t(
-          'Optional. A stylesheet applied with this theme, for looks the tokens above cannot express - fonts, widget-frame structure. It is applied here as you type, like everything else.'
-        )}{' '}
+        {t('Optional, for looks the tokens above cannot reach - fonts, frame structure. Applied as you type.')}{' '}
         <a href="docs/theming.html" target="_blank" rel="noreferrer">
           {t('Class names, the rules that apply, and worked examples')}
         </a>
@@ -339,7 +328,7 @@ function StylesheetField({ theme, onChange }: { theme: Theme; onChange: (t: Them
           </button>
           <span className="nh-field__hint">
             {t(
-              'Copies it as a starting point. Be aware it contains colors written directly into it, which will not follow the tokens above - Swiss Sheet is the one built entirely from tokens, so it is the best one to copy.'
+              'A starting point. It has colors written into it that ignore the tokens above; Swiss Sheet is the one built purely from tokens.'
             )}
           </span>
         </div>

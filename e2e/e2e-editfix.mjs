@@ -81,7 +81,7 @@ try {
           { id: 'w-b', type: 'clock', config: { showDate: false }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
           { id: 'w-c', type: 'label', config: { text: 'C' }, layout: { lg: { x: 0, y: 4, w: 2, h: 1 } } },
           { id: 'w-d', type: 'label', config: { text: 'D' }, layout: { lg: { x: 0, y: 5, w: 2, h: 1 } } },
-          { id: 'w-e', type: 'button', config: { label: 'Nav', command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
+          { id: 'w-e', type: 'button', config: { item: ITEMS.switch, label: 'Nav', command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
           { id: 'w-f', type: 'dial', config: { item: ITEMS.temperature, label: 'Tenths', min: 0, max: 200, step: 0.1, readOnly: true }, layout: { lg: { x: 6, y: 3, w: 3, h: 3 } } },
           { id: 'w-g', type: 'dial', config: { item: ITEMS.temperature, label: 'Whole', min: 0, max: 200, step: 1, readOnly: true }, layout: { lg: { x: 9, y: 3, w: 3, h: 3 } } },
         ],

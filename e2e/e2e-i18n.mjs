@@ -1,9 +1,9 @@
 // UI translations e2e. Covers: English default; auto-detection from the browser language (a de-DE context
 // renders German with zero configuration).
 // SAFE with a live config: creates only dashboard:nh-e2e-i18n-a/-b/-c (clock/label/selection/ image/frame
-// widgets, all unbound, commands nothing), exact-uid cleanup.
+// widgets; the selection reads one item and commands nothing), exact-uid cleanup.
 import { launchChromium } from './lib/browser.mjs'
-import { BASE, APP, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -44,7 +44,9 @@ try {
     { id: 'w3', type: 'label', config: { text: 'zzz' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
   ])))
   ok('seed c (unconfigured widgets)', await seed(dash('nh-e2e-i18n-c', 'E2E I18N C', [
-    { id: 'w1', type: 'selection', config: { label: 'Sel', item: '', choices: '' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
+    // bound but with no choices: with no item at all the host says "no item yet" instead, which is a
+    // different string and would leave the selection's own one untested
+    { id: 'w1', type: 'selection', config: { label: 'Sel', item: ITEMS.switch ?? ITEMS.dimmer, choices: '' }, layout: { lg: { x: 0, y: 0, w: 4, h: 3 } } },
     { id: 'w2', type: 'image', config: { label: 'Img', url: '' }, layout: { lg: { x: 4, y: 0, w: 4, h: 3 } } },
     { id: 'w3', type: 'frame', config: { label: 'Frm', url: '' }, layout: { lg: { x: 8, y: 0, w: 4, h: 3 } } },
   ])))

@@ -326,7 +326,7 @@ button {
   box-shadow: none;
 }
 
-.nh-widget--error {
+.nh-widget--notice {
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -337,11 +337,28 @@ button {
   text-align: center;
 }
 
+/* clamped, so the height budget the regimes below assume holds at any tile width: a long name in a
+   narrow tile otherwise wraps past the cell, and the flex centring clips both ends of the block */
 .nh-widget__errtitle {
   color: var(--nh-text);
   font-weight: 600;
   /* an item name is one unbroken token, and Some_Long_Item_Name does not wrap at its underscores */
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* a widget nobody has picked an item for yet: clamped, so a short tile clips nothing */
+.nh-widget__unset {
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .nh-widget__errtext {
@@ -360,26 +377,32 @@ button {
 }
 
 /* Three regimes, because a message that does not fit is a message nobody reads. Full: title and
-   hint. Middle: the title alone, wrapping. Compact: one line with an ellipsis and the padding cut,
-   for a row so short that 20px of padding is most of it - a 40px row at 130% text has 38px, where
-   the title alone wants 24px and two lines want 46px. Measured at 16px and 20.8px cell fonts. */
+   hint. Middle: the title alone, wrapping to two lines. Compact: one line with an ellipsis and the
+   padding cut, for a row so short that 20px of padding is most of it - a 40px row at 130% text has
+   38px, where the title alone wants 24px and two lines want 46px. Measured at 16px and 20.8px cell
+   fonts. */
 @container nh-cell (max-height: calc(2.6em + 20px)) {
-  .nh-widget--error {
+  .nh-widget--notice {
     padding: 4px 8px;
   }
   .nh-widget__errtitle {
     max-width: 100%;
-    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    -webkit-line-clamp: 1;
   }
 }
 
-/* The hint is two lines of about 2em on top of the title and the padding, so it only earns its
-   place once the tile can hold all of it: an 88px tile fits it at 16px and not at 20.8px. */
-@container nh-cell (min-height: calc(3.6em + 24px)) {
+/* Title two lines, hint three, plus the gap and 20px of padding: the height below is what that adds
+   up to. Both parts are clamped above, so this holds however narrow the tile is. The width matters
+   too - three clamped lines of a 63-character sentence in a tile this narrow would be a fragment
+   nobody can read, so below it the title stands alone. */
+@container nh-cell (min-height: calc(5.4em + 24px)) and (min-width: calc(9em + 20px)) {
   .nh-widget__errhint {
-    display: revert;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
   }
 }
 
@@ -863,7 +886,10 @@ button {
   text-decoration: underline;
 }
 
-.nh-iconpicker__search {
+/* nothing styles a bare input in this app, so a search box that does not say all of this renders as
+   the browser's grey inset on a dark theme */
+.nh-iconpicker__search,
+.nh-palette__search {
   min-height: 36px;
   margin-bottom: 8px;
   padding: 6px 10px;
@@ -880,6 +906,12 @@ button {
   gap: 4px;
   overflow-y: auto;
   min-height: 0;
+}
+
+/* a message is not an icon: without this it lands in one 44px column and wraps to three lines */
+.nh-iconpicker__grid .nh-picker__empty {
+  grid-column: 1 / -1;
+  text-align: center;
 }
 
 .nh-iconpicker__cell {
@@ -1887,67 +1919,16 @@ button {
   margin-top: 10px;
 }
 
-.nh-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.nh-gallery__card {
+.nh-examples {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  background: var(--nh-surface-2);
-  border: 1px solid var(--nh-border);
-  border-radius: 10px;
-}
-
-.nh-gallery__head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.nh-gallery__name {
-  font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nh-gallery__badge {
-  flex: 0 0 auto;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--nh-border);
-  color: var(--nh-text-dim);
-  font-size: 0.7rem;
-}
-
-.nh-gallery__desc {
-  margin: 0;
-  color: var(--nh-text-dim);
-  font-size: 0.85rem;
-}
-
-.nh-gallery__foot {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
+  margin: 10px 0 12px;
 }
 
-.nh-gallery__meta {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.nh-examples__label {
   color: var(--nh-text-dim);
-  font-size: 0.75rem;
 }
 
 .nh-hideon,
@@ -2003,12 +1984,15 @@ button {
 
 /* Off a phone this is a dialog, not a bottom sheet: full width gives a 1890px field for a dashboard
    name. Centred with `margin-inline`, never a transform, because `.nh-sheet--collapsed` owns that
-   property and a second declaration would silently win. The 70vh cap above stays: lifting it let a
-   palette with enough cards grow over the edit bar and swallow the button that opens it. */
+   property and a second declaration would silently win. The cap is what leaves the edit bar clear -
+   lifting it entirely let a palette with enough cards grow over the bar and swallow the button that
+   opens it - but 70vh on a 900px laptop wasted 246px above the dialog while a dozen palette cards
+   sat below the fold, so it is now the room there actually is above the bar. */
 @media (min-width: 760px) {
   .nh-sheet:not(.nh-sheet--side) {
     width: min(560px, 100%);
     margin-inline: auto;
+    max-height: calc(100vh - 105px);
     bottom: 24px;
     border-bottom: 1px solid var(--nh-border);
     border-radius: 14px;
@@ -2155,6 +2139,10 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
+}
+
+.nh-palette__search {
+  width: 100%;
 }
 
 .nh-palette__card {
@@ -3938,13 +3926,6 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.nh-battery__empty {
-  margin: auto;
-  color: var(--nh-text-dim);
-  font-size: 0.85em;
-  text-align: center;
 }
 
 .nh-battery__glyph {
@@ -6080,12 +6061,6 @@ button {
   dominant-baseline: central;
 }
 
-.nh-compass__empty {
-  color: var(--nh-text-dim);
-  font-size: 0.85em;
-  text-align: center;
-}
-
 .nh-compass__tick {
   stroke: var(--nh-border);
   stroke-width: 1;
@@ -6220,6 +6195,260 @@ button {
 .nh-stat--right .nh-stat__foot,
 .nh-stat--right .nh-stat__main {
   justify-content: flex-end;
+}
+
+/* The value widget's six other looks. Plain and stat keep the trees they have always had, above;
+   these share one root and draw their reading out of the same .nh-stat__* parts, so a theme styling
+   the stat tile reaches all eight. */
+.nh-read {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nh-read--spark,
+.nh-read--bar,
+.nh-read--hero,
+.nh-read--split {
+  flex: 1;
+  min-height: 0;
+}
+
+.nh-read__main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.nh-read--center {
+  align-items: center;
+  text-align: center;
+}
+
+.nh-read--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.nh-read--center .nh-read__main,
+.nh-read--center .nh-stat__foot {
+  justify-content: center;
+}
+
+.nh-read--right .nh-read__main,
+.nh-read--right .nh-stat__foot {
+  justify-content: flex-end;
+}
+
+/* sparkline. The viewBox gives the svg a 1:1 intrinsic ratio, so a percentage width would set its
+   height to match and no amount of flex-shrink brings that back - height: 0 is what makes the row
+   it gets come from flex-grow alone. */
+.nh-read__plot {
+  display: block;
+  flex: 1 1 0;
+  width: 100%;
+  height: 0;
+  min-height: 0;
+  margin-top: 4px;
+  color: var(--nh-cellaccent, var(--nh-primary));
+}
+
+.nh-read__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.nh-read__area {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.16;
+}
+
+/* split: the icon in a disc, the reading beside it */
+.nh-read--split {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.nh-read__disc {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 50%;
+  background: var(--nh-surface-2);
+  color: var(--nh-cellaccent, var(--nh-primary));
+}
+
+.nh-read__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* bar: the reading placed between the two ends of its scale */
+.nh-read--bar {
+  justify-content: center;
+}
+
+.nh-read__track {
+  width: 100%;
+  height: 0.5em;
+  min-height: 6px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--nh-surface-2);
+  overflow: hidden;
+}
+
+.nh-read__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--nh-cellaccent, var(--nh-primary));
+}
+
+.nh-read__ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  color: var(--nh-text-dim);
+}
+
+/* segment: the reading in the seven-segment face, with every digit's unlit eight behind it. Same
+   overlay the LCD theme draws, carried into whatever theme is on. */
+.nh-read--segment {
+  justify-content: center;
+}
+
+.nh-read--segment .nh-stat__value,
+.nh-read--segment .nh-stat__frac {
+  position: relative;
+  font-family: 'DSEG7', monospace;
+  letter-spacing: 0.02em;
+}
+
+.nh-read--segment .nh-stat__value::before,
+.nh-read--segment .nh-stat__frac::before {
+  content: attr(data-ghost);
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+/* pill */
+.nh-read--pill {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.nh-read__pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.2em 0.75em;
+  border-radius: 999px;
+  background: var(--nh-cellaccent, var(--nh-primary));
+  color: var(--nh-accent-ink, #fff);
+}
+
+.nh-read__pill .nh-icon {
+  align-self: center;
+}
+
+/* The reading sits ON the fill, so it has to take the pill's ink rather than the colour a theme
+   gives a reading on the tile surface - LCD and Ops both set that directly, and an inherited colour
+   loses to any rule at all, which drew cyan digits on a cyan lozenge. Two classes deep on purpose,
+   and the glow goes with it. */
+.nh-read__pill .nh-stat__value,
+.nh-read__pill .nh-stat__frac,
+.nh-read__pill .nh-stat__unit {
+  color: inherit;
+  text-shadow: none;
+}
+
+.nh-read__pill .nh-stat__unit {
+  opacity: 0.8;
+}
+
+/* hero: the reading sized to the tile. Deliberately two classes deep, because the point of the look
+   is the size - a theme's own one-class rule for the reading would otherwise win. */
+.nh-read--hero {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.nh-read--hero .nh-stat__value {
+  font-size: min(46cqh, 26cqw);
+  line-height: 1;
+}
+
+.nh-read--hero .nh-stat__unit {
+  font-size: min(15cqh, 9cqw);
+  align-self: flex-start;
+  margin-top: 0.3em;
+}
+
+/* a headed tile spends about a line of its height on the title bar, so the reading gets less */
+.nh-widget--headed .nh-read--hero .nh-stat__value {
+  font-size: min(36cqh, 26cqw);
+}
+
+/* What goes first when a tile runs short. The thresholds are in em because the cell's font already
+   carries the dashboard, device and per-widget text scales - a px threshold sheds the wrong things
+   the moment somebody sets 130%, which is where every one of these was measured.
+
+   The ends of a bar scale first: they label a track that reads perfectly well without them. */
+@container nh-cell (max-height: calc(5em + 24px)) {
+  .nh-read__ends {
+    display: none;
+  }
+}
+
+/* Then the caption, on every look that draws one. At 130% text a captioned tile needs about 109px
+   and an 80px one overflowed by up to 13px - the stat column included, which is the tree this
+   widget has drawn since before the merge. */
+@container nh-cell (max-height: 5.5em) {
+  .nh-stat__caption {
+    display: none;
+  }
+}
+
+/* In the sparkline the plot IS the look, so its caption goes earlier still and the plot keeps the
+   room: at a 116px cell the caption leaves the plot 12px, and without it the plot gets 28px. */
+@container nh-cell (max-height: calc(7em + 20px)) {
+  .nh-read--spark .nh-stat__caption {
+    display: none;
+  }
+}
+
+/* And below the height where a plot would be a smear rather than a line, there is no plot. */
+@container nh-cell (max-height: calc(4.5em + 20px)) {
+  .nh-read__plot {
+    display: none;
+  }
+}
+
+/* The bar's track is the last thing to go, and only where the reading alone is all that fits. */
+@container nh-cell (max-height: 4.5em) {
+  .nh-read__track {
+    display: none;
+  }
 }
 
 /* no stroke here: the rim takes a gradient from an attribute, which a stylesheet stroke would beat */
