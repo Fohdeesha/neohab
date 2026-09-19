@@ -5,7 +5,7 @@
 
 # neohab
 
-A modern dashboard UI for [openHAB](https://www.openhab.org/).
+A modern UI for [openHAB](https://www.openhab.org/).
 Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser.
 
 **Status:** in daily use, latest release **1.33.0**. A community project, not an official openHAB UI.
@@ -13,12 +13,8 @@ Modern web dashboards with mobile devices and tablets as first class citizens, b
 ## Requirements
 
 - **openHAB 4.1 or newer, including 5.x: everything works.** One jar covers every version
-- **openHAB 3.1 to 4.0: supported, with four gaps - see below**
-- **openHAB 3.0 and older** cannot run it at all, the add-on interface neohab plugs into did not exist yet
-
-openHAB **4.0** | Loses: the **log widget**. openHAB added the log feed it reads in 4.1  
-openHAB **3.9** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them  
-openHAB **3.9** | Loses: **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
+- **openHAB 3.1 to 4.0: supported, with some disabled features: [see end of readme](#old-openhab-limitations)**
+- **openHAB 3.0 and older** cannot run at all, the add-on interface neohab uses did not exist yet  
 
 - **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121. Older browsers are shown a warning instead of rendering broken pages
 - **Nothing else.** Only openHAB's public REST and SSE APIs. No server-side code of ours, no
@@ -163,9 +159,12 @@ Open an [issue](https://github.com/Fohdeesha/neohab/issues). In your Neohab inst
 that shows all the relevent info - please paste this in to any github issues. Security
 issues should go **privately** instead: see [SECURITY.md](SECURITY.md).
 
+## Old OpenHAB Limitations
+
+openHAB **4.0** | Loses: the **log widget**. openHAB added the log feed it reads in 4.1  
+openHAB **3.9** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them  
+openHAB **3.9** | Loses: **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
+
 ## License
-
-[Eclipse Public License 2.0](LICENSE)
-
 
 [Eclipse Public License 2.0](LICENSE)
