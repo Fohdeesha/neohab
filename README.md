@@ -9,13 +9,13 @@ A modern UI for [openHAB](https://www.openhab.org/).
 Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** in daily use, latest release **1.33.0**. A community project, not an official openHAB UI.
 
 <p float="center">
-  <img src="imgs/1.png" width="500" />
-  <img src="imgs/2.png" width="500" /> 
+  <img src="imgs/1.png" width="400" />
+  <img src="imgs/2.png" width="400" /> 
 </p>
 
 <p float="center">
-  <img src="imgs/3.png" width="500" />
-  <img src="imgs/4.png" width="500" /> 
+  <img src="imgs/3.png" width="400" />
+  <img src="imgs/4.png" width="400" /> 
 </p>
 
 ## Requirements
