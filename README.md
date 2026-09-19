@@ -63,58 +63,61 @@ full-size control options which varies per widget
 
 ## Dashboards
 
-Arrange them on the live grid: drag to move or resize, drag in from the palette, multi-select, copy
-and paste between dashboards, undo anything. What you see while editing is what a save produces.
+Add and arrange your widgets on a dash: drag to move or resize, drag in from the palette, select multiple widgets by clicking and dragging, copy
+and paste between dashboards or on the same dashboard with ctrl+c ctrl+v, undo anything. What you see while editing is what a save produces.
 
-Phones and portrait tablets get a single-column stack you can reorder on its own, and there is an
+Phones and portrait tablets get a single-column stack you can reorder on its own without effecting landscape / full size displays, and there's an
 optional tablet layout with its own column count. Any widget can be left off any of the three.
 Text and icons scale with the tile, and with per-dashboard, per-widget and per-device settings.
 
-Point neohab at your items and it will lay dashboards out for you, from your semantic model if you
-have one, otherwise by naming convention or group. Everything it picked is listed for review first.
+A lot of effort was spent ensuring that regardless of the device / screen / orientation you open your dashboards on, the layout and sizing does what's needed to maintain layout and visibility - smart text, icon, and widget resizing, so nothing is ever cut off or clipped.  Settings to further optimize this also exist: per device scaling / text size overrides, per dashboard overrides, per widget overrides.
+
+You can optionally have Neohab create dashboards for you, from your semantic model if you
+have one, otherwise by naming convention or group. Everything it picks and puts together is listed for review first.
 
 ## Theming
 
 Sixteen themes ship with it, seven of them ports of HABPanel's. The editor previews as you type,
 explains every design token, checks whether your colours can actually be read, and validates a
-custom stylesheet. Themes are shared
+custom stylesheet. Themes are global to the Neohab instance
 unless you pin one to a single device, and they travel with your backups. See
 **[Making a theme](docs/theming.md)**.
 
-If a theme ever makes the app unusable, add `?theme=none` to the address to load with the default
-one for that page load, changing nothing.
+If a theme ever makes the app unusable or invisible, add `?theme=none` to the address to load with the default
+one for that page load to recover.
 
 ## Running it
 
-- **Wall panels.** Installable as an app with an offline shell, able to keep the screen awake, with
+- **Wall panels** - Installable as an app from your mobile browser (Android, iOS is currently untested) with an offline shell, able to keep the screen awake, with
   a per-device pinned dashboard, idle blanking and a kiosk mode. Adding a dashboard to a home
-  screen pins that dashboard, so several can sit side by side. A dashboard-control item lets your
-  rules switch what every panel shows.
-- **Visitors.** Devices not signed in get a read-only panel: controls still work, configuration
-  does not. That is openHAB's default posture.
-- **Voice and audio.** openHAB's Web Audio sink plays through the browser, a speech item announces
-  changes, and a microphone button sends spoken commands to the interpreter.
-- **Backups.** Export and import the whole configuration as JSON, or a single dashboard, widget or
-  theme on its own. A restore point is taken before each change, the last twenty-five are kept by
-  default, and you can see what changed field by field and roll back.
-- **Languages.** English, German, Spanish, French, Italian, Dutch and Polish, from the browser
-  language with a per-device override.
+  screen pins that dashboard, so several shortcuts can sit side by side. A dashboard-control item lets your
+  rules switch what every panel shows
+- **Visitors** - Devices not signed in get a read-only panel: controls still work, configuration
+  does not. That's openHAB's default posture, same with HabPanel
+- **Voice and audio** - openHAB's Web Audio sink plays through the browser, a speech item announces
+  changes, and a microphone button sends spoken commands to the interpreter
+- **Backups** - Export and import the whole configuration as a single JSON file, or a single dashboard, widget or
+  theme on its own
+- **Change Tracking** - A restore point is taken before each change you make in Neohab, the last twenty-five are kept by
+  default, and you can see what changed field by field, and roll back to whatever point you wish
+- **Languages** - English, German, Spanish, French, Italian, Dutch and Polish, from the browser
+  language with a per-device override
 
 ## Coming from HABPanel
 
-**Settings › Migrate from HABPanel** brings your panels across, either from the server or from a
-`habpanel-config.json` export. Widgets, layout, icons and dashboards are mapped, all seven of
+**Settings › Migrate from HABPanel** imports your HABPanel dashboards completely, either from the OpenHAB install or from a
+`habpanel-config.json` export you can upload. Widgets, layout, icons and dashboards are mapped, all seven of
 HABPanel's themes have a port here (the originals are by Yannick Schaus and the openHAB
 contributors), and custom AngularJS templates arrive as neohab template widgets. You get
 a report of what came over cleanly, what was approximated and what needs a look, and nothing is
-written until you have seen it.
+written until you've seen it and approved.
 
 `additional_stylesheet_url` is the one thing that cannot come across, because its selectors are
 HABPanel's. [The theming guide](docs/theming.md) has the table to translate it.
 
 ## Behind a reverse proxy
 
-Do not buffer the event stream, or live values arrive in bursts or not at all:
+Don't buffer the event stream, or live values arrive in bursts or not at all:
 
 ```nginx
 location / {
@@ -133,8 +136,8 @@ widget and in its settings as you type the address.
 
 If you have turned openHAB's implicit user role **off**, neohab asks you to sign in before showing
 anything. Commands and configuration then work normally, but live values do not update: they arrive
-over an `EventSource`, which browsers do not let us attach a token to. neohab says so on screen
-rather than showing stale numbers.
+over an `EventSource`, which browsers do not allow a token to be attached to. neohab says so on screen
+rather than showing stale numbers
 
 ## Icons and fonts
 
@@ -143,22 +146,22 @@ Icons](https://pictogrammers.com/library/mdi/), [Fluent
 Emoji](https://github.com/microsoft/fluentui-emoji), [Flat Color
 Icons](https://github.com/icons8/flat-color-icons) and
 [Meteocons](https://github.com/basmilius/meteocons). Your server's own icon sets and your own
-uploads sit alongside them. The themes that need a font bundle it: DSEG, Montserrat and Poppins.
+uploads sit alongside them. The themes that need a font bundle them: DSEG, Montserrat and Poppins.
 
 Everything bundled, with its licence and copyright, is listed in [NOTICE](NOTICE).
 
 ## Development
 
-React, TypeScript and Vite, served by a thin OSGi add-on shell, talking to openHAB only through its
+React, TypeScript and Vite, served by a thin OSGi add-on shell, talking to openHAB through its
 public REST and SSE APIs. **[CONTRIBUTING](CONTRIBUTING.md)** covers running it against your own
 openHAB with no Java build. The browser end-to-end suites live in [`e2e/`](e2e/); read
-[`e2e/README.md`](e2e/README.md) before pointing them at a server you care about.
+[`e2e/README.md`](e2e/README.md) before pointing them at a server you care about to avoid unwanted changes being made to your production dashboards
 
 ## Help
 
-Open an [issue](https://github.com/Fohdeesha/neohab/issues). Settings ends with an **About** screen
-that offers one block to paste in, with no addresses, credentials or item names in it. Security
-problems go **privately** instead: see [SECURITY.md](SECURITY.md).
+Open an [issue](https://github.com/Fohdeesha/neohab/issues). In your Neohab install, the Settings page ends with an **About** blurb
+that shows all the relevent info - please paste this in to any github issues. Security
+issues should go **privately** instead: see [SECURITY.md](SECURITY.md).
 
 ## License
 
