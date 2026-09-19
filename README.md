@@ -214,8 +214,10 @@ issues should go **privately** instead: see [SECURITY.md](SECURITY.md).
 ## Old OpenHAB Limitations
 
 openHAB **4.0** | Loses: the **log widget**. openHAB added the log feed it reads in 4.1  
-openHAB **3.9** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them  
-openHAB **3.9** | Loses: **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
+
+openHAB **3.1 - 3.x** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them. Also **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
+
+openHAB **3.0 and older** | Incompatible, Neohab will not start
 
 ## License
 
