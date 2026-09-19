@@ -5,69 +5,61 @@
 
 # neohab
 
-A dashboard UI for [openHAB](https://www.openhab.org/). Touch-friendly dashboards for phones,
-tablets and wall panels, built and configured entirely in the browser. No file editing.
+A modern dashboard UI for [openHAB](https://www.openhab.org/).
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser.
 
 **Status:** in daily use, latest release **1.33.0**. A community project, not an official openHAB UI.
 
 ## Requirements
 
-- **openHAB 4.1 or newer, including 5.x: everything works.** One jar covers every version.
-- **openHAB 3.1 to 4.0: supported, with four gaps.** It installs and runs, and Settings shows you
-  which of these apply to your server. openHAB 3.0 and older cannot run it at all, because the
-  add-on interface neohab plugs into did not exist yet.
-- **openHAB 4.3 is what CI builds against**, and the version this has been used on daily.
+- **openHAB 4.1 or newer, including 5.x: everything works.** One jar covers every version
+- **openHAB 3.1 to 4.0: supported, with four gaps - see below**
+- **openHAB 3.0 and older** cannot run it at all, the add-on interface neohab plugs into did not exist yet
 
-| Needs | What you lose on an older server |
-|---|---|
-| openHAB **4.1** | The **log widget**. openHAB added the log feed it reads in 4.1, so on anything older the widget says so rather than pretending to retry. |
-| openHAB **4.0** | **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them. |
-| openHAB **4.0** | **Semantic tags you define yourself**, in the dashboard generator. The built-in tags work everywhere, so generation still works. |
-| openHAB **4.1** | Nothing functional: older servers send no default number format, so a temperature can read `21.5` where a newer one rounds it to `22`. |
+openHAB **4.0** | Loses: the **log widget**. openHAB added the log feed it reads in 4.1  
+openHAB **3.9** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them  
+openHAB **3.9** | Loses: **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
 
-- **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121. An older one is
-  told so rather than rendering a broken page.
+- **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121. Older browsers are shown a warning instead of rendering broken pages
 - **Nothing else.** Only openHAB's public REST and SSE APIs. No server-side code of ours, no
-  account, no cloud. The only outside service neohab can call is
-  [Open-Meteo](https://open-meteo.com/), and only once you put a weather widget on a dashboard and
-  give it a place.
+  account, no cloud. The only possible outside service neohab can call is
+  [Open-Meteo](https://open-meteo.com/), and only once you put a weather widget on a dashboard and chose Open-Meteo as the data source, instead of local items
 - **A persistence service** for charts, timelines, sparklines and trends: rrd4j, InfluxDB, JDBC and
   the in-memory service all work. MapDB stores only each item's last value, so there is no history
-  to draw, and the widgets say so.
+  to draw, and the widgets say so
 - **HTTPS** for three things only: installing as an app, keeping a screen awake, and the
-  microphone. Browsers offer those in a secure context and nowhere else.
+  microphone. Modern browsers offer those in a secure context and nowhere else
 
 ## Install
 
-1. Download the jar from the [releases page](https://github.com/Fohdeesha/neohab/releases).
-2. Drop it into openHAB's `addons/` folder (`/usr/share/openhab/addons` on apt or openHABian,
-   whatever you mounted at `/openhab/addons` on Docker).
-3. It is picked up in a few seconds, no restart. The log says `Started neohab at /neohab`.
-4. Open **http://your-server:8080/neohab/** and sign in as an openHAB administrator.
+1. Download the jar from the [releases page](https://github.com/Fohdeesha/neohab/releases)
+2. Drop it into openHAB's `addons/` folder (`/usr/share/openhab/addons`)
+3. It's picked up in a few seconds, no restart. openhab.log says `Started neohab at /neohab`
+4. Open **http://your-server:8080/neohab/** and sign in as an openHAB administrator
 
 There is a [five-minute guide](docs/getting-started.md) in the add-on, linked from the welcome
-screen and served at `/neohab/docs/getting-started.html`.
+screen and served at `/neohab/docs/getting-started.html`
 
-**Upgrading:** delete the old jar, wait for it to stop, then copy the new one in. Leaving the old
-one beside the new one is the thing to avoid: openHAB keeps whichever it read last and logs a
-warning rather than an error, so you can end up still running the old version with nothing obvious
-to show for it. Open tabs offer to reload themselves.
+**Upgrading:** delete the old jar, wait for it to stop, then copy the new one in. Don't keep the old
+one beside the new one, openHAB keeps whichever it read last and logs a
+warning, so you can end up still running the old version with nothing obvious
+to show for it. Open tabs offer to reload themselves
 
-**Removing it:** delete the jar. Dashboards stay in openHAB's JSON database under the three
+**Removing it:** Just delete the jar. Dashboards stay in openHAB's JSON database under the three
 `neohab:*` namespaces, so putting the jar back brings everything with it.
 
 ## Widgets
 
-Buttons and switches, sliders, dials, steppers, colour pickers, selections, rollershutters,
-thermostats and media players. One value readout drawn eight ways (plain, stat, sparkline, split,
-bar, segment, pill and hero), plus compasses, batteries, clocks, weather and plain labels. Charts,
-timelines, floor plans with live light glows, cameras, images, embedded pages and the server log.
+Not guaranteed to be an exhaustive list, but at minimum: Buttons, sliders, dials, steppers, colour pickers, selections, rollershutters,
+thermostats and media players. Flexible value readouts (plain, stat, sparkline, split,
+bar, segment, pill, hero), plus compasses, batteries, clocks, weather and plain labels. Charts,
+timelines, floor plans with live light glows and control, cameras, images, embedded pages and the server log.
 Anything missing can be built as a custom widget from an HTML template, with an optional sandboxed
-JavaScript API.
+JavaScript API
 
-Every widget shares the same naming, sizing and per-state icon settings. Hold a tile, or
-right-click it, for the current value, when it last changed, recent history and that widget's own
-full-size control.
+Every widget shares the same naming, sizing and per-state icon settings. Long-hold or right click a widget, and you'll get a details
+page with the current value, when it last changed, recent history graph and that widget's own
+full-size control options which varies per widget
 
 ## Dashboards
 
@@ -169,5 +161,8 @@ that offers one block to paste in, with no addresses, credentials or item names 
 problems go **privately** instead: see [SECURITY.md](SECURITY.md).
 
 ## License
+
+[Eclipse Public License 2.0](LICENSE)
+
 
 [Eclipse Public License 2.0](LICENSE)
