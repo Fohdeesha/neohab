@@ -31,8 +31,8 @@ Modern web dashboards with mobile devices and tablets as first class citizens, b
 - **A persistence service** for charts, timelines, sparklines and trends: rrd4j, InfluxDB, JDBC and
   the in-memory service all work. MapDB stores only each item's last value, so there is no history
   to draw, and the widgets say so
-- **HTTPS** for three things only: installing as an app, keeping a screen awake, and the
-  microphone. Modern browsers offer those in a secure context and nowhere else
+- **HTTPS** for two things only: keeping a screen awake, and the
+  microphone for voice input. Modern browsers will not allow those over HTTP
 
 ## Install
 
