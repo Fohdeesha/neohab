@@ -1,11 +1,11 @@
 # Getting started with neohab
 
-Five short steps, from an empty screen to a dashboard on your phone with a backup of it saved.
-Nothing here needs a text editor or a restart.
+Five quick steps - from an empty screen to a dashboard on your phone with a backup of it saved.
+Nothing here needs a text editor or a restart
 
 ## 1. Open it and sign in
 
-Go to **http://your-server:8080/neohab/** (or whatever address you reach openHAB on). It is also
+Go to **http://your-server:8080/neohab/** (or whatever address you reach openHAB on). It's also
 on the openHAB start page, beside Main UI.
 
 On a stock openHAB anyone can look at a dashboard without signing in, but making one needs an
@@ -13,33 +13,32 @@ administrator. Press **Sign in**, and openHAB's own sign-in page takes it from t
 password is never typed into neohab and never stored by it; what comes back is a token this
 browser keeps.
 
-If the screen says the server needs you to sign in before it will show anything, that openHAB has
-its implicit user role turned off. Signing in is the whole answer.
+If the screen says the server needs you to sign in before it will show anything, then your openHAB has
+its implicit user role turned off.
 
 ## 2. Your first dashboard
 
-The welcome screen offers four ways in. Two build something new:
+The welcome screen offers four methods:
 
 - **Create your first dashboard** gives you an empty one to fill.
 - **Generate from my items** reads the items you already have, groups them by room or by what they
-  are, and builds a dashboard you can then edit. On a house that already has semantic tags it is
+  are, and builds a dashboard you can then edit. On a house that already has semantic tags it's
   usually the faster start.
+-  **Import from HABPanel** does what it says - automatically builds matching dashboards from your HABPanel install.
+-  **Restore a backup** allows you to import a neohab backup.
 
-The other two bring something with you: **Import from HABPanel** and **Restore a backup**.
-
-Either way you end up on a dashboard with the ✎ button in the top bar. That button is edit mode,
-and it is where everything else in this page happens.
+Once you have a dashboard one way or another, click the ✎ button in the top bar. That's edit mode,
+and it's where everything else in this page happens
 
 ## 3. Put something on it
 
 In edit mode:
 
-1. Press **+** to open the palette and pick a widget, or type in its search box. A Button is the
-   one to start with.
-2. It lands on the grid. Drag it about, drag a corner to resize.
-3. Tap it to open its settings.
+1. Press **+** to open the palette and pick a widget, or type in its search box
+2. It lands on the grid. Drag it about, drag a corner to resize, etc
+3. Tap it to open its settings
 
-The first field is **openHAB Item**. Start typing part of an item's name and pick it from the list.
+The first field is the **openHAB Item**. Start typing part of an item's name and pick it from the list.
 For a Button, the two fields under it are **Action** and **Command**, which is everything a light
 switch needs. **Name** is what the tile says, and a widget that starts without one takes the item's
 label when you bind it.
@@ -57,20 +56,17 @@ its history and a control that matches what the widget does.
 
 Open the same address on your phone, or just narrow the browser window. Below 840px the grid
 stops being a grid: tiles stack into one column, in the order they read across the desktop
-layout, sized to fit the screen.
+layout, sized to fit the screen - small devices / displays never cut off your widgets.
 
-That is usually right, and when it is not:
+That automatic behavior is usually right, but when it's not:
 
-- Drag tiles in edit mode on the narrow screen to set your own order. **Dashboard settings ›
-  Phone layout › Reset stack order** puts it back to following the grid.
+- Drag tiles in edit mode on the narrow screen to set your own order/layout for that screen size. **Dashboard settings ›
+  Phone layout › Reset stack order** puts it back to following the regular full size page layout.
 - **Hide on**, in a widget's **Tile** group, leaves that widget out on the sizes you choose. A
-  wall-panel chart nobody wants on a phone belongs here.
+  wall-panel chart nobody wants on a phone for example.
 - Between 840px and 1200px a tablet gets the desktop layout unless you make it a separate one.
   The **Desktop layout** button in the edit bar switches to **Tablet layout**; move things about
-  there and that arrangement is what tablets get.
-
-If you want neohab as an app icon rather than a browser tab, your server has to be on HTTPS.
-That is a browser rule, not ours, and the README says what else changes when you switch.
+  there and that arrangement is what tablets get
 
 ## 5. Back it up
 
