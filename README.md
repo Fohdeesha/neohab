@@ -22,15 +22,15 @@ Modern web dashboards with mobile devices and tablets as first class citizens, b
 
 - **openHAB 4.1 or newer, including 5.x: everything works.** One jar covers every version
 - **openHAB 3.1 to 4.0: supported, with some disabled features: [see end of readme](#old-openhab-limitations)**
-- **openHAB 3.0 and older** cannot run at all, the add-on interface neohab uses did not exist yet  
+- **openHAB 3.0 and older** cannot run at all, the add-on interface neohab uses didn't exist yet  
 
 - **A browser from 2023 or later**: Chrome or Edge 111, Safari 16.4, Firefox 121. Older browsers are shown a warning instead of rendering broken pages
-- **Nothing else.** Only openHAB's public REST and SSE APIs. No server-side code of ours, no
-  account, no cloud. The only possible outside service neohab can call is
-  [Open-Meteo](https://open-meteo.com/), and only once you put a weather widget on a dashboard and chose Open-Meteo as the data source, instead of local items
 - **A persistence service** for charts, timelines, sparklines and trends: rrd4j, InfluxDB, JDBC and
   the in-memory service all work. MapDB stores only each item's last value, so there is no history
   to draw, and the widgets say so
+- **Nothing else.** Only openHAB's public REST and SSE APIs. No server-side code of ours, no
+  account, no cloud. The only possible outside service neohab can call is
+  [Open-Meteo](https://open-meteo.com/), and only once you put a weather widget on a dashboard and chose Open-Meteo as the data source, instead of local items
 - **HTTPS** for two things only: keeping a screen awake, and the
   microphone for voice input. Modern browsers will not allow those over HTTP
 
