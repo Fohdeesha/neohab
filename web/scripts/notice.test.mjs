@@ -102,4 +102,14 @@ describe('NOTICE', () => {
     expect(notice).toContain('HABPanel')
     expect(notice).toContain('Yannick Schaus')
   })
+
+  // openHAB's coding guidelines want the file, the author and the licence named, and NeohabTile
+  // follows HABPanelTile closely enough that a reader should be told so. Matching the three
+  // bullets as one block, because the prose above them mentions both the file and the author,
+  // so anything looser passes with the attribution deleted.
+  it('names the one file derived from another project', () => {
+    expect(notice).toMatch(
+      /^\* File: HABPanelTile\.java[^\n]*\n\* Author: [^\n]*Yannick Schaus[^\n]*\n\* License: Eclipse Public License 2\.0/m
+    )
+  })
 })

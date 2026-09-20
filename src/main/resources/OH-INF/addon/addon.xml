@@ -5,6 +5,6 @@
 
 	<type>ui</type>
 	<name>neohab</name>
-	<description>A modern dashboard UI for openHAB - build touch-friendly, themeable dashboards for phones, tablets and desktops, configured entirely in the browser.</description>
+	<description>A modern dashboard UI for openHAB - touch-friendly, themeable, configured in the browser.</description>
 
 </addon:addon>

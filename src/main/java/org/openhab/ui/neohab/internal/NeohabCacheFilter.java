@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2026 neohab contributors
  *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
  * http://www.eclipse.org/legal/epl-2.0
@@ -13,6 +16,7 @@ import java.io.IOException;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -70,7 +74,7 @@ public class NeohabCacheFilter implements Filter {
     }
 
     @Override
-    public void init(javax.servlet.FilterConfig config) throws ServletException {
+    public void init(FilterConfig config) throws ServletException {
     }
 
     @Override

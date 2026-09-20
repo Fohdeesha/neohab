@@ -32,21 +32,26 @@ jobs:
           npm ci
           npm run check
 
+      # this also runs openHAB's code style (spotless, at initialize) and their static analysis
+      # (sat-plugin: checkstyle, PMD and SpotBugs, at verify)
       - name: Build add-on
         run: ./mvnw -B -ntp clean install
 
-      # a jar whose frontend failed to pack still installs, and then serves nothing at all
+      # openHAB reviewers read this report, so make it downloadable even when the build failed
+      - name: Upload static analysis report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: code-analysis
+          path: |
+            target/code-analysis/report.html
+            target/summary_report.html
+          if-no-files-found: ignore
+
       - name: Check the jar is complete
         run: |
           jar="$(ls target/org.openhab.ui.neohab-*.jar)"
-          if ! unzip -l "$jar" | grep -q 'web/index.html'; then
-            echo '::error::the built jar contains no frontend'
-            exit 1
-          fi
-          if ! unzip -p "$jar" META-INF/MANIFEST.MF | grep -q 'Bundle-SymbolicName: org.openhab.ui.neohab'; then
-            echo '::error::the built jar is not the neohab OSGi bundle'
-            exit 1
-          fi
+          bash tools/check-jar.sh "$jar"
           echo "$(basename "$jar") ($(du -h "$jar" | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload add-on jar

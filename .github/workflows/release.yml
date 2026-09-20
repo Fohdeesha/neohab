@@ -81,15 +81,7 @@ jobs:
         id: jar
         run: |
           jar="$(ls target/org.openhab.ui.neohab-*.jar)"
-          # a jar whose frontend failed to pack still installs, and then serves nothing at all
-          if ! unzip -l "$jar" | grep -q 'web/index.html'; then
-            echo '::error::the built jar contains no frontend'
-            exit 1
-          fi
-          if ! unzip -p "$jar" META-INF/MANIFEST.MF | grep -q 'Bundle-SymbolicName: org.openhab.ui.neohab'; then
-            echo '::error::the built jar is not the neohab OSGi bundle'
-            exit 1
-          fi
+          bash tools/check-jar.sh "$jar"
           # a truncated download installs happily and then behaves like a broken add-on
           ( cd "$(dirname "$jar")" && sha256sum "$(basename "$jar")" > "$(basename "$jar").sha256" )
           echo "path=$jar" >> "$GITHUB_OUTPUT"

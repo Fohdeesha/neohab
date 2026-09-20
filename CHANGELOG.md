@@ -6,6 +6,12 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.35.0
+
+- A jar you install by hand now appears in openHAB's add-on store, so you can see it and remove it
+  from there. Its `addon.xml` had been sitting in a folder openHAB does not read.
+- The build now runs openHAB's own code style and static analysis, and CI publishes the report.
+
 ## 1.34.0
 
 - Sliders, colour pickers and dials now command the device as you drag, up to five times a second,

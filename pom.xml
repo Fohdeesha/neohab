@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.ui.bundles</groupId>
   <artifactId>org.openhab.ui.neohab</artifactId>
-  <version>1.34.0</version>
+  <version>1.35.0</version>
   <packaging>jar</packaging>
 
   <name>neohab</name>
@@ -30,6 +30,12 @@
     <node.version>v24.11.0</node.version>
     <npm.version>11.6.1</npm.version>
     <skipFrontend>false</skipFrontend>
+    <!-- openHAB's own code style and static analysis, so this add-on is held to the same rules as
+         one in the openhab-addons tree. sat.version also picks the openhab-codestyle artifact. -->
+    <sat.version>0.18.0</sat.version>
+    <spotless.version>2.44.3</spotless.version>
+    <spotless.eclipse.version>4.25</spotless.eclipse.version>
+    <spotless.eclipse.wtp.version>4.21.0</spotless.eclipse.wtp.version>
   </properties>
 
   <repositories>
@@ -189,6 +195,80 @@
         <version>3.5.2</version>
       </plugin>
 
+      <!-- openHAB's Eclipse formatter and import order, the same files the addons tree uses -->
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <eclipse>
+              <file>openhab_codestyle.xml</file>
+              <version>${spotless.eclipse.version}</version>
+            </eclipse>
+            <removeUnusedImports/>
+            <importOrder>
+              <file>openhab.importorder</file>
+            </importOrder>
+            <endWithNewline/>
+          </java>
+          <formats>
+            <format>
+              <includes>
+                <include>src/**/*.xml</include>
+              </includes>
+              <eclipseWtp>
+                <type>XML</type>
+                <files>
+                  <file>openhab_wst_xml_files.prefs</file>
+                </files>
+                <version>${spotless.eclipse.wtp.version}</version>
+              </eclipseWtp>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+          </formats>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.openhab.tools</groupId>
+            <artifactId>openhab-codestyle</artifactId>
+            <version>${sat.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>codestyle-check</id>
+            <goals><goal>check</goal></goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- openHAB's static analysis: checkstyle, PMD and SpotBugs against their rulesets.
+           Report lands in target/code-analysis/report.html; an error-priority finding fails. -->
+      <plugin>
+        <groupId>org.openhab.tools.sat</groupId>
+        <artifactId>sat-plugin</artifactId>
+        <version>${sat.version}</version>
+        <configuration>
+          <checkstyleProperties>${project.basedir}/tools/static-code-analysis/checkstyle/ruleset.properties</checkstyleProperties>
+          <checkstyleFilter>${project.basedir}/tools/static-code-analysis/checkstyle/suppressions.xml</checkstyleFilter>
+        </configuration>
+        <executions>
+          <execution>
+            <id>sat-all</id>
+            <goals>
+              <goal>checkstyle</goal>
+              <goal>pmd</goal>
+              <goal>spotbugs</goal>
+              <goal>report</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -201,6 +281,14 @@
       </plugin>
 
     </plugins>
+
+    <extensions>
+      <extension>
+        <groupId>org.openhab.tools.sat</groupId>
+        <artifactId>sat-extension</artifactId>
+        <version>${sat.version}</version>
+      </extension>
+    </extensions>
   </build>
 
 </project>

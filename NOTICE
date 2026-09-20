@@ -159,9 +159,17 @@ They are listed because a reader cannot otherwise tell them from third-party mat
 neohab imports HABPanel configurations, and each of HABPanel's seven themes has a port here
 that follows the colours of the original. HABPanel is part of the openHAB project, was written
 by Yannick Schaus and contributors, and is licensed under the Eclipse Public License 2.0.
-No HABPanel code is used or included.
 
+The add-on's entry point is derived from HABPanel's. NeohabTile.java registers the start page
+tile and serves the bundled web app the way HABPanelTile.java does, which is the pattern every
+openHAB UI add-on follows. Both are under the same license.
+
+* File: HABPanelTile.java, in bundles/org.openhab.ui.habpanel/src/main/java/org/openhab/ui/habpanel/internal/
+* Author: Yannick Schaus and contributors to the openHAB project
+* License: Eclipse Public License 2.0
 * Source: https://github.com/openhab/openhab-webui
+
+No other HABPanel code is used or included.
 
 Weather forecasts, when a weather widget is configured to use them, come from Open-Meteo
 (https://open-meteo.com/), which is not included in this add-on and is called only with the

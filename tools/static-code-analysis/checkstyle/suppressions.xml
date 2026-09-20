@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suppressions PUBLIC "-//Puppy Crawl//DTD Suppressions 1.1//EN" "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+<suppressions>
+	<!-- Same shape as openHAB's own list: which checks do not apply to which files. -->
+
+	<!-- Internal classes carry a class Javadoc with an author; per-field and per-method Javadoc
+	     is not expected of them, exactly as in openhab-addons. -->
+	<suppress files=".+[\\/]internal[\\/].+\.java" checks="JavadocType|JavadocVariable|JavadocMethod|MissingJavadocFilterCheck"/>
+
+	<!-- pom.xml is indented with spaces, every other XML file with tabs. -->
+	<suppress files=".+[\\/]pom\.xml" checks="OnlyTabIndentationCheck|OnlyTabIndentationInXmlFilesCheck"/>
+</suppressions>
