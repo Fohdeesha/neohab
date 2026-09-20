@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { renderMarkdown } from './markdown.mjs'
 import { TOKEN_SPECS } from '../src/themes/tokens.ts'
-import { ATTRIBUTE_PAINTED } from '../src/themes/cssRules.ts'
+import { ATTRIBUTE_PAINTED, checkThemeCss, describeIssue } from '../src/themes/cssRules.ts'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const FILES = ['README.md', 'CONTRIBUTING.md', 'docs/theming.md', 'e2e/README.md']
@@ -57,6 +57,16 @@ describe('docs/theming.md against the code', () => {
   it('lists every attribute-painted class in the rule that says not to paint them', () => {
     for (const cls of ATTRIBUTE_PAINTED) {
       expect(doc.includes(cls), `omits .${cls} from the fill/stroke rule`).toBe(true)
+    }
+  })
+
+  // the page tells people to paste these, so the editor must not turn round and flag them
+  it('offers only CSS that passes the editor’s own checks', () => {
+    const fences = [...doc.matchAll(/```css\n([\s\S]*?)```/g)].map((m) => m[1])
+    expect(fences.length, 'no css examples found - the fences have moved').toBeGreaterThan(1)
+    for (const css of fences) {
+      const issues = checkThemeCss(css, { radius: '0px' }).map(describeIssue)
+      expect(issues.join('\n'), `an example breaks a rule:\n${css}`).toBe('')
     }
   })
 })
