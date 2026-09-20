@@ -113,7 +113,7 @@ const WIDGETS = [
 ]
 const LOG_TILES = WIDGETS.filter((w) => w.type === 'log').length
 
-const browser = await launchChromium({ channel: 'msedge', headless: true }).catch(() =>
+const browser = await launchChromium({ channel: 'chrome', headless: true }).catch(() =>
   launchChromium({ channel: 'chrome', headless: true }).catch(() => launchChromium({ headless: true }))
 )
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 } })

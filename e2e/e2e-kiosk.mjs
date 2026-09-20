@@ -18,7 +18,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch(extraArgs = []) {
   const opts = { headless: true, args: extraArgs }
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return launchChromium({ channel, ...opts }) } catch {}
   }
   return launchChromium(opts)

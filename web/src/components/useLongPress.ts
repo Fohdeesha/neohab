@@ -12,6 +12,17 @@ export function holdTookGesture(): boolean {
   return taken
 }
 
+// a live drag arms a few px into a press, before the hold's own 10px tolerance would cancel it. It also
+// suppresses the contextmenu Android raises for its own long press, or the sheet would open mid-drag.
+let activeCancel: (() => void) | null = null
+let suppressed = false
+
+export function cancelActiveHold(): void {
+  suppressed = true
+  activeCancel?.()
+  activeCancel = null
+}
+
 // Android's own long press selects a word under the finger and preventing contextmenu is too late, so nothing
 // is selectable while a press we handle lasts
 let guarding = false
@@ -68,11 +79,13 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
   const onPointerDown = (e: React.PointerEvent) => {
     // a right-click raises contextmenu AFTER its own pointerup on Windows, so start every press clean
     taken = false
+    suppressed = false
     if (!enabled) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
     fired.current = false
     cancel()
     origin.current = { x: e.clientX, y: e.clientY }
+    activeCancel = cancel
     if (e.pointerType !== 'mouse') {
       armGuardRelease()
       setHoldGuard(true)
@@ -97,6 +110,7 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
 
   const endPress = () => {
     cancel()
+    activeCancel = null
     setHoldGuard(false)
     if (fired.current) window.setTimeout(() => (fired.current = false), 0)
     if (taken) window.setTimeout(() => (taken = false), 0)
@@ -111,7 +125,7 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
   const onContextMenu = (e: React.MouseEvent) => {
     if (!enabled) return
     e.preventDefault()
-    if (fired.current) return
+    if (fired.current || suppressed) return
     const duringPress = origin.current !== null
     cancel()
     if (duringPress) {

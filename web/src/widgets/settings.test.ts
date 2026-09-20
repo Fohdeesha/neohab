@@ -22,6 +22,7 @@ const {
   instanceDetailRoute,
   instanceHasDetail,
   instanceHasHeader,
+  instanceLiveDrag,
   instanceMinHeight,
   instanceNeedsItem,
   itemsForInstance,
@@ -31,7 +32,7 @@ const {
 registerBuiltinWidgets()
 const widgets = listWidgetDefinitions()
 
-const UNIVERSAL_KEYS = ['labelMode', 'labelAlign', 'labelPosition', 'accent', 'accentColor', 'textSize', 'hideOn']
+const UNIVERSAL_KEYS = ['labelMode', 'labelAlign', 'labelPosition', 'accent', 'accentColor', 'textSize', 'hideOn', 'liveDrag']
 
 const RENDERABLE: Record<SettingField['type'], true> = {
   section: true,
@@ -138,6 +139,25 @@ describe('every widget settings schema', () => {
       .filter(({ f }) => f.type !== 'text' || f.label !== 'Name')
       .map(({ def, f }) => `${def.type}: ${f.type} "${'label' in f ? f.label : ''}"`)
     expect(odd).toEqual([])
+  })
+
+  // SettingsPanel fills an empty Name from the item's own label when an item is bound, and skips a
+  // widget that already has one. A widget shipping a name in its defaults therefore opts itself out
+  // for good, silently: the button shipped "Button" and was the only one of the widgets that did,
+  // so the widget the getting-started guide tells a first-time reader to start with was the single
+  // widget where the behaviour the guide promises could never fire.
+  it('starts every widget with an empty name, so binding an item can fill it', () => {
+    const nameable = widgets.filter(
+      (def) =>
+        (def.settings ?? []).some((f) => f.key === 'label' && f.type === 'text') &&
+        (def.settings ?? []).some((f) => f.key === 'item' && f.type === 'item')
+    )
+    expect(nameable.length).toBeGreaterThan(10)
+    const prenamed = nameable
+      .map((def) => ({ type: def.type, label: (def.defaultConfig() as Record<string, unknown>).label }))
+      .filter((r) => typeof r.label === 'string' && r.label.trim() !== '')
+      .map((r) => `${r.type}: ${JSON.stringify(r.label)}`)
+    expect(prenamed).toEqual([])
   })
 
   it('lets every widget with a header row be told not to draw its name', () => {
@@ -402,6 +422,35 @@ describe('every widget settings schema', () => {
     expect(instanceControl('thermostat', thermo, 'aux')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
     expect(instanceControl('thermostat', thermo, 'cur')).toBeUndefined()
     expect(instanceControl('thermostat', thermo, 'st')).toBeUndefined()
+  })
+
+  // Live dragging is offered off the registry. A widget that declares it must be one that commands a value it
+  // binds, and the one control a sweep of values would be wrong for, the thermostat setpoint, must not.
+  it('offers live dragging only where a dragged value commands a bound item', () => {
+    const declaring = widgets.filter((def) => def.liveDrag !== undefined)
+    expect(declaring.map((d) => d.type).sort()).toEqual(['color', 'dial', 'slider'])
+    const wrong: string[] = []
+    for (const def of declaring) {
+      const config = boundConfig(def)
+      if (!instanceCommands(def.type, config)) wrong.push(`${def.type} commands nothing`)
+      const controls = itemsForInstance(def.type, config).filter((item) => !readOnlyItems(def).includes(item))
+      if (
+        !controls.some(
+          (item) => instanceControl(def.type, config, item)?.kind === 'range' || instanceControl(def.type, config, item)?.kind === 'color'
+        )
+      ) {
+        wrong.push(`${def.type} drags no range or color`)
+      }
+    }
+    expect(wrong).toEqual([])
+    expect(instanceLiveDrag('thermostat', { currentItem: 'a', setpointItem: 'b' })).toBe(false)
+    expect(instanceLiveDrag('slider', { item: 'x' })).toBe(true)
+    expect(instanceLiveDrag('color', { item: 'x' })).toBe(true)
+    expect(instanceLiveDrag('dial', { item: 'x' })).toBe(true)
+    // a gauge nobody can drag has nothing to decide
+    expect(instanceLiveDrag('dial', { item: 'x', readOnly: true })).toBe(false)
+    expect(instanceLiveDrag('button', { item: 'x' })).toBe(false)
+    expect(instanceLiveDrag('nonesuch', {})).toBe(false)
   })
 
   it('offers a multiselect nothing its own options do not list', () => {

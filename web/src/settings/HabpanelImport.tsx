@@ -52,13 +52,14 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
   }, [look])
 
   // reading a panel configuration is where a hand-edited or half-written one throws, and that is
-  // before anything has been written, so it is a message rather than a broken screen
-  const offer = (cfg: HPPanelConfig, source: string) => {
+  // before anything has been written, so it is a message rather than a broken screen. A thunk, not a
+  // value: an argument is evaluated outside the try, and React sends no handler throw to a boundary
+  const offer = (read: () => HPPanelConfig, source: string) => {
     onNotice(null)
     setResult(null)
     try {
       const existingIds = useConfigStore.getState().dashboards.map((d) => d.id)
-      setPending({ converted: convertHabpanel(cfg, existingIds), source })
+      setPending({ converted: convertHabpanel(read(), existingIds), source })
     } catch (err) {
       onNotice(t('Could not read that configuration: {{error}}', { error: errorText(err) }))
     }
@@ -93,11 +94,14 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
   }
 
   const importFile = async (file: File) => {
+    let cfg: HPPanelConfig
     try {
-      offer(parseHabpanelFile(JSON.parse(await file.text())), `“${file.name}”`)
+      cfg = parseHabpanelFile(JSON.parse(await file.text()))
     } catch (err) {
       onNotice(t('Could not read that file: {{error}}', { error: errorText(err) }))
+      return
     }
+    offer(() => cfg, `“${file.name}”`)
   }
 
   return (
@@ -125,7 +129,7 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
                   type="button"
                   className="nh-btn nh-btn--primary"
                   disabled={busy}
-                  onClick={() => offer(panelConfigFromComponent(c), t('panel configuration “{{uid}}”', { uid: c.uid }))}>
+                  onClick={() => offer(() => panelConfigFromComponent(c), t('panel configuration “{{uid}}”', { uid: c.uid }))}>
                   {busy ? t('Importing…') : t('Import')}
                 </button>
               </div>

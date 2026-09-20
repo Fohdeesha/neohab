@@ -6,12 +6,13 @@ interface ColorConfig {
   item: string
   label?: string
   powerButtons?: boolean
+  liveDrag?: string
 }
 
 function ColorWidget({ config, ctx }: WidgetProps<ColorConfig>) {
   return (
     <WidgetFrame label={config.label}>
-      <ColorControl item={config.item} ctx={ctx} power={config.powerButtons === true} />
+      <ColorControl item={config.item} ctx={ctx} power={config.powerButtons === true} config={config} />
     </WidgetFrame>
   )
 }
@@ -23,6 +24,7 @@ export const colorWidget: WidgetDefinition<ColorConfig> = {
   defaultSize: { w: 3, h: 5 },
   minPixelHeight: (c) => (c.powerButtons === true ? 176 : 150),
   hasHeader: true,
+  liveDrag: true,
   defaultConfig: () => ({ item: '', powerButtons: true }),
   settings: [
     { key: 'item', type: 'item', label: 'openHAB Item', itemTypes: ['Color'] },

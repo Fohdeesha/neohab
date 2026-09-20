@@ -32,7 +32,7 @@ try {
   })
   ok('seed dashboard created', seedRes.ok, 'HTTP ' + seedRes.status)
 
-  browser = await launchChromium({ channel: 'msedge', headless: true })
+  browser = await launchChromium({ channel: 'chrome', headless: true })
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 

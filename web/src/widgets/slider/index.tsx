@@ -7,6 +7,7 @@ import { numericValue } from '../common/format'
 import { numericScale, rangeControl } from '../common/itemControl'
 import { fractionOf } from '../common/stepping'
 import { useKeyboardCommit } from '../common/useKeyboardCommit'
+import { useLiveCommand } from '../common/useLiveCommand'
 import { useOptimisticValue } from '../common/useOptimisticValue'
 import { BubbleLook, InsetLook, TrackLook } from './looks'
 import type { FaderView } from './looks'
@@ -29,7 +30,9 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
 
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
-  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
+  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step), {
+    item: config.item
+  })
   const value = drag ?? optimistic.display
 
   const commit = (v: number) => {
@@ -41,6 +44,19 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
     }
   }
   const commitOn = useKeyboardCommit(commit)
+  const live = useLiveCommand<number>({
+    item: config.item,
+    config,
+    editing: ctx.editing,
+    command: String,
+    send: (v) => ctx.sendCommand(config.item, String(v)),
+    onSend: optimistic.commit,
+    onRefused: optimistic.cancel
+  })
+  const release = (v: number) => {
+    if (live.end(v)) setDrag(null)
+    else commitOn.now(v)
+  }
 
   const reading = readingOf(value, step, config.unit)
 
@@ -54,8 +70,18 @@ function SliderWidget({ config, ctx }: WidgetProps<SliderConfig>) {
       value={value}
       disabled={ctx.editing}
       aria-label={config.label ?? config.item}
-      onChange={(e) => setDrag(Number(e.target.value))}
-      onPointerUp={(e) => commitOn.now(Number((e.target as HTMLInputElement).value))}
+      onChange={(e) => {
+        const n = Number(e.target.value)
+        setDrag(n)
+        live.stage(n)
+      }}
+      onPointerDown={live.begin}
+      onPointerMove={live.moved}
+      onPointerUp={(e) => release(Number((e.target as HTMLInputElement).value))}
+      onPointerCancel={() => {
+        live.cancel()
+        setDrag(null)
+      }}
       onKeyUp={(e) => commitOn.key(e.key, Number((e.target as HTMLInputElement).value))}
     />
   )
@@ -95,6 +121,7 @@ export const sliderWidget: WidgetDefinition<SliderConfig> = {
   description: 'Set a numeric or dimmer item',
   defaultSize: { w: 6, h: 3 },
   hasHeader: true,
+  liveDrag: true,
   minPixelHeight: (c) => sliderFloor(styleOf(c.style), orientOf(c.orient)),
   defaultConfig: () => ({ item: '', style: 'gradient', orient: 'horizontal', min: 0, max: 100, step: 1 }),
   settings: [

@@ -22,7 +22,7 @@ async function sendItem(name, value) {
 }
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })

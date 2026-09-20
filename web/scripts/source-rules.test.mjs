@@ -29,39 +29,112 @@ describe('the source scan itself', () => {
   })
 })
 
-const OPEN_TABLE = /^(?:export )?const ([A-Za-z_$][\w$]*) *: *(?:Partial<)?Record<\s*string\s*,/gm
+// Every binding whose DECLARED type says any string key is acceptable. The first version of this
+// matched top-level `const` only, which left 63 declarations invisible - every zustand store-state
+// map among them, since those are interface fields, and that is how store/dragging.ts shipped a bare
+// `endedAt[item]`. A parameter is left out (its map was built by the caller) and so is a return type,
+// which names no binding to read.
+const OPEN_TABLE =
+  /^[ \t]*(?:export[ \t]+)?(?:const[ \t]+|let[ \t]+|var[ \t]+|readonly[ \t]+)?([A-Za-z_$][\w$]*)\??[ \t]*:[ \t]*(?:Partial<|Readonly<)?Record<\s*string\s*,/gm
+// only what a module exports can be read by name from another file, and FILTERS is declared in
+// template/filters.ts and read in template/engine.ts - a same-file scan would miss exactly that read
+const EXPORTED_TABLE = /^export[ \t]+(?:const|let|var)[ \t]+([A-Za-z_$][\w$]*)[ \t]*:[ \t]*(?:Partial<|Readonly<)?Record<\s*string\s*,/gm
+// a key this code did not choose: not a literal, and not an array index
+const CHOSEN_KEY = /^(?:['"`].*|[-+\d\s.*/()]*|[\w.$]+\.length(?:\s*[-+]\s*\d+)?)$/
+// prototype-free by construction (model/lookup), which is what makes a bare index safe at every read,
+// including the ones written later
+const PROTO_FREE = /^(?:emptyMap|mergeMap)\s*[<(]|^Object\.create\(null\)/
 
-const TABLE_ALLOWED = new Set(['widgets/chart/model.ts PERIODS[a]', 'widgets/chart/model.ts PERIODS[b]'])
+// guarded at the read instead: every key is refused by FORBIDDEN_PROPS first, and the objects a
+// template builds must keep an ordinary prototype
+const TABLE_ALLOWED = new Set([
+  'template/evaluator.ts out[key]',
+  // the keys are the table's own, from Object.keys(PERIODS)
+  'widgets/chart/model.ts PERIODS[a]',
+  'widgets/chart/model.ts PERIODS[b]'
+])
+
+const tablesIn = (text, re) => new Set([...text.matchAll(re)].map((m) => m[1]))
+
+// what the name is set to, with any type annotation between the name and the `=` dropped
+function initialisersOf(text, name) {
+  const out = []
+  for (const m of text.matchAll(new RegExp('\\b' + name + '\\s*[:=]([^\\n]*)', 'g'))) {
+    const tail = m[1]
+    const assign = /(^|[^=!<>])=(?!=)/.exec(tail)
+    out.push((assign ? tail.slice(assign.index + assign[0].length) : tail).trim())
+  }
+  return out
+}
+
+function bareIndexOffenders(code) {
+  const exported = new Set()
+  for (const text of code.values()) for (const name of tablesIn(text, EXPORTED_TABLE)) exported.add(name)
+  const offenders = []
+  for (const [path, text] of code) {
+    for (const name of new Set([...tablesIn(text, OPEN_TABLE), ...exported])) {
+      const reads = new RegExp('(?:^|[^\\w$])(?:[\\w$]+\\??\\.)?' + name + '\\[([^\\]]*)\\]', 'g')
+      for (const m of text.matchAll(reads)) {
+        if (CHOSEN_KEY.test(m[1].trim())) continue
+        const inits = initialisersOf(text, name)
+        if (inits.some((i) => PROTO_FREE.test(i)) && !inits.some((i) => i.startsWith('{'))) continue
+        offenders.push(path + ' ' + name + '[' + m[1] + ']')
+      }
+    }
+  }
+  return offenders
+}
 
 describe('tables indexed by a key this code did not choose', () => {
   const openTables = () => {
     const tables = new Set()
-    for (const text of CODE.values()) {
-      for (const m of text.matchAll(OPEN_TABLE)) tables.add(m[1])
-    }
+    for (const text of CODE.values()) for (const name of tablesIn(text, OPEN_TABLE)) tables.add(name)
     return tables
   }
 
-  it('finds the open tables it exists to police, so the rule cannot silently match nothing', () => {
+  it('finds the open tables it exists to police, in every spelling they are declared in', () => {
     const tables = openTables()
-    expect(tables.has('FILTERS')).toBe(true)
+    expect(tables.has('FILTERS')).toBe(true) // exported top-level const
     expect(tables.has('PERIODS')).toBe(true)
-    expect(tables.size).toBeGreaterThan(4)
+    expect(tables.has('endedAt')).toBe(true) // a store-state interface field
+    expect(tables.has('pending')).toBe(true)
+    expect(tables.has('full')).toBe(true)
+    expect(tables.has('out')).toBe(true) // an indented const inside a function
+    expect(tables.size).toBeGreaterThan(30)
   })
 
-  it('reads every open table through lookup(), or records why a bare index is safe', () => {
-    const tables = openTables()
-    const offenders = []
-    for (const [path, text] of CODE) {
-      for (const table of tables) {
-        const reads = new RegExp('\\b' + table + '\\[(?![\'"`])([^\\]]*)\\]', 'g')
-        for (const m of text.matchAll(reads)) {
-          const entry = rel(path) + ' ' + table + '[' + m[1] + ']'
-          if (!TABLE_ALLOWED.has(entry)) offenders.push(entry)
-        }
-      }
-    }
+  it('builds every such table prototype-free, or records why a bare index is safe', () => {
+    const offenders = bareIndexOffenders(new Map([...CODE].map(([p, t]) => [rel(p), t]))).filter((e) => !TABLE_ALLOWED.has(e))
     expect(offenders).toEqual([])
+  })
+
+  // a rule that has never failed proves nothing, and this one is only worth keeping if it tells the
+  // two constructions apart rather than flagging every bare index
+  it('flags a map built from an object literal and clears the same map built with emptyMap', () => {
+    const literal = `
+interface DraggingState {
+  endedAt: Record<string, number>
+}
+export const useDraggingStore = create<DraggingState>(() => ({ endedAt: {} }))
+export function useDragEndedAt(item: string) {
+  return useDraggingStore((s) => s.endedAt[item])
+}`
+    const guarded = literal.replace('endedAt: {}', 'endedAt: emptyMap()')
+    expect(bareIndexOffenders(new Map([['x.ts', literal]]))).toEqual(['x.ts endedAt[item]'])
+    expect(bareIndexOffenders(new Map([['x.ts', guarded]]))).toEqual([])
+  })
+
+  it('still flags a bare read of a literal table, and never flags an array index', () => {
+    const table = `
+export const CONVERTERS: Record<string, () => void> = { a: () => {} }
+export function run(type: string) { CONVERTERS[type]() }`
+    expect(bareIndexOffenders(new Map([['x.ts', table]]))).toEqual(['x.ts CONVERTERS[type]'])
+    const rows = `
+const rows: Record<string, number[]> = {}
+export const a = rows['x'][0]
+export const b = rows['x'][i + 1]
+export const c = rows['x'][rows['x'].length - 1]`
+    expect(bareIndexOffenders(new Map([['x.ts', rows]]))).toEqual([])
   })
 })
 

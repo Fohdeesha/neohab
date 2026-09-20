@@ -45,7 +45,7 @@ const component = (uid) =>
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return launchChromium({ channel, headless: true })
     } catch {}

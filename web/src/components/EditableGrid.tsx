@@ -182,7 +182,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   }, [placing])
 
   if (gridSurface !== true) {
-    return <StackedEditGrid dashboard={draft} />
+    // the stack is derived from the desktop layout whichever breakpoint is being edited, but it still
+    // goes through the projection so a rect past the column count is clamped exactly as run mode does
+    return <StackedEditGrid dashboard={projectDashboard(draft, 'lg')} />
   }
 
   // pointer coordinates are drawn pixels, everything else is layout pixels; their ratio is the zoom, and 1 when

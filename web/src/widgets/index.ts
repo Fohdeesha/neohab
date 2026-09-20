@@ -63,6 +63,7 @@ export {
   instanceControl,
   instanceDetailRoute,
   instanceHasDetail,
+  instanceLiveDrag,
   instanceNeedsItem,
   widgetDetailView
 } from './registry'

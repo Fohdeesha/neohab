@@ -1,3 +1,5 @@
+import { emptyMap, lookup } from './lookup'
+
 export interface WidgetDefSetting {
   id: string
   type?: string
@@ -47,9 +49,12 @@ export function coerceSettingValue(setting: WidgetDefSetting, value: unknown): u
 }
 
 export function mergedSettingValues(def: CustomWidgetDef, instanceValues: Record<string, unknown> | undefined): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
+  // setting ids come from a stored widget definition, so one called __proto__ or constructor is
+  // possible: written onto a plain {} it would vanish, and read back it would answer with a function
+  const out: Record<string, unknown> = emptyMap()
   for (const s of defSettings(def)) {
-    const raw = instanceValues?.[s.id] !== undefined ? instanceValues[s.id] : s.default
+    const stored = instanceValues ? lookup(instanceValues, s.id) : undefined
+    const raw = stored !== undefined ? stored : s.default
     const v = coerceSettingValue(s, raw)
     if (v !== undefined) out[s.id] = v
   }

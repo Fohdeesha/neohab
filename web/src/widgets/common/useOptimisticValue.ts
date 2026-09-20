@@ -1,14 +1,18 @@
 import { useEffect, useReducer, useState } from 'react'
 import { useSteadyValue } from './useSteadyValue'
+import { useIsDragging } from '../../store/dragging'
 
-export const SETTLE_MS = 8000
+// long enough for a slow device to report back, short enough that a change made elsewhere is not hidden for
+// long by a value this control sent
+export const SETTLE_MS = 4000
 
 export function useOptimisticValue<T>(
   live: T,
   liveKey: string | number,
   close: (live: T, committed: T) => boolean,
-  settleMs = SETTLE_MS
+  opts: { item?: string; settleMs?: number } = {}
 ): { display: T; commit: (v: T) => void; cancel: (v: T) => void } {
+  const settleMs = opts.settleMs ?? SETTLE_MS
   const [pending, setPending] = useState<{ v: T; at: number } | null>(null)
   const [, bump] = useReducer((c: number) => c + 1, 0)
   useEffect(() => {
@@ -19,8 +23,10 @@ export function useOptimisticValue<T>(
     return () => clearTimeout(t)
   }, [pending, settleMs])
 
-  const steady = useSteadyValue(live, liveKey)
-  const display = pending && (close(steady, pending.v) || Date.now() - pending.at < settleMs) ? pending.v : steady
+  const steady = useSteadyValue(live, liveKey, opts.item)
+  // while another control in this tab drags the same item, a value this one sent earlier must not hide it
+  const dragging = useIsDragging(opts.item)
+  const display = pending && (close(steady, pending.v) || (!dragging && Date.now() - pending.at < settleMs)) ? pending.v : steady
   return {
     display,
     commit: (v: T) => setPending({ v, at: Date.now() }),

@@ -7,7 +7,7 @@ const UID = 'dashboard:nh-e2e-launch'
 const DASH = 'nh-e2e-launch'
 
 const launchBrowser = async () => {
-  for (const c of ['msedge', 'chrome']) {
+  for (const c of ['chrome', 'msedge']) {
     try {
       return await launchChromium({ channel: c, headless: true })
     } catch {}
@@ -278,42 +278,61 @@ try {
     await ctx.close()
   }
 
+  // Driven on more than one widget on purpose. It used to run against the Value alone, which is a
+  // widget the behaviour always worked on, while the Button - the one the getting-started guide
+  // tells a first-time reader to start with - shipped label: 'Button' in its defaults and so could
+  // never take the item's name. A check that drives one widget proves nothing about the others;
+  // widgets/settings.test.ts holds the whole-registry version of the same rule.
   {
     const all = await (await fetch(BASE + '/rest/items?fields=name,label,type', { headers: AUTH })).json()
-    const labelled = all.find((i) => typeof i.label === 'string' && i.label.trim() && i.type !== 'Group')
+    const named = (i) => typeof i.label === 'string' && i.label.trim() !== '' && i.type !== 'Group'
+    // the slider only lists Dimmer and Number items, so the one item this drives has to be one every
+    // widget under test will offer - otherwise the picker filters it away and the check times out
+    const labelled = all.find((i) => named(i) && /^(Dimmer|Number)/.test(i.type)) ?? all.find(named)
+    ok('an item with a label to take', !!labelled, JSON.stringify(labelled ?? null))
     const { ctx, page } = await open()
     await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 20000 })
     await page.click('[aria-label="Edit dashboard"]')
     await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, { timeout: 10000 })
-    await page.click('[aria-label="Add widget"]')
-    await page.waitForSelector('.nh-palette__card', { timeout: 8000 })
-    await page.locator('.nh-palette__card', { hasText: /^Value/ }).first().click()
-    await page.waitForSelector('.nh-sheet--side input[role="combobox"]', { timeout: 8000 })
 
-    const combo = page.locator('.nh-sheet--side input[role="combobox"]').first()
-    await combo.click()
-    await page.keyboard.type(String(labelled?.name ?? ITEMS.dimmer).slice(0, 6).toLowerCase(), { delay: 40 })
-    await page.waitForSelector('.nh-picker__option', { timeout: 8000 })
-    await page
-      .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + labelled.name + '$') }) })
-      .first()
-      .click()
-    await sleep(500)
     const nameField = page.locator('.nh-sheet--side .nh-field', { has: page.locator('.nh-field__label', { hasText: /^Name$/ }) }).locator('input')
-    const named = await nameField.inputValue().catch(() => '')
-    const bound = await combo.inputValue().catch(() => '')
-    ok('binding an item fills the empty Name from the item’s label', named === labelled.label, `name=${named} want=${labelled.label}`)
-    await page.click('[aria-label="Undo"]')
-    await sleep(400)
-    const afterUndo = await nameField.inputValue().catch(() => '')
-    const boundAfterUndo = await combo.inputValue().catch(() => '')
-    ok(
-      'one undo takes back both the item and the name',
-      bound === labelled.name && named === labelled.label && afterUndo === '' && boundAfterUndo === '',
-      `before=${bound}/${named} after=${boundAfterUndo}/${afterUndo}`
-    )
+    for (const widget of ['Value', 'Button', 'Slider']) {
+      await page.click('[aria-label="Add widget"]')
+      await page.waitForSelector('.nh-palette__card', { timeout: 8000 })
+      await page.locator('.nh-palette__card', { hasText: new RegExp('^' + widget) }).first().click()
+      await page.waitForSelector('.nh-sheet--side input[role="combobox"]', { timeout: 8000 })
+
+      const combo = page.locator('.nh-sheet--side input[role="combobox"]').first()
+      const before = await nameField.inputValue().catch(() => '(no Name field)')
+      ok(`a fresh ${widget} carries no name of its own`, before === '', JSON.stringify(before))
+
+      await combo.click()
+      await page.keyboard.type(String(labelled?.name ?? ITEMS.dimmer).slice(0, 6).toLowerCase(), { delay: 40 })
+      await page.waitForSelector('.nh-picker__option', { timeout: 8000 }).catch(() => {})
+      await page
+        .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + labelled.name + '$') }) })
+        .first()
+        .click({ timeout: 8000 })
+        .catch(() => {})
+      await sleep(500)
+      const named = await nameField.inputValue().catch(() => '')
+      const bound = await combo.inputValue().catch(() => '')
+      ok(`binding an item fills a ${widget}'s empty Name from the item's label`, named === labelled.label, `name=${named} want=${labelled.label}`)
+
+      if (widget === 'Value') {
+        await page.click('[aria-label="Undo"]')
+        await sleep(400)
+        const afterUndo = await nameField.inputValue().catch(() => '')
+        const boundAfterUndo = await combo.inputValue().catch(() => '')
+        ok(
+          'one undo takes back both the item and the name',
+          bound === labelled.name && named === labelled.label && afterUndo === '' && boundAfterUndo === '',
+          `before=${bound}/${named} after=${boundAfterUndo}/${afterUndo}`
+        )
+      }
+    }
     await ctx.close()
   }
 
@@ -545,6 +564,64 @@ try {
     ok('an image that cannot be loaded says so', /could not be loaded/i.test(shown?.text ?? ''), (shown?.text ?? '(blank tile)').slice(0, 90))
     ok('and the broken image element is gone', shown?.stillAnImg === 0, 'img elements: ' + shown?.stillAnImg)
     await ctx.close()
+  }
+
+  // A habpanel:panelconfig openHAB accepted but HABPanel would never write. Every shape below was
+  // POSTed to a real 4.3.11 and read back as stored, so it is reachable. The read used to be an
+  // ARGUMENT to the guarded call, which evaluates it outside the guard - and React routes nothing
+  // from an event handler to an error boundary, so a throw there made the button do nothing at all.
+  // Fulfilled in the browser, so the server's own habpanel namespace is never written to.
+  {
+    const HOSTILE = [
+      ['a null config', { uid: 'habpanel:panelconfig:nh1', component: 'panelconfiguration', config: null }],
+      [
+        'a null dashboard entry',
+        {
+          uid: 'habpanel:panelconfig:nh2',
+          component: 'panelconfiguration',
+          config: {},
+          slots: { dashboards: [null, { component: 'dashboard', config: { id: 'ok', name: 'Ok' } }] }
+        }
+      ],
+      [
+        'a null custom widget',
+        {
+          uid: 'habpanel:panelconfig:nh3',
+          component: 'panelconfiguration',
+          config: {},
+          slots: { dashboards: [{ component: 'dashboard', config: { id: 'ok', name: 'Ok' } }], customwidgets: [null] }
+        }
+      ]
+    ]
+    for (const [label, component] of HOSTILE) {
+      const { ctx, page } = await open()
+      // the namespace goes through encodeURIComponent, so the colon reaches the wire as %3A
+      await page.route(/\/rest\/ui\/components\/habpanel(:|%3A)panelconfig/i, (route) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([component]) })
+      )
+      await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.nh-hpimport__row button', { timeout: 20000 }).catch(() => {})
+      // a button that was never on screen would make every check below pass for the wrong reason
+      const rows = await page.locator('.nh-hpimport__row button').count().catch(() => 0)
+      ok('the offered ' + label + ' is listed with an Import button', rows === 1, 'rows ' + rows)
+      await page.click('.nh-hpimport__row button').catch(() => {})
+      await sleep(1500)
+      const after = await probe(page, () => ({
+        sheet: document.querySelectorAll('.nh-sheet .nh-hpconfirm').length,
+        notice: (document.querySelector('.nh-toast__text')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        alive: !!document.querySelector('.nh-settings')
+      }))
+      // either it imports or it explains, and never nothing: the whole defect was a button with no
+      // effect, so "the sheet opened" and "a message appeared" are both a pass and silence is not
+      ok(
+        'Import against ' + label + ' either opens the sheet or says why not',
+        (after?.sheet ?? 0) > 0 || (after?.notice ?? '').length > 0,
+        JSON.stringify(after)
+      )
+      ok('the settings screen is still there after it', after?.alive === true, JSON.stringify(after?.alive))
+      if ((after?.sheet ?? 0) > 0) await page.click('.nh-sheet button:has-text("Cancel")').catch(() => {})
+      await ctx.close()
+    }
   }
 } catch (err) {
   ok('suite ran without crashing', false, String(err))

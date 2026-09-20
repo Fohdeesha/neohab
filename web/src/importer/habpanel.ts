@@ -2,7 +2,7 @@ import type { UIComponent } from '../api/types'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
-import { lookup } from '../model/lookup'
+import { emptyMap, lookup } from '../model/lookup'
 import type { AppSettings } from '../store/config'
 
 type HPWidget = Record<string, unknown> & { type: string }
@@ -63,10 +63,21 @@ export interface HabpanelImportResult {
   notes: (ImportNote & { count: number })[]
 }
 
+// keyed by whatever the author called each widget, so prototype-free, and an entry that is not an
+// object at all is dropped here rather than throwing later on `def.name`
+function customWidgetMap(raw: unknown): Record<string, HPCustomWidget> {
+  const out = emptyMap<HPCustomWidget>()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (const [id, def] of Object.entries(raw as Record<string, unknown>)) {
+    if (def && typeof def === 'object' && !Array.isArray(def)) out[id] = def as HPCustomWidget
+  }
+  return out
+}
+
 export function parseHabpanelFile(json: unknown): HPPanelConfig {
   if (Array.isArray(json)) {
     if (json.length === 0) throw new Error('Not a HABPanel configuration (no dashboards found)')
-    return { dashboards: normalizeDashboards(json), settings: {}, customwidgets: {} }
+    return { dashboards: normalizeDashboards(json), settings: {}, customwidgets: emptyMap() }
   }
   const obj = json as Record<string, unknown> | null
   if (!obj || !Array.isArray(obj.dashboards) || obj.dashboards.length === 0) {
@@ -75,7 +86,7 @@ export function parseHabpanelFile(json: unknown): HPPanelConfig {
   return {
     dashboards: normalizeDashboards(obj.dashboards),
     settings: (obj.settings as Record<string, unknown>) ?? {},
-    customwidgets: (obj.customwidgets as Record<string, HPCustomWidget>) ?? {}
+    customwidgets: customWidgetMap(obj.customwidgets)
   }
 }
 
@@ -93,34 +104,42 @@ function normalizeDashboards(raw: unknown[]): HPDashboard[] {
   })
 }
 
+// openHAB stores whatever POSTs cleanly, so a hand-written panelconfig can carry a null slot entry,
+// no config key at all, or a slot that is not a list - all three reach here
+const slotList = (value: unknown): UIComponent[] =>
+  Array.isArray(value) ? value.filter((c): c is UIComponent => !!c && typeof c === 'object' && !Array.isArray(c)) : []
+const configOf = (c: { config?: unknown } | undefined): Record<string, unknown> =>
+  c && c.config && typeof c.config === 'object' && !Array.isArray(c.config) ? (c.config as Record<string, unknown>) : {}
+
 export function panelConfigFromComponent(component: UIComponent): HPPanelConfig {
   const slots = component.slots ?? {}
-  const dashboards: HPDashboard[] = (slots.dashboards ?? []).map((dc) => ({
-    ...(dc.config as Record<string, unknown>),
-    widgets: (dc.slots?.widgets ?? []).map((wc) => ({
+  const dashboards: HPDashboard[] = slotList(slots.dashboards).map((dc) => ({
+    ...configOf(dc),
+    widgets: slotList(dc.slots?.widgets).map((wc) => ({
       type: wc.component,
-      ...(wc.config as Record<string, unknown>)
+      ...configOf(wc)
     }))
   })) as HPDashboard[]
 
-  const customwidgets: Record<string, HPCustomWidget> = {}
-  for (const cw of slots.customwidgets ?? []) {
-    const cfg = cw.config as Record<string, unknown>
+  // a custom widget's id is whoever wrote it: one called __proto__ assigned onto a plain {} invokes
+  // the prototype setter, so the widget is dropped without a word
+  const customwidgets: Record<string, HPCustomWidget> = emptyMap()
+  for (const cw of slotList(slots.customwidgets)) {
+    const cfg = configOf(cw)
     const id = String(cfg.id ?? '')
     if (!id) continue
     customwidgets[id] = {
       ...(cfg as HPCustomWidget),
-      settings: (cw.slots?.settings ?? []).map((sc) => ({
+      settings: slotList(cw.slots?.settings).map((sc) => ({
         type: sc.component,
-        ...(sc.config as Record<string, unknown>)
+        ...configOf(sc)
       }))
     }
   }
 
-  const config = component.config as Record<string, unknown>
   return {
     dashboards,
-    settings: (config.settings as Record<string, unknown>) ?? {},
+    settings: (configOf(component).settings as Record<string, unknown>) ?? {},
     customwidgets
   }
 }

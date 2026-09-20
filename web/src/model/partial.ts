@@ -2,6 +2,7 @@ import type { UIComponent } from '../api/types'
 import { BG_REF_PREFIX } from './background'
 import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, THEME_PREFIX, WIDGETDEF_PREFIX, nextFreeId } from './components'
 import type { Dashboard } from './dashboard'
+import { emptyMap } from './lookup'
 import { kindOf, migrateConfig } from './schema'
 
 export const ICON_REF_PREFIX = 'custom:'
@@ -190,7 +191,9 @@ function canonical(value: unknown): string {
   const norm = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(norm)
     if (v && typeof v === 'object') {
-      const out: Record<string, unknown> = {}
+      // stored config can carry a key called __proto__, and writing one onto a plain {} hits the
+      // setter instead of storing it - two configs differing only there would compare identical
+      const out: Record<string, unknown> = emptyMap()
       for (const k of Object.keys(v as Record<string, unknown>).sort()) {
         if (k === 'timestamp') continue
         out[k] = norm((v as Record<string, unknown>)[k])
@@ -278,7 +281,7 @@ function rewriteRefs(
   }
   if (Array.isArray(value)) return value.map((v) => rewriteRefs(v, key, maps))
   if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
+    const out: Record<string, unknown> = emptyMap()
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = rewriteRefs(v, k, maps)
     return out
   }

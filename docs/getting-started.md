@@ -89,6 +89,10 @@ the whole configuration back.
 
 - **Settings › Appearance** switches theme, and [Theming neohab](theming.md) covers writing your
   own.
+- **Settings › Controls** is where you turn off live dragging. By default a slider, colour picker
+  or dial commands the device as you drag it, a few times a second; turn it off if your devices,
+  rules or persistence would rather get one command when you let go. Any widget can also decide
+  for itself under "Send while dragging" in its settings.
 - **Settings › Migrate from HABPanel** brings HABPanel dashboards across and reports anything it
   could not map exactly.
 - **Settings › Kiosk & wall panel** is for a screen on a wall: no chrome, no menu, and the screen

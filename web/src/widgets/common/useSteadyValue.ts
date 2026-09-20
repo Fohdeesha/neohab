@@ -1,9 +1,17 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { STEADY_MS, steadyFlush, steadyHolding, steadyInitial, steadyStep, type SteadyState } from '../../model/steady'
+import { useDraggingStore, useIsDragging } from '../../store/dragging'
 
-export function useSteadyValue<T>(live: T, key: string | number): T {
+// while this tab drags the item every change is one we caused, so the display follows them all. The state
+// is kept at its starting point meanwhile, so the first change after the drag ends shows at once too.
+function following<T>(prev: SteadyState<T>, live: T, key: string | number): SteadyState<T> {
+  return Object.is(prev.latestKey, key) && Object.is(prev.shownKey, key) && prev.since === -Infinity ? prev : steadyInitial(live, key)
+}
+
+export function useSteadyValue<T>(live: T, key: string | number, item?: string): T {
+  const dragging = useIsDragging(item)
   const [state, setState] = useState<SteadyState<T>>(() => steadyInitial(live, key))
-  const next = steadyStep(state, live, key, Date.now())
+  const next = dragging ? following(state, live, key) : steadyStep(state, live, key, Date.now())
   if (next !== state) setState(next)
 
   const holding = steadyHolding(next)
@@ -19,6 +27,7 @@ export function useSteadyValue<T>(live: T, key: string | number): T {
 }
 
 export function useSteadyStates(): (item: string, live: string | undefined) => string | undefined {
+  const dragging = useDraggingStore((s) => s.items)
   const map = useRef(new Map<string, SteadyState<string | undefined>>()).current
   const [, bump] = useReducer((c: number) => c + 1, 0)
   const seen = new Set<string>()
@@ -47,7 +56,7 @@ export function useSteadyStates(): (item: string, live: string | undefined) => s
     seen.add(item)
     const key = live ?? ''
     const prev = map.get(item)
-    const next = prev ? steadyStep(prev, live, key, now) : steadyInitial(live, key)
+    const next = !prev ? steadyInitial(live, key) : dragging.has(item) ? following(prev, live, key) : steadyStep(prev, live, key, now)
     if (next !== prev) map.set(item, next)
     return next.shown
   }

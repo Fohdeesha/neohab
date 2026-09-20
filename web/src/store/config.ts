@@ -50,6 +50,8 @@ export interface AppSettings {
   voiceButton?: boolean
   historyLimit?: number
   historyWindowMin?: number
+  // absent means on: existing installs get live dragging without their settings being touched
+  liveDrag?: boolean
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })

@@ -60,7 +60,7 @@ const dashboard = (id, name, widgets) => ({
 const clock = (id, x) => ({ id, type: 'clock', config: { label: 'Clock ' + id }, layout: { lg: { x, y: 0, w: 3, h: 3 } } })
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return launchChromium({ channel, headless: true })
     } catch {}

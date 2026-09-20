@@ -15,6 +15,7 @@ export interface SliderConfig {
   step?: number
   unit?: string
   accentColor?: string
+  liveDrag?: string
 }
 
 const STYLES: Record<string, SliderStyle> = {

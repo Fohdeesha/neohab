@@ -50,8 +50,8 @@ const switchToButtonStyle: Migration = (config) => {
         style: 'switch',
         toggle: true,
         nonZeroIsOn: true,
-        // the button's default label is "Button", so a switch that carried no name has to say so out loud
-        // or the merge would name every unnamed one
+        // written out rather than left to fall through: a migration must not depend on what the
+        // surviving widget happens to default to, which for the name has already changed once
         label: typeof rest.label === 'string' ? rest.label : '',
         command: commandOrDefault(onCommand, 'ON'),
         commandAlt: commandOrDefault(offCommand, 'OFF')

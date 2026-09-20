@@ -1,6 +1,6 @@
 // neohab served over TLS. Everything here is either only true over HTTPS or only false over HTTPS.
 import { launchBrowser } from './lib/browser.mjs'
-import { BASE, APP, NS, TOKEN, AUTH, ITEMS, HTTPS, isAppResource } from './lib/target.mjs'
+import { BASE, APP, NS, TOKEN, AUTH, ITEMS, HTTPS, PLAIN_HTTP, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-https'
 const DASH = 'nh-e2e-https'
@@ -42,15 +42,18 @@ try {
         rowHeight: 'match',
         widgets: [
           { id: 'w-val', type: 'value', config: { item: ITEM, label: 'Level' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-          { id: 'w-frame', type: 'frame', config: { url: 'http://192.168.1.27:9033/neohab/index.html', label: 'Frame' }, layout: { lg: { x: 3, y: 0, w: 4, h: 3 } } },
-          { id: 'w-img', type: 'image', config: { url: 'http://192.168.1.27:9033/neohab/tile.png', label: 'Image' }, layout: { lg: { x: 7, y: 0, w: 3, h: 3 } } },
-          { id: 'w-cam', type: 'camera', config: { source: 'url', url: 'http://192.168.1.27:9033/stream.m3u8', label: 'Cam' }, layout: { lg: { x: 0, y: 3, w: 4, h: 3 } } },
+          { id: 'w-frame', type: 'frame', config: { url: PLAIN_HTTP + '/neohab/index.html', label: 'Frame' }, layout: { lg: { x: 3, y: 0, w: 4, h: 3 } } },
+          { id: 'w-img', type: 'image', config: { url: PLAIN_HTTP + '/neohab/tile.png', label: 'Image' }, layout: { lg: { x: 7, y: 0, w: 3, h: 3 } } },
+          { id: 'w-cam', type: 'camera', config: { source: 'url', url: PLAIN_HTTP + '/stream.m3u8', label: 'Cam' }, layout: { lg: { x: 0, y: 3, w: 4, h: 3 } } },
           { id: 'w-ok', type: 'image', config: { url: BASE + '/neohab/tile.png', label: 'Fine' }, layout: { lg: { x: 4, y: 3, w: 3, h: 3 } } },
         ],
       },
     }),
   })
   ok('seed dashboard created', seed.ok, 'HTTP ' + seed.status)
+  // without this the three "says why it is empty" checks below pass for free: an https fixture is not
+  // mixed content, so the widget would be right to say nothing
+  ok('the mixed-content fixture really is a plain http address', PLAIN_HTTP.startsWith('http://'), PLAIN_HTTP)
 
   const rest = await fetch(BASE + '/rest/', { headers: AUTH })
   const root = rest.ok ? await rest.json() : {}
@@ -145,14 +148,18 @@ try {
       JSON.stringify(drawn.okImg)
     )
 
-    const blocked = await probe(page, async () => {
-      try {
-        await fetch('http://192.168.1.27:9033/rest/')
-        return { fetch: 'allowed' }
-      } catch (e) {
-        return { fetch: 'blocked', why: String(e).slice(0, 60) }
-      }
-    })
+    const blocked = await probe(
+      page,
+      async (plain) => {
+        try {
+          await fetch(plain + '/rest/')
+          return { fetch: 'allowed' }
+        } catch (e) {
+          return { fetch: 'blocked', why: String(e).slice(0, 60) }
+        }
+      },
+      PLAIN_HTTP
+    )
     ok('the browser does block an http fetch from this page', blocked.fetch === 'blocked', JSON.stringify(blocked))
 
     await context.close()

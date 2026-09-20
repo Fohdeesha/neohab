@@ -21,7 +21,7 @@ const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: cmd })
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return launchChromium({ channel, headless: true })
     } catch {}

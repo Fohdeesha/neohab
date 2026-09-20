@@ -5,6 +5,7 @@ import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
 import { getItemHistory } from '../../api/persistence'
 import { stepDecimals } from '../common/itemControl'
+import { useLiveCommand } from '../common/useLiveCommand'
 import { arcPath, polar, useTweened } from './geometry'
 import {
   arcOf,
@@ -106,21 +107,49 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       : angleToValue(angle, min, max, start, sweep, step, decimals)
   }
 
+  // one per ring: each ring is its own item, with its own throttle and its own final send
+  const liveOuter = useLiveCommand<number>({
+    item: config.item,
+    config,
+    editing: ctx.editing,
+    command: String,
+    send: (v) => ctx.sendCommand(config.item, String(v))
+  })
+  const liveInner = useLiveCommand<number>({
+    item: config.item2 ?? '',
+    config,
+    editing: ctx.editing,
+    command: String,
+    send: (v) => ctx.sendCommand(config.item2 ?? '', String(v))
+  })
+  const liveFor = (ring: 'outer' | 'inner') => (ring === 'inner' ? liveInner : liveOuter)
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (ctx.editing || config.readOnly || !config.item) return
     ;(e.target as Element).setPointerCapture(e.pointerId)
     const ring = ringFromPointer(e)
     setDrag({ ring, v: valueFromPointer(e, ring) })
+    liveFor(ring).begin(e)
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (drag !== null) setDrag({ ring: drag.ring, v: valueFromPointer(e, drag.ring) })
+    if (drag === null) return
+    const v = valueFromPointer(e, drag.ring)
+    setDrag({ ring: drag.ring, v })
+    const live = liveFor(drag.ring)
+    live.moved(e)
+    live.stage(v)
   }
   const onPointerUp = () => {
     if (drag === null) return
     const { ring, v } = drag
     setDrag(null)
+    if (liveFor(ring).end(v)) return
     if (holdTookGesture()) return
     void ctx.sendCommand(ring === 'inner' ? config.item2! : config.item, String(v))
+  }
+  const onPointerCancel = () => {
+    if (drag !== null) liveFor(drag.ring).cancel()
+    setDrag(null)
   }
 
   const text = value.toFixed(decimals)
@@ -320,7 +349,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}>
+        onPointerCancel={onPointerCancel}>
         <defs>
           {/* one gradient set per instance - SVG ids are document-global */}
           <radialGradient id={`nh-g-led-${uid}`}>

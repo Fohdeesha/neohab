@@ -25,7 +25,7 @@ const getState = () =>
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => null)
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return launchChromium({ channel, headless: true })
     } catch {}
@@ -386,8 +386,11 @@ try {
     await page.mouse.move(box.x + box.w * 0.7, box.y + box.h / 2, { steps: 10 })
     await page.mouse.up()
     await sleep(700)
-    ok('a drag sends exactly one command', posts.length === 1, JSON.stringify(posts))
-    ok('and it carries where the thumb was let go', Number(posts[0]) >= 60 && Number(posts[0]) <= 80, String(posts[0]))
+    // a drag commands as it goes now (e2e-livedrag has the timing); this one is over in milliseconds, so it
+    // can only produce the first armed change and the release
+    ok('a drag sends a command, and no more than the throttle allows', posts.length >= 1 && posts.length <= 3, JSON.stringify(posts))
+    const last = Number(posts[posts.length - 1])
+    ok('and the last one carries where the thumb was let go', last >= 60 && last <= 80, String(posts[posts.length - 1]))
 
     posts.length = 0
     await page.mouse.move(box.x + box.w * 0.2, box.y + box.h / 2)
@@ -399,7 +402,11 @@ try {
     await page.keyboard.press('Escape')
     await sleep(300)
   } else {
-    for (const n of ['a drag sends exactly one command', 'and it carries where the thumb was let go', 'a hold on the track sends nothing'])
+    for (const n of [
+      'a drag sends a command, and no more than the throttle allows',
+      'and the last one carries where the thumb was let go',
+      'a hold on the track sends nothing',
+    ])
       ok(n, false, 'no rail')
   }
   await page.unroute('**/rest/items/' + ITEM)

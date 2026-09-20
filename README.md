@@ -6,7 +6,7 @@
 # neohab
 
 A modern UI for [openHAB](https://www.openhab.org/).
-Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** in daily use, latest release **1.33.0**. A community project, not an official openHAB UI.
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** in daily use, latest release **1.34.0**. A community project, not an official openHAB UI.
 
 <p float="center">
   <img src="imgs/1.png" width="400" />
@@ -109,25 +109,28 @@ Every widget shares the same naming, sizing and per-state icon settings. Long-ho
 page with the current value, when it last changed, recent history graph and that widget's own
 full-size control options which varies per widget
 
+Sliders, colour pickers and dials command the device as you drag them, a few times a second, so you
+see the level you are choosing before you let go. It can be turned off for the whole install or per widget.
+
 ## Dashboards
 
 Add and arrange your widgets on a dash: drag to move or resize, drag in from the palette, select multiple widgets by clicking and dragging, copy
 and paste between dashboards or on the same dashboard with ctrl+c ctrl+v, undo anything. What you see while editing is what a save produces.
 
-Phones and portrait tablets get a single-column stack you can reorder on its own without effecting landscape / full size displays, and there's an
+Phones and portrait tablets get a single-column stack you can reorder on its own without affecting landscape / full size displays, and there's an
 optional tablet layout with its own column count. Any widget can be left off any of the three.
 Text and icons scale with the tile, and with per-dashboard, per-widget and per-device settings.
 
 A lot of effort was spent ensuring that regardless of the device / screen / orientation you open your dashboards on, the layout and sizing does what's needed to maintain layout and visibility - smart text, icon, and widget resizing, so nothing is ever cut off or clipped.  Settings to further optimize this also exist: per device scaling / text size overrides, per dashboard overrides, per widget overrides.
 
-You can optionally have Neohab create dashboards for you, from your semantic model if you
+You can optionally have neohab create dashboards for you, from your semantic model if you
 have one, otherwise by naming convention or group. Everything it picks and puts together is listed for review first.
 
 ## Theming
 
 Sixteen themes ship with it, seven of them ports of HABPanel's. The editor previews as you type,
 explains every design token, checks whether your colours can actually be read, and validates a
-custom stylesheet. Themes are global to the Neohab instance
+custom stylesheet. Themes are global to the neohab instance
 unless you pin one to a single device, and they travel with your backups. See
 **[Making a theme](docs/theming.md)**.
 
@@ -146,7 +149,7 @@ one for that page load to recover.
   changes, and a microphone button sends spoken commands to the interpreter
 - **Backups** - Export and import the whole configuration as a single JSON file, or a single dashboard, widget or
   theme on its own
-- **Change Tracking** - A restore point is taken before each change you make in Neohab, the last twenty-five are kept by
+- **Change Tracking** - A restore point is taken before each change you make in neohab, the last twenty-five are kept by
   default, and you can see what changed field by field, and roll back to whatever point you wish
 - **Languages** - English, German, Spanish, French, Italian, Dutch and Polish, from the browser
   language with a per-device override
@@ -207,7 +210,7 @@ openHAB with no Java build. The browser end-to-end suites live in [`e2e/`](e2e/)
 
 ## Help
 
-Open an [issue](https://github.com/Fohdeesha/neohab/issues). In your Neohab install, the Settings page ends with an **About** blurb
+Open an [issue](https://github.com/Fohdeesha/neohab/issues). In your neohab install, the Settings page ends with an **About** blurb
 that shows all the relevent info - please paste this in to any github issues. Security
 issues should go **privately** instead: see [SECURITY.md](SECURITY.md).
 

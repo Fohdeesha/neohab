@@ -6,6 +6,7 @@ import { useRoute } from './router'
 import { NavButton } from './Sidebar'
 import { IncompatibleNotice } from '../components/IncompatibleNotice'
 import { AppearanceSection } from '../settings/AppearanceSection'
+import { ControlsSection } from '../settings/ControlsSection'
 import { KioskSection } from '../settings/KioskSection'
 import { VoiceAudioSection } from '../settings/VoiceAudioSection'
 import { WidgetDefManager } from '../settings/WidgetDefManager'
@@ -19,6 +20,7 @@ import { AboutSection } from '../settings/AboutSection'
 
 const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
   { id: 'appearance', label: 'Appearance' },
+  { id: 'controls', label: 'Controls', admin: true },
   { id: 'kiosk', label: 'Kiosk & wall panel' },
   { id: 'voice', label: 'Voice & audio' },
   { id: 'widgets', label: 'Custom widgets', admin: true },
@@ -85,6 +87,12 @@ export function SettingsView() {
         <Anchor id="appearance">
           <AppearanceSection onNotice={setNotice} />
         </Anchor>
+
+        {canEdit ? (
+          <Anchor id="controls">
+            <ControlsSection onNotice={setNotice} />
+          </Anchor>
+        ) : null}
 
         <Anchor id="kiosk">
           <KioskSection onNotice={setNotice} />

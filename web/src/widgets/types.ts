@@ -83,6 +83,9 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   // proportion the author gave the tile instead of its row count - see stackedCellHeight
   fixedShape?: boolean
   hasHeader?: boolean | ((config: C) => boolean)
+  // commands the device as its control is dragged, so the panel offers the per-widget switch for it. Left
+  // unset on anything a sweep of values would be wrong for (a thermostat setpoint drives a boiler).
+  liveDrag?: boolean | ((config: C) => boolean)
   labelModes?: { options: { value: string; label: string }[]; hint?: string }
   defaultConfig: () => C
   settings: SettingField[]

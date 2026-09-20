@@ -7,7 +7,7 @@ const del = (uid) => fetch(`${NS}/${encodeURIComponent(uid)}`, { method: 'DELETE
 const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
 
 async function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return await launchChromium({ channel, headless: true })
     } catch {

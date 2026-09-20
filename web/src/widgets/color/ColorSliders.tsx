@@ -6,6 +6,9 @@ export function ColorSliders({
   onInput,
   onCommit,
   onKeyCommit,
+  onPointerDown,
+  onPointerMove,
+  onPointerCancel,
   aside
 }: {
   hsb: Hsb
@@ -13,6 +16,9 @@ export function ColorSliders({
   onInput: (next: Hsb) => void
   onCommit?: (next: Hsb) => void
   onKeyCommit?: (key: string, next: Hsb) => void
+  onPointerDown?: (e: React.PointerEvent) => void
+  onPointerMove?: (e: React.PointerEvent) => void
+  onPointerCancel?: (e: React.PointerEvent) => void
   aside?: React.ReactNode
 }) {
   const swatch = hsbToCss(hsb)
@@ -39,7 +45,10 @@ export function ColorSliders({
       disabled={disabled}
       aria-label={key}
       onChange={(e) => onInput({ ...hsb, [key]: Number(e.target.value) })}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={(e) => onCommit?.({ ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
+      onPointerCancel={onPointerCancel}
       onKeyUp={(e) => onKeyCommit?.(e.key, { ...hsb, [key]: Number((e.target as HTMLInputElement).value) })}
     />
   )

@@ -5,7 +5,7 @@
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
-const launchBrowser = async () => { for (const c of ['msedge', 'chrome']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
+const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })

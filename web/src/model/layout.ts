@@ -105,8 +105,21 @@ export function tabletRects(dashboard: Dashboard): Map<string, Rect> {
   return out
 }
 
+// a rect past the column count lands in an implicit grid track, which collapses to nothing and draws
+// the widget as an 8px sliver with no error anywhere. only a column-count change re-clamps what is
+// stored, so a restored backup or a hand edit reaches a screen unclamped - both grids place from here
 export function projectDashboard(dashboard: Dashboard, bp: 'lg' | 'md'): Dashboard {
-  if (bp === 'lg') return dashboard
+  if (bp === 'lg') {
+    const columns = columnsOf(dashboard)
+    const widgets = widgetsOf(dashboard)
+    const past = (w: WidgetInstance): boolean => {
+      const r = rectOf(w)
+      return r.x + r.w > columns
+    }
+    // an ordinary dashboard comes back as itself, so nothing comparing by identity sees a new object
+    if (!widgets.some(past)) return dashboard
+    return { ...dashboard, widgets: widgets.map((w) => ({ ...w, layout: { ...w.layout, lg: clampRect(rectOf(w), columns) } })) }
+  }
   const rects = tabletRects(dashboard)
   return {
     ...dashboard,

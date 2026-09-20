@@ -6,6 +6,7 @@ import { isOn, numericValue } from './format'
 import { stepDecimals, type ItemChoice } from './itemControl'
 import { stateMatches } from './stateIcon'
 import { useKeyboardCommit } from './useKeyboardCommit'
+import { useLiveCommand } from './useLiveCommand'
 import { useOptimisticValue } from './useOptimisticValue'
 
 export function RangeControl({
@@ -26,7 +27,7 @@ export function RangeControl({
   const state = ctx.getItem(item)
   const [drag, setDrag] = useState<number | null>(null)
   const itemValue = numericValue(state) ?? min
-  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step))
+  const optimistic = useOptimisticValue(itemValue, itemValue, (live, sent) => Math.abs(live - sent) <= Math.max(1, step), { item })
   const value = drag ?? optimistic.display
 
   const commit = (v: number) => {
@@ -38,6 +39,19 @@ export function RangeControl({
     }
   }
   const commitOn = useKeyboardCommit(commit)
+  // no config of its own, so this one follows the shared setting
+  const live = useLiveCommand<number>({
+    item,
+    editing: ctx.editing,
+    command: String,
+    send: (v) => ctx.sendCommand(item, String(v)),
+    onSend: optimistic.commit,
+    onRefused: optimistic.cancel
+  })
+  const release = (v: number) => {
+    if (live.end(v)) setDrag(null)
+    else commitOn.now(v)
+  }
 
   return (
     <div className="nh-slider">
@@ -49,8 +63,18 @@ export function RangeControl({
         step={step}
         value={value}
         aria-label={item}
-        onChange={(e) => setDrag(Number(e.target.value))}
-        onPointerUp={(e) => commitOn.now(Number((e.target as HTMLInputElement).value))}
+        onChange={(e) => {
+          const n = Number(e.target.value)
+          setDrag(n)
+          live.stage(n)
+        }}
+        onPointerDown={live.begin}
+        onPointerMove={live.moved}
+        onPointerUp={(e) => release(Number((e.target as HTMLInputElement).value))}
+        onPointerCancel={() => {
+          live.cancel()
+          setDrag(null)
+        }}
         onKeyUp={(e) => commitOn.key(e.key, Number((e.target as HTMLInputElement).value))}
       />
       <div className="nh-slider__value">

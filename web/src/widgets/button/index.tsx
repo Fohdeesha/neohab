@@ -132,7 +132,8 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   minPixelHeight: buttonFloor,
   hasHeader: (c) => styleOf(c.style) === 'switch',
   defaultConfig: () => ({
-    label: 'Button',
+    // empty like every other widget, or binding an item cannot fill the name from the item's label
+    label: '',
     command: 'ON',
     commandAlt: 'OFF',
     toggle: true,

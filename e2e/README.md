@@ -1,13 +1,15 @@
 # neohab e2e suites
 
-Browser end-to-end tests for neohab. They drive a real browser (system Edge or Chrome via
-`playwright-core`, no bundled browsers) against a **live openHAB server** with the neohab jar
+Browser end-to-end tests for neohab. They drive a real browser (your system Chrome, or Edge if you
+have no Chrome, via `playwright-core`, no bundled browsers) against a **live openHAB server** with the neohab jar
 deployed, so they exercise the same thing a user gets: the served bundle, the REST API, SSE, auth,
 the works. There is no mock server.
 
 ## Setup
 
-1. `npm install` in this directory (only `playwright-core`; it uses your installed Edge/Chrome).
+1. `npm install` in this directory (only `playwright-core`; it uses your installed Chrome or Edge.
+   Chrome is tried first: on Windows, Edge writes a permanent jump-list file per launch, so a
+   battery leaves 63 of them in your profile and Chrome leaves none).
 2. Copy `target.example.json` to `target.local.json` (gitignored) and fill it in:
    - `baseUrl` is your openHAB server, for example `http://192.168.1.10:8080`.
    - `token` or `tokenFile` is an openHAB **admin API token** (`oh.` prefix; create one in Main UI
@@ -46,6 +48,17 @@ the machine running the suites:
 `kind` is `go2rtc` or `frigate`. Nothing is ever written to that server; the suite only views the
 stream. Without this block the live-video sections self-skip, and the rest still runs: chain
 failure handling, off-screen policy, tap actions and the settings form.
+
+### Optional: a plain-http address for the mixed-content checks
+
+`e2e-https` needs a plain `http://` address to prove a camera, frame or image on one is refused by
+the browser and explained by the widget. It defaults to your own `baseUrl` with the scheme swapped,
+which never has to answer, since mixed content is refused before a connection is opened. Override it
+only if you want a real one:
+
+```json
+"plainHttp": "http://openhab.local:8080"
+```
 
 Note that a stock go2rtc refuses cross-origin WebSocket upgrades, so the suite expects the chain
 to land on the embedded player rather than native WebRTC. Set `api: {origin: "*"}` in
@@ -247,6 +260,17 @@ device. Its geometry section is why the item is its own: the four painted styles
 the browser's own range input, and proving the two agree means moving the value to both ends of
 the scale and pressing at measured positions. It enters edit mode once to inspect the settings
 panel and leaves without saving. The dashboard and the item are deleted by name in cleanup.
+
+`e2e-livedrag.mjs` proves that a slider, colour picker or dial commands the device AS it is dragged:
+the first change past the 3px gate goes out at once, a long drag is throttled to one command per
+200ms with one request in flight, and the released value always goes last. It drags by hand, a few
+pixels every 40ms, because Playwright's own stepped move is over in milliseconds and could never see
+a throttle. It also holds every invariant the hold gesture had: a still press, a wobble under 3px and
+a press the sheet has already taken all send nothing. Three managed items it creates itself
+(`nh_e2e_ldim`, `nh_e2e_ldim2`, `nh_e2e_lcol`, bound to nothing) take the commands, one section
+injects a 400 to prove a refusal stops the drag, and one turns the shared setting off on the server
+before opening a fresh browser context, then puts the settings component back verbatim. The dashboard
+and the items are deleted by name in cleanup.
 
 `e2e-thermostat.mjs` drives the thermostat widget - four looks, the setpoint's buttons and its
 ring, the mode, fan and aux buttons, and the status item - against nine managed items it creates

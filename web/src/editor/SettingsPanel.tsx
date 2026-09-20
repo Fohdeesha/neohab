@@ -13,7 +13,7 @@ import { PlanImageField, PlanLightsField } from './FloorplanFields'
 import { ItemPatternField, WeatherLocationField } from './WeatherFields'
 import { ClockZonesField, TimeZoneField } from './ClockFields'
 import type { SettingField } from '../widgets/types'
-import { getWidgetDefinition, hasHeaderFor } from '../widgets'
+import { getWidgetDefinition, hasHeaderFor, instanceLiveDrag } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
 import type { Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs } from '../store/editor'
@@ -66,6 +66,19 @@ const TEXT_SIZE_FIELD: SettingField = {
   max: 300,
   step: 5,
   hint: 'Scales this widget’s text on top of the dashboard sizing. Empty or 100 = normal.'
+}
+
+// offered off the registry to every widget that drags a value, so a look added later cannot forget it
+const LIVE_DRAG_FIELD: SettingField = {
+  key: 'liveDrag',
+  type: 'select',
+  label: 'Send while dragging',
+  options: [
+    { value: '', label: 'Follow the global setting' },
+    { value: 'always', label: 'Always' },
+    { value: 'release', label: 'Only on release' }
+  ],
+  hint: 'Whether this control commands the device as you drag it or once when you let go. The shared setting is under Settings › Controls.'
 }
 
 function labelModeField(def: { labelModes?: { options: { value: string; label: string }[]; hint?: string } }): SettingField {
@@ -133,6 +146,11 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
           )
         )}
         {customwidget ? <CustomWidgetFields widget={widget} defId={customwidget} /> : null}
+        {instanceLiveDrag(widget.type, widget.config) ? (
+          <FieldGroupBlock key={widget.type + '/behavior'} label={t('Behavior')} open={docked} first={groups.length === 0}>
+            <Field field={LIVE_DRAG_FIELD} widget={widget} value={(effective.liveDrag as string) ?? ''} />
+          </FieldGroupBlock>
+        ) : null}
         <FieldGroupBlock key={widget.type + '/tile'} label={t('Tile')} open={docked} first={groups.length === 0}>
           {hasHeaderFor(def, effective) ? (
             <>

@@ -81,7 +81,7 @@ hls.js 1.6.16
 * Project: https://github.com/video-dev/hls.js
 * Source: https://github.com/video-dev/hls.js
 
-DOMPurify 3.4.12
+DOMPurify 3.4.15
 * License: Mozilla Public License 2.0 or Apache License 2.0, at the recipient's option.
   neohab takes it under the Apache License 2.0, reproduced below.
 * Author: Dr.-Ing. Mario Heiderich, Cure53 (https://cure53.de/). The project states no separate

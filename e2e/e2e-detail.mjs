@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const probe = (page, fn, arg) => page.evaluate(fn, arg).catch(() => ({}))
 
 async function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return await launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })
@@ -270,9 +270,10 @@ try {
   await sleep(500)
   const afterTapValue = await sliderValue()
   const afterSliderTap = await probe(page, readSheet)
+  // the value under the pointer, not "something different": the live item can already sit exactly there
   ok(
     'a tap on the track still sets the value there',
-    commands.length === 1 && afterTapValue !== beforeHoldValue,
+    commands.length === 1 && afterTapValue === commands[0].body,
     `commands=[${commands.map((c) => c.body).join(',')}] value=${afterTapValue}`
   )
   ok('a tap on the track does not open the sheet', afterSliderTap.open !== true)

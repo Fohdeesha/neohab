@@ -13,7 +13,7 @@ const ok = (name, cond, detail = '') => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return await launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })

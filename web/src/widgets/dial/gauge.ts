@@ -24,6 +24,7 @@ export type RingStyle = 'led' | 'ticks' | 'arc' | 'blocks' | '3d'
 export interface DialConfig {
   item: string
   label?: string
+  liveDrag?: string
   icon?: string
   iconColor?: string
   iconSize?: number

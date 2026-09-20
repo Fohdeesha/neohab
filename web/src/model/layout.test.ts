@@ -28,6 +28,7 @@ import {
   textScale,
   TOUCH_TEXT_FLOOR,
   widgetAccentInk,
+  widgetsOf,
   widgetTextScale
 } from './layout'
 
@@ -466,6 +467,52 @@ describe('the tablet layout', () => {
     const rects = [...tabletRects(d).values()]
     expect(collides(rects[0], rects[1])).toBe(false)
     for (const r of rects) expect(r.x + r.w).toBeLessThanOrEqual(6)
+  })
+
+  // a rect past the column count lands in an implicit CSS grid track, which is auto-sized and
+  // collapses to nothing: the widget draws as an 8px sliver at the right-hand edge with no error
+  describe('the desktop projection clamps a rect the editor never saw', () => {
+    it('pulls a widget placed past the last column back inside it', () => {
+      const d = dash([w('a', { x: 8, y: 0, w: 2, h: 2 })], { columns: 4 })
+      const r = projectDashboard(d, 'lg').widgets[0].layout.lg!
+      expect(r).toEqual({ x: 2, y: 0, w: 2, h: 2 })
+    })
+
+    it('narrows a widget wider than the whole grid', () => {
+      const d = dash([w('a', { x: 0, y: 1, w: 12, h: 3 })], { columns: 4 })
+      expect(projectDashboard(d, 'lg').widgets[0].layout.lg).toEqual({ x: 0, y: 1, w: 4, h: 3 })
+    })
+
+    it('leaves an ordinary dashboard alone, object identity included', () => {
+      const d = dash([w('a', { x: 0, y: 0, w: 6, h: 2 }), w('b', { x: 6, y: 0, w: 6, h: 2 })], { columns: 12 })
+      expect(projectDashboard(d, 'lg')).toBe(d)
+    })
+
+    it('keeps every rect inside a column count that is not a usable number', () => {
+      for (const columns of [0, -3, NaN, 'four', undefined]) {
+        const d = dash([w('a', { x: 8, y: 0, w: 2, h: 2 })], { columns: columns as number })
+        const r = projectDashboard(d, 'lg').widgets[0].layout.lg!
+        expect(r.x + r.w).toBeLessThanOrEqual(columnsOf(d))
+        expect(r.w).toBeGreaterThanOrEqual(1)
+      }
+    })
+
+    it('does not disturb a stored tablet rect while clamping the desktop one', () => {
+      const widget: WidgetInstance = {
+        id: 'a',
+        type: 'label',
+        config: {},
+        layout: { lg: { x: 9, y: 0, w: 3, h: 2 }, md: { x: 0, y: 0, w: 2, h: 2 } }
+      }
+      const projected = projectDashboard(dash([widget], { columns: 4 }), 'lg')
+      expect(projected.widgets[0].layout.md).toEqual({ x: 0, y: 0, w: 2, h: 2 })
+      expect(projected.widgets[0].layout.lg).toEqual({ x: 1, y: 0, w: 3, h: 2 })
+    })
+
+    it('survives a widgets field that is not a list', () => {
+      const d = { ...dash([]), widgets: {} as unknown as WidgetInstance[] }
+      expect(widgetsOf(projectDashboard(d, 'lg'))).toEqual([])
+    })
   })
 })
 

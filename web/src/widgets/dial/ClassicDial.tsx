@@ -4,6 +4,7 @@ import { WidgetFrame } from '../common/WidgetFrame'
 import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
 import { stepDecimals } from '../common/itemControl'
+import { useLiveCommand } from '../common/useLiveCommand'
 import { arcPath, polar, START, SWEEP } from './geometry'
 import { scaleOf, type DialConfig } from './gauge'
 
@@ -29,20 +30,38 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
     return Math.min(max, Math.max(min, snapped))
   }
 
+  const live = useLiveCommand<number>({
+    item: config.item,
+    config,
+    editing: ctx.editing,
+    command: String,
+    send: (v) => ctx.sendCommand(config.item, String(v))
+  })
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (ctx.editing || config.readOnly || !config.item) return
     ;(e.target as Element).setPointerCapture(e.pointerId)
     setDrag(valueFromPointer(e))
+    live.begin(e)
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (drag !== null) setDrag(valueFromPointer(e))
+    if (drag === null) return
+    const v = valueFromPointer(e)
+    setDrag(v)
+    live.moved(e)
+    live.stage(v)
   }
   const onPointerUp = () => {
     if (drag === null) return
     const v = drag
     setDrag(null)
+    if (live.end(v)) return
     if (holdTookGesture()) return
     void ctx.sendCommand(config.item, String(v))
+  }
+  const onPointerCancel = () => {
+    live.cancel()
+    setDrag(null)
   }
 
   const knobAngle = START + fraction * SWEEP
@@ -63,7 +82,7 @@ export function ClassicDial({ config, ctx }: WidgetProps<DialConfig>) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}>
+        onPointerCancel={onPointerCancel}>
         <path className="nh-dial__track" d={arcPath(50, 50, 38, START, START + SWEEP)} />
         {fraction > 0 ? <path className="nh-dial__fill" d={arcPath(50, 50, 38, START, START + Math.max(0.01, fraction * SWEEP))} /> : null}
         {config.readOnly ? null : <circle className="nh-dial__knob" cx={knobPos.x} cy={knobPos.y} r="6" />}

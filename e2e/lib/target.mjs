@@ -39,6 +39,10 @@ export const NS = BASE + '/rest/ui/components/neohab:config'
 
 export const HTTPS = BASE.startsWith('https:')
 export const UNREACHABLE = HTTPS ? 'https://' : 'http://'
+// a plain-http origin for the mixed-content fixtures: this same server with its scheme swapped, so no
+// suite carries anyone's network address. It never has to answer - a browser refuses mixed content
+// before it opens a connection. Override with "plainHttp" in the target file if a real one is wanted.
+export const PLAIN_HTTP = String(cfg.plainHttp ?? BASE.replace(/^https:/, 'http:')).replace(/\/+$/, '')
 export const LAUNCH_ARGS = HTTPS ? ['--ignore-certificate-errors'] : []
 if (HTTPS) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 export const HISTORY_NS = BASE + '/rest/ui/components/neohab:history'

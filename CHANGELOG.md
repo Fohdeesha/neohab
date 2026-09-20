@@ -6,6 +6,22 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.34.0
+
+- Sliders, colour pickers and dials now command the device as you drag, up to five times a second,
+  so you see the level before letting go. On by default; turn it off under Settings › Controls, or
+  per widget with "Send while dragging". Thermostat setpoints still send on release only.
+- A control holds the value you sent for 4 seconds instead of 8 before showing a change made
+  elsewhere.
+- A widget stored outside its dashboard's columns is drawn back inside them. A restored backup or a
+  hand-edited dashboard could leave one as an 8px sliver at the right-hand edge.
+- A new Button starts with no name, so binding an item fills it from the item's label like every
+  other widget does.
+- The HABPanel Import button reports a configuration it cannot read instead of doing nothing, and
+  reads ones with a missing or empty piece that openHAB stored happily.
+- A custom widget called `__proto__` imports instead of vanishing.
+- DOMPurify updated to 3.4.15, which closes a published advisory. The flaw was never reachable here.
+
 ## 1.33.0
 
 - Value and Stat are one widget now, with a Style setting. Stored stat tiles keep their look and

@@ -66,6 +66,25 @@ describe('parsing an export file', () => {
   ])('refuses %s', (_label, input) => {
     expect(() => parseHabpanelFile(input)).toThrow(/Not a HABPanel configuration/)
   })
+
+  // a file is JSON.parse output, where __proto__ arrives as an ordinary own key
+  it('keeps a custom widget called __proto__ and drops one that is not an object', () => {
+    const cfg = parseHabpanelFile(
+      JSON.parse('{"dashboards":[{"id":"a","widgets":[]}],"customwidgets":{"__proto__":{"name":"P"},"bad":null,"ok":{"name":"O"}}}')
+    )
+    expect(Object.keys(cfg.customwidgets).sort()).toEqual(['__proto__', 'ok'])
+    expect(Object.getPrototypeOf(cfg.customwidgets)).toBeNull()
+  })
+
+  it.each([
+    ['a list', []],
+    ['a string', 'x'],
+    ['null', null],
+    ['a number', 3]
+  ])('treats customwidgets that are %s as none at all', (_label, junk) => {
+    const cfg = parseHabpanelFile({ dashboards: [{ id: 'a', widgets: [] }], customwidgets: junk })
+    expect(Object.keys(cfg.customwidgets)).toEqual([])
+  })
 })
 
 describe('reading a live habpanel:panelconfig component', () => {
@@ -114,6 +133,73 @@ describe('reading a live habpanel:panelconfig component', () => {
       slots: { customwidgets: [{ component: 'customwidget', config: { name: 'nameless' } }] }
     } as unknown as UIComponent)
     expect(cfg.customwidgets).toEqual({})
+  })
+
+  // openHAB stores whatever POSTs cleanly, and every shape below was accepted by a real 4.3.11 and
+  // read back as written. A throw here used to be a silent no-op, because the read ran outside the
+  // import button's own try/catch and React routes nothing from an event handler to a boundary.
+  describe('a component openHAB accepted but HABPanel would never write', () => {
+    const read = (over: Record<string, unknown>) =>
+      panelConfigFromComponent({ uid: 'x', component: 'panelconfiguration', config: {}, ...over } as unknown as UIComponent)
+
+    it('reads one with no config key at all', () => {
+      const cfg = panelConfigFromComponent({ uid: 'x', component: 'panelconfiguration' } as unknown as UIComponent)
+      expect(cfg.settings).toEqual({})
+    })
+
+    it('reads one whose config is null', () => {
+      expect(read({ config: null }).settings).toEqual({})
+    })
+
+    it('drops a dashboard entry that is null and keeps the ones beside it', () => {
+      const cfg = read({
+        slots: { dashboards: [null, { component: 'dashboard', config: { id: 'ok', name: 'Ok' } }] }
+      })
+      expect(cfg.dashboards.map((d) => d.id)).toEqual(['ok'])
+    })
+
+    it('drops a widget entry that is null', () => {
+      const cfg = read({
+        slots: {
+          dashboards: [
+            {
+              component: 'dashboard',
+              config: { id: 'a' },
+              slots: { widgets: [null, { component: 'switch', config: { item: 'X' } }] }
+            }
+          ]
+        }
+      })
+      expect(cfg.dashboards[0].widgets).toEqual([{ type: 'switch', item: 'X' }])
+    })
+
+    it('drops a custom widget entry that is null', () => {
+      const cfg = read({ slots: { customwidgets: [null, { component: 'customwidget', config: { id: 'ok' } }] } })
+      expect(Object.keys(cfg.customwidgets)).toEqual(['ok'])
+    })
+
+    it('treats a slot list that is not a list as empty', () => {
+      for (const junk of [{}, 'dashboards', 7, null]) {
+        expect(read({ slots: { dashboards: junk, customwidgets: junk } }).dashboards).toEqual([])
+      }
+    })
+
+    // assigned onto a plain {} this invokes the prototype setter: the widget is dropped without a
+    // word and the map's prototype is replaced
+    it('keeps a custom widget whose id is __proto__ instead of silently losing it', () => {
+      const cfg = read({
+        slots: { customwidgets: [{ component: 'customwidget', config: { id: '__proto__', name: 'Hostile' } }] }
+      })
+      expect(Object.keys(cfg.customwidgets)).toEqual(['__proto__'])
+      expect(Object.getPrototypeOf(cfg.customwidgets)).toBeNull()
+    })
+
+    it('answers a prototype-named id that is not there with nothing, not a function', () => {
+      const cfg = read({ slots: { customwidgets: [] } })
+      for (const name of ['constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+        expect(cfg.customwidgets[name]).toBeUndefined()
+      }
+    })
   })
 })
 

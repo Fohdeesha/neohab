@@ -73,6 +73,12 @@ export function instanceHasHeader(type: string, config: Record<string, unknown>)
   return def ? hasHeaderFor(def, effective(def, config)) : false
 }
 
+export function instanceLiveDrag(type: string, config: Record<string, unknown>): boolean {
+  const def = registry.get(type)
+  if (!def) return false
+  return typeof def.liveDrag === 'function' ? def.liveDrag(effective(def, config)) === true : def.liveDrag === true
+}
+
 export function widgetDetailView(type: string): AnyWidgetDefinition['DetailView'] {
   return registry.get(type)?.DetailView
 }

@@ -90,7 +90,9 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   }
 
   const surface = surfaceFor(width)
-  const dashboard = surface === 'tablet' && hasTabletLayout(props.dashboard) ? projectDashboard(props.dashboard, 'md') : props.dashboard
+  // always through the projection, so a stored rect past the column count is clamped rather than
+  // placed into an implicit grid track that collapses to nothing
+  const dashboard = projectDashboard(props.dashboard, surface === 'tablet' && hasTabletLayout(props.dashboard) ? 'md' : 'lg')
   const shown = widgetsOf(dashboard).filter((w) => !isHiddenOn(w, surface))
   if (shown.length === 0) {
     return (

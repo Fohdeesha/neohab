@@ -14,7 +14,7 @@ const skip = (name, why) => results.push({ name, skip: true, detail: why })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })

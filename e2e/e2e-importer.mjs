@@ -19,7 +19,7 @@ const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try {
       return launchChromium({ channel, headless: true })
     } catch {}

@@ -18,8 +18,14 @@ export function launchChromium(opts = {}) {
   return chromium.launch(args.length ? { ...opts, args } : opts)
 }
 
+// Chrome first: Playwright gives each launch a fresh user-data-dir, and Edge derives a new
+// AppUserModelID from it and writes a jump list under %APPDATA%\...\Recent\CustomDestinations - one
+// permanent file per suite, per run, for ever. Chrome writes none. Measured on Windows over a full
+// 63-suite battery: 155 files before, 155 after.
+const CHANNELS = ['chrome', 'msedge']
+
 export async function launchBrowser(opts = {}) {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of CHANNELS) {
     try {
       return await launchChromium({ headless: true, ...opts, channel })
     } catch {}

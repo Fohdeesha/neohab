@@ -23,6 +23,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
   description: 'Circular slider or gauge, in several looks, for numeric items',
   defaultSize: { w: 3, h: 4 },
   hasHeader: true,
+  liveDrag: (c) => c.readOnly !== true,
   defaultConfig: () => ({
     item: '',
     style: 'classic',

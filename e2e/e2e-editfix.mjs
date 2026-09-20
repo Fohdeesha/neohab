@@ -22,7 +22,7 @@ const getComp = async () => {
 const A = 0, B = 1, C = 2, D = 3
 
 function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })

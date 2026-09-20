@@ -9,13 +9,14 @@
 // The editor hides it too, because its cells are absolutely positioned and so DO contain it.
 //
 // The widget list comes from the palette, so a widget added later is covered without editing this.
-// SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-runfit. It saves once
-// through the app, which mints one restore point - that is the point, since the bug this exists
-// for is only visible on a saved dashboard being viewed.
+// SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-runfit and
+// dashboard:nh-e2e-runpast. It saves once through the app, which mints one restore point - that is
+// the point, since the bug this exists for is only visible on a saved dashboard being viewed.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
 const UID = 'dashboard:nh-e2e-runfit'
+const PAST_UID = 'dashboard:nh-e2e-runpast'
 const results = []
 const ok = (name, cond, detail = '') => {
   results.push({ name, pass: !!cond })
@@ -24,7 +25,7 @@ const ok = (name, cond, detail = '') => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function launch() {
-  for (const channel of ['msedge', 'chrome']) {
+  for (const channel of ['chrome', 'msedge']) {
     try { return await launchChromium({ channel, headless: true }) } catch {}
   }
   return launchChromium({ headless: true })
@@ -161,11 +162,82 @@ try {
   ok('no widget breaks in the phone stack', phone.filter((r) => r.broken).length === 0, phone.filter((r) => r.broken).map((r) => r.name).join(' | '))
 
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
+
+  // ---- a stored rect the editor never clamped -----------------------------------------------
+  // CSS grid answers a column past the track count with an implicit auto-sized track, which
+  // collapses to nothing: the widget draws as an 8px sliver at the right-hand edge with no error
+  // and nothing in the console. The editor re-clamps whenever the column count changes, so this
+  // only reaches a screen from config that did not come through it - a restored backup, a shared
+  // partial export, a hand edit, a dashboard written by another build.
+  await page.setViewportSize({ width: 1400, height: 950 })
+  const lab = (id, text, lg) => ({ id, type: 'label', config: { text, fontSize: 20, shape: 'plain' }, layout: { lg } })
+  const past = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: PAST_UID,
+      component: 'neohab:dashboard',
+      tags: [],
+      config: {
+        version: 1,
+        id: 'nh-e2e-runpast',
+        name: 'E2E Runpast',
+        columns: 4,
+        rowHeight: 200,
+        gap: 8,
+        widgets: [
+          lab('w-in', 'Inside', { x: 0, y: 0, w: 2, h: 1 }),
+          lab('w-past', 'Past', { x: 8, y: 0, w: 2, h: 1 }),
+          lab('w-wide', 'Wider', { x: 0, y: 1, w: 12, h: 1 }),
+        ],
+      },
+    }),
+  })
+  ok('seed a dashboard whose rects reach past its columns', past.status === 200 || past.status === 201, 'status ' + past.status)
+
+  // a hash-only goto is a same-document navigation and the app read its component list at boot, so a
+  // dashboard seeded since then needs a real reload to exist at all
+  await page.goto(APP + '#/d/nh-e2e-runpast')
+  await page.reload()
+  await page.waitForSelector('.nh-gcell', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+
+  const grid = await page.evaluate(() => {
+    const g = document.querySelector('.nh-grid')
+    const box = (text) => {
+      const el = [...document.querySelectorAll('.nh-gcell')].find((c) => (c.innerText || '').trim() === text)
+      const r = el?.getBoundingClientRect()
+      return r ? { w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right) } : null
+    }
+    const tracks = getComputedStyle(g).gridTemplateColumns.split(' ').map((t) => Math.round(parseFloat(t)))
+    return { tracks, gridW: Math.round(g.getBoundingClientRect().width), inside: box('Inside'), pastEl: box('Past'), wide: box('Wider') }
+  })
+  // the positive precondition: without a correctly drawn control beside them the width checks below
+  // would pass on a grid that had collapsed entirely
+  ok(
+    'the control tile beside them is drawn at its two columns',
+    (grid.inside?.w ?? 0) > 200 && (grid.inside?.h ?? 0) > 150,
+    JSON.stringify(grid.inside)
+  )
+  ok('the grid makes no extra track for a rect past its last column', grid.tracks.length === 4, grid.tracks.join(' '))
+  ok('no track collapsed to nothing', grid.tracks.every((t) => t > 100), grid.tracks.join(' '))
+  ok(
+    'a widget stored past the last column is drawn at full width, not as a sliver',
+    grid.pastEl && grid.pastEl.w === grid.inside.w,
+    JSON.stringify({ past: grid.pastEl, inside: grid.inside })
+  )
+  ok(
+    'a widget wider than the whole grid is drawn no wider than it',
+    grid.wide && grid.wide.w <= grid.gridW + 1 && grid.wide.right <= (grid.inside?.right ?? 0) + grid.gridW,
+    JSON.stringify({ wide: grid.wide, gridW: grid.gridW })
+  )
 } finally {
   await browser.close().catch(() => {})
-  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID)
-  ok('cleanup: the dashboard is removed', left.length === 0, left.map((c) => c.uid).join(', '))
+  for (const uid of [UID, PAST_UID]) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID || c.uid === PAST_UID)
+  ok('cleanup: the dashboards are removed', left.length === 0, left.map((c) => c.uid).join(', '))
 
   const passed = results.filter((r) => r.pass).length
   console.log(`\n${passed}/${results.length} checks passed`)

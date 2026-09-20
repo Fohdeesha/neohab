@@ -36,7 +36,8 @@ interface PresetsState {
 export const usePresetsStore = create<PresetsState>(() => ({
   loaded: false,
   summaries: [],
-  full: {},
+  // keyed by rule uid, so prototype-free before the load as well as after it
+  full: emptyMap(),
   bridged: [],
   allRuleUids: []
 }))
