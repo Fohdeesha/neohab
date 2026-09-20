@@ -6,7 +6,7 @@
 # neohab
 
 A modern UI for [openHAB](https://www.openhab.org/).
-Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** in daily use, latest release **1.34.0**. A community project, not an official openHAB UI.
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.34.0**. A community project, not an official openHAB UI.
 
 <p float="center">
   <img src="imgs/1.png" width="400" />
@@ -56,61 +56,61 @@ to show for it. Open tabs offer to reload themselves
 
 <table>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-button.png" width="100%"><br><b>Button</b><br>Send a command, toggle an item, or jump to another dashboard. Eight finishes, a card or a sliding-switch look, and an icon that can change with the state.</td>
-<td width="50%" valign="top"><img src="imgs/widget-slider.png" width="100%"><br><b>Slider</b><br>Set a dimmer or any number. It will not jump back under your finger while the device catches up, which is the HABPanel slider everyone has fought with. Five looks, across or upright.</td>
+<td width="50%" valign="top"><img src="imgs/widget-button.png" width="100%"><br><b>Button</b><br>Send a command, toggle an item, or jump to another dashboard. Eight finishes, a card or a sliding-switch look, and an icon that can change with the state</td>
+<td width="50%" valign="top"><img src="imgs/widget-slider.png" width="100%"><br><b>Slider</b><br>Set a dimmer or any number. It will not jump back under your finger while the device or rules catch up, like HABPanel sliders everyone has fought with. Five looks, across or upright</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-dial.png" width="100%"><br><b>Dial</b><br>A round control in six looks, from a plain knob to an LED ring. Coloured zones, markers, an alarm band, a history ring, and a second item on the same face.</td>
-<td width="50%" valign="top"><img src="imgs/widget-color.png" width="100%"><br><b>Colour</b><br>Hue, saturation and brightness on one tile. On puts the lamp back to the brightness it was last used at, instead of blasting it to full.</td>
+<td width="50%" valign="top"><img src="imgs/widget-dial.png" width="100%"><br><b>Dial</b><br>Round control in six looks, from a plain knob to an LED ring. Coloured zones, markers, an alarm band, a history ring, and a second item on the same face</td>
+<td width="50%" valign="top"><img src="imgs/widget-color.png" width="100%"><br><b>Colour</b><br>Hue, saturation and brightness on one tile. On puts the lamp back to the brightness it was last used at, instead of blasting it to full</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-selection.png" width="100%"><br><b>Selection</b><br>A set of commands as buttons or a dropdown. It reads the item's own options when it has them, or you type your own list.</td>
-<td width="50%" valign="top"><img src="imgs/widget-stepper.png" width="100%"><br><b>Stepper</b><br>Up and down by a step you pick, or around a list of values, in six looks. Volume, fan speed, a setpoint, a source.</td>
+<td width="50%" valign="top"><img src="imgs/widget-selection.png" width="100%"><br><b>Selection</b><br>A set of commands as buttons or a dropdown. It reads the item's own options when it has them, or you type your own list</td>
+<td width="50%" valign="top"><img src="imgs/widget-stepper.png" width="100%"><br><b>Stepper</b><br>Up and down by a step you pick, or around a list of values, in six looks. Volume, fan speed, a setpoint, AV inputs, etc</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-thermostat.png" width="100%"><br><b>Thermostat</b><br>Room and setpoint on one face, with heat and cool, fan and aux heat. It reads the room at the precision your setpoint steps in, not the whole degree openHAB prints by default.</td>
-<td width="50%" valign="top"><img src="imgs/widget-rollershutter.png" width="100%"><br><b>Rollershutter</b><br>Up, stop and down, with the position underneath. No position slider to catch with a thumb, here or in the detail view, because that is a real door moving.</td>
+<td width="50%" valign="top"><img src="imgs/widget-thermostat.png" width="100%"><br><b>Thermostat</b><br>Room and setpoint on one face, with heat and cool, fan and aux heat. Reads the room at the precision your setpoint steps in</td>
+<td width="50%" valign="top"><img src="imgs/widget-rollershutter.png" width="100%"><br><b>Rollershutter</b><br>Up, stop and down, with the position underneath. No position slider to catch, here or in the detail view, because that's a real door moving</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-player.png" width="100%"><br><b>Player</b><br>Previous, play or pause, and next, for any Player item.</td>
-<td width="50%" valign="top"><img src="imgs/widget-label.png" width="100%"><br><b>Label</b><br>Fixed text to title a row or break a dashboard into groups. Plain, in a pill, or in a box.</td>
+<td width="50%" valign="top"><img src="imgs/widget-player.png" width="100%"><br><b>Player</b><br>Previous, play or pause, and next, for any Player item</td>
+<td width="50%" valign="top"><img src="imgs/widget-label.png" width="100%"><br><b>Label</b><br>Fixed text to title a row or break a dashboard into groups. Plain, in a pill, or in a box</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-value.png" width="100%"><br><b>Value</b><br>One reading, drawn eight ways: plain, stat, sparkline, split, bar, segment, pill or hero. The sparkline and the trend arrow come from your persistence service.</td>
-<td width="50%" valign="top"><img src="imgs/widget-battery.png" width="100%"><br><b>Battery</b><br>Charge in eight styles, coloured by how low it is, with a charging item for the bolt.</td>
+<td width="50%" valign="top"><img src="imgs/widget-value.png" width="100%"><br><b>Value</b><br>One reading, drawn eight ways: plain, stat, sparkline, split, bar, segment, pill or hero. The sparkline and the trend arrow come from your persistence service</td>
+<td width="50%" valign="top"><img src="imgs/widget-battery.png" width="100%"><br><b>Battery</b><br>Display a value as a battery in eight styles, coloured by how low it is, with a charging item for the bolt, and custom value scaling</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-compass.png" width="100%"><br><b>Compass</b><br>Wind or any bearing on a compass face, with a second item, usually the speed, in the middle.</td>
-<td width="50%" valign="top"><img src="imgs/widget-clock.png" width="100%"><br><b>Clock</b><br>Analog or digital, with the date, extra time zones for the people you call, and either the device's clock or the server's.</td>
+<td width="50%" valign="top"><img src="imgs/widget-compass.png" width="100%"><br><b>Compass</b><br>Wind or any bearing on a compass, with a second item, usually the speed, in the middle</td>
+<td width="50%" valign="top"><img src="imgs/widget-clock.png" width="100%"><br><b>Clock</b><br>Analog or digital, with the date, extra time zones if desired, and either the device's clock or the server's.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-weather.png" width="100%"><br><b>Weather</b><br>Conditions, hours and days from Open-Meteo, or from your own items if a binding already fetches them. Three layouts and a choice of forecast model.</td>
-<td width="50%" valign="top"><img src="imgs/widget-floorplan.png" width="100%"><br><b>Floor plan</b><br>Your plan with the lights on it, each glowing in the colour and brightness it is actually at. Tap one to control it, and scenes you save become openHAB rules any panel or wall switch can run.</td>
+<td width="50%" valign="top"><img src="imgs/widget-weather.png" width="100%"><br><b>Weather</b><br>Conditions, hours and days from Open-Meteo - no account or API key needed. Or source data from your own items if a binding already fetches them. Three layouts and a choice of forecast model</td>
+<td width="50%" valign="top"><img src="imgs/widget-floorplan.png" width="100%"><br><b>Floor plan</b><br>Your plan with your lights on it, each glowing in the colour and brightness it's actually at. Tap one to control it - Create overall lighting presets and scenes you save become openHAB rules any panel or wall switch can run</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-chart.png" width="100%"><br><b>Chart</b><br>History from your persistence service: several items, two axes, thresholds, a period picker, and new values drawn as they arrive. It also groups by hour, weekday or month, or draws a heatmap.</td>
-<td width="50%" valign="top"><img src="imgs/widget-timeline.png" width="100%"><br><b>Timeline</b><br>What was on and when, as coloured bands. You pick the colour for each state.</td>
+<td width="50%" valign="top"><img src="imgs/widget-chart.png" width="100%"><br><b>Chart</b><br>History from your persistence services: multiple items, two axes, thresholds, period picker, new values drawn as they arrive. Also groups by hour, weekday or month, or draws a heatmap</td>
+<td width="50%" valign="top"><img src="imgs/widget-timeline.png" width="100%"><br><b>Timeline</b><br>What was on and when, as coloured bands. You pick the colour for each state</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-camera.png" width="100%"><br><b>Camera</b><br>go2rtc, Frigate or a plain URL, over WebRTC, MSE, HLS, MJPEG or snapshots. It works down the list until one connects, and drops the stream when the tile is off screen.</td>
-<td width="50%" valign="top"><img src="imgs/widget-image.png" width="100%"><br><b>Image</b><br>Any image by URL, refreshed on a timer: a camera snapshot, a radar map, a plan, a graph something else already draws.</td>
+<td width="50%" valign="top"><img src="imgs/widget-camera.png" width="100%"><br><b>Camera</b><br>go2rtc, Frigate or a plain URL feed, over WebRTC, MSE, HLS, MJPEG or snapshots. Works down the list until one connects, and drops the stream when the tile is off screen so no burning CPU</td>
+<td width="50%" valign="top"><img src="imgs/widget-image.png" width="100%"><br><b>Image</b><br>Any image by URL, refreshed on a timer: camera snapshots, radar maps, plans, graphs etc</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-frame.png" width="100%"><br><b>Frame</b><br>Any web page in a tile, with a refresh timer and a sandbox switch for pages you do not fully trust.</td>
-<td width="50%" valign="top"><img src="imgs/widget-log.png" width="100%"><br><b>Log</b><br>openHAB's log and its event bus as they happen, filtered by level, logger or text, with a pause and a full-screen view. Needs openHAB 4.1 or newer.</td>
+<td width="50%" valign="top"><img src="imgs/widget-frame.png" width="100%"><br><b>Frame</b><br>Any web page, with a refresh timer and a sandbox switch for pages you don't fully trust</td>
+<td width="50%" valign="top"><img src="imgs/widget-log.png" width="100%"><br><b>Log</b><br>openHAB's log and its event bus live, filtered by level, logger or text, with a pause and a full-screen view. Needs openHAB 4.1 or newer</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="imgs/widget-template.png" width="100%"><br><b>Template</b><br>Your own HTML with <code>{{ }}</code> expressions and the same helpers HABPanel had, so its custom widgets come across. For real code there is an opt-in sandboxed JavaScript widget.</td>
+<td width="50%" valign="top"><img src="imgs/widget-template.png" width="100%"><br><b>Template</b><br>Your own HTML with <code>{{ }}</code> expressions and the same helpers HABPanel had, so its custom widgets come across. For real code there is an opt-in sandboxed JavaScript widget</td>
 <td width="50%" valign="top"></td>
 </tr>
 </table>
 
-Every widget shares the same naming, sizing and per-state icon settings. Long-hold or right click a widget, and you'll get a details
+Long-press or right click any widget, and you'll get a full details
 page with the current value, when it last changed, recent history graph and that widget's own
-full-size control options which varies per widget
+full-size control options
 
 Sliders, colour pickers and dials command the device as you drag them, a few times a second, so you
-see the level you are choosing before you let go. It can be turned off for the whole install or per widget.
+see the level you're setting take effect as you set it. Can be turned off for the whole install or per widget if your lighting items (Hue etc) don't like fast updates
 
 ## Dashboards
 
