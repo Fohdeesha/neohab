@@ -33,6 +33,7 @@ import { anySheetOpen } from '../components/Sheet'
 import { useCoarsePointer } from '../components/useCoarsePointer'
 import { useGridEditSurface, useSidePanelDocked } from '../components/useEditSurface'
 import { useContainerWidth } from '../components/useContainerWidth'
+import { useSurfaceBounds } from '../components/useSurfaceBounds'
 import { widgetsOf, editZoom } from '../model/layout'
 import { navigate } from './router'
 import i18n from '../i18n'
@@ -59,6 +60,7 @@ export function DashboardView({ id }: { id: string }) {
   const surfaceRef = useRef<HTMLDivElement>(null)
   const surfaceWidth = useContainerWidth(surfaceRef)
   const panelDocked = useSidePanelDocked()
+  const bounds = useSurfaceBounds()
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [signInOpen, setSignInOpen] = useState(false)
@@ -157,7 +159,8 @@ export function DashboardView({ id }: { id: string }) {
       e.preventDefault()
       setInAppClipboard(items)
       e.clipboardData?.setData('text/plain', serializeClipboard(items))
-      removeWidgets(useEditorStore.getState().selectedIds)
+      // cut means move, and a move that left the widget on the other layout would paste a second copy
+      removeWidgets(useEditorStore.getState().selectedIds, { everywhere: true })
     }
     const onPaste = (e: ClipboardEvent) => {
       if (isTyping()) return
@@ -217,7 +220,7 @@ export function DashboardView({ id }: { id: string }) {
   }
   const cutSelected = () => {
     copySelected()
-    removeWidgets(useEditorStore.getState().selectedIds)
+    removeWidgets(useEditorStore.getState().selectedIds, { everywhere: true })
   }
   const deleteSelected = () => removeWidgets(useEditorStore.getState().selectedIds)
   const pasteClipboard = () => {
@@ -240,7 +243,8 @@ export function DashboardView({ id }: { id: string }) {
                   className={'nh-btn nh-btn--ghost nh-bpswitch' + (editor.bp === 'md' ? ' nh-bpswitch--md' : '')}
                   onClick={() => setEditBreakpoint(editor.bp === 'lg' ? 'md' : 'lg')}
                   title={t(
-                    'Switch between the desktop layout and a separate tablet layout. Tablets use it below 1200px wide; without one they show the desktop layout.'
+                    'Switch between the desktop layout and a separate tablet layout. Screens under {{px}}px wide use it; without one they show the desktop layout.',
+                    { px: bounds.tabletBelow }
                   )}>
                   {editor.bp === 'md' ? t('Tablet layout') : t('Desktop layout')}
                 </button>

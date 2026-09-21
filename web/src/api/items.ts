@@ -22,12 +22,14 @@ const CATALOG_FIELDS = [
 ].join(',')
 
 export function getItems(signal?: AbortSignal): Promise<Item[]> {
-  return api.get<Item[]>('/rest/items?fields=' + CATALOG_FIELDS, { signal })
+  return api.get<Item[]>('/rest/items?fields=' + CATALOG_FIELDS + ',metadata&metadata=autoupdate', { signal })
 }
 
-// just the names: 12.8KB gzipped against the catalog's 37.8KB on a 3000-item server, measured
-export function getItemNames(signal?: AbortSignal): Promise<{ name: string }[]> {
-  return api.get<{ name: string }[]>('/rest/items?fields=name', { signal })
+// just the names: 12.8KB gzipped against the catalog's 37.8KB on a 3000-item server, measured.
+// `autoupdate` rides along because the server only sends it for items that carry it: measured at
+// +88 bytes on a 126-item server with two of them, and +0 on the 3000-item one with none.
+export function getItemNames(signal?: AbortSignal): Promise<{ name: string; metadata?: unknown }[]> {
+  return api.get<{ name: string; metadata?: unknown }[]>('/rest/items?fields=name,metadata&metadata=autoupdate', { signal })
 }
 
 export function getItem(name: string, signal?: AbortSignal): Promise<Item> {

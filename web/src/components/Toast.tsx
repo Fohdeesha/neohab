@@ -11,6 +11,17 @@ export function Toast() {
       {notices.map((n) => (
         <div className="nh-toast" key={n.id}>
           <span className="nh-toast__text">{n.text}</span>
+          {n.action ? (
+            <button
+              type="button"
+              className="nh-toast__action"
+              onClick={() => {
+                dismissNotice(n.id)
+                n.action?.run()
+              }}>
+              {n.action.label}
+            </button>
+          ) : null}
           <button type="button" className="nh-toast__close" aria-label={t('Dismiss')} onClick={() => dismissNotice(n.id)}>
             ✕
           </button>

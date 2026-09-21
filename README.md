@@ -6,7 +6,7 @@
 # neohab
 
 A modern UI for [openHAB](https://www.openhab.org/).
-Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.35.0**. A community project, not an official openHAB UI.
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.36.0**. A community project, not an official openHAB UI.
 
 <p float="center">
   <img src="imgs/1.png" width="400" />

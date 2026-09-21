@@ -6,12 +6,14 @@ import {
   clampRect,
   columnsOf,
   groupFrames,
+  hasTabletLayout,
   hiddenSurfaces,
   iconScale,
   overlapsAny,
   planBump,
   projectDashboard,
   rectOf,
+  surfacesOf,
   textScale,
   widgetAccent,
   widgetAccentColor,
@@ -106,6 +108,9 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const bp = useEditorStore((s) => s.bp)
   const placing = useEditorStore((s) => s.placing)
   const dashboard = projectDashboard(draft, bp)
+  const editedSurfaces = surfacesOf(bp)
+  // with a second layout in play, Delete takes a widget off the one on screen rather than the board
+  const scopedDelete = hasTabletLayout(draft)
   const [placeTarget, setPlaceTarget] = useState<{ rect: Rect; valid: boolean } | null>(null)
   const containerWidth = useContainerWidth(containerRef)
   const coarse = useCoarsePointer()
@@ -487,6 +492,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
         const isDragging = drag?.id === widget.id
         const isSelected = selectedIds.includes(widget.id)
         const hiddenOn = hiddenSurfaces(widget)
+        const offHere = editedSurfaces.every((sfc) => hiddenOn.includes(sfc))
         return (
           <div
             key={widget.id}
@@ -496,6 +502,7 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
               (isDragging ? ' nh-cell--dragging' : '') +
               (bumpedTo ? ' nh-cell--bumped' : '') +
               (hiddenOn.length > 0 ? ' nh-cell--hidden' : '') +
+              (offHere ? ' nh-cell--offhere' : '') +
               (widgetLabelBottom(widget) ? ' nh-labelbottom' : '') +
               (widgetAccent(widget) ? ` nh-acc-${widgetAccent(widget)}` : '')
             }
@@ -534,7 +541,14 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
               onPointerUp={clearLongPress}
               onPointerCancel={clearLongPress}
             />
-            <CellHandle id={widget.id} type={widget.type} hiddenOn={hiddenOn} onDragStart={beginDrag(widget.id, 'move')} />
+            <CellHandle
+              id={widget.id}
+              type={widget.type}
+              hiddenOn={hiddenOn}
+              offHere={offHere}
+              scoped={scopedDelete}
+              onDragStart={beginDrag(widget.id, 'move')}
+            />
             <div className="nh-cell__resize" onPointerDown={beginDrag(widget.id, 'resize')} />
           </div>
         )

@@ -39,6 +39,15 @@ body,
   height: 100%;
 }
 
+/* Square cells make a grid's HEIGHT a function of its WIDTH, and a page scrollbar makes the width a
+   function of the height, so a board whose height lands within a scrollbar's worth of the viewport
+   strobes between the two states at frame rate (measured: 143 flips a second). Reserving the gutter
+   is what breaks the loop - the layout width then never depends on whether the page scrolls. Costs
+   nothing where scrollbars are overlays, which is every touch device. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--nh-bg);
   color: var(--nh-text);
@@ -1550,10 +1559,20 @@ button {
   border: 1px solid var(--nh-border);
 }
 
+/* the tracks have to be able to shrink, or the column keeps its full height in a tile that has less
+   and the bottom one is drawn outside the widget. A flex item's automatic minimum is its content
+   size, which for a range input is its own height, so `min-height: 0` is what lets it give way.
+   Measured on a 151x73 tile: 2.7px outside the body before, 0 after, with tracks at 11.1px instead
+   of 14px and every size that already fitted unchanged. */
 .nh-color__channels {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 0;
+}
+
+.nh-color__channels > .nh-color__track {
+  min-height: 0;
 }
 
 .nh-color__track {
@@ -1901,14 +1920,55 @@ button {
   white-space: nowrap;
 }
 
+/* Asked for, nobody has confirmed it. An item with `autoupdate` vetoed posts no state when it is
+   commanded, so the tile is showing what was sent rather than what the device reports. A dashed
+   ring says so without hiding the control or moving anything. */
+.nh-button--asking,
+.nh-switch--asking {
+  outline: 1px dashed var(--nh-text-dim);
+  outline-offset: 2px;
+}
+
 .nh-cell--hidden .nh-widget {
   opacity: 0.45;
+}
+
+/* hidden on every surface THIS layout draws, so it is not part of the layout on screen. It stays
+   in the editor because that is the only place it can be put back from. */
+.nh-cell--offhere .nh-widget {
+  opacity: 0.3;
+}
+
+.nh-cell--offhere {
+  outline: 1px dashed var(--nh-text-dim);
+  outline-offset: -1px;
+  border-radius: var(--nh-radius);
 }
 
 .nh-cell__hidden {
   flex-shrink: 0;
   color: var(--nh-text-dim);
   font-size: 0.8rem;
+}
+
+/* inert until the strip is actually visible, like the delete button beside it: an opacity of 0 still
+   takes a click, and a button nobody can see is one nobody meant to press */
+.nh-cell__restore {
+  flex-shrink: 0;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--nh-text);
+  font-size: 0.9rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.nh-cell:hover .nh-cell__restore,
+.nh-cell:focus-within .nh-cell__restore,
+.nh-cell--selected .nh-cell__restore,
+.nh-cell--dragging .nh-cell__restore {
+  pointer-events: auto;
 }
 
 .nh-home__app {
@@ -5239,6 +5299,18 @@ button {
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.nh-toast__action {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface);
+  color: var(--nh-text);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .nh-toast__close {

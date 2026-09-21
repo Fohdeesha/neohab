@@ -48,6 +48,19 @@ async function pollItem(name, want, tries = 20) {
   }
   return itemState(name)
 }
+// A hue on its own is not a settled colour: `pollItem(color, '0')` is satisfied by `0.000,92,100`,
+// which is a real DMX bulb part way through its fade, and the glow then reads 21 of green where the
+// section wants pure red. Wait for all three channels.
+async function pollColor(name, want, tries = 25) {
+  const parts = want.split(',').map(Number)
+  for (let i = 0; i < tries; i++) {
+    const s = await itemState(name)
+    const got = s.split(',').map(Number)
+    if (got.length === parts.length && parts.every((v, j) => Math.abs(v - got[j]) <= 1)) return s
+    await sleep(300)
+  }
+  return itemState(name)
+}
 async function restoreColor(name, want) {
   const near = (a, b) => a.split(',').every((v, i) => Math.abs(Number(v) - Number(b.split(',')[i] ?? NaN)) <= 2)
   for (let i = 0; i < 4; i++) {
@@ -182,7 +195,7 @@ try {
 
   await sendItem(ITEMS.color, '0,100,100') // pure red, full brightness
   await sendItem(ITEMS.dimmer, '60')
-  await pollItem(ITEMS.color, '0')
+  await pollColor(ITEMS.color, '0,100,100')
   await pollItem(ITEMS.dimmer, '60')
 
   await page.goto(APP + '#/d/nh-e2e-fplan')
@@ -219,9 +232,12 @@ try {
   const glowColor = await probe(page, () => ({
     images: [...document.querySelectorAll('.nh-fplan__glow')].map((g) => g.style.backgroundImage),
   }))
+  // the colour comes off a REAL bulb, so print what it was reading when the glows were measured:
+  // a mid-fade saturation shows up here as a green channel where the check wants zero
+  const glowState = await itemState(ITEMS.color)
   ok('color light glows in its color (red)',
     Array.isArray(glowColor.images) && glowColor.images.some((s) => /rgba\(255,\s*0,\s*0/.test(s)),
-    (glowColor.images ?? []).map((s) => String(s).slice(0, 42)).join(' | '))
+    `item=${glowState} glows=` + (glowColor.images ?? []).map((s) => String(s).replace('radial-gradient(closest-side, ', '').slice(0, 30)).join(' | '))
 
   const markerPos = await probe(page, () => {
     const layer = document.querySelector('.nh-fplan__layer')
@@ -1014,7 +1030,9 @@ try {
       buttons: [...(mine?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()),
       sheetW: sheet ? Math.round(sheet.width) : 0,
       sheetH: sheet ? Math.round(sheet.height) : 0,
-      viewW: window.innerWidth,
+      // the screen a position:fixed element gets is the initial containing block, which excludes
+      // the scrollbar gutter - window.innerWidth includes it, and always did on a scrolling page
+      viewW: document.body.clientWidth,
       viewH: window.innerHeight,
     }
   })

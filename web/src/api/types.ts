@@ -35,6 +35,8 @@ export interface Item {
   lastState?: string
   lastStateUpdate?: number
   lastStateChange?: number
+  // only the namespaces asked for, so in practice just `autoupdate`
+  metadata?: unknown
 }
 
 export interface ItemState {

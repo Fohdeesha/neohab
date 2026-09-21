@@ -6,6 +6,23 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.36.0
+
+- A dashboard no longer flickers between two sizes when its height lands close to the window's. The
+  page scrollbar was changing the width the cells are sized from, which changed the height again.
+- Deleting a widget while the tablet layout is on screen now takes it off that layout only, and says
+  so. It used to delete it from the desktop layout as well.
+- Adding a widget on the tablet layout no longer drops it on top of an existing one on the desktop
+  layout.
+- The icon picker searches every icon set at once. Pick a tab to narrow it to one.
+- The widths where the stacked and tablet layouts take over are now settings, under Settings ›
+  Appearance.
+- The full-screen log opens on the newest line again. It could open part way up, and stay there
+  until another line arrived, when a row turned out taller than the list had guessed.
+- A toggle bound to an item with `autoupdate=false` works again. openHAB posts no state for those,
+  so the tile sat on the last state the device reported and sent the same command every press. It
+  now shows what you asked for, ringed to say nothing has confirmed it, and a real state still wins.
+
 ## 1.35.0
 
 - A jar you install by hand now appears in openHAB's add-on store, so you can see it and remove it

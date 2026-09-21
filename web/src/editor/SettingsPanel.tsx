@@ -15,8 +15,8 @@ import { ClockZonesField, TimeZoneField } from './ClockFields'
 import type { SettingField } from '../widgets/types'
 import { getWidgetDefinition, hasHeaderFor, instanceLiveDrag } from '../widgets'
 import type { WidgetInstance } from '../model/dashboard'
-import type { Surface } from '../model/layout'
-import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs } from '../store/editor'
+import { hasTabletLayout, type Surface } from '../model/layout'
+import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs, useEditorStore } from '../store/editor'
 import { useCatalogStore } from '../store/catalog'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
@@ -118,6 +118,8 @@ const LABEL_POSITION_FIELD: SettingField = {
 
 export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const { t } = useTranslation()
+  // with a tablet layout in play, delete takes the widget off the layout being edited, not the board
+  const scopedDelete = useEditorStore((s) => (s.draft ? hasTabletLayout(s.draft) : false))
   const def = getWidgetDefinition(widget.type)
   // a panel that covers the screen has no room to show everything at once; one docked beside the
   // dashboard is a column of its own, where folding things away would only cost a click
@@ -177,7 +179,7 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
           onClick={() => {
             removeWidget(widget.id)
           }}>
-          {t('Delete widget')}
+          {scopedDelete ? t('Remove from this layout') : t('Delete widget')}
         </button>
       </div>
     </Sheet>

@@ -8,6 +8,8 @@ import { useActiveTheme } from '../themes/active'
 import { urlThemeForced } from '../themes/urlTheme'
 import { BackgroundField } from '../components/BackgroundField'
 import { NumberSetting } from '../components/NumberSetting'
+import { useSurfaceBounds } from '../components/useSurfaceBounds'
+import { PHONE_BELOW_RANGE, surfaceBounds, TABLET_BELOW_RANGE } from '../model/layout'
 import { exportComponent } from '../editor/exportComponent'
 import { ThemeEditor } from './ThemeEditor'
 import { DeviceThemeField } from './DeviceThemeField'
@@ -20,6 +22,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
   const customThemes = useConfigStore((s) => s.customThemes)
   const textPct = useTextSizeStore((s) => s.percent)
   const canEdit = useEditingAllowed()
+  const bounds = useSurfaceBounds()
   const [editing, setEditing] = useState<Theme | null>(null)
 
   const activeTheme = useActiveTheme()
@@ -33,6 +36,20 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
   const toggleSidebarSetting = async (on: boolean) => {
     onNotice(null)
     const err = await saveSettings({ sidebar: on })
+    if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
+  }
+
+  // The reader's rule for a contradictory pair is "tablet is at least phone + 1", which has to be
+  // total because it also runs over a hand-edited settings component. Here we know which field was
+  // typed into, so the other one gives way instead - typing 600 into a field and watching it become
+  // 901 is not an answer anybody can work with. Written back through surfaceBounds either way, so
+  // what is stored is what the app will use.
+  const saveBounds = async (patch: { phoneBelow?: number; tabletBelow?: number }) => {
+    onNotice(null)
+    const wanted = { ...bounds, ...patch }
+    if (patch.tabletBelow !== undefined && wanted.phoneBelow >= patch.tabletBelow) wanted.phoneBelow = patch.tabletBelow - 1
+    if (patch.phoneBelow !== undefined && wanted.tabletBelow <= patch.phoneBelow) wanted.tabletBelow = patch.phoneBelow + 1
+    const err = await saveSettings(surfaceBounds(wanted))
     if (err) onNotice(t('Applied on this device, but saving failed: {{error}}', { error: err }))
   }
 
@@ -154,6 +171,48 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
             <p className="nh-settings__text">
               {t('Puts a ☰ in the top-left that slides out the dashboard list, so you can switch without going Home.')}
             </p>
+          </>
+        ) : null}
+
+        {/* Which layout a screen gets. The pair is clamped and ordered on the way back out
+            (surfaceBounds), so a tablet threshold typed below the phone one cannot erase a whole
+            surface. */}
+        {canEdit ? (
+          <>
+            <NumberSetting
+              id="nh-set-phonebelow"
+              className="nh-field"
+              label={<span className="nh-field__label">{t('Stack widgets below (px)')}</span>}
+              value={bounds.phoneBelow}
+              min={PHONE_BELOW_RANGE.min}
+              max={PHONE_BELOW_RANGE.max}
+              step={10}
+              hint={
+                <span className="nh-field__hint">
+                  {t(
+                    'Narrower than this, a dashboard becomes one column of cards. Measured across the dashboard area, so the sidebar counts against it.'
+                  )}
+                </span>
+              }
+              onCommit={(n) => void saveBounds({ phoneBelow: n })}
+            />
+            <NumberSetting
+              id="nh-set-tabletbelow"
+              className="nh-field"
+              label={<span className="nh-field__label">{t('Use the tablet layout below (px)')}</span>}
+              value={bounds.tabletBelow}
+              min={TABLET_BELOW_RANGE.min}
+              max={TABLET_BELOW_RANGE.max}
+              step={10}
+              hint={
+                <span className="nh-field__hint">
+                  {t(
+                    'Between the two widths, a dashboard with a tablet layout shows it. Wider than this, every dashboard shows its desktop layout.'
+                  )}
+                </span>
+              }
+              onCommit={(n) => void saveBounds({ tabletBelow: n })}
+            />
           </>
         ) : null}
 

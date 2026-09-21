@@ -14,7 +14,7 @@ interface IconPickerProps {
   onChange: (icon: string) => void
 }
 
-type Tab = 'color' | 'mono' | 'weather' | 'oh' | 'custom'
+type Tab = 'all' | 'color' | 'mono' | 'weather' | 'oh' | 'custom'
 
 interface PackEntry {
   ref: string
@@ -22,16 +22,22 @@ interface PackEntry {
   search: string
 }
 
+const COLOR_PACKS: [file: string, prefix: string][] = [
+  ['fluent-index.json', 'fluent'],
+  ['fc-index.json', 'fc']
+]
+const MONO_PACKS: [file: string, prefix: string][] = [['mdi-index.json', 'mdi']]
+const WEATHER_PACKS: [file: string, prefix: string][] = [['meteo-index.json', 'meteo']]
+
 const TAB_PACKS: Partial<Record<Tab, [file: string, prefix: string][]>> = {
-  color: [
-    ['fluent-index.json', 'fluent'],
-    ['fc-index.json', 'fc']
-  ],
-  mono: [['mdi-index.json', 'mdi']],
-  weather: [['meteo-index.json', 'meteo']]
+  all: [...COLOR_PACKS, ...WEATHER_PACKS, ...MONO_PACKS],
+  color: COLOR_PACKS,
+  mono: MONO_PACKS,
+  weather: WEATHER_PACKS
 }
 
 const TAB_LABELS: Record<Tab, string> = {
+  all: 'All',
   color: 'Color',
   mono: 'Mono',
   weather: 'Weather',
@@ -40,12 +46,16 @@ const TAB_LABELS: Record<Tab, string> = {
 }
 
 const SEARCH_HINTS: Record<Tab, string> = {
+  all: 'Search every icon set…',
   color: 'Search ~1,900 color icons…',
   mono: 'Search ~7,000 icons…',
   weather: 'Search ~450 weather icons…',
   oh: 'Search the classic set…',
   custom: 'Search your icons…'
 }
+
+// built once: 100-odd names that never change, rebuilt per keystroke otherwise
+const CLASSIC_ENTRIES: PackEntry[] = CLASSIC_ICONS.map((n) => ({ ref: 'oh:' + n, label: n, search: n }))
 
 const loadedIndexes = new Map<string, PackEntry[]>()
 const indexPromises = new Map<string, Promise<void>>()
@@ -74,13 +84,10 @@ function loadIndex(file: string, prefix: string): Promise<void> {
   return p
 }
 
-function tabForValue(value: string): Tab {
-  if (value.startsWith('mdi:')) return 'mono'
-  if (value.startsWith('meteo:')) return 'weather'
-  if (value.startsWith('custom:')) return 'custom'
-  if (value.startsWith('fluent:') || value.startsWith('fc:')) return 'color'
-  if (value) return 'oh'
-  return 'color'
+const packEntries = (packs: [file: string, prefix: string][], sorted: boolean): PackEntry[] => {
+  const entries = packs.flatMap(([file]) => loadedIndexes.get(file) ?? [])
+  // two packs in one tab interleave by name; one pack keeps the order it was built in
+  return sorted && entries.length > 0 && packs.length > 1 ? [...entries].sort((a, b) => a.label.localeCompare(b.label)) : entries
 }
 
 const MAX_RESULTS = 120
@@ -97,7 +104,8 @@ interface ListPos {
 export function IconPicker({ id, value, onChange }: IconPickerProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<Tab>(tabForValue(value))
+  // every set at once, so typing a word finds it wherever it lives. The tabs narrow from here.
+  const [tab, setTab] = useState<Tab>('all')
   const [query, setQuery] = useState('')
   const [pos, setPos] = useState<ListPos | null>(null)
   const [loadTick, setLoadTick] = useState(0)
@@ -181,17 +189,22 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
 
   const { matches, truncated } = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const mine = customIcons.map((i) => ({ ref: 'custom:' + i.id, label: i.name, search: i.name + ' ' + i.id }))
     let entries: PackEntry[]
-    if (tab === 'oh') {
-      entries = CLASSIC_ICONS.map((n) => ({ ref: 'oh:' + n, label: n, search: n }))
-    } else if (tab === 'custom') {
-      entries = customIcons.map((i) => ({ ref: 'custom:' + i.id, label: i.name, search: i.name + ' ' + i.id }))
-    } else {
-      entries = (TAB_PACKS[tab] ?? []).flatMap(([file]) => loadedIndexes.get(file) ?? [])
-      if (entries.length > 0 && (TAB_PACKS[tab] ?? []).length > 1) {
-        entries = [...entries].sort((a, b) => a.label.localeCompare(b.label))
-      }
-    }
+    if (tab === 'oh') entries = CLASSIC_ENTRIES
+    else if (tab === 'custom') entries = mine
+    else if (tab === 'all') {
+      // your own first because there are few of them and they are yours, then the sets, with the
+      // 7,000-entry mono one last so it cannot bury everything behind it. Not sorted across the
+      // whole lot: collating 9,000 names with localeCompare costs most of a second per keystroke.
+      entries = [
+        ...mine,
+        ...packEntries(COLOR_PACKS, true),
+        ...packEntries(WEATHER_PACKS, false),
+        ...CLASSIC_ENTRIES,
+        ...packEntries(MONO_PACKS, false)
+      ]
+    } else entries = packEntries(TAB_PACKS[tab] ?? [], true)
     const filtered = q ? entries.filter((e) => e.search.includes(q)) : entries
     return { matches: filtered.slice(0, MAX_RESULTS), truncated: Math.max(0, filtered.length - MAX_RESULTS) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -314,7 +327,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           <div className="nh-iconpicker__grid">
             {!packsReady ? <span className="nh-picker__empty">{t('Loading icon library…')}</span> : null}
             {matches.map((entry) => (
-              <button key={entry.ref} type="button" className="nh-iconpicker__cell" title={entry.label} onClick={() => select(entry.ref)}>
+              <button key={entry.ref} type="button" className="nh-iconpicker__cell" title={entry.ref} onClick={() => select(entry.ref)}>
                 <Icon icon={entry.ref} size={26} />
               </button>
             ))}

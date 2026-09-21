@@ -39,6 +39,8 @@
   "{{count}} things will need attention - a report is shown afterwards._other": "{{count}} things will need attention - a report is shown afterwards.",
   "{{count}} widgets selected_one": "{{count}} widget selected",
   "{{count}} widgets selected_other": "{{count}} widgets selected",
+  "{{count}} widgets that were only on the tablet layout are showing again._one": "{{count}} widget that was only on the tablet layout is showing again.",
+  "{{count}} widgets that were only on the tablet layout are showing again._other": "{{count}} widgets that were only on the tablet layout are showing again.",
   "{{count}} widgets_one": "{{count}} widget",
   "{{count}} widgets_other": "{{count}} widgets",
   "{{kind}} “{{name}}” from a file, with {{count}} things it references._one": "{{kind}} “{{name}}” from a file, with {{count}} thing it references.",

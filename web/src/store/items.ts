@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { clearUnconfirmed } from './unconfirmed'
 import { StatesTracker, type StateMap } from '../api/sse'
 import { getTabLink, type TabMessage } from '../api/tabLink'
 import type { ItemState } from '../api/types'
@@ -37,6 +38,9 @@ export const useItemsStore = create<ItemsState>(() => ({
 function applyStates(delta: StateMap): void {
   useItemsStore.setState((s) => ({ states: mergeMap(s.states, delta) }))
   snapshot = mergeMap(snapshot, delta)
+  // the server has answered for these items, so nothing is waiting on them any more - whether the
+  // answer is the one that was asked for or not
+  clearUnconfirmed(Object.keys(delta))
 }
 
 function recomputeUnion(force = false): void {

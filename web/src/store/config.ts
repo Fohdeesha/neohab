@@ -52,6 +52,10 @@ export interface AppSettings {
   historyWindowMin?: number
   // absent means on: existing installs get live dragging without their settings being touched
   liveDrag?: boolean
+  // where the stacked and tablet layouts take over, in px of dashboard width. Absent = the
+  // built-in 840 / 1200; read through surfaceBounds(), which clamps and orders them
+  phoneBelow?: number
+  tabletBelow?: number
 }
 
 const defaultSettings = (): AppSettings => ({ version: 1, theme: 'dark', allowJsWidgets: true, sidebar: true })

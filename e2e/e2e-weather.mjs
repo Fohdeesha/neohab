@@ -401,6 +401,13 @@ try {
     tight !== null && tight.valueOverhang < 0,
     'furthest reading vs the cell edge: ' + tight?.valueOverhang
   )
+  // The hero sheds its readings below `5.41em + 31px` of cell height, and with square cells that
+  // height follows the PAGE width, so at 1500 this tile sat 1.2px above the shed and any couple of
+  // pixels either way decided what the section measured. Measured across widths: 1500 sheds, 1600
+  // shows them with 10px to spare and the readings still visibly shrunk (17.7 against a 20px cell),
+  // 1850 shows them at full size and stops testing the shrink at all.
+  await page.setViewportSize({ width: 1600, height: 1100 })
+  await sleep(600)
   const big = await probe(page, () => {
     const label = [...document.querySelectorAll('.nh-widget__labeltext')].find((l) => l.textContent.trim() === 'Big')
     const hero = label?.closest('.nh-gcell, .nh-cell')?.querySelector('.nh-weather--hero')
@@ -434,6 +441,8 @@ try {
     big !== null && big.shown && big.beside && big.readingFont < big.cellFont,
     JSON.stringify(big)
   )
+  await page.setViewportSize({ width: 1500, height: 1100 })
+  await sleep(400)
   ok(
     'and nothing the hero draws is outside its tile',
     big !== null && big.bottomOverhang <= 0 && big.rightOverhang <= 0,

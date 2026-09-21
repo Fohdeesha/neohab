@@ -26,6 +26,8 @@ const initial = {
 
 const TIME_HTML = `<html><head><style>body{overflow:hidden}</style></head><body><center><font color="white" face="Courier"><div style="font-size:33px" id="clockbox">July 14 <br> Tuesday 2026 <br> 5:59 AM</div></font></center></body></html>`
 
+const STROBE_UID = 'dashboard:nh-e2e-strobe'
+
 const DASH = {
   uid: 'dashboard:nh-e2e-resp',
   component: 'neohab:dashboard',
@@ -270,6 +272,145 @@ try {
   }
   ok('slider: no snap-back after commit (3s watch)', !snapped && Number.isFinite(sent), snapped || `sent ${sent}`)
   await ctx.close()
+
+  // --- The layout must not strobe when the page height crosses the viewport ----------------------
+  //
+  // Square cells make the grid's HEIGHT a function of its WIDTH, and a page scrollbar makes the
+  // width a function of the height: a board whose height lands within a scrollbar's worth of the
+  // viewport flips between the two states every frame. Reported from a real dashboard at 1187x829,
+  // measured at 143 flips a second, and the two screenshots were exactly 16px apart.
+  //
+  // It needs a browser with CLASSIC scrollbars, which headless Chromium suppresses
+  // (--hide-scrollbars), so this section gets one of its own.
+  const sbOpts = { headless: true, ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--disable-features=OverlayScrollbar'] }
+  let sbBrowser = null
+  for (const c of ['chrome', 'msedge']) {
+    try {
+      sbBrowser = await launchChromium({ ...sbOpts, channel: c })
+      break
+    } catch {}
+  }
+  sbBrowser ??= await launchChromium(sbOpts)
+  //
+  // A board of its own, because the band is only as wide as `rows x scrollbar / columns`: the seed
+  // above is 11 columns and 3 rows, which is a 4px target. Three columns and four rows is 20px.
+  {
+    const r = await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: STROBE_UID,
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: 'nh-e2e-strobe',
+          name: 'E2E Strobe',
+          columns: 3,
+          rowHeight: 'match',
+          gap: 8,
+          widgets: [0, 1, 2, 3].map((y) => ({
+            id: 's-' + y,
+            type: 'label',
+            config: { label: 'Row ' + y },
+            layout: { lg: { x: 0, y, w: 3, h: 1 } },
+          })),
+        },
+      }),
+    })
+    ok('strobe seed created', r.ok, String(r.status))
+  }
+  try {
+    const sbCtx = await sbBrowser.newContext({ viewport: { width: 1200, height: 800 } })
+    const sbPage = await sbCtx.newPage()
+    await sbCtx.addInitScript((t) => {
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+      } catch {}
+    }, TOKEN)
+    await sbPage.goto(BASE + '/neohab/index.html#/d/nh-e2e-strobe', { waitUntil: 'domcontentloaded' })
+    await sbPage.reload({ waitUntil: 'domcontentloaded' })
+    await sbPage.waitForSelector('.nh-widget', { timeout: 30000 })
+    await sleep(1200)
+
+    const gutter = await sbPage.evaluate(() => {
+      const d = document.createElement('div')
+      d.style.cssText = 'width:100px;height:50px;overflow:scroll;position:absolute;top:-200px'
+      document.body.appendChild(d)
+      const w = d.offsetWidth - d.clientWidth
+      d.remove()
+      return w
+    })
+    // without this the section proves nothing: with no scrollbar there is no loop to find
+    ok('the strobe watch really has classic scrollbars', gutter > 0, `scrollbar=${gutter}px`)
+
+    const sample = () =>
+      sbPage.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const widths = new Set()
+            let frames = 0
+            const tick = () => {
+              widths.add(document.body.clientWidth)
+              if (++frames < 60) requestAnimationFrame(tick)
+              else
+                resolve({
+                  widths: [...widths],
+                  scrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+                  grid: document.querySelector('.nh-grid')?.clientWidth ?? -1,
+                })
+            }
+            requestAnimationFrame(tick)
+          })
+      )
+
+    // The band is wherever THIS board's height crosses the viewport, which moves with the theme and
+    // the text size, so it is measured rather than written down. `.nh-app` is min-height:100%, so a
+    // tall viewport reports its own height back - the content height only shows when it overflows.
+    await sbPage.setViewportSize({ width: 1200, height: 300 })
+    await sleep(500)
+    const pageHeight = await sbPage.evaluate(() => document.documentElement.scrollHeight)
+
+    const sweep = async () => {
+      const out = []
+      for (let height = pageHeight - 40; height <= pageHeight + 40; height += 4) {
+        await sbPage.setViewportSize({ width: 1200, height })
+        await sleep(300)
+        out.push({ height, ...(await sample()) })
+      }
+      return out
+    }
+
+    const swept = await sweep()
+    ok(
+      'the sweep really crossed the height where the page stops fitting',
+      swept.some((s) => s.scrolls) && swept.some((s) => !s.scrolls),
+      `page ${pageHeight}px, heights ${swept[0].height}..${swept.at(-1).height}, scrolling at ${swept.filter((s) => s.scrolls).length}/${swept.length}`
+    )
+    const flipping = swept.filter((s) => s.widths.length > 1)
+    ok(
+      'no viewport height makes the layout width oscillate',
+      flipping.length === 0,
+      flipping.slice(0, 5).map((s) => `${s.height}:${s.widths.join('/')}`).join(' ')
+    )
+    const widths = new Set(swept.map((s) => s.widths[0]))
+    const grids = new Set(swept.map((s) => s.grid))
+    ok('and the layout width is the same whether the page scrolls or not', widths.size === 1 && grids.size === 1, `body ${[...widths]} grid ${[...grids]}`)
+
+    // The same sweep with the gutter given back, which is the pre-fix behaviour exactly. Without
+    // this the two checks above pass on any build where the sweep happens to miss the band, and
+    // nothing would ever say so.
+    await sbPage.addStyleTag({ content: 'html { scrollbar-gutter: auto !important; }' })
+    await sleep(400)
+    const control = await sweep()
+    ok(
+      'and the watch can still see the fault it exists for',
+      control.some((s) => s.widths.length > 1),
+      control.filter((s) => s.widths.length > 1).slice(0, 3).map((s) => `${s.height}:${s.widths.join('/')}`).join(' ') || 'nothing oscillated with the gutter given back'
+    )
+    await sbCtx.close()
+  } finally {
+    await sbBrowser.close()
+  }
 } catch (err) {
   ok('run completed', false, String(err))
 } finally {
@@ -277,6 +418,7 @@ try {
 }
 
 await fetch(NS + '/dashboard:nh-e2e-resp', { method: 'DELETE', headers: AUTH })
+await fetch(NS + '/' + STROBE_UID, { method: 'DELETE', headers: AUTH })
 
 const restore = (item, val) =>
   val && val !== 'NULL' && val !== 'UNDEF' ? sendCmd(item, val) : Promise.resolve()
@@ -288,7 +430,8 @@ for (let i = 0; i < 5; i++) {
   if ((await getState(COLOR_ITEM)) === initial.color) break
 }
 await sleep(1200)
-ok('cleanup: dashboard removed', !(await listNs()).some((c) => c.uid === 'dashboard:nh-e2e-resp'))
+const leftovers = (await listNs()).map((c) => c.uid).filter((u) => u === 'dashboard:nh-e2e-resp' || u === STROBE_UID)
+ok('cleanup: both seeded dashboards removed', leftovers.length === 0, leftovers.join(','))
 ok('cleanup: switch restored', (await getState(SWITCH_ITEM)) === initial.switch, await getState(SWITCH_ITEM))
 ok('cleanup: slider restored', (await getState(SLIDER_ITEM)) === initial.slider, await getState(SLIDER_ITEM))
 ok('cleanup: color restored', (await getState(COLOR_ITEM)) === initial.color, `${await getState(COLOR_ITEM)} want ${initial.color}`)

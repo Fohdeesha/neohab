@@ -1,11 +1,28 @@
 import { create } from 'zustand'
 import { newWidgetId, type Dashboard, type WidgetInstance } from '../model/dashboard'
-import { clampRect, collides, findFreeSpot, projectDashboard, rectOf, tabletRects, type BumpPlan } from '../model/layout'
+import {
+  clampRect,
+  collides,
+  findFreeSpot,
+  hiddenAfterRemoval,
+  hiddenAfterShowing,
+  hiddenSurfaces,
+  layoutForNewWidget,
+  planRemoval,
+  projectDashboard,
+  rectOf,
+  surfacesOf,
+  tabletRects,
+  type BumpPlan,
+  type Surface
+} from '../model/layout'
 import type { Rect } from '../model/dashboard'
 import { getWidgetDefinition } from '../widgets'
 import { ApiError } from '../api/client'
 import { errorText } from '../api/errors'
+import i18n from '../i18n'
 import type { ClipboardWidget } from './clipboard'
+import { notify } from './notify'
 import { collectUnusedBackgrounds, saveDashboard } from './config'
 
 const UNDO_LIMIT = 50
@@ -247,7 +264,7 @@ export function addWidget(type: string, configOverrides?: Record<string, unknown
       id,
       type,
       config: { ...(def.defaultConfig() as Record<string, unknown>), ...configOverrides },
-      layout: layoutForNew(draft, s.bp, rect)
+      layout: layoutForNewWidget(draft, s.bp, rect)
     }
     draft.widgets.push(widget)
   })
@@ -277,25 +294,67 @@ export function addWidgetAt(rect: Rect): boolean {
       id,
       type: placing.type,
       config: { ...(def.defaultConfig() as Record<string, unknown>), ...placing.configOverrides },
-      layout: layoutForNew(draft, s.bp, rect)
+      layout: layoutForNewWidget(draft, s.bp, rect)
     })
   })
   useEditorStore.setState({ selectedIds: [id], panelOpen: true, paletteOpen: false, placing: null })
   return true
 }
 
-export function removeWidget(id: string): void {
-  removeWidgets([id])
+export function removeWidget(id: string, opts?: RemoveOptions): void {
+  removeWidgets([id], opts)
 }
 
-export function removeWidgets(ids: string[]): void {
+export interface RemoveOptions {
+  /** take it off every layout, whatever is being edited. Cut means move, so it uses this. */
+  everywhere?: boolean
+}
+
+export function removeWidgets(ids: string[], opts: RemoveOptions = {}): void {
   if (ids.length === 0) return
-  const drop = new Set(ids)
-  applyChange((draft) => {
-    draft.widgets = draft.widgets.filter((w) => !drop.has(w.id))
-    if (draft.stackOrder) draft.stackOrder = draft.stackOrder.filter((w) => !drop.has(w))
+  const s = useEditorStore.getState()
+  const draft = s.draft
+  if (!draft) return
+
+  const present = new Set(draft.widgets.map((w) => w.id))
+  const plan = opts.everywhere
+    ? { deleted: ids.filter((id) => present.has(id)), hidden: [], scope: surfacesOf(s.bp), kept: [] as Surface[] }
+    : planRemoval(draft, ids, s.bp)
+  // nothing matched: a toast promising something happened, and an undo entry for no change, are
+  // both worse than doing nothing
+  if (plan.deleted.length === 0 && plan.hidden.length === 0) return
+
+  const drop = new Set(plan.deleted)
+  const hide = new Set(plan.hidden)
+  applyChange((next) => {
+    for (const w of next.widgets) {
+      if (hide.has(w.id)) w.config = { ...w.config, hideOn: hiddenAfterRemoval(w, plan.scope) }
+    }
+    next.widgets = next.widgets.filter((w) => !drop.has(w.id))
+    // a widget only hidden somewhere still has a place in the stack, so its order is left alone
+    if (next.stackOrder) next.stackOrder = next.stackOrder.filter((w) => !drop.has(w))
   })
-  useEditorStore.setState((s) => ({ selectedIds: s.selectedIds.filter((w) => !drop.has(w)) }))
+  useEditorStore.setState((cur) => ({ selectedIds: cur.selectedIds.filter((w) => !drop.has(w) && !hide.has(w)) }))
+
+  if (plan.hidden.length > 0) {
+    notify(
+      plan.scope.includes('tablet')
+        ? i18n.t('Removed from the tablet layout. Still on the desktop layout.')
+        : i18n.t('Removed from the desktop layout. Still on the tablet layout.'),
+      { action: { label: i18n.t('Remove everywhere'), run: () => removeWidgets(plan.hidden, { everywhere: true }) } }
+    )
+  }
+}
+
+/** put a widget back on the layout being edited, which is what undoes a scoped delete */
+export function showWidgetHere(id: string): void {
+  const bp = useEditorStore.getState().bp
+  applyChange((draft) => {
+    const widget = draft.widgets.find((w) => w.id === id)
+    if (!widget) return
+    const left = hiddenAfterShowing(widget, surfacesOf(bp))
+    widget.config = { ...widget.config, hideOn: left.length > 0 ? left : undefined }
+  })
 }
 
 export function pasteWidgets(items: ClipboardWidget[]): void {
@@ -316,7 +375,7 @@ export function pasteWidgets(items: ClipboardWidget[]): void {
       const id = newWidgetId()
       newIds.push(id)
       const rect = { x: base.x + (item.rect.x - minX), y: base.y + (item.rect.y - minY), w: item.rect.w, h: item.rect.h }
-      draft.widgets.push({ id, type: item.type, config: clone(item.config), layout: layoutForNew(draft, bp, rect) })
+      draft.widgets.push({ id, type: item.type, config: clone(item.config), layout: layoutForNewWidget(draft, bp, rect) })
     }
   })
   useEditorStore.setState({ selectedIds: newIds, panelOpen: false, dashSettingsOpen: false })
@@ -375,15 +434,12 @@ export function setEditBreakpoint(bp: 'lg' | 'md'): void {
   useEditorStore.setState({ bp, selectedIds: [], panelOpen: false, placing: null })
 }
 
-function layoutForNew(draft: Dashboard, bp: 'lg' | 'md', rect: Rect): WidgetInstance['layout'] {
-  if (bp === 'lg') return { lg: clampRect(rect, draft.columns) }
-  return {
-    lg: clampRect(rect, draft.columns),
-    md: clampRect(rect, projectDashboard(draft, 'md').columns)
-  }
-}
-
 export function clearTabletLayout(): void {
+  // A widget taken off the desktop layout is hidden on the desktop and the phone and kept for the
+  // tablet one. Take the tablet layout away and it has nowhere left to draw: it still exists, still
+  // has to be found in the editor, and renders on no screen. Same rule as the scoped delete, reached
+  // through a different door - a widget is never left showing nowhere, so those come back.
+  let restored = 0
   applyChange((draft) => {
     draft.mdColumns = undefined
     for (const w of draft.widgets) {
@@ -391,9 +447,15 @@ export function clearTabletLayout(): void {
         const { md: _md, ...rest } = w.layout
         w.layout = rest
       }
+      const hidden = hiddenSurfaces(w)
+      if (surfacesOf('lg').every((sfc) => hidden.includes(sfc))) {
+        restored++
+        w.config = { ...w.config, hideOn: undefined }
+      }
     }
   })
   useEditorStore.setState({ bp: 'lg' })
+  if (restored > 0) notify(i18n.t('{{count}} widgets that were only on the tablet layout are showing again.', { count: restored }))
 }
 
 let saveInFlight = false

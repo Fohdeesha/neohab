@@ -4,9 +4,11 @@ import type { Dashboard } from '../model/dashboard'
 import {
   cellMetrics,
   gapOf,
+  hasTabletLayout,
   hiddenSurfaces,
   iconScale,
   rectOf,
+  surfacesOf,
   stackedCellHeight,
   stackedOrder,
   stackedTextScale,
@@ -39,6 +41,9 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
   const ordered = stackedOrder(dashboard)
   const unit = cellMetrics(dashboard, STACK_REFERENCE_WIDTH).rowHeight
   const selectedIds = useEditorStore((s) => s.selectedIds)
+  // the stack is the desktop layout reflowed, so this editor is always editing 'lg'
+  const editedSurfaces = surfacesOf('lg')
+  const scopedDelete = hasTabletLayout(dashboard)
   const [drag, setDrag] = useState<DragState | null>(null)
   const coarse = useCoarsePointer()
   const gridRef = useRef<HTMLDivElement>(null)
@@ -154,6 +159,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
         const height = stackedCellHeight(dashboard, rectOf(widget), width, min, instanceFixedShape(widget.type))
         const isDragging = drag?.id === widget.id
         const indicator = drag && !isDragging && nonDragged++ === drag.insertPos
+        const hiddenOn = hiddenSurfaces(widget)
+        const offHere = editedSurfaces.every((sfc) => hiddenOn.includes(sfc))
         return (
           <div key={widget.id} style={{ display: 'contents' }}>
             {indicator ? <div className="nh-stackdrop" /> : null}
@@ -166,7 +173,8 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 'nh-cell' +
                 (selectedIds.includes(widget.id) ? ' nh-cell--selected' : '') +
                 (isDragging ? ' nh-cell--dragging' : '') +
-                (hiddenSurfaces(widget).length > 0 ? ' nh-cell--hidden' : '') +
+                (hiddenOn.length > 0 ? ' nh-cell--hidden' : '') +
+                (offHere ? ' nh-cell--offhere' : '') +
                 (widgetLabelBottom(widget) ? ' nh-labelbottom' : '') +
                 (widgetAccent(widget) ? ` nh-acc-${widgetAccent(widget)}` : '')
               }
@@ -194,7 +202,14 @@ export function StackedEditGrid({ dashboard }: { dashboard: Dashboard }) {
                 onPointerUp={clearLongPress}
                 onPointerCancel={clearLongPress}
               />
-              <CellHandle id={widget.id} type={widget.type} hiddenOn={hiddenSurfaces(widget)} onDragStart={beginDrag(widget.id)} />
+              <CellHandle
+                id={widget.id}
+                type={widget.type}
+                hiddenOn={hiddenOn}
+                offHere={offHere}
+                scoped={scopedDelete}
+                onDragStart={beginDrag(widget.id)}
+              />
             </div>
           </div>
         )

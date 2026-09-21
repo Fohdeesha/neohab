@@ -1,5 +1,5 @@
 import { readableInk } from '../themes/contrast'
-import type { Dashboard, Rect, WidgetInstance } from './dashboard'
+import type { Breakpoint, Dashboard, Rect, WidgetInstance, WidgetLayout } from './dashboard'
 
 // stored config is untrusted: imported ones carry numbers as strings, and a hand edit can carry anything
 function finite(value: unknown, fallback: number): number {
@@ -43,9 +43,45 @@ export function editZoom(available: number, panelDocked: boolean): number {
 
 export type Surface = 'phone' | 'tablet' | 'desktop'
 
-export function surfaceFor(containerWidth: number): Surface {
-  if (containerWidth < STACK_BELOW) return 'phone'
-  return containerWidth < MD_BELOW ? 'tablet' : 'desktop'
+export const ALL_SURFACES: Surface[] = ['phone', 'tablet', 'desktop']
+
+export interface SurfaceBounds {
+  phoneBelow: number
+  tabletBelow: number
+}
+
+export const DEFAULT_BOUNDS: SurfaceBounds = { phoneBelow: STACK_BELOW, tabletBelow: MD_BELOW }
+
+export const PHONE_BELOW_RANGE = { min: 320, max: 2000 }
+export const TABLET_BELOW_RANGE = { min: 480, max: 4000 }
+
+/**
+ * Both thresholds are settings, so both arrive as untrusted input, and they are not independent:
+ * a tablet threshold at or under the phone one leaves no tablet band at all. Clamp each to its own
+ * range, then push the tablet one above the phone one rather than silently dropping a surface.
+ */
+export function surfaceBounds(settings: { phoneBelow?: unknown; tabletBelow?: unknown } | undefined): SurfaceBounds {
+  const clamp = (v: unknown, fallback: number, range: { min: number; max: number }): number => {
+    const n = finite(v, NaN)
+    return Number.isFinite(n) ? Math.min(range.max, Math.max(range.min, Math.round(n))) : fallback
+  }
+  const phoneBelow = clamp(settings?.phoneBelow, STACK_BELOW, PHONE_BELOW_RANGE)
+  const tabletBelow = clamp(settings?.tabletBelow, MD_BELOW, TABLET_BELOW_RANGE)
+  return { phoneBelow, tabletBelow: Math.max(tabletBelow, phoneBelow + 1) }
+}
+
+export function surfaceFor(containerWidth: number, bounds: SurfaceBounds = DEFAULT_BOUNDS): Surface {
+  if (containerWidth < bounds.phoneBelow) return 'phone'
+  return containerWidth < bounds.tabletBelow ? 'tablet' : 'desktop'
+}
+
+/**
+ * Which surfaces a breakpoint is the layout for. `md` is the tablet layout and nothing else; `lg` is
+ * the desktop layout AND the phone stack, which is derived from it, so a widget taken out of the
+ * desktop layout has to leave the stack with it or it comes back on a phone with no way to see why.
+ */
+export function surfacesOf(bp: Breakpoint): Surface[] {
+  return bp === 'md' ? ['tablet'] : ['desktop', 'phone']
 }
 
 export function hasTabletLayout(dashboard: Dashboard): boolean {
@@ -136,6 +172,74 @@ export function hiddenSurfaces(widget: WidgetInstance): Surface[] {
 
 export function isHiddenOn(widget: WidgetInstance, surface: Surface): boolean {
   return hiddenSurfaces(widget).includes(surface)
+}
+
+export interface RemovalPlan {
+  /** taken off the dashboard for good */
+  deleted: string[]
+  /** kept, but no longer part of the layout being edited */
+  hidden: string[]
+  /** the surfaces `hidden` were taken out of */
+  scope: Surface[]
+  /** where those widgets still show */
+  kept: Surface[]
+}
+
+/**
+ * What Delete means depends on whether this dashboard has more than one layout.
+ *
+ * With only the desktop layout there is one view of the board, so a delete is a delete. Once a
+ * tablet layout exists there are two, and taking a widget out of the one on screen is what was
+ * meant - the other one keeps it. The widget is not a member of a layout in the stored model, it
+ * is hidden on the surfaces that layout draws, so this needs no new field and nothing that reads a
+ * dashboard has to learn about it.
+ *
+ * A widget that would be left showing NOWHERE is deleted instead: an invisible widget that still
+ * has to be found in the editor to be got rid of is worse than the delete somebody asked for.
+ */
+export function planRemoval(dashboard: Dashboard, ids: string[], bp: Breakpoint): RemovalPlan {
+  const scope = surfacesOf(bp)
+  const kept = ALL_SURFACES.filter((s) => !scope.includes(s))
+  const wanted = new Set(ids)
+  const plan: RemovalPlan = { deleted: [], hidden: [], scope, kept }
+  const scoped = hasTabletLayout(dashboard)
+  for (const w of widgetsOf(dashboard)) {
+    if (!wanted.has(w.id)) continue
+    const after = new Set([...hiddenSurfaces(w), ...scope])
+    if (!scoped || ALL_SURFACES.every((s) => after.has(s))) plan.deleted.push(w.id)
+    else plan.hidden.push(w.id)
+  }
+  return plan
+}
+
+export function hiddenAfterRemoval(widget: WidgetInstance, scope: Surface[]): Surface[] {
+  const after = new Set([...hiddenSurfaces(widget), ...scope])
+  return ALL_SURFACES.filter((s) => after.has(s))
+}
+
+export function hiddenAfterShowing(widget: WidgetInstance, scope: Surface[]): Surface[] {
+  return hiddenSurfaces(widget).filter((s) => !scope.includes(s))
+}
+
+/** the given rect where it fits on that layout, and out of the way where it does not */
+function spotIn(dashboard: Dashboard, bp: Breakpoint, rect: Rect): Rect {
+  const view = projectDashboard(dashboard, bp)
+  const wanted = clampRect(rect, columnsOf(view))
+  return overlapsAny(view, wanted) ? findFreeSpot(view, wanted.w, wanted.h) : wanted
+}
+
+/**
+ * A widget belongs to both layouts from the moment it is added, so it needs a rect in each - and a
+ * free spot has to be found in EACH of them. Reusing the tablet rect on the desktop laid a new
+ * widget straight on top of an existing one whenever the two layouts had drifted apart, which is
+ * the same mistake `tabletRects` was taught to avoid coming the other way.
+ *
+ * A widget added to the desktop layout still gets no md rect: with none stored it is fitted around
+ * the pinned tablet rects at render, which is a better answer than one worked out now.
+ */
+export function layoutForNewWidget(dashboard: Dashboard, bp: Breakpoint, rect: Rect): WidgetLayout {
+  if (bp === 'lg') return { lg: spotIn(dashboard, 'lg', rect) }
+  return { lg: spotIn(dashboard, 'lg', rect), md: spotIn(dashboard, 'md', rect) }
 }
 
 export function stackedOrder(dashboard: Dashboard): WidgetInstance[] {

@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from 'react'
 import { useSteadyValue } from './useSteadyValue'
+import { useCatalogStore } from '../../store/catalog'
 import { useIsDragging } from '../../store/dragging'
 
 // long enough for a slow device to report back, short enough that a change made elsewhere is not hidden for
@@ -26,7 +27,12 @@ export function useOptimisticValue<T>(
   const steady = useSteadyValue(live, liveKey, opts.item)
   // while another control in this tab drags the same item, a value this one sent earlier must not hide it
   const dragging = useIsDragging(opts.item)
-  const display = pending && (close(steady, pending.v) || (!dragging && Date.now() - pending.at < settleMs)) ? pending.v : steady
+  // The settle window exists so a value this control sent cannot hide a change made elsewhere. An
+  // item with `autoupdate` vetoed has no such change to hide: openHAB posts nothing for a command,
+  // so letting the window lapse just snaps the control back to a state that will never move.
+  const noAutoUpdate = useCatalogStore((s) => (opts.item === undefined ? false : s.noAutoUpdate.has(opts.item)))
+  const holding = pending !== null && !dragging && (noAutoUpdate || Date.now() - pending.at < settleMs)
+  const display = pending && (close(steady, pending.v) || holding) ? pending.v : steady
   return {
     display,
     commit: (v: T) => setPending({ v, at: Date.now() }),

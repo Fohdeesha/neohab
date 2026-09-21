@@ -3,6 +3,8 @@ import { WidgetFrame } from '../common/WidgetFrame'
 import { navigate } from '../../app/router'
 import { openExternal, safeUrl } from '../../model/url'
 import { Icon } from '../../components/Icon'
+import { useUnconfirmed } from '../../store/unconfirmed'
+import i18n from '../../i18n'
 import { resolveStateIcon, STATE_ICON_SETTINGS, type StateIconConfig } from '../common/stateIcon'
 import {
   buttonFloor,
@@ -34,9 +36,18 @@ interface ButtonConfig extends StateIconConfig {
   caption?: string
 }
 
+// the tile shows what was asked for, so it has to say that is what it is showing
+const unconfirmedHint = (command: string): string =>
+  i18n.t('Sent {{command}}. This item does not report back, so nothing has confirmed it.', { command })
+
 function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
   const state = config.item ? ctx.getItem(config.item) : undefined
-  const active = isActive(config, state)
+  // An item with `autoupdate` vetoed posts no state when it is commanded, so reading the state
+  // alone leaves a toggle stuck on whatever the device last reported - it sends the same command
+  // for ever. Show what was asked for instead, marked as unconfirmed so the tile is not claiming
+  // it as fact, and let a real state update win the moment one arrives.
+  const asked = useUnconfirmed(config.item)
+  const active = asked === undefined ? isActive(config, state) : isActive(config, { state: asked, type: 'String' })
   const { icon, color } = resolveStateIcon(config, active, state?.state)
   const style = styleOf(config.style)
   const finish = finishOf(config.finish)
@@ -68,9 +79,10 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
       <WidgetFrame label={config.label} center>
         <button
           type="button"
-          className={'nh-switch' + (active ? ' nh-switch--on' : '')}
+          className={'nh-switch' + (active ? ' nh-switch--on' : '') + (asked === undefined ? '' : ' nh-switch--asking')}
           role="switch"
           aria-checked={active}
+          title={asked === undefined ? undefined : unconfirmedHint(asked)}
           aria-label={config.label || config.item}
           onClick={press}>
           {iconEl}
@@ -90,12 +102,18 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
     `nh-button nh-button--${finish}` +
     (style === 'card' ? ' nh-button--card' : '') +
     (finish === 'plain' ? '' : ' nh-button--fill') +
-    (active ? ' nh-button--active' : '')
+    (active ? ' nh-button--active' : '') +
+    (asked === undefined ? '' : ' nh-button--asking')
 
   if (style === 'card') {
     return (
       <WidgetFrame center>
-        <button type="button" className={className} aria-label={config.label} onClick={press}>
+        <button
+          type="button"
+          className={className}
+          aria-label={config.label}
+          title={asked === undefined ? undefined : unconfirmedHint(asked)}
+          onClick={press}>
           {art ? <span className="nh-button__chip">{art}</span> : null}
           {config.toggle ? <span className="nh-button__pip" /> : null}
           <span className="nh-button__text">
@@ -109,7 +127,12 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
 
   return (
     <WidgetFrame center>
-      <button type="button" className={className} aria-label={config.label} onClick={press}>
+      <button
+        type="button"
+        className={className}
+        aria-label={config.label}
+        title={asked === undefined ? undefined : unconfirmedHint(asked)}
+        onClick={press}>
         {art}
         {showLabel ? <span className="nh-button__label">{config.label}</span> : null}
         {config.caption ? <span className="nh-button__caption">{config.caption}</span> : null}

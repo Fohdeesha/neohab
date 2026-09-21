@@ -53,7 +53,9 @@ const readSheet = () => {
     canvases: panel.querySelectorAll('canvas').length,
     chartText: panel.querySelector('.nh-detail__chart')?.textContent?.trim() ?? '',
     box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
-    viewport: { w: window.innerWidth, h: window.innerHeight },
+    // body, not innerWidth: a fixed sheet is laid out in the initial containing block, which
+    // leaves out the scrollbar gutter
+    viewport: { w: document.body.clientWidth, h: window.innerHeight },
   }
 }
 

@@ -458,7 +458,10 @@ try {
     await page.waitForSelector('.nh-saver', { timeout: 10000 })
     const saver = await page.locator('.nh-saver').boundingBox()
     ok('clock saver engages after the idle timeout', !!saver)
-    ok('saver covers the whole viewport', saver && saver.width === VP.width && saver.height === VP.height, JSON.stringify(saver))
+    // the screen a position:fixed element gets is the initial containing block, which leaves out
+    // the scrollbar gutter; window.innerWidth includes it
+    const icb = await page.evaluate(() => ({ w: document.body.clientWidth, h: window.innerHeight }))
+    ok('saver covers the whole viewport', saver && saver.width === icb.w && saver.height === icb.h, JSON.stringify(saver) + ' icb ' + JSON.stringify(icb))
     const time = await page.locator('.nh-saver__time').textContent().catch(() => null)
     ok('clock shows a time', !!time && /\d/.test(time), String(time))
 

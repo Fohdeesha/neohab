@@ -121,7 +121,7 @@ try {
   await sleep(600)
   const cells = await page.locator('.nh-iconpicker__cell').count()
   ok('search narrows the library', cells > 0 && cells < 60, `cells=${cells}`)
-  await page.locator('.nh-iconpicker__cell[title="garage-variant"]').first().click()
+  await page.locator('.nh-iconpicker__cell[title="mdi:garage-variant"]').first().click()
   await sleep(400)
   ok('picking sets the value', (await iconInput.inputValue()) === 'mdi:garage-variant')
   const liveIcon = await page.locator('.nh-cell:has(.nh-cell__type:text-is("button"))').first().locator('.nh-icon--mdi').evaluate((el) => getComputedStyle(el).maskImage)
@@ -131,7 +131,7 @@ try {
   await page.click('.nh-iconpicker__tab:has-text("openHAB")')
   await page.fill('.nh-iconpicker__search', 'garage')
   await sleep(400)
-  ok('openHAB tab lists classic icons', (await page.locator('.nh-iconpicker__cell[title="garagedoor"]').count()) === 1)
+  ok('openHAB tab lists classic icons', (await page.locator('.nh-iconpicker__cell[title="oh:garagedoor"]').count()) === 1)
   await page.keyboard.press('Escape')
   await page.click('button:has-text("Exit")')
 

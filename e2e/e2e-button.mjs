@@ -2,8 +2,9 @@
 // The two styles differ in more than looks: a switch reads on from the item, a button matches its command
 // exactly, so every state check here is written to tell those two rules apart.
 // SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-button,
-// dashboard:nh-e2e-btnlegacy and dashboard:nh-e2e-btnface (neohab:config), managed items nh_e2e_btn and
-// nh_e2e_btnstr.
+// dashboard:nh-e2e-btnlegacy, dashboard:nh-e2e-btnface and dashboard:nh-e2e-noauto (neohab:config),
+// managed items nh_e2e_btn, nh_e2e_btnstr and nh_e2e_noauto - the last one carrying autoupdate
+// metadata of its own, which is deleted with the item.
 // It SAVES through the app once, on purpose - the migration has to be proved to write back - so it mints
 // one version-history restore point, like any real edit.
 import { launchChromium } from './lib/browser.mjs'
@@ -16,6 +17,8 @@ const FINISHES = ['plain', 'solid', 'glass', 'glow', 'edge', 'outline', 'sheen',
 const ACCENT = '#e0459a'
 const DIM = 'nh_e2e_btn'
 const STR = 'nh_e2e_btnstr'
+const NOAUTO = 'nh_e2e_noauto'
+const NOAUTO_UID = 'dashboard:nh-e2e-noauto'
 const HOLD_MS = 800 // comfortably past the 500ms threshold
 // The legacy dashboard below carries no version field at all, which reads as 1, and a save has to
 // land it on today's. Named so the next schema bump is a visible one-line edit rather than a check
@@ -873,23 +876,126 @@ try {
   )
   await swissCtx.close()
 
+
+  // ---- an item openHAB has promised not to update --------------------------------------------
+  //
+  // `autoupdate=false` means core's AutoUpdateManager takes the DONT branch: the command goes to
+  // the binding and NOTHING is posted - no ItemStatePredictedEvent, no ItemStateChangedEvent.
+  // Measured on a live 4.3.11 server as five OFF commands in a row with nothing behind any of them,
+  // which leaves a toggle reading the state alone stuck on whatever the device last reported and
+  // sending the same command for ever. The tile shows what was asked for instead, marked as
+  // unconfirmed, and a real state update still wins.
+  {
+    await fetch(itemUrl(NOAUTO), {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Switch', name: NOAUTO, label: 'NH E2E No Autoupdate' })
+    })
+    const meta = await fetch(itemUrl(NOAUTO) + '/metadata/autoupdate', {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: 'false' })
+    })
+    ok('seed: an item that vetoes autoupdate', meta.status === 200 || meta.status === 201, 'metadata ' + meta.status)
+    await sleep(600)
+    await putState(NOAUTO, 'ON')
+    await sleep(400)
+
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: NOAUTO_UID,
+        component: 'neohab:dashboard',
+        config: {
+          version: CURRENT_SCHEMA,
+          id: 'nh-e2e-noauto',
+          name: 'E2E No Autoupdate',
+          columns: 12,
+          rowHeight: 'match',
+          widgets: [
+            {
+              id: 'w-na',
+              type: 'button',
+              config: { item: NOAUTO, label: 'Veto', command: 'ON', commandAlt: 'OFF', toggle: true, style: 'switch' },
+              layout: { lg: { x: 0, y: 0, w: 3, h: 2 } }
+            }
+          ]
+        }
+      })
+    })
+
+    const sent = []
+    const na = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await na.addInitScript((t) => {
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+      } catch {}
+    }, TOKEN)
+    // the command must reach the server, because the point is that the server answers with nothing
+    await na.route('**/rest/items/' + NOAUTO, (r) => {
+      if (r.request().method() === 'POST') sent.push(r.request().postData())
+      return r.continue()
+    })
+    await na.goto(APP + '#/d/nh-e2e-noauto', { waitUntil: 'domcontentloaded' })
+    await na.waitForSelector('.nh-switch', { timeout: 20000 })
+    await sleep(1200)
+
+    const read = () =>
+      na
+        .evaluate(() => {
+          const s = document.querySelector('.nh-switch')
+          return s
+            ? { on: s.classList.contains('nh-switch--on'), asking: s.classList.contains('nh-switch--asking'), text: s.querySelector('.nh-switch__state')?.textContent ?? '' }
+            : null
+        })
+        .catch(() => null)
+
+    const start = await read()
+    ok('it starts on the state the server reports', start?.on === true && start.asking === false, JSON.stringify(start))
+
+    await na.click('.nh-switch')
+    await sleep(700)
+    const afterOff = await read()
+    ok('pressing it sends the alternate command', sent.filter(Boolean).slice(-1)[0] === 'OFF', JSON.stringify(sent))
+    ok('the server posts no state for it at all', (await readState(NOAUTO)) === 'ON', await readState(NOAUTO))
+    ok('but the tile shows what was asked for', afterOff?.on === false, JSON.stringify(afterOff))
+    ok('and says it is unconfirmed rather than claiming it', afterOff?.asking === true, JSON.stringify(afterOff))
+
+    // past SETTLE_MS, which is what the old hold would have expired at
+    await sleep(5000)
+    const held = await read()
+    ok('it still shows it after the settle window, because nothing can arrive to settle to', held?.on === false && held.asking === true, JSON.stringify(held))
+
+    await na.click('.nh-switch')
+    await sleep(700)
+    ok('so pressing again sends the other command instead of repeating', sent.filter(Boolean).slice(-1)[0] === 'ON', JSON.stringify(sent.filter(Boolean).slice(-3)))
+
+    // a real state update is the one thing that wins
+    await putState(NOAUTO, 'OFF')
+    await sleep(1500)
+    const confirmed = await read()
+    ok('a state the server does post wins and clears the mark', confirmed?.on === false && confirmed.asking === false, JSON.stringify(confirmed))
+    await na.close().catch(() => {})
+  }
+
   ok('no page or console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
-  for (const uid of [UID, LEGACY_UID, FACE_UID]) {
+  for (const uid of [UID, LEGACY_UID, FACE_UID, NOAUTO_UID]) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  for (const item of [DIM, STR]) {
+  for (const item of [DIM, STR, NOAUTO]) {
     await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   const left = await fetch(NS, { headers: AUTH })
     .then((r) => r.json())
-    .then((cs) => cs.filter((c) => [UID, LEGACY_UID, FACE_UID].includes(c.uid)).map((c) => c.uid))
+    .then((cs) => cs.filter((c) => [UID, LEGACY_UID, FACE_UID, NOAUTO_UID].includes(c.uid)).map((c) => c.uid))
     .catch(() => ['<unreadable>'])
   ok('cleanup: dashboards removed', left.length === 0, left.join(','))
   const items = []
-  for (const item of [DIM, STR]) {
+  for (const item of [DIM, STR, NOAUTO]) {
     const there = await fetch(itemUrl(item), { headers: AUTH })
       .then((r) => r.status === 200)
       .catch(() => false)

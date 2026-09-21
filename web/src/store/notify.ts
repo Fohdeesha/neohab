@@ -1,8 +1,14 @@
 import { create } from 'zustand'
 
+export interface NoticeAction {
+  label: string
+  run: () => void
+}
+
 export interface Notice {
   id: number
   text: string
+  action?: NoticeAction
 }
 
 interface NotifyState {
@@ -21,13 +27,16 @@ let nextId = 1
  * somebody may need to read twice or copy out of needs. The id comes back so a caller that owns
  * one place on screen can replace its own rather than stacking them up.
  */
-export function notify(text: string, opts?: { sticky?: boolean }): number {
-  const { notices } = useNotifyStore.getState()
-  const already = notices.find((n) => n.text === text)
-  if (already) return already.id
+export function notify(text: string, opts?: { sticky?: boolean; action?: NoticeAction }): number {
+  const already = useNotifyStore.getState().notices.find((n) => n.text === text)
+  // the same words twice means the same event again. With no button that is one notice either way;
+  // with one, the button has to act on the NEWEST event and get a full life of its own, so the old
+  // notice goes and this one takes its place rather than inheriting a timer part way through.
+  if (already && !opts?.action) return already.id
+  if (already) dismissNotice(already.id)
 
   const id = nextId++
-  useNotifyStore.setState({ notices: [...notices, { id, text }].slice(-MAX_NOTICES) })
+  useNotifyStore.setState((s) => ({ notices: [...s.notices, { id, text, action: opts?.action }].slice(-MAX_NOTICES) }))
   if (!opts?.sticky) setTimeout(() => dismissNotice(id), NOTICE_MS)
   return id
 }

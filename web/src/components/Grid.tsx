@@ -27,6 +27,7 @@ import {
 } from '../model/layout'
 import { instanceFixedShape, instanceMinHeight } from '../widgets/registry'
 import { useEditingAllowed } from '../store/auth'
+import { useSurfaceBounds } from './useSurfaceBounds'
 import { WidgetHost } from './WidgetHost'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
@@ -65,6 +66,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const width = useContainerWidth(ref)
   const coarse = useCoarsePointer()
   const canEdit = useEditingAllowed()
+  const bounds = useSurfaceBounds()
   // declared with the other hooks - the early returns below skip later code
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
   const openDetail = (w: WidgetInstance) => {
@@ -89,7 +91,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
     )
   }
 
-  const surface = surfaceFor(width)
+  const surface = surfaceFor(width, bounds)
   // always through the projection, so a stored rect past the column count is clamped rather than
   // placed into an implicit grid track that collapses to nothing
   const dashboard = projectDashboard(props.dashboard, surface === 'tablet' && hasTabletLayout(props.dashboard) ? 'md' : 'lg')

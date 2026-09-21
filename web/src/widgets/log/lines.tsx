@@ -18,15 +18,33 @@ interface LogLinesProps {
 export function LogLines({ entries, wrap, full = false, empty, lang }: LogLinesProps) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
+  // the lines sit in a box of their own so its height can be watched: a ResizeObserver on the
+  // scroller itself never fires, because the scroller's own size is what stays put
+  const contentRef = useRef<HTMLDivElement>(null)
   const [following, setFollowing] = useState(true)
   // when the reader last had hold of the box, and never by default: a zero here would read as
   // "just now" for the page's first second and a half, which is when the first lines arrive
   const readerAt = useRef(Number.NEGATIVE_INFINITY)
 
+  // Pinning once is not enough. The rows carry `content-visibility: auto`, so a row that has never
+  // been drawn is laid out at the GUESSED `contain-intrinsic-size` and gets its real height once it
+  // is measured - the list's height therefore converges over several frames rather than settling at
+  // the one the pin saw. Measured on a 1241px list: the pin lands exactly on the bottom at 347ms
+  // with the box 2915px, and at 358ms the box is 4044px with the view left 1129px short, where it
+  // stays until another line happens to arrive. Watching the content box catches every step of
+  // that; counting frames does not, because reading scrollHeight can land before the layout that
+  // changes it.
   useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || !following) return
-    el.scrollTop = el.scrollHeight
+    const content = contentRef.current
+    if (!content || !following) return
+    const pin = () => {
+      const el = ref.current
+      if (el) el.scrollTop = el.scrollHeight
+    }
+    pin()
+    const ro = new ResizeObserver(pin)
+    ro.observe(content)
+    return () => ro.disconnect()
   }, [entries, following, wrap])
 
   useLayoutEffect(() => {
@@ -65,7 +83,11 @@ export function LogLines({ entries, wrap, full = false, empty, lang }: LogLinesP
         {entries.length === 0 ? (
           <div className="nh-log__empty">{empty}</div>
         ) : (
-          entries.map((e) => <Line key={e.id} entry={e} full={full} lang={lang} />)
+          <div className="nh-log__content" ref={contentRef}>
+            {entries.map((e) => (
+              <Line key={e.id} entry={e} full={full} lang={lang} />
+            ))}
+          </div>
         )}
       </div>
       {following ? null : (

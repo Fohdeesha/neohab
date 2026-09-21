@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { ApiError } from '../api/client'
 import { getItemNames, getItems } from '../api/items'
 import type { Item } from '../api/types'
+import { autoUpdateVetoed } from '../model/autoupdate'
 
 /**
  * `names` answers a much cheaper question than the full catalog: which item names does this server
@@ -16,6 +17,9 @@ interface CatalogState {
   loaded: boolean
   loading: boolean
   names: ReadonlySet<string> | null
+  // items whose `autoupdate` metadata vetoes the update openHAB would otherwise post on a command,
+  // so commanding one of these produces no state at all until the binding reports back
+  noAutoUpdate: ReadonlySet<string>
   namesStatus: NamesStatus
 }
 
@@ -24,8 +28,12 @@ export const useCatalogStore = create<CatalogState>(() => ({
   loaded: false,
   loading: false,
   names: null,
+  noAutoUpdate: new Set<string>(),
   namesStatus: 'idle'
 }))
+
+const vetoed = (rows: { name: string; metadata?: unknown }[]): ReadonlySet<string> =>
+  new Set(rows.filter((i) => autoUpdateVetoed(i.metadata)).map((i) => i.name))
 
 export function ensureCatalog(): void {
   const s = useCatalogStore.getState()
@@ -39,6 +47,7 @@ export function ensureCatalog(): void {
         loaded: true,
         loading: false,
         names: new Set(items.map((i) => i.name)),
+        noAutoUpdate: vetoed(items),
         namesStatus: 'ready'
       })
     })
@@ -52,7 +61,7 @@ export function ensureItemNames(): void {
   useCatalogStore.setState({ namesStatus: 'loading' })
   getItemNames()
     .then((items) => {
-      useCatalogStore.setState({ names: new Set(items.map((i) => i.name)), namesStatus: 'ready' })
+      useCatalogStore.setState({ names: new Set(items.map((i) => i.name)), noAutoUpdate: vetoed(items), namesStatus: 'ready' })
     })
     .catch((err: unknown) => {
       // a refused read is an answer, and a different one from "the server did not respond"

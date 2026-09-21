@@ -10,19 +10,27 @@ import {
   findFreeSpot,
   gapOf,
   groupFrames,
+  hiddenAfterRemoval,
+  hiddenAfterShowing,
   hiddenSurfaces,
   iconScale,
+  layoutForNewWidget,
+  MD_BELOW,
   planBump,
+  planRemoval,
   POINTER_FLOOR_ROW,
   POINTER_FULL_ROW,
   POINTER_TEXT_FLOOR,
   projectDashboard,
   rectOf,
   SIDE_PANEL_WIDTH,
+  STACK_BELOW,
   stackedCellHeight,
   stackedOrder,
   stackedTextScale,
+  surfaceBounds,
   surfaceFor,
+  surfacesOf,
   tabletRects,
   textFloor,
   textScale,
@@ -383,10 +391,161 @@ describe('surfaces', () => {
     expect(surfaceFor(1600)).toBe('desktop')
   })
 
+  it('follows the configured thresholds', () => {
+    const bounds = surfaceBounds({ phoneBelow: 600, tabletBelow: 1000 })
+    expect(surfaceFor(599, bounds)).toBe('phone')
+    expect(surfaceFor(600, bounds)).toBe('tablet')
+    expect(surfaceFor(999, bounds)).toBe('tablet')
+    expect(surfaceFor(1000, bounds)).toBe('desktop')
+    // the same widths under the built-in thresholds, so the test can fail for one reason only
+    expect(surfaceFor(600)).toBe('phone')
+    expect(surfaceFor(1000)).toBe('tablet')
+  })
+
+  it('falls back to the built-in thresholds for anything that is not a number', () => {
+    for (const bad of [undefined, null, '', 'wide', NaN, {}, []]) {
+      expect(surfaceBounds({ phoneBelow: bad, tabletBelow: bad })).toEqual({ phoneBelow: STACK_BELOW, tabletBelow: MD_BELOW })
+    }
+    expect(surfaceBounds(undefined)).toEqual({ phoneBelow: STACK_BELOW, tabletBelow: MD_BELOW })
+    // a stored number as a string is what an imported or hand-edited settings component carries
+    expect(surfaceBounds({ phoneBelow: '700', tabletBelow: '1100' })).toEqual({ phoneBelow: 700, tabletBelow: 1100 })
+  })
+
+  it('clamps each threshold to its own range', () => {
+    expect(surfaceBounds({ phoneBelow: 1, tabletBelow: 1 })).toEqual({ phoneBelow: 320, tabletBelow: 480 })
+    expect(surfaceBounds({ phoneBelow: 99999, tabletBelow: 99999 })).toEqual({ phoneBelow: 2000, tabletBelow: 4000 })
+    expect(surfaceBounds({ phoneBelow: 700.6, tabletBelow: 1100.4 })).toEqual({ phoneBelow: 701, tabletBelow: 1100 })
+  })
+
+  it('never lets the tablet threshold swallow the tablet band', () => {
+    // a tablet threshold at or under the phone one would leave no width that reads as a tablet at
+    // all, so the whole surface would vanish with nothing on screen to say why
+    expect(surfaceBounds({ phoneBelow: 900, tabletBelow: 900 })).toEqual({ phoneBelow: 900, tabletBelow: 901 })
+    expect(surfaceBounds({ phoneBelow: 900, tabletBelow: 500 })).toEqual({ phoneBelow: 900, tabletBelow: 901 })
+    const bounds = surfaceBounds({ phoneBelow: 900, tabletBelow: 500 })
+    expect(surfaceFor(899, bounds)).toBe('phone')
+    expect(surfaceFor(900, bounds)).toBe('tablet')
+    expect(surfaceFor(901, bounds)).toBe('desktop')
+  })
+
   it('reads hideOn tolerantly, ignoring anything that is not a surface', () => {
     expect(hiddenSurfaces(w('a', { x: 0, y: 0, w: 1, h: 1 }, { hideOn: ['phone', 'nonsense'] }))).toEqual(['phone'])
     expect(hiddenSurfaces(w('a', { x: 0, y: 0, w: 1, h: 1 }, { hideOn: 'tablet' }))).toEqual(['tablet'])
     expect(hiddenSurfaces(w('a', { x: 0, y: 0, w: 1, h: 1 }, { hideOn: 42 }))).toEqual([])
+  })
+
+  it('says which surfaces a breakpoint draws', () => {
+    expect(surfacesOf('md')).toEqual(['tablet'])
+    // the stack is the desktop layout reflowed, so lg speaks for the phone too
+    expect(surfacesOf('lg')).toEqual(['desktop', 'phone'])
+  })
+})
+
+describe('removing a widget', () => {
+  const tablet = (widgets: WidgetInstance[]): Dashboard => dash(widgets, { mdColumns: 8 })
+
+  it('is a plain delete while the dashboard has only one layout', () => {
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 2 }), w('b', { x: 2, y: 0, w: 2, h: 2 })])
+    expect(planRemoval(d, ['a'], 'lg')).toMatchObject({ deleted: ['a'], hidden: [] })
+    expect(planRemoval(d, ['a'], 'md')).toMatchObject({ deleted: ['a'], hidden: [] })
+  })
+
+  it('takes a widget off the tablet layout only, once there is one', () => {
+    const d = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 })])
+    const plan = planRemoval(d, ['a'], 'md')
+    expect(plan).toMatchObject({ deleted: [], hidden: ['a'], scope: ['tablet'], kept: ['phone', 'desktop'] })
+  })
+
+  it('takes it off the desktop layout and the phone stack together', () => {
+    const d = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 })])
+    const plan = planRemoval(d, ['a'], 'lg')
+    expect(plan).toMatchObject({ deleted: [], hidden: ['a'], scope: ['desktop', 'phone'], kept: ['tablet'] })
+    expect(hiddenAfterRemoval(d.widgets[0], plan.scope)).toEqual(['phone', 'desktop'])
+  })
+
+  it('deletes outright rather than leaving a widget showing nowhere', () => {
+    // already off the tablet layout: taking it off the desktop one too would leave a widget that
+    // renders on no screen at all and can only be found by hunting for it in the editor
+    const d = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 }, { hideOn: ['tablet'] })])
+    expect(planRemoval(d, ['a'], 'lg')).toMatchObject({ deleted: ['a'], hidden: [] })
+    // and the mirror: hidden on the desktop and the phone already, removed from the tablet layout
+    const e = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 }, { hideOn: ['desktop', 'phone'] })])
+    expect(planRemoval(e, ['a'], 'md')).toMatchObject({ deleted: ['a'], hidden: [] })
+  })
+
+  it('keeps the surfaces a widget was already hidden on', () => {
+    const d = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 }, { hideOn: ['phone'] })])
+    const plan = planRemoval(d, ['a'], 'md')
+    expect(plan.hidden).toEqual(['a'])
+    expect(hiddenAfterRemoval(d.widgets[0], plan.scope)).toEqual(['phone', 'tablet'])
+  })
+
+  it('sorts a mixed batch into the ones that go and the ones that stay', () => {
+    const d = tablet([
+      w('keep', { x: 0, y: 0, w: 2, h: 2 }),
+      w('gone', { x: 2, y: 0, w: 2, h: 2 }, { hideOn: ['desktop', 'phone'] }),
+      w('untouched', { x: 4, y: 0, w: 2, h: 2 })
+    ])
+    const plan = planRemoval(d, ['keep', 'gone'], 'md')
+    expect(plan.deleted).toEqual(['gone'])
+    expect(plan.hidden).toEqual(['keep'])
+  })
+
+  it('ignores ids that are not on the dashboard', () => {
+    const d = tablet([w('a', { x: 0, y: 0, w: 2, h: 2 })])
+    expect(planRemoval(d, ['nope'], 'md')).toMatchObject({ deleted: [], hidden: [] })
+  })
+
+  it('puts a widget back on the layout being edited without touching the others', () => {
+    const widget = w('a', { x: 0, y: 0, w: 2, h: 2 }, { hideOn: ['phone', 'tablet'] })
+    expect(hiddenAfterShowing(widget, surfacesOf('md'))).toEqual(['phone'])
+    expect(hiddenAfterShowing(widget, surfacesOf('lg'))).toEqual(['tablet'])
+  })
+})
+
+describe('placing a new widget', () => {
+  const overlapsIn = (d: Dashboard, bp: 'lg' | 'md'): string[] => {
+    const view = projectDashboard(d, bp)
+    const out: string[] = []
+    for (let i = 0; i < view.widgets.length; i++) {
+      for (let j = i + 1; j < view.widgets.length; j++) {
+        if (collides(rectOf(view.widgets[i]), rectOf(view.widgets[j]))) out.push(`${view.widgets[i].id}/${view.widgets[j].id}`)
+      }
+    }
+    return out
+  }
+  const withLayout = (id: string, lg: Rect, md: Rect): WidgetInstance => ({ id, type: 'label', config: {}, layout: { lg, md } })
+
+  it('gives a widget added on the desktop layout no tablet rect of its own', () => {
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 2 })], { mdColumns: 8 })
+    expect(layoutForNewWidget(d, 'lg', { x: 4, y: 0, w: 2, h: 2 })).toEqual({ lg: { x: 4, y: 0, w: 2, h: 2 } })
+  })
+
+  it('gives a widget added on the tablet layout a rect on both', () => {
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 2 })], { columns: 12, mdColumns: 12 })
+    const layout = layoutForNewWidget(d, 'md', { x: 4, y: 0, w: 2, h: 2 })
+    expect(layout.md).toEqual({ x: 4, y: 0, w: 2, h: 2 })
+    // the layouts have not drifted, so the same rect is free on both and the widget stays put
+    expect(layout.lg).toEqual(layout.md)
+  })
+
+  it('finds a free spot on the desktop layout rather than reusing a tablet rect that is taken', () => {
+    // 'a' fills the desktop top-left and has been moved right on the tablet layout, so the tablet
+    // grid's free corner is the very cell the desktop grid has taken
+    const d = dash([withLayout('a', { x: 0, y: 0, w: 4, h: 4 }, { x: 4, y: 0, w: 4, h: 4 })], { columns: 12, mdColumns: 8 })
+    const layout = layoutForNewWidget(d, 'md', { x: 0, y: 0, w: 4, h: 4 })
+    expect(layout.md).toEqual({ x: 0, y: 0, w: 4, h: 4 })
+    expect(layout.lg).not.toEqual(layout.md)
+    const after = { ...d, widgets: [...d.widgets, { id: 'new', type: 'label', config: {}, layout }] }
+    expect(overlapsIn(after, 'lg')).toEqual([])
+    expect(overlapsIn(after, 'md')).toEqual([])
+  })
+
+  it('clamps a rect wider than the layout it is being placed on', () => {
+    const d = dash([], { columns: 12, mdColumns: 4 })
+    const layout = layoutForNewWidget(d, 'md', { x: 0, y: 0, w: 8, h: 2 })
+    expect(layout.md!.w).toBe(4)
+    expect(layout.lg!.w).toBe(8)
   })
 })
 
