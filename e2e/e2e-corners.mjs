@@ -1,6 +1,6 @@
 // Corner-case torture suite. SAFE with a live config: only adds/removes nh-corner-* components, commands
 // only approved items, restores all state.
-import { launchChromium } from './lib/browser.mjs'
+import { launchBrowser } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { getSettings, restoreSettings } from './lib/components.mjs'
 
@@ -46,13 +46,11 @@ await fetch(NS, {
   }),
 })
 
-function launch() {
-  for (const channel of ['chrome', 'msedge']) {
-    try { return launchChromium({ channel, headless: true }) } catch {}
-  }
-  return launchChromium({ headless: true })
-}
-const browser = await launch()
+// the shared one, because the copy that used to be here returned the promise instead of awaiting
+// it, so its catch could never fire and the msedge fallback was dead. lib/browser.mjs also shuts
+// the browser on a Ctrl-C or an uncaught throw, which is what this suite's single close at the end
+// cannot do.
+const browser = await launchBrowser()
 
 const initToken = (page, t) =>
   page.addInitScript((tok) => { try { localStorage.setItem('neohab:apiToken', tok) } catch {} }, t)

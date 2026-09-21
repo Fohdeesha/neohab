@@ -67,6 +67,10 @@ const seedEmpty = async () => {
 
 const browser = await launchBrowser()
 
+// only created where the server has no labelled Dimmer or Number of its own, and deleted again
+const SEED_ITEM = 'nh_e2e_launch_number'
+let seededItem = null
+
 const open = async (opts = {}) => {
   const ctx = await browser.newContext({ viewport: opts.viewport ?? { width: 1400, height: 950 }, ...(opts.touch ? { hasTouch: true, isMobile: true } : {}) })
   await ctx.addInitScript(
@@ -286,10 +290,28 @@ try {
   {
     const all = await (await fetch(BASE + '/rest/items?fields=name,label,type', { headers: AUTH })).json()
     const named = (i) => typeof i.label === 'string' && i.label.trim() !== '' && i.type !== 'Group'
-    // the slider only lists Dimmer and Number items, so the one item this drives has to be one every
-    // widget under test will offer - otherwise the picker filters it away and the check times out
-    const labelled = all.find((i) => named(i) && /^(Dimmer|Number)/.test(i.type)) ?? all.find(named)
-    ok('an item with a label to take', !!labelled, JSON.stringify(labelled ?? null))
+    // The Slider's picker lists Dimmer and Number only, so the one item this drives has to be one
+    // that every widget under test offers - anything else is filtered away, the option is never
+    // there to click, and the check fails against an app that is working. Falling back to "any
+    // labelled item" is what did that: production has 126 items and not one labelled Dimmer or
+    // Number, so the Slider was handed a Color item every run. Seed one instead, and take it away
+    // again in the cleanup - the behaviour under test needs an item with a LABEL, and an
+    // unlabelled one deliberately leaves the Name empty.
+    let labelled = all.find((i) => named(i) && /^(Dimmer|Number)/.test(i.type))
+    if (!labelled) {
+      const seed = { type: 'Number', name: SEED_ITEM, label: 'E2E Launch Number' }
+      const r = await fetch(BASE + '/rest/items/' + SEED_ITEM, {
+        method: 'PUT',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify(seed),
+      })
+      if (r.ok) {
+        seededItem = SEED_ITEM
+        await sleep(800)
+        labelled = seed
+      }
+    }
+    ok(`an item every widget under test offers${seededItem ? ' (seeded: this server had no labelled Dimmer or Number)' : ''}`, !!labelled, JSON.stringify(labelled ?? null))
     const { ctx, page } = await open()
     await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -312,14 +334,14 @@ try {
       await page.keyboard.type(String(labelled?.name ?? ITEMS.dimmer).slice(0, 6).toLowerCase(), { delay: 40 })
       await page.waitForSelector('.nh-picker__option', { timeout: 8000 }).catch(() => {})
       await page
-        .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + labelled.name + '$') }) })
+        .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + (labelled?.name ?? 'no_such_item') + '$') }) })
         .first()
         .click({ timeout: 8000 })
         .catch(() => {})
       await sleep(500)
       const named = await nameField.inputValue().catch(() => '')
       const bound = await combo.inputValue().catch(() => '')
-      ok(`binding an item fills a ${widget}'s empty Name from the item's label`, named === labelled.label, `name=${named} want=${labelled.label}`)
+      ok(`binding an item fills a ${widget}'s empty Name from the item's label`, !!labelled && named === labelled.label, `name=${named} want=${labelled?.label}`)
 
       if (widget === 'Value') {
         await page.click('[aria-label="Undo"]')
@@ -328,7 +350,7 @@ try {
         const boundAfterUndo = await combo.inputValue().catch(() => '')
         ok(
           'one undo takes back both the item and the name',
-          bound === labelled.name && named === labelled.label && afterUndo === '' && boundAfterUndo === '',
+          bound === labelled?.name && named === labelled?.label && afterUndo === '' && boundAfterUndo === '',
           `before=${bound}/${named} after=${boundAfterUndo}/${afterUndo}`
         )
       }
@@ -632,6 +654,11 @@ try {
   }
   const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-launch'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
+  if (seededItem) {
+    await fetch(BASE + '/rest/items/' + seededItem, { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const gone = await fetch(BASE + '/rest/items/' + seededItem, { headers: AUTH }).then((r) => r.status === 404)
+    ok('cleanup: the seeded item is off the server', gone, seededItem)
+  }
   await browser.close()
 }
 

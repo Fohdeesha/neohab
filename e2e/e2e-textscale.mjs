@@ -3,6 +3,7 @@
 // SAFE with a live config: creates only dashboard:nh-e2e-scale (deleted afterwards, cleanup guarded), reads
 // the server's own dashboards strictly read-only (zero clicks).
 import { launchChromium } from './lib/browser.mjs'
+import { bottomClipped, clipDetail, labelMetrics } from './lib/labelclip.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
 const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
@@ -69,21 +70,6 @@ try {
     const m = await page.evaluate(() => {
       const grid = document.querySelector('.nh-grid')
       const gs = getComputedStyle(grid)
-      const labels = [...document.querySelectorAll('.nh-button__label')].map((l) => {
-        const r = l.getBoundingClientRect()
-        const range = document.createRange()
-        range.selectNodeContents(l)
-        const rects = [...range.getClientRects()]
-        return {
-          text: l.textContent,
-          hClipped: l.scrollWidth > l.clientWidth + 1,
-          vClipped: l.scrollHeight > l.clientHeight + 0.5,
-          inkBelow: rects.length ? Math.max(...rects.map((x) => x.bottom)) - r.bottom : 0,
-          lines: rects.length,
-          boxH: l.clientHeight,
-          lineH: parseFloat(getComputedStyle(l).lineHeight),
-        }
-      })
       let overlaps = 0
       for (const cell of document.querySelectorAll('.nh-gcell')) {
         const wl = cell.querySelector('.nh-widget__label')
@@ -101,10 +87,10 @@ try {
         rowH: parseFloat(gs.gridAutoRows),
         cellFont: parseFloat(getComputedStyle(document.querySelector('.nh-gcell')).fontSize),
         docScrollX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        labels,
         overlaps,
       }
     })
+    m.labels = await page.evaluate(labelMetrics)
 
     const floor = vp.touch ? 0.8 : 0.8 + 0.2 * Math.max(0, Math.min(1, (m.rowH - 85) / 15))
     const expected = Math.max(floor, m.iconscale)
@@ -114,12 +100,10 @@ try {
     ok(`${vp.name}: no label ellipsised`, m.labels.every((l) => !l.hClipped), JSON.stringify(m.labels.filter((l) => l.hClipped).map((l) => l.text)))
     ok(
       `${vp.name}: no label bottom-clipped`,
-      m.labels.every((l) =>
-        l.vClipped
-          ? Math.abs(l.boxH - Math.round(l.boxH / l.lineH) * l.lineH) < 1.5
-          : l.inkBelow < 0.05
-      ),
-      JSON.stringify(m.labels.map((l) => (l.vClipped ? `cap@${l.boxH}/${l.lineH.toFixed(1)}` : +l.inkBelow.toFixed(2))))
+      !m.labels.some(bottomClipped),
+      JSON.stringify(m.labels.filter(bottomClipped).map(clipDetail)) +
+        ' ' +
+        JSON.stringify(m.labels.map((l) => (l.vClipped ? `cap@${l.boxH}/${l.lineH.toFixed(1)}` : +l.inkBelow.toFixed(2))))
     )
     ok(`${vp.name}: roller never overlaps its label`, m.overlaps === 0, 'overlaps=' + m.overlaps)
 
@@ -196,12 +180,9 @@ try {
     await page.goto(BASE + '/neohab/index.html#/d/' + encodeURIComponent(d.id))
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })
     await page.waitForTimeout(1200)
+    const labels = await page.evaluate(labelMetrics)
     const bad = await page.evaluate(() => {
-      const out = { ellipsised: [], clipped: [], overlaps: 0 }
-      for (const l of document.querySelectorAll('.nh-button__label')) {
-        if (l.scrollWidth > l.clientWidth + 1) out.ellipsised.push(l.textContent)
-        if (l.scrollHeight > l.clientHeight + 0.5) out.clipped.push(l.textContent)
-      }
+      const out = { overlaps: 0 }
       // a scrolling list lays its rows outside its own box on purpose and clips them, so they
       // cannot paint over anything - only unclipped content counts as an overlap
       // strictly below the body: the body clips too, and testing it would exempt everything
@@ -224,8 +205,16 @@ try {
       }
       return out
     })
-    ok(`real "${d.name}" phone: no label ellipsised`, bad.ellipsised.length === 0, JSON.stringify(bad.ellipsised))
-    ok(`real "${d.name}" phone: no label bottom-clipped`, bad.clipped.length === 0, JSON.stringify(bad.clipped))
+    const ellipsised = labels.filter((l) => l.hClipped).map((l) => l.text)
+    const clipped = labels.filter(bottomClipped)
+    const atClamp = labels.filter((l) => l.vClipped).map((l) => l.text)
+    ok(`real "${d.name}" phone: no label ellipsised`, ellipsised.length === 0, JSON.stringify(ellipsised))
+    ok(
+      `real "${d.name}" phone: no label bottom-clipped`,
+      clipped.length === 0,
+      // the capped ones are printed even when they are fine, so a jump in them is visible
+      JSON.stringify(clipped.map(clipDetail)) + ` ${atClamp.length} of ${labels.length} stop at the clamp ${JSON.stringify(atClamp)}`
+    )
     ok(`real "${d.name}" phone: nothing overlaps a label`, bad.overlaps === 0, 'overlaps=' + bad.overlaps)
     await ctx.close()
   }

@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BASE } from './lib/target.mjs'
+import { sweepBrowserTemp, sweepSummary } from './lib/tempclean.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -93,6 +94,12 @@ if (overlap.length > 0) {
   console.error(`run.mjs: a wipe-cycle suite must never be in the battery: ${overlap.join(', ')}`)
   process.exit(2)
 }
+
+// a killed battery leaves one browser profile per suite it had reached, and nothing else ever
+// clears them; the next run is the only thing that can. Each suite sweeps too, this is so a
+// battery says out loud what it found.
+const startupSweep = sweepSummary(sweepBrowserTemp())
+if (startupSweep) console.log(startupSweep)
 
 const version = await fetch(BASE + '/rest/')
   .then((r) => r.json())
