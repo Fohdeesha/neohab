@@ -2,18 +2,19 @@ import { sendCommand } from '../../api/items'
 import { ApiError } from '../../api/client'
 import { useCatalogStore } from '../../store/catalog'
 import { notify } from '../../store/notify'
-import { noteUnconfirmed } from '../../store/unconfirmed'
+import { expectAnswer, withdraw } from '../../store/unconfirmed'
 import i18n from '../../i18n'
 
 export async function commandItem(item: string, command: string): Promise<boolean> {
+  // every widget sends through here, so none of them can forget that a vetoed item gets no state
+  // from its command and has to wait for its device instead
+  const vetoed = useCatalogStore.getState().noAutoUpdate.has(item)
+  if (vetoed) await expectAnswer(item, command)
   try {
     await sendCommand(item, command)
-    // An item whose `autoupdate` is vetoed gets no state from its command: openHAB hands it to the
-    // binding and posts nothing at all. Remembering what was asked for here rather than in each
-    // widget is what stops one of them forgetting - and a real state update clears it at once.
-    if (useCatalogStore.getState().noAutoUpdate.has(item)) noteUnconfirmed(item, command)
     return true
   } catch (err) {
+    if (vetoed) withdraw(item, command)
     notify(commandFailure(item, command, err))
     return false
   }

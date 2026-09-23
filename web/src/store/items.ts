@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { clearUnconfirmed } from './unconfirmed'
+import { clearUnconfirmed, readStatesFrom } from './unconfirmed'
 import { StatesTracker, type StateMap } from '../api/sse'
 import { getTabLink, type TabMessage } from '../api/tabLink'
 import type { ItemState } from '../api/types'
@@ -34,6 +34,8 @@ export const useItemsStore = create<ItemsState>(() => ({
   states: emptyMap(),
   connected: false
 }))
+
+readStatesFrom((name) => useItemsStore.getState().states[name]?.state)
 
 function applyStates(delta: StateMap): void {
   useItemsStore.setState((s) => ({ states: mergeMap(s.states, delta) }))

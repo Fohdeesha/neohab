@@ -48,16 +48,22 @@ async function pollItem(name, want, tries = 20) {
   }
   return itemState(name)
 }
-// A hue on its own is not a settled colour: `pollItem(color, '0')` is satisfied by `0.000,92,100`,
-// which is a real DMX bulb part way through its fade, and the glow then reads 21 of green where the
-// section wants pure red. Wait for all three channels.
-async function pollColor(name, want, tries = 25) {
+// A colour is settled when all three channels match AND stay matched: openHAB's optimistic update
+// shows the target the instant the command lands, then a real DMX bulb reports its pre-fade colour
+// and fades back (321.4 -> 0 over 1.02s, measured). Returning on the first match loaded the page
+// mid-fade, inside the app's 1.5s hold, and the glow read the old colour.
+async function pollColor(name, want, stableMs = 2000, budgetMs = 15000) {
   const parts = want.split(',').map(Number)
-  for (let i = 0; i < tries; i++) {
+  const end = Date.now() + budgetMs
+  let since = 0
+  while (Date.now() < end) {
     const s = await itemState(name)
     const got = s.split(',').map(Number)
-    if (got.length === parts.length && parts.every((v, j) => Math.abs(v - got[j]) <= 1)) return s
-    await sleep(300)
+    const match = got.length === parts.length && parts.every((v, j) => Math.abs(v - got[j]) <= 1)
+    if (!match) since = 0
+    else if (since === 0) since = Date.now()
+    else if (Date.now() - since >= stableMs) return s
+    await sleep(250)
   }
   return itemState(name)
 }

@@ -1003,6 +1003,7 @@
   "Semantic tags you define yourself need openHAB 4.0 or newer. The built-in ones still work.": "Zelf gedefinieerde semantische tags vereisen openHAB 4.0 of nieuwer. De ingebouwde blijven werken.",
   "Send command": "Commando versturen",
   "Send while dragging": "Versturen tijdens het slepen",
+  "Sent {{command}} to {{item}}, but it reported {{state}}": "{{command}} naar {{item}} verstuurd, maar het meldt {{state}}",
   "Sent {{command}}. This item does not report back, so nothing has confirmed it.": "{{command}} verstuurd. Dit item meldt niets terug, dus niets heeft het bevestigd.",
   "Sent to switch off, when the tile is already showing as on.": "Wordt verstuurd om uit te zetten, wanneer de tegel al als aan wordt getoond.",
   "Sent when you press it, or to switch on.": "Wordt verstuurd bij het indrukken, of om aan te zetten.",

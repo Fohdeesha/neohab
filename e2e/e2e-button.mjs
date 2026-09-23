@@ -3,8 +3,8 @@
 // exactly, so every state check here is written to tell those two rules apart.
 // SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-button,
 // dashboard:nh-e2e-btnlegacy, dashboard:nh-e2e-btnface and dashboard:nh-e2e-noauto (neohab:config),
-// managed items nh_e2e_btn, nh_e2e_btnstr and nh_e2e_noauto - the last one carrying autoupdate
-// metadata of its own, which is deleted with the item.
+// managed items nh_e2e_btn, nh_e2e_btnstr, nh_e2e_noauto and nh_e2e_noautodim - the last two carrying
+// autoupdate metadata of their own, which is deleted with the item.
 // It SAVES through the app once, on purpose - the migration has to be proved to write back - so it mints
 // one version-history restore point, like any real edit.
 import { launchChromium } from './lib/browser.mjs'
@@ -18,6 +18,7 @@ const ACCENT = '#e0459a'
 const DIM = 'nh_e2e_btn'
 const STR = 'nh_e2e_btnstr'
 const NOAUTO = 'nh_e2e_noauto'
+const NOAUTO_DIM = 'nh_e2e_noautodim'
 const NOAUTO_UID = 'dashboard:nh-e2e-noauto'
 const HOLD_MS = 800 // comfortably past the 500ms threshold
 // The legacy dashboard below carries no version field at all, which reads as 1, and a save has to
@@ -879,26 +880,32 @@ try {
 
   // ---- an item openHAB has promised not to update --------------------------------------------
   //
-  // `autoupdate=false` means core's AutoUpdateManager takes the DONT branch: the command goes to
-  // the binding and NOTHING is posted - no ItemStatePredictedEvent, no ItemStateChangedEvent.
-  // Measured on a live 4.3.11 server as five OFF commands in a row with nothing behind any of them,
-  // which leaves a toggle reading the state alone stuck on whatever the device last reported and
-  // sending the same command for ever. The tile shows what was asked for instead, marked as
-  // unconfirmed, and a real state update still wins.
+  // `autoupdate=false` means core's AutoUpdateManager takes the DONT branch: the command goes to the
+  // binding and openHAB posts no state for it. The device's own answer is the only thing that moves
+  // the item, and a device can answer by confirming the state the item already had - an update that
+  // is not a change, which the states tracker never carries. These items have no binding at all, so
+  // a PUT to /state plays the device: it is the same ItemStateEvent a binding posts.
   {
-    await fetch(itemUrl(NOAUTO), {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'Switch', name: NOAUTO, label: 'NH E2E No Autoupdate' })
-    })
-    const meta = await fetch(itemUrl(NOAUTO) + '/metadata/autoupdate', {
-      method: 'PUT',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: 'false' })
-    })
-    ok('seed: an item that vetoes autoupdate', meta.status === 200 || meta.status === 201, 'metadata ' + meta.status)
-    await sleep(600)
-    await putState(NOAUTO, 'ON')
+    const vetoed = []
+    for (const [name, type, label, rest] of [
+      [NOAUTO, 'Switch', 'NH E2E No Autoupdate', 'ON'],
+      [NOAUTO_DIM, 'Dimmer', 'NH E2E No Autoupdate Dim', '40']
+    ]) {
+      await fetch(itemUrl(name), {
+        method: 'PUT',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, name, label })
+      })
+      const meta = await fetch(itemUrl(name) + '/metadata/autoupdate', {
+        method: 'PUT',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: 'false' })
+      })
+      vetoed.push(meta.status)
+      await sleep(300)
+      await putState(name, rest)
+    }
+    ok('seed: two items that veto autoupdate', vetoed.every((s) => s === 200 || s === 201), 'metadata ' + vetoed.join(','))
     await sleep(400)
 
     await fetch(NS, {
@@ -919,6 +926,12 @@ try {
               type: 'button',
               config: { item: NOAUTO, label: 'Veto', command: 'ON', commandAlt: 'OFF', toggle: true, style: 'switch' },
               layout: { lg: { x: 0, y: 0, w: 3, h: 2 } }
+            },
+            {
+              id: 'w-nad',
+              type: 'slider',
+              config: { item: NOAUTO_DIM, label: 'Veto dim', style: 'plain', min: 0, max: 100, step: 1 },
+              layout: { lg: { x: 3, y: 0, w: 4, h: 2 } }
             }
           ]
         }
@@ -926,6 +939,7 @@ try {
     })
 
     const sent = []
+    const sentDim = []
     const na = await browser.newPage({ viewport: { width: 1200, height: 800 } })
     await na.addInitScript((t) => {
       try {
@@ -935,6 +949,10 @@ try {
     // the command must reach the server, because the point is that the server answers with nothing
     await na.route('**/rest/items/' + NOAUTO, (r) => {
       if (r.request().method() === 'POST') sent.push(r.request().postData())
+      return r.continue()
+    })
+    await na.route('**/rest/items/' + NOAUTO_DIM, (r) => {
+      if (r.request().method() === 'POST') sentDim.push(r.request().postData())
       return r.continue()
     })
     await na.goto(APP + '#/d/nh-e2e-noauto', { waitUntil: 'domcontentloaded' })
@@ -951,31 +969,85 @@ try {
         })
         .catch(() => null)
 
+    // every notice as it appears, so one that has already faded is still counted
+    await na.evaluate(() => {
+      window.__nhToasts = []
+      new MutationObserver(() => {
+        for (const t of document.querySelectorAll('.nh-toast__text')) {
+          if (!window.__nhToasts.includes(t.textContent)) window.__nhToasts.push(t.textContent)
+        }
+      }).observe(document.body, { childList: true, subtree: true, characterData: true })
+    })
+    const toasts = () => na.evaluate(() => window.__nhToasts ?? []).catch(() => [])
+    const lastSent = () => sent.filter(Boolean).slice(-1)[0]
+
     const start = await read()
     ok('it starts on the state the server reports', start?.on === true && start.asking === false, JSON.stringify(start))
 
     await na.click('.nh-switch')
     await sleep(700)
     const afterOff = await read()
-    ok('pressing it sends the alternate command', sent.filter(Boolean).slice(-1)[0] === 'OFF', JSON.stringify(sent))
+    ok('pressing it sends the alternate command', lastSent() === 'OFF', JSON.stringify(sent))
     ok('the server posts no state for it at all', (await readState(NOAUTO)) === 'ON', await readState(NOAUTO))
     ok('but the tile shows what was asked for', afterOff?.on === false, JSON.stringify(afterOff))
     ok('and says it is unconfirmed rather than claiming it', afterOff?.asking === true, JSON.stringify(afterOff))
 
-    // past SETTLE_MS, which is what the old hold would have expired at
+    // a device that never answers: past SETTLE_MS, and past the time an answer is given to settle
     await sleep(5000)
     const held = await read()
-    ok('it still shows it after the settle window, because nothing can arrive to settle to', held?.on === false && held.asking === true, JSON.stringify(held))
+    ok('with no answer at all it still shows what was asked for, because nothing can arrive to settle to', held?.on === false && held.asking === true, JSON.stringify(held))
 
     await na.click('.nh-switch')
     await sleep(700)
-    ok('so pressing again sends the other command instead of repeating', sent.filter(Boolean).slice(-1)[0] === 'ON', JSON.stringify(sent.filter(Boolean).slice(-3)))
+    ok('so pressing again sends the other command instead of repeating', lastSent() === 'ON', JSON.stringify(sent.filter(Boolean).slice(-3)))
 
-    // a real state update is the one thing that wins
+    // told ON, the device reports the ON the item already had: no change, so only an update says so
+    await putState(NOAUTO, 'ON')
+    await sleep(1200)
+    const agreed = await read()
+    ok('an answer that changes nothing still ends the wait', agreed?.on === true && agreed.asking === false, JSON.stringify(agreed))
+
+    // what CHATAIGNE did before its link was fixed: told OFF, it reported ON
+    await na.click('.nh-switch')
+    await sleep(700)
+    ok('pressing it again sends OFF', lastSent() === 'OFF', JSON.stringify(sent.filter(Boolean).slice(-3)))
+    await putState(NOAUTO, 'ON')
+    await sleep(1200)
+    const refused = await read()
+    ok('when the device answers the opposite, the tile shows the answer, not the request', refused?.on === true && refused.asking === false, JSON.stringify(refused))
+    const refusal = `Sent OFF to ${NOAUTO}, but it reported ON`
+    let seen = false
+    for (let i = 0; i < 40 && !seen; i++) {
+      seen = (await toasts()).includes(refusal)
+      if (!seen) await sleep(250)
+    }
+    ok('and a notice says the device answered the opposite', seen, JSON.stringify(await toasts()))
+
+    // a real change still wins, and an answer that agrees is not reported
+    await na.click('.nh-switch')
+    await sleep(700)
+    ok('from ON, a press sends OFF', lastSent() === 'OFF', JSON.stringify(sent.filter(Boolean).slice(-3)))
     await putState(NOAUTO, 'OFF')
     await sleep(1500)
     const confirmed = await read()
     ok('a state the server does post wins and clears the mark', confirmed?.on === false && confirmed.asking === false, JSON.stringify(confirmed))
+    await sleep(4500)
+    const told = (await toasts()).filter((t) => t.includes(NOAUTO))
+    ok('only the answer that contradicted its command was reported', told.length === 1 && told[0] === refusal, JSON.stringify(told))
+
+    // a slider on a vetoed item used to hold what it sent for good, even over a change made elsewhere
+    const dim = na.locator('.nh-widget:has(.nh-widget__labeltext:text-is("Veto dim")) input[type="range"]')
+    const before = Number(await dim.inputValue().catch(() => NaN))
+    await dim.focus().catch(() => {})
+    await na.keyboard.press('ArrowUp')
+    await sleep(1200)
+    const heldDim = Number(await dim.inputValue().catch(() => NaN))
+    ok('a slider on a vetoed item sends its value', sentDim.filter(Boolean).slice(-1)[0] === String(before + 1), `${before} ${JSON.stringify(sentDim)}`)
+    ok('and shows it while nothing has answered', heldDim === before + 1, `${before} -> ${heldDim}`)
+    await putState(NOAUTO_DIM, '20')
+    await sleep(5000)
+    const movedDim = Number(await dim.inputValue().catch(() => NaN))
+    ok('a change made elsewhere still moves it', movedDim === 20, `${before} -> ${heldDim} -> ${movedDim}`)
     await na.close().catch(() => {})
   }
 
@@ -986,7 +1058,7 @@ try {
   for (const uid of [UID, LEGACY_UID, FACE_UID, NOAUTO_UID]) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  for (const item of [DIM, STR, NOAUTO]) {
+  for (const item of [DIM, STR, NOAUTO, NOAUTO_DIM]) {
     await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
   const left = await fetch(NS, { headers: AUTH })
@@ -995,7 +1067,7 @@ try {
     .catch(() => ['<unreadable>'])
   ok('cleanup: dashboards removed', left.length === 0, left.join(','))
   const items = []
-  for (const item of [DIM, STR, NOAUTO]) {
+  for (const item of [DIM, STR, NOAUTO, NOAUTO_DIM]) {
     const there = await fetch(itemUrl(item), { headers: AUTH })
       .then((r) => r.status === 200)
       .catch(() => false)

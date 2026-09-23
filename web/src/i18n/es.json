@@ -1003,6 +1003,7 @@
   "Semantic tags you define yourself need openHAB 4.0 or newer. The built-in ones still work.": "Las etiquetas semánticas que defines tú necesitan openHAB 4.0 o posterior. Las integradas siguen funcionando.",
   "Send command": "Enviar comando",
   "Send while dragging": "Enviar al arrastrar",
+  "Sent {{command}} to {{item}}, but it reported {{state}}": "Se envió {{command}} a {{item}}, pero informa {{state}}",
   "Sent {{command}}. This item does not report back, so nothing has confirmed it.": "Se envió {{command}}. Este ítem no informa de vuelta, así que nada lo ha confirmado.",
   "Sent to switch off, when the tile is already showing as on.": "Se envía para apagar, cuando la tarjeta ya aparece encendida.",
   "Sent when you press it, or to switch on.": "Se envía al pulsar, o para encender.",

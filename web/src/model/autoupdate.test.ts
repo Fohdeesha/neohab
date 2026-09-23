@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autoUpdateVetoed, vetoesAutoUpdate } from './autoupdate'
+import { autoUpdateVetoed, contradicts, vetoesAutoUpdate } from './autoupdate'
 
 describe('the autoupdate veto', () => {
   it('reads the value the way core does, which is Boolean.parseBoolean', () => {
@@ -39,5 +39,49 @@ describe('the autoupdate veto', () => {
     // the metadata object comes off the wire, so it carries whatever the server sent
     expect(autoUpdateVetoed({ constructor: { value: 'false' } })).toBe(false)
     expect(autoUpdateVetoed(Object.create(null) as Record<string, unknown>)).toBe(false)
+  })
+})
+
+describe('a device answering the opposite of its command', () => {
+  it('catches a switch that reports back the state it was told to leave', () => {
+    expect(contradicts('OFF', 'ON')).toBe(true)
+    expect(contradicts('ON', 'OFF')).toBe(true)
+    expect(contradicts('OFF', 'OFF')).toBe(false)
+    expect(contradicts('ON', 'ON')).toBe(false)
+  })
+
+  it('reads a level the way a switch does, so a dimmer left at 5.88 is still on', () => {
+    expect(contradicts('OFF', '5.882352941176470588235294117647059')).toBe(true)
+    expect(contradicts('OFF', '0')).toBe(false)
+    expect(contradicts('ON', '0')).toBe(true)
+    expect(contradicts('ON', '100')).toBe(false)
+    expect(contradicts('OFF', '120,100,33')).toBe(true)
+    expect(contradicts('OFF', '120,100,0')).toBe(false)
+    expect(contradicts('ON', '120,100,0')).toBe(true)
+  })
+
+  it('judges a contact the same way', () => {
+    expect(contradicts('OPEN', 'CLOSED')).toBe(true)
+    expect(contradicts('CLOSED', 'OPEN')).toBe(true)
+    expect(contradicts('OPEN', 'OPEN')).toBe(false)
+  })
+
+  it('does not treat an empty state as zero, which would read it as off', () => {
+    expect(contradicts('ON', '')).toBe(false)
+    expect(contradicts('ON', '   ')).toBe(false)
+    expect(contradicts('ON', '1,2,')).toBe(false)
+  })
+
+  it('says nothing about a device that does not know, or a command that names no end state', () => {
+    for (const r of ['NULL', 'UNDEF', 'hello']) expect(contradicts('OFF', r), r).toBe(false)
+    for (const c of ['UP', 'DOWN', 'STOP', '50', 'PLAY', 'INCREASE', 'REFRESH', 'scene 2']) {
+      expect(contradicts(c, 'ON'), c).toBe(false)
+      expect(contradicts(c, 'OFF'), c).toBe(false)
+    }
+  })
+
+  it('takes the command as typed into a widget, not only as openHAB spells it', () => {
+    expect(contradicts('off', 'ON')).toBe(true)
+    expect(contradicts(' OFF ', 'ON')).toBe(true)
   })
 })

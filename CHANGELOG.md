@@ -6,6 +6,13 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.37.0
+
+- Tiles on `autoupdate=false` items show what the device reports back, not what you sent, without a
+  reload.
+- A notice says when such a device reports the opposite of the command it was sent.
+- Sliders and color controls on those items no longer hide changes made elsewhere.
+
 ## 1.36.0
 
 - A dashboard no longer flickers between two sizes when its height lands close to the window's. The

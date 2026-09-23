@@ -1071,6 +1071,7 @@
   "Semantic tags you define yourself need openHAB 4.0 or newer. The built-in ones still work.": "Własne tagi semantyczne wymagają openHAB 4.0 lub nowszego. Wbudowane nadal działają.",
   "Send command": "Wyślij polecenie",
   "Send while dragging": "Wysyłaj podczas przeciągania",
+  "Sent {{command}} to {{item}}, but it reported {{state}}": "Wysłano {{command}} do {{item}}, ale zgłasza {{state}}",
   "Sent {{command}}. This item does not report back, so nothing has confirmed it.": "Wysłano {{command}}. Ten element nie odsyła stanu, więc nic tego nie potwierdziło.",
   "Sent to switch off, when the tile is already showing as on.": "Wysyłane do wyłączenia, gdy kafelek jest już pokazywany jako włączony.",
   "Sent when you press it, or to switch on.": "Wysyłane przy naciśnięciu albo do włączenia.",
