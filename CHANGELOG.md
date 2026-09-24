@@ -6,6 +6,43 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.38.0
+
+- Restoring a backup only rebuilds neohab's own preset rules, never any other openHAB rule.
+- The app now sets a Content-Security-Policy, and JavaScript widgets run in a sandboxed page of their own.
+- Camera and image addresses that could run script are refused, and template expressions can only call safe methods.
+- Importing a shared file as a copy can no longer overwrite a different dashboard.
+- A proxy login survives a token refresh, and a proxy's 401 no longer signs you out.
+- Nothing is saved over the server's copy while the configuration failed to load.
+- Replacing everything from a backup made without images keeps the images its dashboards use.
+- Lowering "Restore points kept" asks first, and a named restore point is only removed by hand.
+- The background address saves on Enter or when you leave the field, not on every keystroke.
+- A theme with no colors or a broken settings section no longer takes the app down.
+- Saving a preset keeps what you added to its rule, "turn off" only switches lights, and a toggled preset turns its wall switch off too.
+- Re-importing from HABPanel keeps custom widgets you edited since.
+- Dials ignore presses in the gap and the centre, stop at an end when dragged past it, and no longer jump at 12 o'clock.
+- Right-clicking a dial no longer sends a value, and the detail sheet only drags live where the widget does.
+- The thermostat no longer jumps to the far end when stepping from outside its range.
+- Stepper, thermostat, player and selection show what you sent until the device answers.
+- A dashboard that fails to load says so and retries, and an update offers a reload instead of reloading under you.
+- Cameras recover after a restart, and new openHAB items can be picked without reloading.
+- Charts count grouped readings once, keep the live tail on refresh, and the full-screen chart stops inventing the rest of the day.
+- The log catches up after openHAB restarts, and a logger filter full of stars can no longer freeze the page.
+- Dates, times and chart axes follow the app's language.
+- A missing item keeps the tile's name, and only the widget's main item blanks it.
+- Pasted widgets from an older neohab are converted, and custom widget checkboxes, choices, colors and icons get proper fields.
+- "Sign in and save" keeps your changes through the openHAB login, and signing in returns you to the page you were on.
+- Lowering the column count pushes widgets down instead of stacking them, and typing a number no longer squeezes the layout.
+- The editor stacks exactly where the dashboard does, and turning a tablet upright edits the layout the phone shows.
+- Uploaded backgrounds are stored at up to 4K, as JPEG or PNG, whichever is smaller.
+- Sheets keep keyboard focus inside and hand it back when they close, and a hold on a log tile opens it when you let go.
+- Web audio plays the newest clip, and the same clip twice in a row.
+- Status colors are readable in every built-in theme, and theme switches no longer flash unstyled.
+- The theme editor judges see-through colors correctly and its stylesheet checks can no longer be switched off.
+- Bigger text in toasts, tooltips, the heatmap, the weather forecast and badges, and the remaining English strings are translated.
+- Toggle buttons report pressed, the log is announced as a log, and timeline bands and floor plan lights work from the keyboard.
+- Generating dashboards is all or nothing, and a failed item read can be retried.
+
 ## 1.37.0
 
 - Tiles on `autoupdate=false` items show what the device reports back, not what you sent, without a

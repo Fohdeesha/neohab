@@ -1,6 +1,8 @@
 // Audit fixes for configuration that did not come from the editor.
 import { launchChromium } from './lib/browser.mjs'
+import { skipOnProduction } from './lib/guard.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { pickItem } from './lib/ui.mjs'
 
 const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
@@ -24,119 +26,126 @@ const put = async (comp) => {
  */
 const PROTO_ITEMS = ['constructor', 'toString', 'hasOwnProperty', '__proto__']
 const madeItems = []
-for (const name of PROTO_ITEMS) {
-  const r = await fetch(BASE + '/rest/items/' + name, {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'Switch', name, label: 'E2E audit2 ' + name })
-  })
-  if (r.ok) madeItems.push(name)
-}
-await new Promise((r) => setTimeout(r, 800))
-for (const name of PROTO_ITEMS) {
-  await fetch(BASE + '/rest/items/' + name + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: 'OFF' })
-}
-
-await put({
-  uid: 'dashboard:nh-e2e-a2',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2', name: 'E2E Audit2', columns: 12, rowHeight: 'match', gap: 5,
-    widgets: [
-      { id: 'a2-label', type: 'label', config: { text: 'Scaled', fontSize: 40 }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-      { id: 'a2-btn', type: 'button', config: { item: ITEMS.switch, label: 'Pick', command: 'ON' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
-    ],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-proto',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-proto', name: 'E2E Audit2 Proto', columns: 12, rowHeight: 'match', gap: 5,
-    widgets: [
-      { id: 'a2p-sw', type: 'switch', config: { item: 'constructor', label: 'Ctor' }, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } },
-      { id: 'a2p-val', type: 'value', config: { item: 'toString', label: 'Str' }, layout: { lg: { x: 2, y: 0, w: 2, h: 2 } } },
-      { id: 'a2p-btn', type: 'button', config: { item: 'hasOwnProperty', label: 'Has', command: 'ON', toggle: true }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
-      { id: 'a2p-proto', type: 'switch', config: { item: '__proto__', label: 'Proto' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
-    ],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-nameless',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: { version: 1, id: 'nh-e2e-a2-nameless', columns: 4, rowHeight: 'match', widgets: [] },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-nocols',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-nocols', name: 'E2E Audit2 NoCols', columns: 0, rowHeight: 'match', gap: 5,
-    widgets: [{ id: 'a2-v', type: 'label', config: { text: 'Survives' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-norow',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-norow', name: 'E2E Audit2 NoRow', columns: 12, rowHeight: 0, gap: 5,
-    widgets: [{ id: 'a2-r', type: 'label', config: { text: 'Floored' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-nogap',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-nogap', name: 'E2E Audit2 NoGap', columns: 12, rowHeight: 'match', gap: 'wide',
-    widgets: [{ id: 'a2-g', type: 'label', config: { text: 'Gapped' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-badrect',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-badrect', name: 'E2E Audit2 BadRect', columns: 12, rowHeight: 'match', gap: 5,
-    widgets: [
-      { id: 'a2-bad', type: 'label', config: { text: 'Repaired' }, layout: { lg: { x: -4, y: -5, w: 0, h: 'tall' } } },
-      { id: 'a2-good', type: 'label', config: { text: 'Neighbour' }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
-    ],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-throws',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-throws', name: 'E2E Audit2 Throws', columns: 12, rowHeight: 'match', gap: 5,
-    widgets: [
-      { id: 'a2-chart', type: 'chart', config: { series: {}, thresholds: 'none' }, layout: { lg: { x: 0, y: 0, w: 6, h: 3 } } },
-      { id: 'a2-tl', type: 'timeline', config: { series: 'nope', colorMaps: 7 }, layout: { lg: { x: 6, y: 0, w: 6, h: 3 } } },
-      { id: 'a2-alive', type: 'label', config: { text: 'Still here' }, layout: { lg: { x: 0, y: 3, w: 3, h: 2 } } },
-      { id: 'a2-nosuch', type: 'notawidget', config: {}, layout: { lg: { x: 3, y: 3, w: 3, h: 2 } } },
-    ],
-  },
-})
-await put({
-  uid: 'dashboard:nh-e2e-a2-mdwide',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1, id: 'nh-e2e-a2-mdwide', name: 'E2E Audit2 MdWide', columns: 12, mdColumns: 4, rowHeight: 'match', gap: 5,
-    widgets: [
-      { id: 'a2-md', type: 'label', config: { text: 'Wide' }, layout: { lg: { x: 0, y: 0, w: 12, h: 1 }, md: { x: 0, y: 0, w: 9, h: 1 } } },
-      { id: 'a2-md2', type: 'label', config: { text: 'Edge' }, layout: { lg: { x: 0, y: 1, w: 12, h: 1 }, md: { x: 3, y: 1, w: 2, h: 1 } } },
-    ],
-  },
-})
+let protoSkipped = false
 
 const browser = await launchBrowser()
 try {
+  protoSkipped = skipOnProduction(ok, 'the prototype-named bindings need four managed items created on the server')
+  if (!protoSkipped) {
+    for (const name of PROTO_ITEMS) {
+      const r = await fetch(BASE + '/rest/items/' + name, {
+        method: 'PUT',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'Switch', name, label: 'E2E audit2 ' + name })
+      })
+      if (r.ok) madeItems.push(name)
+    }
+    await new Promise((r) => setTimeout(r, 800))
+    for (const name of PROTO_ITEMS) {
+      await fetch(BASE + '/rest/items/' + name + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: 'OFF' })
+    }
+  }
+
+  await put({
+    uid: 'dashboard:nh-e2e-a2',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2', name: 'E2E Audit2', columns: 12, rowHeight: 'match', gap: 5,
+      widgets: [
+        { id: 'a2-label', type: 'label', config: { text: 'Scaled', fontSize: 40 }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
+        { id: 'a2-btn', type: 'button', config: { item: ITEMS.switch, label: 'Pick', command: 'ON' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
+        // left unbound on purpose: the picker check has to be able to see that nothing got bound
+        { id: 'a2-unbound', type: 'value', config: { label: 'Unbound' }, layout: { lg: { x: 5, y: 0, w: 2, h: 2 } } },
+      ],
+    },
+  })
+  if (!protoSkipped) await put({
+    uid: 'dashboard:nh-e2e-a2-proto',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-proto', name: 'E2E Audit2 Proto', columns: 12, rowHeight: 'match', gap: 5,
+      widgets: [
+        { id: 'a2p-sw', type: 'switch', config: { item: 'constructor', label: 'Ctor' }, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } },
+        { id: 'a2p-val', type: 'value', config: { item: 'toString', label: 'Str' }, layout: { lg: { x: 2, y: 0, w: 2, h: 2 } } },
+        { id: 'a2p-btn', type: 'button', config: { item: 'hasOwnProperty', label: 'Has', command: 'ON', toggle: true }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
+        { id: 'a2p-proto', type: 'switch', config: { item: '__proto__', label: 'Proto' }, layout: { lg: { x: 6, y: 0, w: 2, h: 2 } } },
+      ],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-nameless',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: { version: 1, id: 'nh-e2e-a2-nameless', columns: 4, rowHeight: 'match', widgets: [] },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-nocols',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-nocols', name: 'E2E Audit2 NoCols', columns: 0, rowHeight: 'match', gap: 5,
+      widgets: [{ id: 'a2-v', type: 'label', config: { text: 'Survives' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-norow',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-norow', name: 'E2E Audit2 NoRow', columns: 12, rowHeight: 0, gap: 5,
+      widgets: [{ id: 'a2-r', type: 'label', config: { text: 'Floored' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-nogap',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-nogap', name: 'E2E Audit2 NoGap', columns: 12, rowHeight: 'match', gap: 'wide',
+      widgets: [{ id: 'a2-g', type: 'label', config: { text: 'Gapped' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-badrect',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-badrect', name: 'E2E Audit2 BadRect', columns: 12, rowHeight: 'match', gap: 5,
+      widgets: [
+        { id: 'a2-bad', type: 'label', config: { text: 'Repaired' }, layout: { lg: { x: -4, y: -5, w: 0, h: 'tall' } } },
+        { id: 'a2-good', type: 'label', config: { text: 'Neighbour' }, layout: { lg: { x: 4, y: 0, w: 2, h: 2 } } },
+      ],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-throws',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-throws', name: 'E2E Audit2 Throws', columns: 12, rowHeight: 'match', gap: 5,
+      widgets: [
+        { id: 'a2-chart', type: 'chart', config: { series: {}, thresholds: 'none' }, layout: { lg: { x: 0, y: 0, w: 6, h: 3 } } },
+        { id: 'a2-tl', type: 'timeline', config: { series: 'nope', colorMaps: 7 }, layout: { lg: { x: 6, y: 0, w: 6, h: 3 } } },
+        { id: 'a2-alive', type: 'label', config: { text: 'Still here' }, layout: { lg: { x: 0, y: 3, w: 3, h: 2 } } },
+        { id: 'a2-nosuch', type: 'notawidget', config: {}, layout: { lg: { x: 3, y: 3, w: 3, h: 2 } } },
+      ],
+    },
+  })
+  await put({
+    uid: 'dashboard:nh-e2e-a2-mdwide',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1, id: 'nh-e2e-a2-mdwide', name: 'E2E Audit2 MdWide', columns: 12, mdColumns: 4, rowHeight: 'match', gap: 5,
+      widgets: [
+        { id: 'a2-md', type: 'label', config: { text: 'Wide' }, layout: { lg: { x: 0, y: 0, w: 12, h: 1 }, md: { x: 0, y: 0, w: 9, h: 1 } } },
+        { id: 'a2-md2', type: 'label', config: { text: 'Edge' }, layout: { lg: { x: 0, y: 1, w: 12, h: 1 }, md: { x: 3, y: 1, w: 2, h: 1 } } },
+      ],
+    },
+  })
+
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
@@ -268,7 +277,7 @@ try {
     await ctx.close()
   }
 
-  {
+  if (!protoSkipped) {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
     const page = await ctx.newPage()
@@ -294,32 +303,58 @@ try {
     await ctx.close()
   }
 
-  {
-    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
-    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
-    const page = await ctx.newPage()
-    const caught = []
-    page.on('console', (m) => {
-      if (m.type() === 'error' && /failed to render/.test(m.text())) caught.push(m.text())
-    })
-    await page.route(/\/rest\/ui\/components\/neohab:config/, async (route) => {
+  // a dashboard served with this widget list, only in the browser
+  const servePoison = (page, widgets) =>
+    page.route(/\/rest\/ui\/components\/neohab:config/, async (route) => {
       if (route.request().method() !== 'GET') return route.continue()
       const res = await route.fetch()
       const body = await res.json()
       body.push({
         uid: 'dashboard:nh-e2e-a2-poison',
         component: 'neohab:dashboard',
-        config: {
-          version: 1,
-          id: 'nh-e2e-a2-poison',
-          name: 'E2E Poison',
-          columns: 12,
-          rowHeight: 'match',
-          widgets: [null],
-        },
+        config: { version: 1, id: 'nh-e2e-a2-poison', name: 'E2E Poison', columns: 12, rowHeight: 'match', widgets },
       })
       return route.fulfill({ response: res, body: JSON.stringify(body) })
     })
+
+  // a null in the stored widget list used to throw on render; it is repaired where the configuration loads now
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    const page = await ctx.newPage()
+    await servePoison(page, [null, { id: 'w-kept', type: 'label', config: { text: 'NH E2E kept' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } }])
+    await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-poison')
+    await page.waitForTimeout(2500)
+    const drawn = await page.evaluate(() => ({
+      panel: document.querySelectorAll('.nh-appfail').length,
+      title: document.querySelector('.nh-dash__title')?.textContent ?? '',
+      kept: document.body.innerText.includes('NH E2E kept'),
+    }))
+    ok('a null in a stored widget list no longer takes the dashboard down', drawn.panel === 0 && drawn.title === 'E2E Poison' && drawn.kept, JSON.stringify(drawn))
+    await ctx.close()
+  }
+
+  // and a screen that throws anyway still gets the panel: the throw is forced here, since the data that used to
+  // cause one is now repaired before anything renders
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+    await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {} }, TOKEN)
+    await ctx.addInitScript(() => {
+      if (window.top !== window) return
+      const Real = window.ResizeObserver
+      window.ResizeObserver = class extends Real {
+        constructor(cb) {
+          if (location.hash.includes('nh-e2e-a2-poison')) throw new Error('nh-e2e: a screen that throws')
+          super(cb)
+        }
+      }
+    })
+    const page = await ctx.newPage()
+    const caught = []
+    page.on('console', (m) => {
+      if (m.type() === 'error' && /failed to render/.test(m.text())) caught.push(m.text())
+    })
+    await servePoison(page, [])
     await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-a2-poison')
     await page.waitForTimeout(2500)
     const state = await page.evaluate(() => ({
@@ -520,16 +555,15 @@ try {
     await page.waitForSelector('.nh-gcell', { timeout: 15000 })
     await page.click('button[aria-label="Edit dashboard"]')
     await page.waitForSelector('.nh-grid--edit .nh-cell', { timeout: 10000 })
-    await page.locator('.nh-cell').nth(1).locator('.nh-cell__overlay').click()
+    await page.locator('.nh-cell:has(.nh-cell__type:text-is("value")) .nh-cell__overlay').click()
     await page.waitForSelector('input[role="combobox"]', { timeout: 10000 })
     const combo = page.locator('input[role="combobox"]').first()
-    await combo.click()
-    await page.waitForSelector('.nh-picker__list', { timeout: 10000 })
-    await page.locator('.nh-picker__option').first().click()
-    await page.waitForTimeout(500)
+    const before = await combo.inputValue()
+    ok('picker: the widget starts with no item bound', before === '', 'value=' + before)
+    const picked = await pickItem(page, combo, ITEMS.dimmer)
+    await page.waitForTimeout(200)
     const stillOpen = await page.locator('.nh-picker__list').count()
-    const picked = await combo.inputValue()
-    ok('picker: an item was selected', picked.length > 0, 'value=' + picked)
+    ok('picker: clicking an option binds that item', picked === ITEMS.dimmer, 'value=' + picked)
     ok('picker: list closes after selecting (does not re-open)', stillOpen === 0, 'lists open=' + stillOpen)
     await ctx.close()
   }
@@ -541,15 +575,17 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-a2'))
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid.includes('nh-e2e-a2'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 
   for (const name of madeItems) {
     await fetch(BASE + '/rest/items/' + name, { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  const names = await (await fetch(BASE + '/rest/items?fields=name', { headers: AUTH })).json()
-  const stray = PROTO_ITEMS.filter((n) => names.some((i) => i.name === n))
-  ok('cleanup: the prototype-named items are gone', stray.length === 0, stray.join(', '))
+  if (!protoSkipped) {
+    const names = await (await fetch(BASE + '/rest/items?fields=name', { headers: AUTH })).json()
+    const stray = PROTO_ITEMS.filter((n) => names.some((i) => i.name === n))
+    ok('cleanup: the prototype-named items are gone', stray.length === 0, stray.join(', '))
+  }
 }
 
 let pass = 0

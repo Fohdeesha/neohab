@@ -1,3 +1,4 @@
+import i18n from '../../i18n'
 import type { CSSProperties, ReactNode } from 'react'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { Icon } from '../../components/Icon'
@@ -44,9 +45,17 @@ const ARROWS: Record<TrendDirection, string> = {
 // a body icon is drawn at the reading's own scale; a title-bar one takes the frame's smaller default
 const BODY_ICON = 32
 
+// union-keyed, so the compiler pins the index; the names are what a screen reader says for the arrow
+const DIRECTION_NAMES: Record<TrendDirection, string> = { up: 'Rising', down: 'Falling', flat: 'Unchanged' }
+
 function Arrow({ direction, tone }: { direction: TrendDirection; tone: TrendTone | null }) {
   return (
-    <svg className={'nh-stat__arrow nh-stat__arrow--' + tone} viewBox="0 0 12 14" role="img" aria-label={direction}>
+    <svg
+      className={'nh-stat__arrow nh-stat__arrow--' + tone}
+      viewBox="0 0 12 14"
+      role="img"
+      aria-label={i18n.t(DIRECTION_NAMES[direction])}
+      data-direction={direction}>
       <path d={ARROWS[direction]} />
     </svg>
   )

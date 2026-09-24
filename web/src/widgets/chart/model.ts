@@ -29,6 +29,7 @@ export interface ChartConfig {
   expand?: boolean
   series?: ChartSeries[]
   label?: string
+  labelMode?: string
   period?: string
   service?: string
   refresh?: number

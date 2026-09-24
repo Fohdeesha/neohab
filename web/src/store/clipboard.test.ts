@@ -50,4 +50,38 @@ describe('parseClipboard', () => {
     expect(Number.isFinite(JSON.parse(text).widgets[1].rect.w)).toBe(false)
     expect(parseClipboard(text)).toBeNull()
   })
+
+  it('migrates widgets copied from an older build, as a stored dashboard would be', () => {
+    const [pasted] = parseClipboard(payload([{ type: 'switch', config: { item: 'Lamp' }, rect: { x: 0, y: 0, w: 2, h: 1 } }]))!
+    expect(pasted.type).toBe('button')
+    expect(pasted.config).toMatchObject({ item: 'Lamp', style: 'switch', toggle: true, command: 'ON', commandAlt: 'OFF' })
+    const [stat] = parseClipboard(
+      JSON.stringify({ app: 'neohab', kind: 'neohab/widgets', version: 1, schema: 2, widgets: [widget({ type: 'stat' })] })
+    )!
+    expect(stat.type).toBe('value')
+  })
+
+  it('leaves widgets from this build exactly as they were copied', () => {
+    const button = widget({ type: 'button', config: { label: 'x', toggle: true } })
+    expect(parseClipboard(serializeClipboard([button]))).toEqual([button])
+  })
+
+  it('refuses widgets written by a newer build than this one', () => {
+    expect(
+      parseClipboard(JSON.stringify({ app: 'neohab', kind: 'neohab/widgets', version: 1, schema: 99, widgets: [widget()] }))
+    ).toBeNull()
+  })
+
+  it('bounds a rect a person could never have drawn, and drops null rows from its lists', () => {
+    const [pasted] = parseClipboard(
+      payload([{ type: 'chart', config: { series: [null, { item: 'T' }] }, rect: { x: 0.4, y: 1e9, w: 3, h: 1e9 } }])
+    )!
+    expect(pasted.rect).toEqual({ x: 0, y: 5000, w: 3, h: 5000 })
+    expect(pasted.config.series).toEqual([{ item: 'T' }])
+  })
+
+  it('refuses a paste of more widgets than any dashboard holds', () => {
+    expect(parseClipboard(payload(Array.from({ length: 501 }, () => widget())))).toBeNull()
+    expect(parseClipboard(payload(Array.from({ length: 500 }, () => widget())))).toHaveLength(500)
+  })
 })

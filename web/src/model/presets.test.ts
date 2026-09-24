@@ -8,13 +8,14 @@ import {
   isNeohabRule,
   isScene,
   newSceneUid,
-  offCommandFor,
   presetActive,
   presetOffCommands,
   presetFromRule,
   presetSummaryFromRule,
   ruleFromPreset,
+  rulesFromBackup,
   SCENE_UID_PREFIX,
+  switchesOff,
   type Preset,
   type SceneRule
 } from './presets'
@@ -107,7 +108,7 @@ describe('preset -> rule', () => {
 
   it('round-trips through the rule shape', () => {
     const rule = ruleFromPreset(preset)
-    expect(rule.tags).toEqual(['Scene', 'neohab', 'neohab:status:House_Lighting_Preset_1:ON'])
+    expect(rule.tags).toEqual(['Scene', 'neohab', 'neohab:status:House_Lighting_Preset_1:ON', 'neohab:lights:STRIP_1'])
     expect(rule.triggers).toEqual([])
     expect(rule.actions).toHaveLength(1)
     expect(presetFromRule(rule)).toEqual({ ...preset, editable: false })
@@ -116,7 +117,53 @@ describe('preset -> rule', () => {
   it('a preset without a status item stores an empty configuration and no status tag', () => {
     const rule = ruleFromPreset({ ...preset, statusItem: undefined, statusState: undefined })
     expect(rule.configuration).toEqual({})
-    expect(rule.tags).toEqual(['Scene', 'neohab'])
+    expect(rule.tags).toEqual(['Scene', 'neohab', 'neohab:lights:STRIP_1'])
+  })
+
+  it('the items it commands can be read off a summary, which is all a signed-out viewer gets', () => {
+    const rule = ruleFromPreset({
+      ...preset,
+      lights: [...preset.lights, { item: 'lamp', command: '40' }, { item: 'STRIP_1', command: 'ON' }]
+    })
+    const p = presetSummaryFromRule({ uid: rule.uid, name: rule.name, tags: rule.tags })
+    expect(p.lightItems).toEqual(['STRIP_1', 'lamp'])
+    expect(presetSummaryFromRule({ uid: 'x', tags: ['neohab:lights:', 'neohab:lights:a b,ok'] }).lightItems).toBeUndefined()
+  })
+
+  it('saving over a rule keeps what was added to it in Main UI', () => {
+    const onServer: SceneRule = {
+      uid: 'nh-scene-movie',
+      name: 'Old name',
+      description: 'dims for films',
+      tags: ['Scene', 'neohab', 'neohab:status:Old_Item:ON', 'neohab:lights:gone', 'Cinema'],
+      configuration: { statusItem: 'Old_Item', statusState: 'ON', extra: 5 },
+      triggers: [{ id: '1', type: 'timer.GenericCronTrigger', configuration: { cronExpression: '0 0 20 * * ?' } }],
+      conditions: [{ id: 'c', type: 'core.ItemStateCondition', configuration: {} }],
+      actions: [
+        { id: '2', type: 'script.ScriptAction', configuration: { script: 'before' } },
+        { id: '3', type: 'core.ItemCommandAction', configuration: { itemName: 'gone', command: 'ON' } },
+        { id: '4', type: 'script.ScriptAction', configuration: { script: 'after' } }
+      ]
+    }
+    const rule = ruleFromPreset(
+      {
+        ...preset,
+        lights: [
+          { item: 'a', command: '1' },
+          { item: 'b', command: '2' }
+        ]
+      },
+      onServer
+    )
+    expect(rule.name).toBe('Movie night')
+    expect(rule.description).toBe('dims for films')
+    expect(rule.triggers).toEqual(onServer.triggers)
+    expect(rule.conditions).toEqual(onServer.conditions)
+    expect(rule.configuration).toEqual({ extra: 5, statusItem: 'House_Lighting_Preset_1', statusState: 'ON' })
+    expect(rule.tags).toEqual(['Scene', 'neohab', 'neohab:status:House_Lighting_Preset_1:ON', 'neohab:lights:a,b', 'Cinema'])
+    expect(rule.actions?.map((a) => a.configuration?.script ?? a.configuration?.itemName)).toEqual(['before', 'a', 'b', 'after'])
+    const ids = [...(rule.triggers ?? []), ...(rule.conditions ?? []), ...(rule.actions ?? [])].map((m) => m.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('the status item survives a 4.x summary, which strips the configuration block', () => {
@@ -130,6 +177,73 @@ describe('preset -> rule', () => {
   it('a malformed status tag is ignored', () => {
     expect(presetSummaryFromRule({ uid: 'x', tags: ['Scene', 'neohab:status:'] }).statusItem).toBeUndefined()
     expect(presetSummaryFromRule({ uid: 'x', tags: ['Scene', 'neohab:status:A:SIDEWAYS'] }).statusItem).toBeUndefined()
+  })
+})
+
+describe('presets out of a backup file', () => {
+  const hostile: unknown[] = [
+    {
+      uid: 'nh-scene-x',
+      name: 'X',
+      tags: ['Scene', 'neohab'],
+      triggers: [{ id: '1', type: 'timer.GenericCronTrigger', configuration: { cronExpression: '* * * * * ?' } }],
+      conditions: [],
+      actions: [
+        { id: '2', type: 'script.ScriptAction', configuration: { type: 'application/javascript', script: 'evil()' } },
+        { id: '3', type: 'core.RunRuleAction', configuration: { ruleUIDs: ['someone-elses-rule'] } },
+        { id: '4', type: 'core.ItemCommandAction', configuration: { itemName: 'Lamp', command: 'ON' } }
+      ]
+    },
+    {
+      uid: 'nh-bridge-nh-scene-x',
+      tags: ['neohab'],
+      triggers: [{ id: '1', type: 'timer.GenericCronTrigger', configuration: { cronExpression: '* * * * * ?' } }],
+      actions: [{ id: '2', type: 'core.RunRuleAction', configuration: { ruleUIDs: ['anything'] } }]
+    },
+    { uid: 'nh-scene-y', tags: ['Scene', 'neohab'], configuration: { statusItem: 'Wall', statusState: 'ON' }, actions: [] },
+    { uid: 'nh-bridge-nh-scene-y', tags: ['neohab'] },
+    { uid: 'not-ours', tags: ['Scene', 'neohab'] },
+    { uid: 'nh-scene-../x', tags: ['Scene', 'neohab'] },
+    null,
+    'nh-scene-z'
+  ]
+
+  it('writes only item commands, whatever the file carried', () => {
+    const out = rulesFromBackup(hostile)
+    const x = out.find((r) => r.uid === 'nh-scene-x')
+    expect(x?.triggers).toEqual([])
+    expect(x?.conditions).toEqual([])
+    expect(x?.actions).toEqual([{ id: '1', type: 'core.ItemCommandAction', configuration: { itemName: 'Lamp', command: 'ON' } }])
+    for (const r of out) {
+      for (const m of [...(r.triggers ?? []), ...(r.conditions ?? []), ...(r.actions ?? [])]) {
+        expect(['core.ItemCommandAction', 'core.ItemStateChangeTrigger', 'core.RunRuleAction']).toContain(m.type)
+      }
+    }
+  })
+
+  it('a bridge is rebuilt from its scene, and dropped when the scene has no wall switch', () => {
+    const out = rulesFromBackup(hostile)
+    expect(out.map((r) => r.uid).sort()).toEqual(['nh-bridge-nh-scene-y', 'nh-scene-x', 'nh-scene-y'])
+    const bridge = out.find((r) => r.uid === 'nh-bridge-nh-scene-y')
+    expect(bridge?.triggers?.[0].configuration).toEqual({ itemName: 'Wall', state: 'ON' })
+    expect(bridge?.actions?.[0].configuration).toEqual({ ruleUIDs: ['nh-scene-y'], considerConditions: true })
+  })
+
+  it("keeps what the SERVER's copy of a rule has, never the file's", () => {
+    const server: SceneRule = {
+      uid: 'nh-scene-x',
+      tags: ['Scene', 'neohab'],
+      triggers: [{ id: '9', type: 'core.ItemStateChangeTrigger', configuration: { itemName: 'Door' } }],
+      actions: []
+    }
+    const x = rulesFromBackup(hostile, [server]).find((r) => r.uid === 'nh-scene-x')
+    expect(x?.triggers).toEqual(server.triggers)
+    expect(x?.actions?.map((a) => a.type)).toEqual(['core.ItemCommandAction'])
+  })
+
+  it('survives a file that is not a list', () => {
+    expect(rulesFromBackup({} as unknown)).toEqual([])
+    expect(rulesFromBackup(undefined)).toEqual([])
   })
 })
 
@@ -215,25 +329,31 @@ describe('state matching', () => {
     expect(presetActive([], () => 'ON')).toBe(false)
   })
 
-  it('switching a preset off uses the right kind of off for each light', () => {
-    expect(offCommandFor('288,55,40')).toBe('OFF')
-    expect(offCommandFor('64')).toBe('0')
-    expect(offCommandFor('22.5')).toBe('0')
-    expect(offCommandFor('ON')).toBe('OFF')
-    expect(offCommandFor('PLAY')).toBe('OFF')
+  it('only switches, dimmers and colour lights are switched off', () => {
+    expect(switchesOff('Switch')).toBe(true)
+    expect(switchesOff('Dimmer')).toBe(true)
+    expect(switchesOff('Color')).toBe(true)
+    expect(switchesOff('Group', 'Dimmer')).toBe(true)
+    expect(switchesOff('Rollershutter')).toBe(false)
+    expect(switchesOff('Number:Temperature')).toBe(false)
+    expect(switchesOff('Player')).toBe(false)
+    expect(switchesOff('Group', 'Rollershutter')).toBe(false)
+    expect(switchesOff('Group')).toBe(false)
+    expect(switchesOff(undefined)).toBe(false)
   })
 
-  it('an off command is built for every light of the preset, and nothing else', () => {
-    const lights = [
-      { item: 'strip', command: '288,55,40' },
-      { item: 'lamp', command: '64' }
-    ]
-    expect(presetOffCommands(lights)).toEqual([
+  it('an off command goes to every light of the preset, and never to a blind', () => {
+    const kinds: Record<string, { type: string }> = {
+      strip: { type: 'Color' },
+      lamp: { type: 'Dimmer' },
+      blind: { type: 'Rollershutter' }
+    }
+    expect(presetOffCommands(['strip', 'lamp', 'blind', 'gone', 'lamp'], (i) => kinds[i])).toEqual([
       { item: 'strip', command: 'OFF' },
-      { item: 'lamp', command: '0' }
+      { item: 'lamp', command: 'OFF' }
     ])
-    expect(presetOffCommands([])).toEqual([])
-    expect(presetOffCommands(undefined as never)).toEqual([])
+    expect(presetOffCommands([], () => undefined)).toEqual([])
+    expect(presetOffCommands(undefined as never, () => undefined)).toEqual([])
   })
 })
 

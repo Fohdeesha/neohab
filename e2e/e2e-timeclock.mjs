@@ -5,7 +5,7 @@
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { confirmHabpanelImport } from './lib/ui.mjs'
-import { getSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID = 'dashboard:nh-e2e-timeclock'
 const IMPORTED = 'dashboard:nh-e2e-hpx'
@@ -29,62 +29,15 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-const settingsOrig = await getSettings()
+// the HABPanel import at the end writes the SHARED speech item, which stays in this browser
+const sb = await sharedSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
-console.log(`snapshot: ${dimmer}=${dimmerOrig}, settings ${settingsOrig ? 'present' : 'absent'}`)
-
-const dimmerNow = Math.round(Number(dimmerOrig)) === 44 ? 46 : 44
-await postItem(dimmer, dimmerNow)
-{
-  const until = Date.now() + 10000
-  for (;;) {
-    if (Math.round(Number((await getItem(dimmer)).state)) === dimmerNow) break
-    if (Date.now() > until) {
-      console.log(`WARNING: ${dimmer} did not settle at ${dimmerNow}`)
-      break
-    }
-    await new Promise((r) => setTimeout(r, 200))
-  }
-}
-
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: UID,
-    component: 'neohab:dashboard',
-    config: {
-      version: 1, id: 'nh-e2e-timeclock', name: 'nh-e2e-timeclock', columns: 12, rowHeight: 'match',
-      widgets: [
-        {
-          id: 'w-tl', type: 'timeline',
-          config: {
-            label: 'History',
-            series: [{ item: dimmer, label: 'Dim' }, { item: ITEMS.temperature, label: 'Temp' }],
-            colorMaps: [{ state: String(dimmerNow), color: '#ff0000' }],
-            period: '12h',
-          },
-          layout: { lg: { x: 0, y: 0, w: 8, h: 4 } },
-        },
-        {
-          id: 'w-ana', type: 'clock',
-          config: { mode: 'analog', showNumbers: true, showSeconds: true, showDate: true },
-          layout: { lg: { x: 8, y: 0, w: 4, h: 4 } },
-        },
-        { id: 'w-dig', type: 'clock', config: {}, layout: { lg: { x: 0, y: 4, w: 4, h: 2 } } },
-        {
-          id: 'w-nobg', type: 'clock',
-          config: { label: 'No card', tileBackground: false },
-          layout: { lg: { x: 4, y: 4, w: 4, h: 2 } },
-        },
-      ],
-    },
-  }),
-})
+console.log(`snapshot: ${dimmer}=${dimmerOrig}`)
 
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
+await sb.install(page)
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
@@ -97,6 +50,57 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
+  // a killed earlier run's copies would be tested in place of fresh ones, or push the import to -2
+  for (const uid of [UID, IMPORTED, TLFIT]) await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const dimmerNow = Math.round(Number(dimmerOrig)) === 44 ? 46 : 44
+  await postItem(dimmer, dimmerNow)
+  {
+    const until = Date.now() + 10000
+    for (;;) {
+      if (Math.round(Number((await getItem(dimmer)).state)) === dimmerNow) break
+      if (Date.now() > until) {
+        console.log(`WARNING: ${dimmer} did not settle at ${dimmerNow}`)
+        break
+      }
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  }
+
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1, id: 'nh-e2e-timeclock', name: 'nh-e2e-timeclock', columns: 12, rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-tl', type: 'timeline',
+            config: {
+              label: 'History',
+              series: [{ item: dimmer, label: 'Dim' }, { item: ITEMS.temperature, label: 'Temp' }],
+              colorMaps: [{ state: String(dimmerNow), color: '#ff0000' }],
+              period: '12h',
+            },
+            layout: { lg: { x: 0, y: 0, w: 8, h: 4 } },
+          },
+          {
+            id: 'w-ana', type: 'clock',
+            config: { mode: 'analog', showNumbers: true, showSeconds: true, showDate: true },
+            layout: { lg: { x: 8, y: 0, w: 4, h: 4 } },
+          },
+          { id: 'w-dig', type: 'clock', config: {}, layout: { lg: { x: 0, y: 4, w: 4, h: 2 } } },
+          {
+            id: 'w-nobg', type: 'clock',
+            config: { label: 'No card', tileBackground: false },
+            layout: { lg: { x: 4, y: 4, w: 4, h: 2 } },
+          },
+        ],
+      },
+    }),
+  })
+
   await page.goto(APP + '#/d/nh-e2e-timeclock', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tl__row', { timeout: 20000 })
   ok('timeline renders', true)
@@ -408,7 +412,7 @@ try {
   )
   ok('timeline period mapped', w0?.config?.period === '24h', String(w0?.config?.period))
   ok('capitalized Analog mode imported as analog clock', w1?.type === 'clock' && w1?.config?.mode === 'analog', JSON.stringify(w1?.config))
-  const settingsNow = await getSettings()
+  const settingsNow = await sb.current()
   ok('speech item imported into settings', settingsNow?.config?.speechItem === 'NH_E2E_Speech', String(settingsNow?.config?.speechItem))
 
   const realErrs = errs.filter((e) => !/ERR_NAME|ERR_CONNECTION|net::|404|Failed to load resource/.test(e))
@@ -422,8 +426,8 @@ try {
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + IMPORTED, { method: 'DELETE', headers: AUTH })
 await fetch(NS + '/' + TLFIT, { method: 'DELETE', headers: AUTH })
-const settingsBack = await restoreSettings(settingsOrig)
-ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
+const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
 await postItem(dimmer, dimmerOrig)
 await sleep(1200)
 const dimmerAfter = (await getItem(dimmer)).state

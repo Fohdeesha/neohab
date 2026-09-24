@@ -2,6 +2,7 @@
 // SAFE with a live config: creates only dashboard:nh-e2e-gauge and deletes exactly it.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { pickItem } from './lib/ui.mjs'
 
 const UID = 'dashboard:nh-e2e-gauge'
 const results = []
@@ -349,9 +350,10 @@ try {
   ok('inner fields hidden without a second item', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 0)
 
   const itemField = page.locator('.nh-sheet--side .nh-field:has-text("Second item")').locator('.nh-picker')
-  await itemField.locator('input').fill(ITEMS.dimmer)
+  const secondItem = await pickItem(page, itemField.locator('input'), ITEMS.dimmer)
   await sleep(400)
-  ok('typed second item shows the inner fields', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 1)
+  ok('picking the second item from the list binds it', secondItem === ITEMS.dimmer, 'value=' + secondItem)
+  ok('a picked second item shows the inner fields', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 1)
   ok('picker shows a clear button once set', (await itemField.locator('.nh-picker__clear').count()) === 1)
   await itemField.locator('.nh-picker__clear').click()
   await sleep(400)

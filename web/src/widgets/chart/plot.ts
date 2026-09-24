@@ -1,3 +1,4 @@
+import { parseColor } from '../../themes/contrast'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { axesFit, axisRoom, axisWidthFor } from './model'
@@ -33,6 +34,57 @@ export interface PlotParams {
   y2Max?: number
   formatValue: (seriesIndex: number, value: number) => string
   onZoom: (zoomed: boolean) => void
+  // the app's language: uPlot's own time labels are fixed English ("9/23", "3pm")
+  locale: string
+  // the canvas says nothing to a screen reader on its own
+  ariaLabel: string
+}
+
+const DAY = 86_400
+
+/**
+ * Time-axis labels in the app's language, laid out the way uPlot's own are: the unit the ticks step by
+ * on the first line, and the next coarser unit under it on the first tick and wherever it changes.
+ */
+export function timeAxisValues(splits: number[], incr: number, locale: string): string[] {
+  const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, opts)
+  const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+  if (incr < DAY) {
+    const time = incr < 60 ? fmt({ hour: 'numeric', minute: '2-digit', second: '2-digit' }) : fmt({ hour: 'numeric', minute: '2-digit' })
+    const date = fmt({ month: 'short', day: 'numeric' })
+    let prev = ''
+    return splits.map((s) => {
+      const d = new Date(s * 1000)
+      const key = dayKey(d)
+      const out = key !== prev ? time.format(d) + '\n' + date.format(d) : time.format(d)
+      prev = key
+      return out
+    })
+  }
+  if (incr < 28 * DAY) {
+    const date = fmt({ month: 'short', day: 'numeric' })
+    const year = fmt({ year: 'numeric' })
+    let prev = -1
+    return splits.map((s) => {
+      const d = new Date(s * 1000)
+      const out = d.getFullYear() !== prev ? date.format(d) + '\n' + year.format(d) : date.format(d)
+      prev = d.getFullYear()
+      return out
+    })
+  }
+  if (incr < 365 * DAY) {
+    const month = fmt({ month: 'short' })
+    const year = fmt({ year: 'numeric' })
+    let prev = -1
+    return splits.map((s) => {
+      const d = new Date(s * 1000)
+      const out = d.getFullYear() !== prev ? month.format(d) + '\n' + year.format(d) : month.format(d)
+      prev = d.getFullYear()
+      return out
+    })
+  }
+  const year = fmt({ year: 'numeric' })
+  return splits.map((s) => year.format(new Date(s * 1000)))
 }
 
 export type SeriesTable = [number[], (number | null)[]]
@@ -49,10 +101,8 @@ function cssVar(name: string): string {
 }
 
 function alpha(color: string, a: number): string {
-  const m = /^#([0-9a-f]{6})$/i.exec(color)
-  if (!m) return color
-  const n = parseInt(m[1], 16)
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+  const c = parseColor(color)
+  return c ? `rgba(${c.r}, ${c.g}, ${c.b}, ${a})` : color
 }
 
 function esc(s: string): string {
@@ -109,7 +159,7 @@ export function createChart(p: PlotParams): ChartHandle {
   const tt = document.createElement('div')
   tt.className = 'nh-chart__tt'
   host.appendChild(tt)
-  const timeFmt = new Intl.DateTimeFormat(undefined, {
+  const timeFmt = new Intl.DateTimeFormat(p.locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -218,20 +268,22 @@ export function createChart(p: PlotParams): ChartHandle {
 
   // uPlot's flat 50px is sized for its own 12px font; ours is the tile's, and a two-line time label
   // at 16px runs off the bottom of the canvas. Both sizes grow with the text and never shrink.
-  const xSize: uPlot.Axis.Size = (_u, values) => {
-    const lines = values && values.length > 0 ? Math.max(...values.map((v) => String(v).split('\n').length)) : 1
-    return axisRoom(fontPx, lines)
-  }
-  const ySize: uPlot.Axis.Size = (u, values) => {
-    if (!values || values.length === 0) return axisWidthFor(0)
+  const widestLine = (u: uPlot, values: unknown[]): number => {
     const ctx = u.ctx
     const prev = ctx.font
     ctx.font = `${Math.round(fontPx * uPlot.pxRatio)}px system-ui, sans-serif`
     let widest = 0
-    for (const v of values) widest = Math.max(widest, ctx.measureText(String(v)).width)
+    for (const v of values) for (const line of String(v).split('\n')) widest = Math.max(widest, ctx.measureText(line).width)
     ctx.font = prev
-    return axisWidthFor(widest / uPlot.pxRatio)
+    return widest / uPlot.pxRatio
   }
+  let xLabelWidth = 0
+  const xSize: uPlot.Axis.Size = (u, values) => {
+    const lines = values && values.length > 0 ? Math.max(...values.map((v) => String(v).split('\n').length)) : 1
+    xLabelWidth = values && values.length > 0 ? widestLine(u, values) : 0
+    return axisRoom(fontPx, lines)
+  }
+  const ySize: uPlot.Axis.Size = (u, values) => (!values || values.length === 0 ? axisWidthFor(0) : axisWidthFor(widestLine(u, values)))
 
   // uPlot pads a side that carries no axis by a third of its default axis size, so the edge label of
   // the perpendicular axis is not cut in half. That 17px is a constant sized for its own 12px font,
@@ -243,12 +295,20 @@ export function createChart(p: PlotParams): ChartHandle {
     if (side === 0 ? hasTop : hasBtm) return 0
     return hasBtm ? 17 : Math.ceil(fontPx * 0.7)
   }
+  // the same allowance on a side with no y axis, for the x axis's edge label: 17px fits uPlot's own "2pm"
+  // and not "2:00 PM" in the app's language, so there it is half the widest label actually drawn
+  const padX: uPlot.PaddingSide = (_u, side, sides) => {
+    const [hasTop, hasRgt, hasBtm, hasLft] = sides
+    if (!hasTop && !hasBtm) return 0
+    if (side === 1 ? hasRgt : hasLft) return 0
+    return Math.max(17, Math.ceil(xLabelWidth / 2) + 1)
+  }
 
   const opts: uPlot.Options = {
     width: host.clientWidth,
     height: host.clientHeight,
     legend: { show: false },
-    padding: [padY, null, padY, null],
+    padding: [padY, padX, padY, padX],
     cursor: {
       y: false,
       drag: { x: true, y: false },
@@ -275,7 +335,9 @@ export function createChart(p: PlotParams): ChartHandle {
               },
               values: (_u: uPlot, splits: number[]) => splits.map(categoryLabel)
             }
-          : {})
+          : {
+              values: (_u: uPlot, splits: number[], _ax: number, _space: number, incr: number) => timeAxisValues(splits, incr, p.locale)
+            })
       },
       ...(hasY ? [{ ...axisStyle, scale: 'y', show: fit.y, size: ySize } as uPlot.Axis] : []),
       ...(hasY2 ? [{ ...axisStyle, scale: 'y2', side: 1, show: fit.y, size: ySize, grid: { show: !hasY } } as uPlot.Axis] : [])
@@ -307,6 +369,8 @@ export function createChart(p: PlotParams): ChartHandle {
 
   const empty = [[], ...p.series.map(() => [])] as unknown as uPlot.AlignedData
   const u = new uPlot(opts, empty, host)
+  u.root.setAttribute('role', 'img')
+  u.root.setAttribute('aria-label', p.ariaLabel)
 
   const resizeObserver = new ResizeObserver(() => {
     if (host.clientWidth <= 0) return

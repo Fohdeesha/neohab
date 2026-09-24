@@ -3,6 +3,7 @@ import { BG_REF_PREFIX } from './background'
 import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, THEME_PREFIX, WIDGETDEF_PREFIX, nextFreeId } from './components'
 import type { Dashboard } from './dashboard'
 import { emptyMap } from './lookup'
+import { msg, type Message } from './message'
 import { kindOf, migrateConfig } from './schema'
 
 export const ICON_REF_PREFIX = 'custom:'
@@ -148,26 +149,31 @@ export function looksPartial(value: unknown): boolean {
   return Boolean(b && typeof b === 'object' && b.manifest?.app === 'neohab' && typeof b.manifest?.kind === 'string')
 }
 
-export function validatePartialBundle(value: unknown): string | null {
+export function validatePartialBundle(value: unknown): Message | null {
   const b = value as PartialBundle | null
-  if (!b || typeof b !== 'object' || b.manifest?.app !== 'neohab') return 'Not a neohab file'
+  if (!b || typeof b !== 'object' || b.manifest?.app !== 'neohab') return msg('Not a neohab file')
   if (b.manifest.formatVersion !== PARTIAL_FORMAT_VERSION) {
-    return `Unsupported file version: ${String(b.manifest.formatVersion)}`
+    return msg('Unsupported file version: {{version}}', { version: String(b.manifest.formatVersion) })
   }
   if (b.manifest.kind !== 'dashboard' && b.manifest.kind !== 'widgetdef' && b.manifest.kind !== 'theme') {
-    return `Unsupported file contents: ${String(b.manifest.kind)}`
+    return msg('Unsupported file contents: {{kind}}', { kind: String(b.manifest.kind) })
   }
-  if (!Array.isArray(b.components) || b.components.length === 0) return 'File contains no components'
+  if (!Array.isArray(b.components) || b.components.length === 0) return msg('File contains no components')
   if (b.components.some((c) => typeof c?.uid !== 'string' || typeof c?.component !== 'string')) {
-    return 'File contains invalid components'
+    return msg('File contains invalid components')
   }
-  const stray = b.components.find((c) => !ALLOWED_PREFIXES.some((p) => c.uid.startsWith(p)))
-  if (stray) return `File contains something this kind of file may not carry: ${stray.uid}`
+  const stray = b.components.find((c) => !ALLOWED_PREFIXES.some((p) => c.uid.startsWith(p) && c.uid.length > p.length))
+  if (stray) return msg('File contains something this kind of file may not carry: {{uid}}', { uid: stray.uid })
+  const seen = new Set<string>()
+  for (const c of b.components) {
+    if (seen.has(c.uid)) return msg('File lists {{uid}} twice', { uid: c.uid })
+    seen.add(c.uid)
+  }
   if (typeof b.manifest.primary !== 'string' || !b.components.some((c) => c.uid === b.manifest.primary)) {
-    return 'File does not contain the component it describes'
+    return msg('File does not contain the component it describes')
   }
   if (!b.manifest.primary.startsWith(PREFIX_OF[b.manifest.kind])) {
-    return `File says it holds a ${b.manifest.kind}, but describes ${b.manifest.primary}`
+    return msg('File says it holds a {{kind}}, but describes {{uid}}', { kind: b.manifest.kind, uid: b.manifest.primary })
   }
   return null
 }
@@ -296,7 +302,8 @@ export function resolvePartialImport(
 ): ResolvedPartialImport {
   const have = new Map(existing.map((c) => [c.uid, c]))
   const takenByPrefix = new Map<string, Set<string>>()
-  for (const c of existing) {
+  // the file's own uids count as taken too, or a renamed copy could land on one it is about to write
+  for (const c of [...existing, ...bundle.components]) {
     const p = prefixOf(c.uid)
     if (!p) continue
     const set = takenByPrefix.get(p) ?? new Set<string>()
@@ -368,11 +375,10 @@ export function resolvePartialImport(
     if (skip.has(c.uid)) continue
     const newUid = target.get(c.uid) ?? c.uid
     const newId = idOf(newUid)
-    let config = rewriteRefs(c.config, '', maps) as Record<string, unknown>
-    if (newUid !== c.uid) {
-      config = { ...config, id: newId }
-      if (typeof config.name === 'string') config.name = copyName(config.name, newId)
-    }
+    // always from the uid: a file whose config.id named some other dashboard would be saved over that
+    // one, and deleted with it
+    let config: Record<string, unknown> = { ...(rewriteRefs(c.config, '', maps) as Record<string, unknown>), id: newId }
+    if (newUid !== c.uid && typeof config.name === 'string') config.name = copyName(config.name, newId)
     if (mode === 'copy' && c.uid.startsWith(DASHBOARD_PREFIX)) {
       config = withFreshWidgetIds(config as unknown as Dashboard, newWidgetId) as unknown as Record<string, unknown>
     }

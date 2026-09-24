@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../i18n'
 import { useConfigStore } from '../store/config'
 import { useIsAdmin } from '../store/auth'
 import { clearLogs, subscribeLogs, useLogsStore } from '../store/logs'
@@ -37,7 +38,7 @@ const SOURCES: { value: LogSource; label: string }[] = [
 ]
 
 export function LogView({ dashboardId, widgetId }: { dashboardId: string; widgetId: string }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const dashboards = useConfigStore((s) => s.dashboards)
   const loaded = useConfigStore((s) => s.loaded)
   const dashboard = dashboards.find((d) => d.id === dashboardId)
@@ -78,7 +79,7 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
   // navigator.clipboard exists only in a secure context, and a LAN openHAB is not one - so select the text
   // instead
   const copy = async () => {
-    const text = shown.map((e) => entryText(e, i18n.language)).join('\n')
+    const text = shown.map((e) => entryText(e, appLocale())).join('\n')
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text)
@@ -213,7 +214,7 @@ export function LogView({ dashboardId, widgetId }: { dashboardId: string; widget
               </button>
             </div>
           ) : (
-            <LogLines entries={shown} wrap full empty={empty} lang={i18n.language} />
+            <LogLines entries={shown} wrap full empty={empty} lang={appLocale()} />
           )}
           {unsupported && serverVersion ? (
             <div className="nh-log__status">{t('This server is openHAB {{version}}.', { version: serverVersion })}</div>

@@ -59,12 +59,6 @@ const TIGHT = {
 
 const wantScale = (iconscale, cellHeight) => Math.max(Math.max(0.8, iconscale), Math.min(1, cellHeight / 96))
 
-for (const d of [ROOMY, TIGHT]) {
-  await fetch(NS + '/' + d.uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
-  const r = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(d) })
-  ok('seed: ' + d.uid, r.ok, 'status=' + r.status)
-}
-
 const readCells = (page) =>
   page.evaluate(() => {
     const grid = document.querySelector('.nh-grid')
@@ -131,6 +125,12 @@ const open = async (browser, width, height, route, { touch = true } = {}) => {
 const browser = await launchBrowser()
 
 try {
+  for (const d of [ROOMY, TIGHT]) {
+    await fetch(NS + '/' + d.uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const r = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(d) })
+    ok('seed: ' + d.uid, r.ok, 'status=' + r.status)
+  }
+
   for (const vp of [
     { name: 'phone-360', width: 360, height: 800 },
     { name: 'phone-393', width: 393, height: 851 },
@@ -261,7 +261,7 @@ try {
     await ctx.close()
   }
 
-  const liveDash = (await (await fetch(NS)).json())
+  const liveDash = (await (await fetch(NS, { headers: AUTH })).json())
     .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-'))
     .sort((a, b) => (b.config.widgets?.length ?? 0) - (a.config.widgets?.length ?? 0))
     .slice(0, 8)

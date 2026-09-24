@@ -253,7 +253,7 @@ describe('a live press', () => {
     expect(h.timers).toEqual([])
   })
 
-  it('ignores a request landing after a new press began', async () => {
+  it('ignores a refusal landing after a new press began', async () => {
     const h = harness()
     h.press()
     h.arm()
@@ -263,6 +263,28 @@ describe('a live press', () => {
     await h.settle(false)
     expect(h.events).not.toContain('refused 40')
     expect(h.sent.map((s) => s.v)).toEqual([40])
+  })
+
+  it('still sends the value a press was let go at when the next press comes before the send in flight lands', async () => {
+    const h = harness()
+    h.press()
+    h.arm()
+    h.live.stage(40)
+    h.live.end(60)
+    h.press()
+    await h.settle()
+    expect(h.sent.map((s) => s.v)).toEqual([40, 60])
+  })
+
+  it('still sends it when the control goes away first', async () => {
+    const h = harness()
+    h.press()
+    h.arm()
+    h.live.stage(40)
+    h.live.end(60)
+    h.live.cancel()
+    await h.settle()
+    expect(h.sent.map((s) => s.v)).toEqual([40, 60])
   })
 
   it('starts each press clean', async () => {

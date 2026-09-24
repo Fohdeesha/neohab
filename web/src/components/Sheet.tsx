@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSidebarLayout } from '../store/sidebar'
+import { useDialog } from './dialog'
 
 interface SheetProps {
   title: string
@@ -13,35 +14,11 @@ interface SheetProps {
   children: ReactNode
 }
 
-// innermost last, so Escape closes one sheet at a time
-const openSheets: { close: () => void }[] = []
-
-export function anySheetOpen(): boolean {
-  return openSheets.length > 0
-}
-
 export function Sheet({ title, onClose, side = false, wide = false, collapsed = false, scrollResetKey, children }: SheetProps) {
   const { t } = useTranslation()
   const bodyRef = useRef<HTMLDivElement>(null)
-
-  const latestClose = useRef(onClose)
-  latestClose.current = onClose
-  useEffect(() => {
-    const entry = { close: () => latestClose.current() }
-    openSheets.push(entry)
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return
-      if (openSheets[openSheets.length - 1] !== entry) return
-      e.preventDefault()
-      entry.close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      const at = openSheets.indexOf(entry)
-      if (at >= 0) openSheets.splice(at, 1)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [])
+  const rootRef = useRef<HTMLDivElement>(null)
+  useDialog(rootRef, onClose, !side)
 
   useEffect(() => {
     if (scrollResetKey !== undefined) bodyRef.current?.scrollTo({ top: 0 })
@@ -52,6 +29,11 @@ export function Sheet({ title, onClose, side = false, wide = false, collapsed = 
   const { inset } = useSidebarLayout()
   return (
     <div
+      ref={rootRef}
+      tabIndex={-1}
+      role={side ? undefined : 'dialog'}
+      aria-modal={side ? undefined : true}
+      aria-label={title}
       className={
         'nh-sheet' + (side ? ' nh-sheet--side' : '') + (wide && !side ? ' nh-sheet--wide' : '') + (collapsed ? ' nh-sheet--collapsed' : '')
       }

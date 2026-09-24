@@ -6,6 +6,8 @@ import {
   referenceValue,
   sparkArea,
   sparkPath,
+  SPARK_POINTS,
+  thinSpark,
   statPeriodMs,
   styleOf,
   trendDirection,
@@ -223,5 +225,18 @@ describe('sparkPath', () => {
 
   it('closes the area down to the floor so the wash sits under the line', () => {
     expect(sparkArea('M0,10 L100,20')).toBe('M0,10 L100,20 L100,100 L0,100 Z')
+  })
+
+  it('draws half a million readings without overflowing, and keeps the spike in them', () => {
+    const rows = Array.from({ length: 500_000 }, (_, i) => ({ time: i * 1000, value: i === 250_000 ? 99 : 20 + (i % 7) }))
+    let d = ''
+    expect(() => (d = sparkPath(rows))).not.toThrow()
+    expect(d.split(' ').length).toBeLessThanOrEqual(SPARK_POINTS)
+    expect(d).toContain(',0')
+  })
+
+  it('leaves a short series exactly as it was', () => {
+    const rows = pts([0, 1], [1, 3], [2, 2])
+    expect(thinSpark(rows)).toBe(rows)
   })
 })

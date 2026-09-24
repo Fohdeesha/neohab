@@ -5,6 +5,7 @@
 import { launchChromium } from './lib/browser.mjs'
 import { readFile } from 'node:fs/promises'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
+import { skipOnProduction } from './lib/guard.mjs'
 
 const UID = 'dashboard:nh-e2e-fplan'
 const UID2 = 'dashboard:nh-e2e-fplan2'
@@ -396,13 +397,16 @@ try {
   ok('anonymous activation works (runnow is USER role)', anonAct === '42' || anonAct.startsWith('42.'),
     'dimmer=' + anonAct)
 
-  const mkItem = await fetch(itemUrl(PROXY_ITEM), {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'Switch', name: PROXY_ITEM, label: 'NH E2E Proxy' }),
-  })
-  ok('managed proxy item created', mkItem.status === 200 || mkItem.status === 201, 'status ' + mkItem.status)
-  await sendItem(PROXY_ITEM, 'OFF')
+  const skipProxy = skipOnProduction(ok, 'the wall-switch bridge and status-item checks need a managed item created on the server')
+  if (!skipProxy) {
+    const mkItem = await fetch(itemUrl(PROXY_ITEM), {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Switch', name: PROXY_ITEM, label: 'NH E2E Proxy' }),
+    })
+    ok('managed proxy item created', mkItem.status === 200 || mkItem.status === 201, 'status ' + mkItem.status)
+    await sendItem(PROXY_ITEM, 'OFF')
+  }
 
   await page.goto(APP + '#/settings')
   await page.reload()
@@ -441,60 +445,62 @@ try {
 
   const row2 = await rowByName('NH E2E Evening 2')
   ok('renamed row still manageable', !!row2)
-  if (row2) {
-    await row2.locator('button:has-text("Wall switch")').click()
-    await page.click('.nh-presetrow__bridge input[role="combobox"]')
-    await page.keyboard.type(PROXY_ITEM.slice(0, 8), { delay: 40 })
+  if (!skipProxy) {
+    if (row2) {
+      await row2.locator('button:has-text("Wall switch")').click()
+      await page.click('.nh-presetrow__bridge input[role="combobox"]')
+      await page.keyboard.type(PROXY_ITEM.slice(0, 8), { delay: 40 })
+      await sleep(600)
+      await page.click(`.nh-picker__option:has-text("${PROXY_ITEM}")`, { timeout: 5000 }).catch(() => {})
+      const bridgePicked = await probe(page, () => ({
+        value: document.querySelector('.nh-presetrow__bridge input[role="combobox"]')?.value ?? '',
+      }))
+      ok('bridge picker: a typed partial search still picks by click', bridgePicked.value === PROXY_ITEM,
+        'value=' + JSON.stringify(bridgePicked.value))
+      await page.click('.nh-presetrow__bridge input[type="checkbox"]', { timeout: 5000 }).catch(() => {})
+      await page.click('.nh-presetrow__bridge .nh-btn--primary', { timeout: 5000 }).catch(() => {})
+      await sleep(1500)
+    }
+
+    const linked = await getRule(SCENE_UID)
+    ok('status item stored in the scene configuration',
+      linked?.configuration?.statusItem === PROXY_ITEM && linked?.configuration?.statusState === 'ON',
+      JSON.stringify(linked?.configuration ?? {}))
+    const bridge = await getRule(BRIDGE_UID)
+    ok('bridge rule exists: item trigger -> run scene',
+      bridge?.triggers?.[0]?.configuration?.itemName === PROXY_ITEM &&
+        bridge?.actions?.[0]?.type === 'core.RunRuleAction' &&
+        (bridge?.actions?.[0]?.configuration?.ruleUIDs ?? []).includes(SCENE_UID),
+      bridge ? 'ok' : 'absent')
+    ok('bridge not tagged as a Scene', !!bridge && !(bridge.tags ?? []).includes('Scene'), (bridge?.tags ?? []).join(','))
+
+    await sendItem(ITEMS.dimmer, '15')
     await sleep(600)
-    await page.click(`.nh-picker__option:has-text("${PROXY_ITEM}")`, { timeout: 5000 }).catch(() => {})
-    const bridgePicked = await probe(page, () => ({
-      value: document.querySelector('.nh-presetrow__bridge input[role="combobox"]')?.value ?? '',
-    }))
-    ok('bridge picker: a typed partial search still picks by click', bridgePicked.value === PROXY_ITEM,
-      'value=' + JSON.stringify(bridgePicked.value))
-    await page.click('.nh-presetrow__bridge input[type="checkbox"]', { timeout: 5000 }).catch(() => {})
-    await page.click('.nh-presetrow__bridge .nh-btn--primary', { timeout: 5000 }).catch(() => {})
-    await sleep(1500)
+    await sendItem(PROXY_ITEM, 'ON')
+    const bridged = await pollItem(ITEMS.dimmer, '42')
+    ok('commanding the status item runs the preset (wall-switch path)', bridged === '42' || bridged.startsWith('42.'),
+      'dimmer=' + bridged)
+
+    await anon.reload()
+    await anon.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 15000 }).catch(() => {})
+    const chipActive = (want) =>
+      anon
+        .waitForFunction(
+          (w) => {
+            const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
+              (x) => x.textContent === 'NH E2E Evening 2'
+            )
+            return !!c && c.classList.contains('nh-chip--on') === w
+          },
+          want,
+          { timeout: 12000 }
+        )
+        .then(() => true)
+        .catch(() => false)
+    ok('anonymous highlight follows the status item', await chipActive(true))
+    await sendItem(PROXY_ITEM, 'OFF')
+    ok('…and drops live when it turns OFF', await chipActive(false))
   }
-
-  const linked = await getRule(SCENE_UID)
-  ok('status item stored in the scene configuration',
-    linked?.configuration?.statusItem === PROXY_ITEM && linked?.configuration?.statusState === 'ON',
-    JSON.stringify(linked?.configuration ?? {}))
-  const bridge = await getRule(BRIDGE_UID)
-  ok('bridge rule exists: item trigger -> run scene',
-    bridge?.triggers?.[0]?.configuration?.itemName === PROXY_ITEM &&
-      bridge?.actions?.[0]?.type === 'core.RunRuleAction' &&
-      (bridge?.actions?.[0]?.configuration?.ruleUIDs ?? []).includes(SCENE_UID),
-    bridge ? 'ok' : 'absent')
-  ok('bridge not tagged as a Scene', !!bridge && !(bridge.tags ?? []).includes('Scene'), (bridge?.tags ?? []).join(','))
-
-  await sendItem(ITEMS.dimmer, '15')
-  await sleep(600)
-  await sendItem(PROXY_ITEM, 'ON')
-  const bridged = await pollItem(ITEMS.dimmer, '42')
-  ok('commanding the status item runs the preset (wall-switch path)', bridged === '42' || bridged.startsWith('42.'),
-    'dimmer=' + bridged)
-
-  await anon.reload()
-  await anon.waitForSelector('.nh-fplan__bar .nh-chip', { timeout: 15000 }).catch(() => {})
-  const chipActive = (want) =>
-    anon
-      .waitForFunction(
-        (w) => {
-          const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
-            (x) => x.textContent === 'NH E2E Evening 2'
-          )
-          return !!c && c.classList.contains('nh-chip--on') === w
-        },
-        want,
-        { timeout: 12000 }
-      )
-      .then(() => true)
-      .catch(() => false)
-  ok('anonymous highlight follows the status item', await chipActive(true))
-  await sendItem(PROXY_ITEM, 'OFF')
-  ok('…and drops live when it turns OFF', await chipActive(false))
 
   const dlPromise = page.waitForEvent('download', { timeout: 20000 }).catch(() => null)
   await page.click('section:has(h2:text-is("Backup")) button:has-text("Export configuration")')
@@ -505,7 +511,7 @@ try {
     !!exported &&
       Array.isArray(exported.scenes) &&
       exported.scenes.some((r) => r.uid === SCENE_UID) &&
-      exported.scenes.some((r) => r.uid === BRIDGE_UID),
+      (skipProxy || exported.scenes.some((r) => r.uid === BRIDGE_UID)),
     exported ? `scenes=${(exported.scenes ?? []).length}` : 'no download')
 
   const hostile = {
@@ -675,319 +681,322 @@ try {
   const bgAfterOther = (await fetch(NS + '/' + encodeURIComponent(bgUid ?? 'background:none'), { headers: AUTH })).status
   ok("saving another dashboard leaves the floor plan's image alone", bgAfterOther === 200, 'status ' + bgAfterOther)
 
-  await fetch(itemUrl(GLOW_ITEM), {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'Color', name: GLOW_ITEM, label: 'NH E2E Glow' }),
-  })
-  for (const [uid, name, command] of [
-    [SETTLE_A, 'NH E2E Settle A', '288,55,40'],
-    [SETTLE_B, 'NH E2E Settle B', '330,81,70'],
-  ]) {
-    await fetch(`${BASE}/rest/rules`, {
-      method: 'POST',
-      headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid,
-        name,
-        tags: ['Scene', 'neohab'],
-        configuration: {},
-        triggers: [],
-        conditions: [],
-        actions: [{ id: '1', type: 'core.ItemCommandAction', configuration: { itemName: GLOW_ITEM, command } }],
-      }),
-    })
-  }
-  await fetch(NS + '/' + encodeURIComponent(UID3), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  await fetch(NS, {
-    method: 'POST',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      uid: UID3,
-      component: 'neohab:dashboard',
-      config: {
-        version: 1,
-        id: 'nh-e2e-fplan3',
-        name: 'E2E Floorplan Settle',
-        columns: 12,
-        rowHeight: 'match',
-        widgets: [
-          {
-            id: 'w-plan',
-            type: 'floorplan',
-            config: {
-              label: 'Settle',
-              image: PLAN_URI,
-              lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 50, y: 50, label: 'Glow' }],
-            },
-            layout: { lg: { x: 0, y: 0, w: 9, h: 6 } },
-          },
-        ],
-      },
-    }),
-  })
-  await putState(GLOW_ITEM, '330,81,70')
-  await page.goto(APP + '#/d/nh-e2e-fplan3')
-  await page.reload()
-  await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
-  await sleep(2500)
-
-  const chipState = (p) =>
-    probe(p, () => {
-      const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
-      const on = (n) => {
-        const c = chips.find((x) => x.textContent.trim() === n)
-        return c ? c.classList.contains('nh-chip--on') : null
-      }
-      return { a: on('NH E2E Settle A'), b: on('NH E2E Settle B') }
-    })
-  const before = await chipState(page)
-  ok('the preset currently held is the one highlighted', before.b === true && before.a === false,
-    `A=${before.a} B=${before.b}`)
-
-  await page.evaluate(() => {
-    window.__tl = []
-    const read = () => {
-      const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
-      const flag = (n) => {
-        const c = chips.find((x) => x.textContent.trim() === n)
-        return c && c.classList.contains('nh-chip--on') ? '+' : '-'
-      }
-      const glow = [...document.querySelectorAll('.nh-fplan__glow')]
-        .map((g) => (/rgba?\(([^)]*?),\s*[\d.]+\)/.exec(g.style.backgroundImage) || [, '?'])[1])
-        .join('')
-      return `A${flag('NH E2E Settle A')} B${flag('NH E2E Settle B')}|${glow}`
-    }
-    let last = null
-    window.__iv = setInterval(() => {
-      const s = read()
-      if (s !== last) {
-        window.__tl.push(s)
-        last = s
-      }
-    }, 8)
-  })
-  await sleep(120) // let the sampler record the state before the tap
-  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
-  await sleep(400)
-  await putState(GLOW_ITEM, '332.481,74.71900,69.804')
-  await sleep(400)
-  await putState(GLOW_ITEM, '323.617,67.62600,54.510')
-  await sleep(700)
-  await putState(GLOW_ITEM, '287.368,55.88300,40')
-  await sleep(1200)
-  const timeline = await page.evaluate(() => {
-    clearInterval(window.__iv)
-    return window.__tl
-  })
-
-  const tl = Array.isArray(timeline) ? timeline : []
-  const aOn = tl.map((s) => s.startsWith('A+'))
-  const bOn = tl.map((s) => s.includes('B+'))
-  const changes = aOn.filter((v, i) => i > 0 && v !== aOn[i - 1]).length
-  ok('the tapped preset lights up once and stays lit through the fade',
-    changes === 1 && aOn[0] === false && aOn[aOn.length - 1] === true,
-    `highlight changes=${changes} states=${tl.length} | ${tl.join(' > ')}`)
-  ok('the preset being left goes dark and does not come back',
-    bOn[0] === true && bOn.slice(1).every((v) => v === false),
-    `B lit in ${bOn.filter(Boolean).length} of ${tl.length} states`)
-  const glows = tl.map((s) => s.split('|')[1] ?? '')
-  const afterTap = [...new Set(glows.slice(1))]
-  ok('the glow changes to the new scene once and never flashes back',
-    afterTap.length === 1 && afterTap[0] !== glows[0] && afterTap[0] !== '',
-    `before=${glows[0]} after=[${afterTap.join(' > ')}]`)
-  const settled = await chipState(page)
-  ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
-    `A=${settled.a} B=${settled.b}`)
-
-  await putState(GLOW_ITEM, '288,55,40')
-  await sleep(2200)
-  await page.evaluate(() => {
-    window.__g = []
-    window.__gi = setInterval(() => {
-      const g = [...document.querySelectorAll('.nh-fplan__glow')]
-        .map((x) => (/rgba?\([^)]*\)/.exec(x.style.backgroundImage) || ['none'])[0])
-        .join('|')
-      if (window.__g[window.__g.length - 1] !== g) window.__g.push(g)
-    }, 8)
-  })
-  await sleep(150)
-  await putState(GLOW_ITEM, '120,90,60')
-  await sleep(60)
-  await putState(GLOW_ITEM, '320,20,90')
-  await sleep(60)
-  await putState(GLOW_ITEM, '0,0,4.7059')
-  await sleep(1000)
-  await putState(GLOW_ITEM, '119.2,89.4,59.6')
-  await sleep(2500)
-  const glowTl = (await probe(page, () => {
-    clearInterval(window.__gi)
-    return window.__g
-  })) ?? []
-  const glowMoves = Array.isArray(glowTl) ? glowTl.slice(1) : []
-  const rgbaOf = (g) => (/rgba?\(([^)]*)\)/.exec(g) || [, ''])[1].split(',').map(Number)
-  const sameGlow = (a, b) =>
-    a.length === 4 && b.length === 4 && a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= 30) && Math.abs(a[3] - b[3]) <= 0.15
-  const destination = rgbaOf(glowTl[glowTl.length - 1] ?? '')
-  ok('a glow goes straight to the new colour, with nothing on the way',
-    glowMoves.length > 0 && glowMoves.every((g) => sameGlow(rgbaOf(g), destination)),
-    `${glowMoves.length} changes: ${glowTl.join(' > ')}`)
-  const alphaOf = (g) => Number((/,\s*([\d.]+)\)/.exec(g) || [, '1'])[1])
-  const restingAlpha = alphaOf(glowTl[glowTl.length - 1] ?? '')
-  ok('and never lets the light go out on the way',
-    glowMoves.every((g) => alphaOf(g) > restingAlpha * 0.5),
-    `resting ${restingAlpha}: ` + glowMoves.map((g) => alphaOf(g)).join(' > '))
-
-  const chipSize = await probe(page, () => {
-    const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
-      (x) => x.textContent.trim() === 'NH E2E Settle A'
-    )
-    if (!c) return {}
-    const s = getComputedStyle(c)
-    return { h: c.getBoundingClientRect().height, font: parseFloat(s.fontSize) }
-  })
-  ok('preset chips are sized for a wall panel', (chipSize.h ?? 0) >= 46 && (chipSize.font ?? 0) >= 17,
-    `height=${chipSize.h} font=${chipSize.font}px`)
-
-  const brightness = async () => Number((await itemState(GLOW_ITEM)).split(',')[2])
-  ok('section I left the tapped preset holding its lights on', (await brightness()) > 0,
-    'brightness=' + (await brightness()))
-
-  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
-  await sleep(1500)
-  ok('with the setting off, tapping the held preset leaves the lights on', (await brightness()) > 0,
-    'brightness=' + (await brightness()))
-
-  const planCfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
-  planCfg.config.widgets[0].config.presetToggleOff = true
-  await fetch(NS + '/' + encodeURIComponent(UID3), {
-    method: 'PUT',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify(planCfg),
-  })
-  await page.reload()
-  await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
-  await sleep(2000)
-
-  const heldBefore = await chipState(page)
-  ok('the preset is still shown as held before the toggle', heldBefore.a === true, `A=${heldBefore.a}`)
-  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
-  await sleep(300)
-  const rightAfter = await chipState(page)
-  ok('the highlight clears the moment it is tapped off', rightAfter.a === false, `A=${rightAfter.a}`)
-  await sleep(1500)
-  const offState = await itemState(GLOW_ITEM)
-  ok('tapping the held preset switches its lights off', Number(offState.split(',')[2]) === 0, 'state=' + offState)
-  ok('the light keeps its colour so it comes back the same', offState === '288,55,0', 'state=' + offState)
-
-  const wasOff = await brightness()
-  await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
-  await sleep(1800)
-  const backOn = await chipState(page)
-  ok('tapping it again runs the preset back on', wasOff === 0 && backOn.a === true && (await brightness()) > 0,
-    `wasOff=${wasOff} A=${backOn.a} brightness=${await brightness()}`)
-
   const tap = (p, sel) => p.click(sel, { timeout: 8000 }).catch(() => {})
   const type = (p, sel, v) => p.fill(sel, v, { timeout: 8000 }).catch(() => {})
   const pick = (p, sel, v) => p.selectOption(sel, v, { timeout: 8000 }).catch(() => {})
+  const skipGlow = skipOnProduction(ok, 'the settle, glow-direction and ink-plan sections need a managed Color item created on the server')
+  if (!skipGlow) {
+    await fetch(itemUrl(GLOW_ITEM), {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Color', name: GLOW_ITEM, label: 'NH E2E Glow' }),
+    })
+    for (const [uid, name, command] of [
+      [SETTLE_A, 'NH E2E Settle A', '288,55,40'],
+      [SETTLE_B, 'NH E2E Settle B', '330,81,70'],
+    ]) {
+      await fetch(`${BASE}/rest/rules`, {
+        method: 'POST',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid,
+          name,
+          tags: ['Scene', 'neohab'],
+          configuration: {},
+          triggers: [],
+          conditions: [],
+          actions: [{ id: '1', type: 'core.ItemCommandAction', configuration: { itemName: GLOW_ITEM, command } }],
+        }),
+      })
+    }
+    await fetch(NS + '/' + encodeURIComponent(UID3), { method: 'DELETE', headers: AUTH }).catch(() => {})
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: UID3,
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: 'nh-e2e-fplan3',
+          name: 'E2E Floorplan Settle',
+          columns: 12,
+          rowHeight: 'match',
+          widgets: [
+            {
+              id: 'w-plan',
+              type: 'floorplan',
+              config: {
+                label: 'Settle',
+                image: PLAN_URI,
+                lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 50, y: 50, label: 'Glow' }],
+              },
+              layout: { lg: { x: 0, y: 0, w: 9, h: 6 } },
+            },
+          ],
+        },
+      }),
+    })
+    await putState(GLOW_ITEM, '330,81,70')
+    await page.goto(APP + '#/d/nh-e2e-fplan3')
+    await page.reload()
+    await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
+    await sleep(2500)
 
-  const glowBox = async () =>
-    probe(page, () => {
-      const layer = document.querySelector('.nh-fplan__layer')
-      const g = document.querySelector('.nh-fplan__glow')
-      if (!layer || !g) return {}
-      const l = layer.getBoundingClientRect()
-      const r = g.getBoundingClientRect()
-      return {
-        lampX: l.left + l.width * 0.5,
-        lampY: l.top + l.height * 0.5,
-        left: r.left,
-        right: r.right,
-        top: r.top,
-        bottom: r.bottom,
-        w: r.width,
-        h: r.height,
-        image: g.style.backgroundImage,
+    const chipState = (p) =>
+      probe(p, () => {
+        const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+        const on = (n) => {
+          const c = chips.find((x) => x.textContent.trim() === n)
+          return c ? c.classList.contains('nh-chip--on') : null
+        }
+        return { a: on('NH E2E Settle A'), b: on('NH E2E Settle B') }
+      })
+    const before = await chipState(page)
+    ok('the preset currently held is the one highlighted', before.b === true && before.a === false,
+      `A=${before.a} B=${before.b}`)
+
+    await page.evaluate(() => {
+      window.__tl = []
+      const read = () => {
+        const chips = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')]
+        const flag = (n) => {
+          const c = chips.find((x) => x.textContent.trim() === n)
+          return c && c.classList.contains('nh-chip--on') ? '+' : '-'
+        }
+        const glow = [...document.querySelectorAll('.nh-fplan__glow')]
+          .map((g) => (/rgba?\(([^)]*?),\s*[\d.]+\)/.exec(g.style.backgroundImage) || [, '?'])[1])
+          .join('')
+        return `A${flag('NH E2E Settle A')} B${flag('NH E2E Settle B')}|${glow}`
       }
+      let last = null
+      window.__iv = setInterval(() => {
+        const s = read()
+        if (s !== last) {
+          window.__tl.push(s)
+          last = s
+        }
+      }, 8)
+    })
+    await sleep(120) // let the sampler record the state before the tap
+    await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+    await sleep(400)
+    await putState(GLOW_ITEM, '332.481,74.71900,69.804')
+    await sleep(400)
+    await putState(GLOW_ITEM, '323.617,67.62600,54.510')
+    await sleep(700)
+    await putState(GLOW_ITEM, '287.368,55.88300,40')
+    await sleep(1200)
+    const timeline = await page.evaluate(() => {
+      clearInterval(window.__iv)
+      return window.__tl
     })
 
-  const setGlowDir = async (dir) => {
-    const cfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
-    cfg.config.widgets[0].config.lights[0].glowDir = dir
+    const tl = Array.isArray(timeline) ? timeline : []
+    const aOn = tl.map((s) => s.startsWith('A+'))
+    const bOn = tl.map((s) => s.includes('B+'))
+    const changes = aOn.filter((v, i) => i > 0 && v !== aOn[i - 1]).length
+    ok('the tapped preset lights up once and stays lit through the fade',
+      changes === 1 && aOn[0] === false && aOn[aOn.length - 1] === true,
+      `highlight changes=${changes} states=${tl.length} | ${tl.join(' > ')}`)
+    ok('the preset being left goes dark and does not come back',
+      bOn[0] === true && bOn.slice(1).every((v) => v === false),
+      `B lit in ${bOn.filter(Boolean).length} of ${tl.length} states`)
+    const glows = tl.map((s) => s.split('|')[1] ?? '')
+    const afterTap = [...new Set(glows.slice(1))]
+    ok('the glow changes to the new scene once and never flashes back',
+      afterTap.length === 1 && afterTap[0] !== glows[0] && afterTap[0] !== '',
+      `before=${glows[0]} after=[${afterTap.join(' > ')}]`)
+    const settled = await chipState(page)
+    ok('the plan ends on the preset that was tapped', settled.a === true && settled.b === false,
+      `A=${settled.a} B=${settled.b}`)
+
+    await putState(GLOW_ITEM, '288,55,40')
+    await sleep(2200)
+    await page.evaluate(() => {
+      window.__g = []
+      window.__gi = setInterval(() => {
+        const g = [...document.querySelectorAll('.nh-fplan__glow')]
+          .map((x) => (/rgba?\([^)]*\)/.exec(x.style.backgroundImage) || ['none'])[0])
+          .join('|')
+        if (window.__g[window.__g.length - 1] !== g) window.__g.push(g)
+      }, 8)
+    })
+    await sleep(150)
+    await putState(GLOW_ITEM, '120,90,60')
+    await sleep(60)
+    await putState(GLOW_ITEM, '320,20,90')
+    await sleep(60)
+    await putState(GLOW_ITEM, '0,0,4.7059')
+    await sleep(1000)
+    await putState(GLOW_ITEM, '119.2,89.4,59.6')
+    await sleep(2500)
+    const glowTl = (await probe(page, () => {
+      clearInterval(window.__gi)
+      return window.__g
+    })) ?? []
+    const glowMoves = Array.isArray(glowTl) ? glowTl.slice(1) : []
+    const rgbaOf = (g) => (/rgba?\(([^)]*)\)/.exec(g) || [, ''])[1].split(',').map(Number)
+    const sameGlow = (a, b) =>
+      a.length === 4 && b.length === 4 && a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= 30) && Math.abs(a[3] - b[3]) <= 0.15
+    const destination = rgbaOf(glowTl[glowTl.length - 1] ?? '')
+    ok('a glow goes straight to the new colour, with nothing on the way',
+      glowMoves.length > 0 && glowMoves.every((g) => sameGlow(rgbaOf(g), destination)),
+      `${glowMoves.length} changes: ${glowTl.join(' > ')}`)
+    const alphaOf = (g) => Number((/,\s*([\d.]+)\)/.exec(g) || [, '1'])[1])
+    const restingAlpha = alphaOf(glowTl[glowTl.length - 1] ?? '')
+    ok('and never lets the light go out on the way',
+      glowMoves.every((g) => alphaOf(g) > restingAlpha * 0.5),
+      `resting ${restingAlpha}: ` + glowMoves.map((g) => alphaOf(g)).join(' > '))
+
+    const chipSize = await probe(page, () => {
+      const c = [...document.querySelectorAll('.nh-fplan__bar .nh-chip')].find(
+        (x) => x.textContent.trim() === 'NH E2E Settle A'
+      )
+      if (!c) return {}
+      const s = getComputedStyle(c)
+      return { h: c.getBoundingClientRect().height, font: parseFloat(s.fontSize) }
+    })
+    ok('preset chips are sized for a wall panel', (chipSize.h ?? 0) >= 46 && (chipSize.font ?? 0) >= 17,
+      `height=${chipSize.h} font=${chipSize.font}px`)
+
+    const brightness = async () => Number((await itemState(GLOW_ITEM)).split(',')[2])
+    ok('section I left the tapped preset holding its lights on', (await brightness()) > 0,
+      'brightness=' + (await brightness()))
+
+    await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+    await sleep(1500)
+    ok('with the setting off, tapping the held preset leaves the lights on', (await brightness()) > 0,
+      'brightness=' + (await brightness()))
+
+    const planCfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
+    planCfg.config.widgets[0].config.presetToggleOff = true
     await fetch(NS + '/' + encodeURIComponent(UID3), {
       method: 'PUT',
       headers: { ...AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(cfg),
+      body: JSON.stringify(planCfg),
     })
-    await page.goto(APP + '#/d/nh-e2e-fplan3')
     await page.reload()
-    await page.waitForSelector('.nh-fplan__glow', { timeout: 20000 }).catch(() => {})
-    await sleep(1200)
-  }
+    await page.waitForSelector('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 20000 }).catch(() => {})
+    await sleep(2000)
 
-  await setGlowDir(undefined)
-  const omni = await glowBox()
-  const approx = (a, b, tol = 2) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tol
-  ok('an ordinary light still glows evenly around itself',
-    approx(omni.w, omni.h) && approx(omni.left + omni.w / 2, omni.lampX) && approx(omni.top + omni.h / 2, omni.lampY),
-    `box ${Math.round(omni.w)}x${Math.round(omni.h)} centre ${Math.round(omni.left + omni.w / 2)},${Math.round(omni.top + omni.h / 2)} lamp ${Math.round(omni.lampX)},${Math.round(omni.lampY)}`)
+    const heldBefore = await chipState(page)
+    ok('the preset is still shown as held before the toggle', heldBefore.a === true, `A=${heldBefore.a}`)
+    await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+    await sleep(300)
+    const rightAfter = await chipState(page)
+    ok('the highlight clears the moment it is tapped off', rightAfter.a === false, `A=${rightAfter.a}`)
+    await sleep(1500)
+    const offState = await itemState(GLOW_ITEM)
+    ok('tapping the held preset switches its lights off', Number(offState.split(',')[2]) === 0, 'state=' + offState)
+    ok('the light keeps its colour so it comes back the same', offState === '288,55,0', 'state=' + offState)
 
-  await setGlowDir('up')
-  const up = await glowBox()
-  ok('throwing a glow up puts the whole spill above the lamp',
-    approx(up.bottom, up.lampY) && approx(up.h, up.w / 2) && approx(up.left + up.w / 2, up.lampX),
-    `bottom=${Math.round(up.bottom)} lamp=${Math.round(up.lampY)} box ${Math.round(up.w)}x${Math.round(up.h)}`)
-  ok('it reaches exactly as far as it did in every direction', approx(up.w, omni.w) && approx(up.h, omni.h / 2),
-    `up ${Math.round(up.w)}x${Math.round(up.h)} vs all ${Math.round(omni.w)}x${Math.round(omni.h)}`)
-  ok('the gradient radiates from the edge the lamp sits on', /farthest-side/.test(up.image ?? ''), up.image ?? '')
+    const wasOff = await brightness()
+    await page.click('.nh-fplan__bar .nh-chip:text-is("NH E2E Settle A")', { timeout: 10000 }).catch(() => {})
+    await sleep(1800)
+    const backOn = await chipState(page)
+    ok('tapping it again runs the preset back on', wasOff === 0 && backOn.a === true && (await brightness()) > 0,
+      `wasOff=${wasOff} A=${backOn.a} brightness=${await brightness()}`)
 
-  await setGlowDir('left')
-  const left = await glowBox()
-  ok('throwing a glow left puts the spill to the left of the lamp',
-    approx(left.right, left.lampX) && approx(left.w, left.h / 2) && approx(left.top + left.h / 2, left.lampY),
-    `right=${Math.round(left.right)} lamp=${Math.round(left.lampX)} box ${Math.round(left.w)}x${Math.round(left.h)}`)
 
-  await page.click('[aria-label="Edit dashboard"]')
-  await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, undefined, { timeout: 15000 }).catch(() => {})
-  await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip')
-  await sleep(500)
-  await tap(page, '.nh-sheet button:has-text("lights")')
-  await page.waitForSelector('.nh-planedit', { timeout: 10000 }).catch(() => {})
-  const dirField = await probe(page, () => {
-    const sel = document.querySelector('.nh-planedit__row select')
-    if (!sel) return {}
-    const label = document.querySelector('.nh-planedit__label')
-    return {
-      value: sel.value,
-      options: [...sel.options].map((o) => o.value),
-      blank: [...sel.options].some((o) => o.textContent.trim() === ''),
-      labelW: label ? Math.round(label.getBoundingClientRect().width) : 0,
-      overflow: document.querySelector('.nh-planedit__side').scrollWidth - document.querySelector('.nh-planedit__side').clientWidth,
+    const glowBox = async () =>
+      probe(page, () => {
+        const layer = document.querySelector('.nh-fplan__layer')
+        const g = document.querySelector('.nh-fplan__glow')
+        if (!layer || !g) return {}
+        const l = layer.getBoundingClientRect()
+        const r = g.getBoundingClientRect()
+        return {
+          lampX: l.left + l.width * 0.5,
+          lampY: l.top + l.height * 0.5,
+          left: r.left,
+          right: r.right,
+          top: r.top,
+          bottom: r.bottom,
+          w: r.width,
+          h: r.height,
+          image: g.style.backgroundImage,
+        }
+      })
+
+    const setGlowDir = async (dir) => {
+      const cfg = await (await fetch(NS + '/' + encodeURIComponent(UID3), { headers: AUTH })).json()
+      cfg.config.widgets[0].config.lights[0].glowDir = dir
+      await fetch(NS + '/' + encodeURIComponent(UID3), {
+        method: 'PUT',
+        headers: { ...AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      })
+      await page.goto(APP + '#/d/nh-e2e-fplan3')
+      await page.reload()
+      await page.waitForSelector('.nh-fplan__glow', { timeout: 20000 }).catch(() => {})
+      await sleep(1200)
     }
-  })
-  ok('the light editor offers every direction, and shows the one in use',
-    dirField.value === 'left' && dirField.options?.join(',') === 'all,up,down,left,right' && dirField.blank === false,
-    `value=${dirField.value} options=${dirField.options?.join(',')}`)
-  ok('the label box still fits beside it', (dirField.labelW ?? 0) >= 90 && (dirField.overflow ?? 9) <= 1,
-    `label=${dirField.labelW}px panelOverflow=${dirField.overflow}px`)
 
-  await pick(page, '.nh-planedit__row select', 'down')
-  await sleep(500)
-  const previewed = await probe(page, () => {
-    const layer = document.querySelector('.nh-planedit .nh-fplan__layer')
-    const g = document.querySelector('.nh-planedit .nh-fplan__glow')
-    if (!layer || !g) return {}
-    const l = layer.getBoundingClientRect()
-    const r = g.getBoundingClientRect()
-    return { top: r.top, lampY: l.top + l.height * 0.5, h: r.height, w: r.width }
-  })
-  ok('picking a direction shows it on the plan at once',
-    approx(previewed.top, previewed.lampY) && approx(previewed.h, previewed.w / 2),
-    `top=${Math.round(previewed.top ?? -1)} lamp=${Math.round(previewed.lampY ?? -1)}`)
-  await page.click('.nh-planedit__bar .nh-btn--primary') // Done
-  await sleep(300)
-  await page.click('button:has-text("Exit")')
-  await sleep(1000)
+    await setGlowDir(undefined)
+    const omni = await glowBox()
+    const approx = (a, b, tol = 2) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tol
+    ok('an ordinary light still glows evenly around itself',
+      approx(omni.w, omni.h) && approx(omni.left + omni.w / 2, omni.lampX) && approx(omni.top + omni.h / 2, omni.lampY),
+      `box ${Math.round(omni.w)}x${Math.round(omni.h)} centre ${Math.round(omni.left + omni.w / 2)},${Math.round(omni.top + omni.h / 2)} lamp ${Math.round(omni.lampX)},${Math.round(omni.lampY)}`)
+
+    await setGlowDir('up')
+    const up = await glowBox()
+    ok('throwing a glow up puts the whole spill above the lamp',
+      approx(up.bottom, up.lampY) && approx(up.h, up.w / 2) && approx(up.left + up.w / 2, up.lampX),
+      `bottom=${Math.round(up.bottom)} lamp=${Math.round(up.lampY)} box ${Math.round(up.w)}x${Math.round(up.h)}`)
+    ok('it reaches exactly as far as it did in every direction', approx(up.w, omni.w) && approx(up.h, omni.h / 2),
+      `up ${Math.round(up.w)}x${Math.round(up.h)} vs all ${Math.round(omni.w)}x${Math.round(omni.h)}`)
+    ok('the gradient radiates from the edge the lamp sits on', /farthest-side/.test(up.image ?? ''), up.image ?? '')
+
+    await setGlowDir('left')
+    const left = await glowBox()
+    ok('throwing a glow left puts the spill to the left of the lamp',
+      approx(left.right, left.lampX) && approx(left.w, left.h / 2) && approx(left.top + left.h / 2, left.lampY),
+      `right=${Math.round(left.right)} lamp=${Math.round(left.lampX)} box ${Math.round(left.w)}x${Math.round(left.h)}`)
+
+    await page.click('[aria-label="Edit dashboard"]')
+    await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, undefined, { timeout: 15000 }).catch(() => {})
+    await page.click('.nh-grid--edit .nh-cell >> nth=0 >> .nh-cell__grip')
+    await sleep(500)
+    await tap(page, '.nh-sheet button:has-text("lights")')
+    await page.waitForSelector('.nh-planedit', { timeout: 10000 }).catch(() => {})
+    const dirField = await probe(page, () => {
+      const sel = document.querySelector('.nh-planedit__row select')
+      if (!sel) return {}
+      const label = document.querySelector('.nh-planedit__label')
+      return {
+        value: sel.value,
+        options: [...sel.options].map((o) => o.value),
+        blank: [...sel.options].some((o) => o.textContent.trim() === ''),
+        labelW: label ? Math.round(label.getBoundingClientRect().width) : 0,
+        overflow: document.querySelector('.nh-planedit__side').scrollWidth - document.querySelector('.nh-planedit__side').clientWidth,
+      }
+    })
+    ok('the light editor offers every direction, and shows the one in use',
+      dirField.value === 'left' && dirField.options?.join(',') === 'all,up,down,left,right' && dirField.blank === false,
+      `value=${dirField.value} options=${dirField.options?.join(',')}`)
+    ok('the label box still fits beside it', (dirField.labelW ?? 0) >= 90 && (dirField.overflow ?? 9) <= 1,
+      `label=${dirField.labelW}px panelOverflow=${dirField.overflow}px`)
+
+    await pick(page, '.nh-planedit__row select', 'down')
+    await sleep(500)
+    const previewed = await probe(page, () => {
+      const layer = document.querySelector('.nh-planedit .nh-fplan__layer')
+      const g = document.querySelector('.nh-planedit .nh-fplan__glow')
+      if (!layer || !g) return {}
+      const l = layer.getBoundingClientRect()
+      const r = g.getBoundingClientRect()
+      return { top: r.top, lampY: l.top + l.height * 0.5, h: r.height, w: r.width }
+    })
+    ok('picking a direction shows it on the plan at once',
+      approx(previewed.top, previewed.lampY) && approx(previewed.h, previewed.w / 2),
+      `top=${Math.round(previewed.top ?? -1)} lamp=${Math.round(previewed.lampY ?? -1)}`)
+    await page.click('.nh-planedit__bar .nh-btn--primary') // Done
+    await sleep(300)
+    await page.click('button:has-text("Exit")')
+    await sleep(1000)
+  }
 
   for (const [uid, name, actions] of [
     [MGR_UID, 'NH E2E Managed', [
@@ -1158,99 +1167,6 @@ try {
   await tap(page, '.nh-pmgr__bar .nh-iconbtn')
   await sleep(800)
 
-  // --- a light ground. Screen blending is how light behaves on a dark plan and does exactly
-  // nothing on a white one, so an ink plan drew the house and none of its lighting.
-  await fetch(NS + '/' + encodeURIComponent(UID4), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  await fetch(NS, {
-    method: 'POST',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      uid: UID4,
-      component: 'neohab:dashboard',
-      config: {
-        version: 1,
-        id: 'nh-e2e-fplan-ink',
-        name: 'E2E Floorplan Ink',
-        columns: 12,
-        rowHeight: 'match',
-        widgets: [
-          {
-            id: 'w-ink',
-            type: 'floorplan',
-            config: {
-              image: PLAN_URI,
-              planStyle: 'ink',
-              markers: false,
-              presetBar: false,
-              lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 15, y: 85, label: 'Glow' }],
-            },
-            layout: { lg: { x: 0, y: 0, w: 10, h: 6 } },
-          },
-          // a square tile, where the shape a stacked plan keeps is taller than its floor, beside a
-          // widget authored at the same rect whose height still comes from the row count
-          {
-            id: 'w-square',
-            type: 'floorplan',
-            config: { label: 'Square', image: PLAN_URI, planStyle: 'ink', markers: false, presetBar: false, lights: [] },
-            layout: { lg: { x: 0, y: 6, w: 6, h: 6 } },
-          },
-          {
-            id: 'w-ruler',
-            type: 'label',
-            config: { text: 'ruler' },
-            layout: { lg: { x: 6, y: 6, w: 6, h: 6 } },
-          },
-        ],
-      },
-    }),
-  })
-  const ink = await browser.newPage({ viewport: { width: 1200, height: 800 } })
-  await ink.addInitScript((t) => {
-    try {
-      localStorage.setItem('neohab:apiToken', t)
-      localStorage.setItem('neohab:themeOverride', 'light')
-    } catch {}
-  }, TOKEN)
-  await putState(GLOW_ITEM, '0,0,0')
-  await ink.goto(APP + '#/d/nh-e2e-fplan-ink')
-  await ink.waitForSelector('.nh-fplan__img', { timeout: 20000 }).catch(() => {})
-  await sleep(2500)
-
-  // the clip is worked out from the plan rather than from the glow, because an unlit light draws
-  // no element at all
-  const inkGeom = await probe(ink, () => {
-    const layer = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
-    return layer ? { x: layer.left + layer.width * 0.15 - 20, y: layer.top + layer.height * 0.85 - 20 } : {}
-  })
-  const clip = { x: Math.round(inkGeom.x ?? 0), y: Math.round(inkGeom.y ?? 0), width: 40, height: 40 }
-  ok('the ink plan is on screen to be measured', (inkGeom.x ?? 0) > 0 && (inkGeom.y ?? 0) > 0, JSON.stringify(clip))
-
-  const darkBlend = await probe(page, () => {
-    const g = document.querySelector('.nh-fplan__glow')
-    return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
-  })
-  ok('a blueprint plan still screens its glows onto the dark ground',
-    darkBlend.blend === 'screen' && (darkBlend.count ?? 0) > 0, `${darkBlend.blend} over ${darkBlend.count} glows`)
-
-  const offA = await ink.screenshot({ clip })
-  const offB = await ink.screenshot({ clip })
-  ok('the same unlit plan shoots identically twice, so a difference means the glow',
-    Buffer.compare(offA, offB) === 0, `${offA.length}B vs ${offB.length}B`)
-
-  await putState(GLOW_ITEM, '30,80,90')
-  await ink.waitForSelector('.nh-fplan__glow', { timeout: 15000 }).catch(() => {})
-  await sleep(2500) // past the steady window, or the display is still holding the old value
-  const litBlend = await probe(ink, () => {
-    const g = document.querySelector('.nh-fplan__glow')
-    return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
-  })
-  ok('an ink plan multiplies its glows instead', litBlend.blend === 'multiply' && (litBlend.count ?? 0) === 1,
-    `${litBlend.blend} over ${litBlend.count} glows`)
-
-  const lit = await ink.screenshot({ clip })
-  ok('and the light actually marks the paper', Buffer.compare(offA, lit) !== 0,
-    `unlit ${offA.length}B, lit ${lit.length}B`)
-
   // the drawing is placed by object-fit and the lights by containRect: they have to agree, or
   // every glow lands off the room it is in
   const agree = (p) =>
@@ -1270,29 +1186,124 @@ try {
         dh: Math.round(Math.abs(h - l.height)),
       }
     })
-  const inkAgree = await agree(ink)
-  ok('the glow layer sits exactly where the drawing is',
-    inkAgree.dx <= 1 && inkAgree.dy <= 1 && inkAgree.dw <= 1 && inkAgree.dh <= 1,
-    JSON.stringify(inkAgree))
-
-  // stacked, a plan keeps the proportion it was authored at while everything else keeps its rows:
-  // both of these were given the same 6x6 rect
-  await ink.setViewportSize({ width: 393, height: 850 })
-  await ink.reload()
-  await ink.waitForSelector('.nh-grid--stacked .nh-fplan__img', { timeout: 20000 }).catch(() => {})
-  await sleep(1500)
-  const cards = await probe(ink, () => {
-    const cells = [...document.querySelectorAll('.nh-gcell')]
-    const height = (cell) => (cell ? Math.round(cell.getBoundingClientRect().height) : null)
-    // the SQUARE plan, not whichever floor plan comes first: on a wide tile the answer comes from
-    // the minimum height instead and the check would pass without the shape rule doing anything
-    const square = cells.find((c) => c.querySelector('.nh-widget__label')?.textContent?.trim() === 'Square')
-    return { plan: height(square), label: height(cells.find((c) => c.querySelector('.nh-label'))), cells: cells.length }
+  const darkBlend = await probe(page, () => {
+    const g = document.querySelector('.nh-fplan__glow')
+    return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
   })
-  ok('a stacked plan keeps its shape where anything else keeps its rows',
-    (cards.label ?? 0) > 0 && (cards.plan ?? 0) > 0 && cards.plan < cards.label * 0.75,
-    `square plan card ${cards.plan}px, label card ${cards.label}px at the same 6x6, over ${cards.cells} cells`)
-  await ink.close().catch(() => {})
+  ok('a blueprint plan still screens its glows onto the dark ground',
+    darkBlend.blend === 'screen' && (darkBlend.count ?? 0) > 0, `${darkBlend.blend} over ${darkBlend.count} glows`)
+  if (!skipGlow) {
+    // --- a light ground. Screen blending is how light behaves on a dark plan and does exactly
+    // nothing on a white one, so an ink plan drew the house and none of its lighting.
+    await fetch(NS + '/' + encodeURIComponent(UID4), { method: 'DELETE', headers: AUTH }).catch(() => {})
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: UID4,
+        component: 'neohab:dashboard',
+        config: {
+          version: 1,
+          id: 'nh-e2e-fplan-ink',
+          name: 'E2E Floorplan Ink',
+          columns: 12,
+          rowHeight: 'match',
+          widgets: [
+            {
+              id: 'w-ink',
+              type: 'floorplan',
+              config: {
+                image: PLAN_URI,
+                planStyle: 'ink',
+                markers: false,
+                presetBar: false,
+                lights: [{ id: 'l-glow', item: GLOW_ITEM, x: 15, y: 85, label: 'Glow' }],
+              },
+              layout: { lg: { x: 0, y: 0, w: 10, h: 6 } },
+            },
+            // a square tile, where the shape a stacked plan keeps is taller than its floor, beside a
+            // widget authored at the same rect whose height still comes from the row count
+            {
+              id: 'w-square',
+              type: 'floorplan',
+              config: { label: 'Square', image: PLAN_URI, planStyle: 'ink', markers: false, presetBar: false, lights: [] },
+              layout: { lg: { x: 0, y: 6, w: 6, h: 6 } },
+            },
+            {
+              id: 'w-ruler',
+              type: 'label',
+              config: { text: 'ruler' },
+              layout: { lg: { x: 6, y: 6, w: 6, h: 6 } },
+            },
+          ],
+        },
+      }),
+    })
+    const ink = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await ink.addInitScript((t) => {
+      try {
+        localStorage.setItem('neohab:apiToken', t)
+        localStorage.setItem('neohab:themeOverride', 'light')
+      } catch {}
+    }, TOKEN)
+    await putState(GLOW_ITEM, '0,0,0')
+    await ink.goto(APP + '#/d/nh-e2e-fplan-ink')
+    await ink.waitForSelector('.nh-fplan__img', { timeout: 20000 }).catch(() => {})
+    await sleep(2500)
+
+    // the clip is worked out from the plan rather than from the glow, because an unlit light draws
+    // no element at all
+    const inkGeom = await probe(ink, () => {
+      const layer = document.querySelector('.nh-fplan__layer')?.getBoundingClientRect()
+      return layer ? { x: layer.left + layer.width * 0.15 - 20, y: layer.top + layer.height * 0.85 - 20 } : {}
+    })
+    const clip = { x: Math.round(inkGeom.x ?? 0), y: Math.round(inkGeom.y ?? 0), width: 40, height: 40 }
+    ok('the ink plan is on screen to be measured', (inkGeom.x ?? 0) > 0 && (inkGeom.y ?? 0) > 0, JSON.stringify(clip))
+
+
+    const offA = await ink.screenshot({ clip })
+    const offB = await ink.screenshot({ clip })
+    ok('the same unlit plan shoots identically twice, so a difference means the glow',
+      Buffer.compare(offA, offB) === 0, `${offA.length}B vs ${offB.length}B`)
+
+    await putState(GLOW_ITEM, '30,80,90')
+    await ink.waitForSelector('.nh-fplan__glow', { timeout: 15000 }).catch(() => {})
+    await sleep(2500) // past the steady window, or the display is still holding the old value
+    const litBlend = await probe(ink, () => {
+      const g = document.querySelector('.nh-fplan__glow')
+      return { blend: g ? getComputedStyle(g).mixBlendMode : null, count: document.querySelectorAll('.nh-fplan__glow').length }
+    })
+    ok('an ink plan multiplies its glows instead', litBlend.blend === 'multiply' && (litBlend.count ?? 0) === 1,
+      `${litBlend.blend} over ${litBlend.count} glows`)
+
+    const lit = await ink.screenshot({ clip })
+    ok('and the light actually marks the paper', Buffer.compare(offA, lit) !== 0,
+      `unlit ${offA.length}B, lit ${lit.length}B`)
+
+    const inkAgree = await agree(ink)
+    ok('the glow layer sits exactly where the drawing is',
+      inkAgree.dx <= 1 && inkAgree.dy <= 1 && inkAgree.dw <= 1 && inkAgree.dh <= 1,
+      JSON.stringify(inkAgree))
+
+    // stacked, a plan keeps the proportion it was authored at while everything else keeps its rows:
+    // both of these were given the same 6x6 rect
+    await ink.setViewportSize({ width: 393, height: 850 })
+    await ink.reload()
+    await ink.waitForSelector('.nh-grid--stacked .nh-fplan__img', { timeout: 20000 }).catch(() => {})
+    await sleep(1500)
+    const cards = await probe(ink, () => {
+      const cells = [...document.querySelectorAll('.nh-gcell')]
+      const height = (cell) => (cell ? Math.round(cell.getBoundingClientRect().height) : null)
+      // the SQUARE plan, not whichever floor plan comes first: on a wide tile the answer comes from
+      // the minimum height instead and the check would pass without the shape rule doing anything
+      const square = cells.find((c) => c.querySelector('.nh-widget__label')?.textContent?.trim() === 'Square')
+      return { plan: height(square), label: height(cells.find((c) => c.querySelector('.nh-label'))), cells: cells.length }
+    })
+    ok('a stacked plan keeps its shape where anything else keeps its rows',
+      (cards.label ?? 0) > 0 && (cards.plan ?? 0) > 0 && cards.plan < cards.label * 0.75,
+      `square plan card ${cards.plan}px, label card ${cards.label}px at the same 6x6, over ${cards.cells} cells`)
+    await ink.close().catch(() => {})
+  }
 
   const phone = await anonCtx.newPage()
   await phone.setViewportSize({ width: 393, height: 850 })

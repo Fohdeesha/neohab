@@ -48,6 +48,20 @@ describe('contrast', () => {
     expect(contrastOf(undefined, '#000')).toBeNull()
     expect(contrastOf('#ffffff', '#000000')).toBeCloseTo(21, 4)
   })
+
+  it('measures a translucent colour as what it looks like over what is under it', () => {
+    // white text at 50% on black reads as mid grey, nowhere near 21:1
+    const half = contrastOf('rgba(255, 255, 255, 0.5)', '#000000')!
+    expect(half).toBeCloseTo(contrastOf('#808080', '#000000')!, 1)
+    expect(contrastOf('#ffffff80', '#000000')).toBeCloseTo(half, 1)
+    // a glass surface over the page is measured as the blend of the two
+    expect(contrastOf('#000000', 'rgba(0, 0, 0, 0.5)', '#ffffff')).toBeCloseTo(contrastOf('#000000', '#808080')!, 1)
+  })
+
+  it('has no answer for a translucent background with nothing opaque under it', () => {
+    expect(contrastOf('#ffffff', 'rgba(0, 0, 0, 0.5)')).toBeNull()
+    expect(contrastOf('#ffffff', 'rgba(0, 0, 0, 0.5)', 'rgba(0, 0, 0, 0.2)')).toBeNull()
+  })
 })
 
 describe('readableInk', () => {

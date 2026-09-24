@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { SettingField } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
+import { NumberSetting } from '../components/NumberSetting'
 import { ensureCatalog, useCatalogStore } from '../store/catalog'
 import { clampInt, locationOf, patternItems } from '../widgets/weather/model'
 import { searchLocations, type GeoPlace } from '../widgets/weather/openmeteo'
@@ -84,28 +85,30 @@ export function WeatherLocationField({ field, widget, value }: { field: SettingF
       {error ? <p className="nh-field__hint">{error}</p> : null}
       {loc?.name ? <p className="nh-weatherloc__current">{loc.name}</p> : null}
       <div className="nh-weatherloc__coords">
-        <label className="nh-weatherloc__coord">
-          <span>{t('Latitude')}</span>
-          <input
-            type="number"
-            step="0.0001"
-            min={-90}
-            max={90}
-            value={num(raw.lat)}
-            onChange={(e) => set({ lat: e.target.value === '' ? undefined : Number(e.target.value) })}
-          />
-        </label>
-        <label className="nh-weatherloc__coord">
-          <span>{t('Longitude')}</span>
-          <input
-            type="number"
-            step="0.0001"
-            min={-180}
-            max={180}
-            value={num(raw.lon)}
-            onChange={(e) => set({ lon: e.target.value === '' ? undefined : Number(e.target.value) })}
-          />
-        </label>
+        <NumberSetting
+          id={`f-${widget.id}-lat`}
+          className="nh-weatherloc__coord"
+          label={<span>{t('Latitude')}</span>}
+          mode="live"
+          step={0.0001}
+          min={-90}
+          max={90}
+          value={num(raw.lat)}
+          onCommit={(n) => set({ lat: n })}
+          onClear={() => set({ lat: undefined })}
+        />
+        <NumberSetting
+          id={`f-${widget.id}-lon`}
+          className="nh-weatherloc__coord"
+          label={<span>{t('Longitude')}</span>}
+          mode="live"
+          step={0.0001}
+          min={-180}
+          max={180}
+          value={num(raw.lon)}
+          onCommit={(n) => set({ lon: n })}
+          onClear={() => set({ lon: undefined })}
+        />
       </div>
     </div>
   )

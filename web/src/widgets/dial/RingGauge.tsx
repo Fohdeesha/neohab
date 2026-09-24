@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { holdTookGesture } from '../../components/useLongPress'
 import { numericValue } from '../common/format'
 import { getItemHistory } from '../../api/persistence'
 import { stepDecimals } from '../common/itemControl'
+import { useKeyboardCommit } from '../common/useKeyboardCommit'
 import { useLiveCommand } from '../common/useLiveCommand'
+import { useOptimisticValue } from '../common/useOptimisticValue'
+import { dialFraction, keyStep, valueAtFraction } from '../common/dialPointer'
 import { arcPath, polar, useTweened } from './geometry'
 import {
   arcOf,
@@ -14,7 +18,6 @@ import {
   fractionToAngle,
   gaugeColor,
   gaugeTicks,
-  angleToValue,
   hasInnerRing,
   historyBars,
   historyPeriodMs,
@@ -32,7 +35,37 @@ import {
   type RingStyle
 } from './gauge'
 
+function tickLine(o: {
+  i: number
+  count: number
+  sweep: number
+  start: number
+  lit: boolean
+  r: number
+  len: number
+  width: number
+  stroke: string
+  key: string
+}) {
+  const a = fractionToAngle(ledFraction(o.i, o.count, o.sweep), o.start, o.sweep)
+  const p1 = polar(50, 50, o.r, a)
+  const p2 = polar(50, 50, o.r - o.len, a)
+  return (
+    <line
+      key={o.key}
+      className={o.lit ? 'nh-gauge__tklit' : 'nh-gauge__tkmark'}
+      x1={p1.x}
+      y1={p1.y}
+      x2={p2.x}
+      y2={p2.y}
+      strokeWidth={o.width}
+      {...(o.lit ? { stroke: o.stroke } : {})}
+    />
+  )
+}
+
 export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
+  const { t } = useTranslation()
   const kind: RingStyle =
     config.style === 'arc' || config.style === 'blocks' || config.style === '3d' || config.style === 'ticks' ? config.style : 'led'
   const { min, max, step } = scaleOf(config)
@@ -42,6 +75,8 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const inner = hasInnerRing(config)
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<{ ring: 'outer' | 'inner'; v: number } | null>(null)
+  // the fraction a press is dragging from; null when no press is in progress
+  const dragFrac = useRef<number | null>(null)
 
   const { start, sweep } = arcOf(config)
   const count = ledCountOf(config)
@@ -50,11 +85,16 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
 
   const state = ctx.getItem(config.item)
   const live = Math.min(max, Math.max(min, numericValue(state) ?? min))
-  const tweened = useTweened(live, drag?.ring !== 'outer')
+  // through the same hold every other control has: released, a ring stays where it was let go
+  const held = useOptimisticValue(live, live, (a, b) => Math.abs(a - b) <= Math.max(step, 0.5), { item: config.item || undefined })
+  const tweened = useTweened(held.display, drag?.ring !== 'outer')
   const value = drag?.ring === 'outer' ? drag.v : tweened
   const state2 = ctx.getItem(config.item2 ?? '')
   const live2 = Math.min(max2, Math.max(min2, numericValue(state2) ?? min2))
-  const tweened2 = useTweened(live2, drag?.ring !== 'inner')
+  const held2 = useOptimisticValue(live2, live2, (a, b) => Math.abs(a - b) <= Math.max(step2, 0.5), {
+    item: inner ? config.item2 : undefined
+  })
+  const tweened2 = useTweened(held2.display, drag?.ring !== 'inner')
   const value2 = drag?.ring === 'inner' ? drag.v : tweened2
 
   const frac = fractionOf(value, min, max)
@@ -88,68 +128,198 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const uid = ctx.widgetId
   const ticks = showTicks ? gaugeTicks(min, max, start, sweep, config.tickSteps ?? 5, decimals, config.showTickLabels !== false) : []
 
-  const ringFromPointer = (e: React.PointerEvent): 'outer' | 'inner' => {
-    if (!inner) return 'outer'
+  // A state change tweens for 450ms, and a ring can be 200 segments twice over. The segments are rebuilt
+  // only when the set of lit ones changes, not on every frame of the tween.
+  const segmented = kind === 'led' || tickRing
+  const litMask = (vf: number, zf: number, bidi: boolean): string => {
+    let mask = ''
+    for (let i = 0; i < count; i++) mask += ledLit(i, count, sweep, vf, zf, bidi) ? '1' : '0'
+    return mask
+  }
+  const mask = segmented ? litMask(frac, zeroFrac, bidirectional) : ''
+  const mask2 = segmented && inner ? litMask(frac2, zeroFrac2, config.bidirectional2 === true) : ''
+  const hideUnlit = config.hideUnlit === true
+  const ledOuter = useMemo(
+    () =>
+      kind !== 'led'
+        ? null
+        : Array.from(mask, (bit, i) => {
+            const lit = bit === '1'
+            if (!lit && hideUnlit) return null
+            const p = polar(50, 50, R, fractionToAngle(ledFraction(i, count, sweep), start, sweep))
+            return lit ? (
+              <g key={i}>
+                <circle className="nh-gauge__halo" cx={p.x} cy={p.y} r={ledR * 2.4} fill={`url(#nh-g-halo-${uid})`} />
+                {/* own class, no CSS fill: a stylesheet fill would beat the gradient attribute */}
+                <circle className="nh-gauge__ledlit" cx={p.x} cy={p.y} r={ledR} fill={`url(#nh-g-led-${uid})`} />
+              </g>
+            ) : (
+              <circle key={i} className="nh-gauge__led" cx={p.x} cy={p.y} r={ledR} />
+            )
+          }),
+    [kind, mask, hideUnlit, R, count, sweep, start, ledR, uid]
+  )
+  const ledInner = useMemo(
+    () =>
+      kind !== 'led' || !inner
+        ? null
+        : Array.from(mask2, (bit, i) => {
+            const lit = bit === '1'
+            if (!lit && hideUnlit) return null
+            const p = polar(50, 50, R2, fractionToAngle(ledFraction(i, count, sweep), start, sweep))
+            return lit ? (
+              <g key={`i-${i}`}>
+                <circle className="nh-gauge__halo" cx={p.x} cy={p.y} r={ledR2 * 2.4} fill={`url(#nh-g-halo2-${uid})`} />
+                <circle className="nh-gauge__ledlit nh-gauge__ledlit--inner" cx={p.x} cy={p.y} r={ledR2} fill={`url(#nh-g-led2-${uid})`} />
+              </g>
+            ) : (
+              <circle key={`i-${i}`} className="nh-gauge__led nh-gauge__led--inner" cx={p.x} cy={p.y} r={ledR2} />
+            )
+          }),
+    [kind, inner, mask2, hideUnlit, R2, count, sweep, start, ledR2, uid]
+  )
+  const ticksOuter = useMemo(
+    () =>
+      !tickRing
+        ? null
+        : Array.from(mask, (bit, i) =>
+            bit !== '1' && hideUnlit
+              ? null
+              : tickLine({
+                  i,
+                  count,
+                  sweep,
+                  start,
+                  lit: bit === '1',
+                  r: tickOuter,
+                  len: bit === '1' ? tickLenLit : tickLen,
+                  width: tickW,
+                  stroke: color,
+                  key: `k-${i}`
+                })
+          ),
+    [tickRing, mask, hideUnlit, color, tickOuter, tickLenLit, tickLen, tickW, count, sweep, start]
+  )
+  const ticksInner = useMemo(
+    () =>
+      !tickRing || !inner
+        ? null
+        : Array.from(mask2, (bit, i) =>
+            bit !== '1' && hideUnlit
+              ? null
+              : tickLine({
+                  i,
+                  count,
+                  sweep,
+                  start,
+                  lit: bit === '1',
+                  r: R2,
+                  len: (bit === '1' ? tickLenLit : tickLen) * 0.7,
+                  width: tickW * 0.85,
+                  stroke: color2,
+                  key: `ki-${i}`
+                })
+          ),
+    [tickRing, inner, mask2, hideUnlit, color2, R2, tickLenLit, tickLen, tickW, count, sweep, start]
+  )
+
+  // where each value ring is drawn: the 3D look puts them well inside R, and picking by R and R2 there sent a
+  // press on the outer arc to the inner item
+  const outerAt = kind === '3d' ? R3 : R
+  const innerAt = kind === '3d' ? R3i : R2
+  // a press counts only on the rings: not on the reading in the middle, and not in the gap
+  const reachFrom = inner ? Math.max(innerAt - 6, centerR * 0.6) : kind === '3d' ? Math.max(R3 - 6, centerR) : Math.max(R - 12, centerR)
+  const reachTo = R + 14
+
+  const pointer = (e: React.PointerEvent): { units: number; angle: number } => {
     const rect = svgRef.current!.getBoundingClientRect()
     const dx = e.clientX - (rect.left + rect.width / 2)
     const dy = e.clientY - (rect.top + rect.height / 2)
-    const units = (Math.hypot(dx, dy) / (Math.min(rect.width, rect.height) / 2)) * 50
-    return pickRing(units, R, R2)
+    return { units: (Math.hypot(dx, dy) / (Math.min(rect.width, rect.height) / 2)) * 50, angle: (Math.atan2(dy, dx) * 180) / Math.PI }
   }
+  const valueAt = (ring: 'outer' | 'inner', frac: number): number =>
+    ring === 'inner' ? valueAtFraction(frac, min2, max2, step2, decimals2) : valueAtFraction(frac, min, max, step, decimals)
 
-  const valueFromPointer = (e: React.PointerEvent, ring: 'outer' | 'inner'): number => {
-    const rect = svgRef.current!.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const angle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI
-    return ring === 'inner'
-      ? angleToValue(angle, min2, max2, start, sweep, step2, decimals2)
-      : angleToValue(angle, min, max, start, sweep, step, decimals)
-  }
-
+  const itemOf = (ring: 'outer' | 'inner') => (ring === 'inner' ? (config.item2 ?? '') : config.item)
+  const heldFor = (ring: 'outer' | 'inner') => (ring === 'inner' ? held2 : held)
   // one per ring: each ring is its own item, with its own throttle and its own final send
   const liveOuter = useLiveCommand<number>({
     item: config.item,
     config,
     editing: ctx.editing,
     command: String,
-    send: (v) => ctx.sendCommand(config.item, String(v))
+    send: (v) => ctx.sendCommand(config.item, String(v)),
+    onSend: held.commit,
+    onRefused: held.cancel
   })
   const liveInner = useLiveCommand<number>({
     item: config.item2 ?? '',
     config,
     editing: ctx.editing,
     command: String,
-    send: (v) => ctx.sendCommand(config.item2 ?? '', String(v))
+    send: (v) => ctx.sendCommand(config.item2 ?? '', String(v)),
+    onSend: held2.commit,
+    onRefused: held2.cancel
   })
   const liveFor = (ring: 'outer' | 'inner') => (ring === 'inner' ? liveInner : liveOuter)
+  const send = (ring: 'outer' | 'inner', v: number) => {
+    const h = heldFor(ring)
+    h.commit(v)
+    void ctx.sendCommand(itemOf(ring), String(v)).then((ok) => !ok && h.cancel(v))
+  }
+  const interactive = !ctx.editing && !config.readOnly && !!config.item
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (ctx.editing || config.readOnly || !config.item) return
-    ;(e.target as Element).setPointerCapture(e.pointerId)
-    const ring = ringFromPointer(e)
-    setDrag({ ring, v: valueFromPointer(e, ring) })
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!interactive) return
+    // a right-click opens the detail sheet; it must not also set the value under the cursor
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const at = pointer(e)
+    const frac = dialFraction(at.angle, start, sweep, null)
+    if (frac === null || at.units < reachFrom || at.units > reachTo) return
+    // on the element that handles the moves, so a ring redrawing the segment under the finger cannot drop it
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const ring = inner ? pickRing(at.units, outerAt, innerAt) : 'outer'
+    dragFrac.current = frac
+    setDrag({ ring, v: valueAt(ring, frac) })
     liveFor(ring).begin(e)
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (drag === null) return
-    const v = valueFromPointer(e, drag.ring)
+    if (drag === null || dragFrac.current === null) return
+    const frac = dialFraction(pointer(e).angle, start, sweep, dragFrac.current)
+    if (frac === null) return
+    dragFrac.current = frac
+    const v = valueAt(drag.ring, frac)
     setDrag({ ring: drag.ring, v })
     const live = liveFor(drag.ring)
     live.moved(e)
     live.stage(v)
   }
   const onPointerUp = () => {
-    if (drag === null) return
+    if (drag === null || dragFrac.current === null) return
     const { ring, v } = drag
     setDrag(null)
+    dragFrac.current = null
     if (liveFor(ring).end(v)) return
     if (holdTookGesture()) return
-    void ctx.sendCommand(ring === 'inner' ? config.item2! : config.item, String(v))
+    send(ring, v)
   }
   const onPointerCancel = () => {
     if (drag !== null) liveFor(drag.ring).cancel()
     setDrag(null)
+    dragFrac.current = null
+  }
+
+  // the keys a slider answers to, for the outer item; the inner one is reached through the detail sheet
+  const keys = useKeyboardCommit((v: number) => {
+    setDrag(null)
+    send('outer', v)
+  })
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!interactive) return
+    const next = keyStep(e.key, drag?.ring === 'outer' ? drag.v : held.display, min, max, step, decimals)
+    if (next === null) return
+    e.preventDefault()
+    setDrag({ ring: 'outer', v: next })
   }
 
   const text = value.toFixed(decimals)
@@ -346,6 +516,16 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
         ref={svgRef}
         className={'nh-dial nh-dial--ring nh-dial--' + kind + (config.readOnly ? ' nh-dial--readonly' : '')}
         viewBox="0 0 100 100"
+        role={config.readOnly ? 'img' : 'slider'}
+        aria-label={config.label || t('Dial')}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={text + (config.unit ? ' ' + config.unit : '')}
+        aria-readonly={config.readOnly ? true : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        onKeyDown={onKeyDown}
+        onKeyUp={(e) => drag?.ring === 'outer' && dragFrac.current === null && keys.key(e.key, drag.v)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -435,22 +615,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
             stroke={z.color || 'var(--nh-primary)'}
           />
         ))}
-        {kind === 'led'
-          ? Array.from({ length: count }, (_, i) => {
-              const lit = ledLit(i, count, sweep, frac, zeroFrac, bidirectional)
-              if (!lit && config.hideUnlit) return null
-              const p = polar(50, 50, R, fractionToAngle(ledFraction(i, count, sweep), start, sweep))
-              return lit ? (
-                <g key={i}>
-                  <circle className="nh-gauge__halo" cx={p.x} cy={p.y} r={ledR * 2.4} fill={`url(#nh-g-halo-${uid})`} />
-                  {/* own class, no CSS fill: a stylesheet fill would beat the gradient attribute */}
-                  <circle className="nh-gauge__ledlit" cx={p.x} cy={p.y} r={ledR} fill={`url(#nh-g-led-${uid})`} />
-                </g>
-              ) : (
-                <circle key={i} className="nh-gauge__led" cx={p.x} cy={p.y} r={ledR} />
-              )
-            })
-          : null}
+        {ledOuter}
         {tickRing ? (
           <>
             {/* the face's own light, behind everything; transparent unless a theme lights it */}
@@ -459,46 +624,8 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
                 attribute pointing at the gradient, so neither stylesheet may set one. */}
             <circle className="nh-gauge__rim" cx={50} cy={50} r={R + 4} stroke={`url(#nh-g-rim-${uid})`} />
             {inner ? null : <circle className="nh-gauge__rim" cx={50} cy={50} r={R - 5} stroke={`url(#nh-g-rim-${uid})`} />}
-            {Array.from({ length: count }, (_, i) => {
-              const lit = ledLit(i, count, sweep, frac, zeroFrac, bidirectional)
-              if (!lit && config.hideUnlit) return null
-              const a = fractionToAngle(ledFraction(i, count, sweep), start, sweep)
-              const p1 = polar(50, 50, tickOuter, a)
-              const p2 = polar(50, 50, tickOuter - (lit ? tickLenLit : tickLen), a)
-              return (
-                <line
-                  key={`k-${i}`}
-                  className={lit ? 'nh-gauge__tklit' : 'nh-gauge__tkmark'}
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
-                  strokeWidth={tickW}
-                  {...(lit ? { stroke: color } : {})}
-                />
-              )
-            })}
-            {inner
-              ? Array.from({ length: count }, (_, i) => {
-                  const lit = ledLit(i, count, sweep, frac2, zeroFrac2, config.bidirectional2 === true)
-                  if (!lit && config.hideUnlit) return null
-                  const a = fractionToAngle(ledFraction(i, count, sweep), start, sweep)
-                  const p1 = polar(50, 50, R2, a)
-                  const p2 = polar(50, 50, R2 - (lit ? tickLenLit : tickLen) * 0.7, a)
-                  return (
-                    <line
-                      key={`ki-${i}`}
-                      className={lit ? 'nh-gauge__tklit' : 'nh-gauge__tkmark'}
-                      x1={p1.x}
-                      y1={p1.y}
-                      x2={p2.x}
-                      y2={p2.y}
-                      strokeWidth={tickW * 0.85}
-                      {...(lit ? { stroke: color2 } : {})}
-                    />
-                  )
-                })
-              : null}
+            {ticksOuter}
+            {ticksInner}
           </>
         ) : null}
         {kind === 'arc' ? bandRing(R, bandW, frac, zeroFrac, bidirectional, color, 'band') : null}
@@ -532,27 +659,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
               : null}
           </g>
         ) : null}
-        {inner && kind === 'led'
-          ? Array.from({ length: count }, (_, i) => {
-              const lit = ledLit(i, count, sweep, frac2, zeroFrac2, config.bidirectional2 === true)
-              if (!lit && config.hideUnlit) return null
-              const p = polar(50, 50, R2, fractionToAngle(ledFraction(i, count, sweep), start, sweep))
-              return lit ? (
-                <g key={`i-${i}`}>
-                  <circle className="nh-gauge__halo" cx={p.x} cy={p.y} r={ledR2 * 2.4} fill={`url(#nh-g-halo2-${uid})`} />
-                  <circle
-                    className="nh-gauge__ledlit nh-gauge__ledlit--inner"
-                    cx={p.x}
-                    cy={p.y}
-                    r={ledR2}
-                    fill={`url(#nh-g-led2-${uid})`}
-                  />
-                </g>
-              ) : (
-                <circle key={`i-${i}`} className="nh-gauge__led nh-gauge__led--inner" cx={p.x} cy={p.y} r={ledR2} />
-              )
-            })
-          : null}
+        {ledInner}
         {inner && kind === 'arc' ? bandRing(R2, bandW2, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'band2') : null}
         {inner && kind === 'blocks' ? blockRing(R2, bandW2, frac2, zeroFrac2, config.bidirectional2 === true, color2, true) : null}
         {inner && kind === '3d' ? clayArc(R3i, 4, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'v3i') : null}

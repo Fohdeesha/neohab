@@ -1,19 +1,13 @@
 import { launchChromium } from './lib/browser.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
-
 
 // WIPE-CYCLE GUARD: this suite assumes an EMPTY namespace and its cleanup DELETES EVERYTHING.
 // Refuse to run against a live config - snapshot + wipe first, restore + verify after
 // (tools/config-snapshot.mjs, config-wipe.mjs, config-restore.mjs - see the README). Running
 // one of these against a live config once forced a full restore; the guard makes that
 // mistake impossible.
-{
-  const pre = await (await fetch(NS)).json()
-  if (pre.length > 0) {
-    console.log('ABORT: namespace holds ' + pre.length + ' components - wipe-cycle suite needs an empty namespace (snapshot + wipe first).')
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces()
 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -21,7 +15,7 @@ const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 
 async function restGet(path) {
-  const res = await fetch(path)
+  const res = await fetch(path, { headers: { Authorization: 'Bearer ' + TOKEN } })
   return { status: res.status, body: res.ok ? await res.json() : null }
 }
 async function restDelete(path) {

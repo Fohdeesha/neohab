@@ -44,6 +44,7 @@ export class LiveCommand<T> {
   private releasing = false
   private timer: unknown = null
   private gen = 0
+  private flight: Promise<boolean> | null = null
 
   constructor(private readonly deps: () => LiveDeps<T>) {}
 
@@ -108,6 +109,19 @@ export class LiveCommand<T> {
   }
 
   private reset(): void {
+    // A press let go while a send was still out leaves its final value waiting behind it. A new press or an
+    // unmount must not drop that value: it is where the person left the control. It follows the send in
+    // flight, and only if that one was accepted.
+    if (this.releasing && this.staged && !this.dead && this.flight) {
+      const { v } = this.staged
+      const d = this.deps()
+      void this.flight.then((ok) => {
+        if (!ok) return
+        d.onSend?.(v)
+        void d.send(v).catch(() => undefined)
+      })
+    }
+    this.flight = null
     this.gen++
     if (this.timer !== null) {
       ;(this.deps().clearTimer ?? clearTimeout)(this.timer as ReturnType<typeof setTimeout>)
@@ -160,10 +174,12 @@ export class LiveCommand<T> {
     const gen = this.gen
     const d = this.deps()
     d.onSend?.(v)
-    void d.send(v).then(
-      (ok) => this.landed(gen, v, ok),
-      () => this.landed(gen, v, false)
+    const flight = d.send(v).then(
+      (ok) => ok,
+      () => false
     )
+    this.flight = flight
+    void flight.then((ok) => this.landed(gen, v, ok))
   }
 
   private landed(gen: number, v: T, ok: boolean): void {

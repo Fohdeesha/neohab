@@ -3,15 +3,9 @@
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, ITEMS } from './lib/target.mjs'
 import { confirmHabpanelImport } from './lib/ui.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
 
-
-{
-  const pre = await (await fetch(NS)).json()
-  if (pre.length > 0) {
-    console.log('ABORT: namespace holds ' + pre.length + ' components - wipe-cycle suite needs an empty namespace (snapshot + wipe first).')
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces()
 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -27,7 +21,7 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-const hpBefore = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig')).json())
+const hpBefore = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig', { headers: { Authorization: 'Bearer ' + TOKEN } })).json())
 
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
@@ -40,7 +34,7 @@ await page.addInitScript((t) => localStorage.setItem('neohab:apiToken', t), TOKE
 const confirmImport = (opts) => confirmHabpanelImport(page, opts)
 
 const settingsTheme = async () => {
-  const res = await fetch(NS + '/settings')
+  const res = await fetch(NS + '/settings', { headers: { Authorization: 'Bearer ' + TOKEN } })
   return res.ok ? ((await res.json())?.config?.theme ?? null) : null
 }
 
@@ -66,7 +60,7 @@ try {
     ok('report agrees with the detected dashboard count', repDash === rowDash, head.slice(0, 100))
     ok('report counts widgets', repWidgets > 0, String(repWidgets))
 
-    const comps = await (await fetch(NS)).json()
+    const comps = await (await fetch(NS, { headers: { Authorization: 'Bearer ' + TOKEN } })).json()
     const dashComps = comps.filter((c) => c.uid.startsWith('dashboard:'))
     const defCount = comps.filter((c) => c.uid.startsWith('widgetdef:')).length
     ok('server has the reported dashboards', dashComps.length === repDash, `dash=${dashComps.length}`)
@@ -145,7 +139,7 @@ try {
   const skipNote = await page.locator('.nh-report__item--skip').textContent()
   ok('file import: unknown type reported as skipped', /wibble/.test(skipNote ?? ''), skipNote ?? 'none')
 
-  const synthDash = await (await fetch(NS + '/dashboard:synth')).json()
+  const synthDash = await (await fetch(NS + '/dashboard:synth', { headers: { Authorization: 'Bearer ' + TOKEN } })).json()
   const synthTypes = synthDash?.config?.widgets?.map((w) => w.type).sort()
   ok(
     'file import mapping: switch becomes a button, knob a dial, timeline a timeline',
@@ -171,14 +165,14 @@ try {
   await browser.close()
 }
 
-const hpAfter = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig')).json())
+const hpAfter = JSON.stringify(await (await fetch(BASE + '/rest/ui/components/habpanel:panelconfig', { headers: { Authorization: 'Bearer ' + TOKEN } })).json())
 ok('habpanel:panelconfig untouched', hpBefore === hpAfter)
 
-const list = await (await fetch(NS)).json()
+const list = await (await fetch(NS, { headers: { Authorization: 'Bearer ' + TOKEN } })).json()
 for (const c of list) {
   await fetch(NS + '/' + encodeURIComponent(c.uid), { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } })
 }
-const after = await (await fetch(NS)).json()
+const after = await (await fetch(NS, { headers: { Authorization: 'Bearer ' + TOKEN } })).json()
 ok('cleanup: namespace empty', Array.isArray(after) && after.length === 0, `left=${after.length}`)
 
 let allPass = true

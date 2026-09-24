@@ -4,6 +4,9 @@
 // nh_e2e_valnull. Commands nothing: every state is set over REST.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-value'
 const MIG_UID = 'dashboard:nh-e2e-valuemigrate'
@@ -210,7 +213,8 @@ const reading = (label) =>
         caption: vis('.nh-stat__caption')?.textContent ?? null,
         badge: q('.nh-stat__badge')?.textContent ?? null,
         sub: q('.nh-stat__subvalue')?.textContent ?? null,
-        arrow: arrow ? arrow.getAttribute('aria-label') : null,
+        // the label is the translated name a screen reader says; the direction itself is data
+        arrow: arrow ? arrow.getAttribute('data-direction') : null,
         arrowTone: arrow ? arrow.className.baseVal.replace(/.*nh-stat__arrow--/, '') : null,
         arrowFill: arrow ? getComputedStyle(arrow).fill : null,
         mainColor: q('.nh-read__main, .nh-stat__main') ? getComputedStyle(q('.nh-read__main, .nh-stat__main')).color : null,
@@ -481,7 +485,7 @@ try {
   )
   ok(
     'and a good arrow is green where a bad one is red',
-    up?.arrowFill === 'rgb(63, 185, 80)' && down?.arrowFill === 'rgb(229, 72, 77)',
+    up?.arrowFill === 'rgb(63, 185, 80)' && down?.arrowFill === 'rgb(255, 107, 112)',
     `good=${up?.arrowFill} bad=${down?.arrowFill}`
   )
   await putState(REF, '200')

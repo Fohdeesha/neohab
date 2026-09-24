@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { appLocale } from '../../i18n'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { ghostFor } from '../common/format'
@@ -9,19 +11,19 @@ import { displayNow, msToNextBoundary } from '../../model/servertime'
 import { type ClockConfig, clockSource } from './config'
 import { acquireServerTime, useServerTimeStore } from '../../store/servertime'
 
-function formatDate(now: Date, format: string | undefined, zone: string): string {
+function formatDate(now: Date, format: string | undefined, zone: string, locale: string): string {
   const inZone = zone === '' ? {} : { timeZone: zone }
   switch (format) {
     case 'weekday':
-      return now.toLocaleDateString([], { ...inZone, weekday: 'long' })
+      return now.toLocaleDateString(locale, { ...inZone, weekday: 'long' })
     case 'monthYear':
-      return now.toLocaleDateString([], { ...inZone, month: 'long', year: 'numeric' })
+      return now.toLocaleDateString(locale, { ...inZone, month: 'long', year: 'numeric' })
     case 'full':
-      return now.toLocaleDateString([], { ...inZone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      return now.toLocaleDateString(locale, { ...inZone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     case 'numeric':
-      return now.toLocaleDateString([], inZone)
+      return now.toLocaleDateString(locale, inZone)
     default:
-      return now.toLocaleDateString([], { ...inZone, weekday: 'short', month: 'short', day: 'numeric' })
+      return now.toLocaleDateString(locale, { ...inZone, weekday: 'short', month: 'short', day: 'numeric' })
   }
 }
 
@@ -105,11 +107,13 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
   const source = clockSource(config)
   const now = useClockNow(source, seconds)
   const zone = resolveZone(config.timeZone)
-  const lang = typeof navigator !== 'undefined' ? navigator.language : 'en'
+  // re-rendered on a language change, like everything else that says something
+  useTranslation()
+  const lang = appLocale()
   const zoneText = zoneLabelText(now, zone, lang, config.zoneLabel, config.zoneText)
 
   const analog = String(config.mode ?? '').toLowerCase() === 'analog'
-  const date = formatDate(now, config.dateFormat, zone)
+  const date = formatDate(now, config.dateFormat, zone, lang)
   const wantsDate = Boolean(config.showDate)
   const bare = config.tileBackground === false
 
@@ -133,7 +137,7 @@ function ClockWidget({ config }: WidgetProps<ClockConfig>) {
     )
   }
 
-  const time = now.toLocaleTimeString([], {
+  const time = now.toLocaleTimeString(lang, {
     hour: '2-digit',
     minute: '2-digit',
     second: config.showSeconds ? '2-digit' : undefined,

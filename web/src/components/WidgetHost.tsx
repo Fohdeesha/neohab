@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
-import { getWidgetDefinition, hasHeaderFor, instanceNeedsItem, itemsForInstance } from '../widgets'
+import { getWidgetDefinition, hasHeaderFor, instanceNeedsItem, itemsForInstance, primaryItemOf } from '../widgets'
 import type { WidgetContext } from '../widgets/types'
 import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
@@ -10,7 +10,25 @@ import { commandItem } from '../widgets/common/command'
 import { WidgetFrame } from '../widgets/common/WidgetFrame'
 import { WidgetBoundary } from './WidgetBoundary'
 
-export function WidgetHost({ instance, editing, stacked }: { instance: WidgetInstance; editing: boolean; stacked?: boolean }) {
+interface WidgetHostProps {
+  instance: WidgetInstance
+  editing: boolean
+  stacked?: boolean
+}
+
+// a drag re-renders the whole editor on every pointer move, and a projected layout hands each widget a new
+// instance object whose config is the same one; this reads only the id, the type and the config
+export const WidgetHost = memo(
+  WidgetHostView,
+  (a: WidgetHostProps, b: WidgetHostProps) =>
+    a.editing === b.editing &&
+    a.stacked === b.stacked &&
+    a.instance.id === b.instance.id &&
+    a.instance.type === b.instance.type &&
+    a.instance.config === b.instance.config
+)
+
+function WidgetHostView({ instance, editing, stacked }: WidgetHostProps) {
   const { t } = useTranslation()
   const def = getWidgetDefinition(instance.type)
 
@@ -27,7 +45,6 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
   useEffect(() => {
     if (itemsKey) ensureItemNames()
   }, [itemsKey])
-  const missing = useCatalogStore(useShallow((s) => missingFrom(s.names, s.namesStatus, itemNames)))
 
   // definition defaults under the stored config, memoised so widgets are not handed a new object every render
   const config = useMemo(() => {
@@ -41,6 +58,11 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
 
   // off the config rather than per render: this runs for every widget on every arriving item state
   const needsItem = useMemo(() => instanceNeedsItem(instance.type, config), [instance.type, config])
+  const primary = useMemo(() => primaryItemOf(instance.type, config), [instance.type, config])
+  const missing = useCatalogStore((s) =>
+    primary !== undefined && missingFrom(s.names, s.namesStatus, [primary]).length > 0 ? primary : null
+  )
+  const label = typeof config.label === 'string' ? config.label : undefined
 
   const ctx: WidgetContext = useMemo(
     () => ({
@@ -64,19 +86,20 @@ export function WidgetHost({ instance, editing, stacked }: { instance: WidgetIns
     )
   }
 
-  if (missing.length > 0) {
+  // inside the frame, so the tile keeps the name that says which one it is
+  if (missing !== null) {
     return (
-      <div className="nh-widget nh-widget--notice nh-widget--error">
-        <span className="nh-widget__errtitle">{missing.join(', ')}</span>
+      <WidgetFrame label={label} center className="nh-widget--notice nh-widget--error">
+        <span className="nh-widget__errtitle">{missing}</span>
         <span className="nh-widget__errhint">{t('Not on this openHAB server. It may have been renamed or removed.')}</span>
-      </div>
+      </WidgetFrame>
     )
   }
 
   // the tile keeps its frame and its name: this is a widget nobody has finished, not a broken one
   if (needsItem) {
     return (
-      <WidgetFrame label={typeof config.label === 'string' ? config.label : undefined} center>
+      <WidgetFrame label={label} center>
         <span className="nh-widget__unset">{t('No item yet - pick one in this widget’s settings.')}</span>
       </WidgetFrame>
     )

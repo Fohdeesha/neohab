@@ -3,6 +3,9 @@
 // items nh_e2e_batt, nh_e2e_battchg, nh_e2e_battmv, nh_e2e_battnull. Commands nothing: every state is set over REST.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-battery'
 const NUM = 'nh_e2e_batt'
@@ -13,7 +16,7 @@ const ITEMS_MADE = [NUM, CHG, MV, NULLI]
 const STYLES = ['glow', 'neon', 'cells', 'ring', 'pods', 'bar', 'wave', 'meter']
 const GOOD = 'rgb(63, 185, 80)'
 const MID = 'rgb(224, 165, 38)'
-const LOW = 'rgb(229, 72, 77)'
+const LOW = 'rgb(255, 107, 112)'
 
 const results = []
 const ok = (name, cond, detail = '') => {

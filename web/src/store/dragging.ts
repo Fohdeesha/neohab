@@ -40,10 +40,6 @@ export function unmarkDragging(item: string): void {
   })
 }
 
-export function isDragging(item: string): boolean {
-  return useDraggingStore.getState().items.has(item)
-}
-
 export function useIsDragging(item: string | undefined): boolean {
   return useDraggingStore((s) => item !== undefined && s.items.has(item))
 }

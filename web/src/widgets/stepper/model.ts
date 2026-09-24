@@ -67,15 +67,6 @@ export function wrapOf(v: unknown): boolean {
   return v === true
 }
 
-export const LOOK_AXIS: Record<StepperLook, 'vertical' | 'horizontal'> = {
-  stack: 'vertical',
-  spinner: 'vertical',
-  split: 'vertical',
-  pair: 'horizontal',
-  carousel: 'horizontal',
-  range: 'horizontal'
-}
-
 export const LOOK_FLOOR: Record<StepperLook, number> = {
   stack: 150,
   pair: 130,

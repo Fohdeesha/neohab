@@ -4,6 +4,9 @@
 // item nh_e2e_pwr (never a file-provided item).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-colorpower'
 const ITEM = 'nh_e2e_pwr'
@@ -162,11 +165,18 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 900 
 const page = await context.newPage()
 const errs = []
 const commands = []
+// the refusals this suite injects are reported by the browser as resource errors: exactly that many are
+// expected, and anything else still counts
+let injected400 = 0
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => {
   if (m.type() !== 'error') return
   const at = m.location?.()?.url
   if (!isAppResource(at)) return
+  if (injected400 > 0 && /\b400\b/.test(m.text()) && (at ?? '').endsWith('/rest/items/' + ITEM)) {
+    injected400--
+    return
+  }
   errs.push(m.text() + (at ? ' <- ' + at : ''))
 })
 const watchCommands = (p) =>
@@ -652,9 +662,11 @@ try {
 
   await putState('288,55,40')
   await sleep(2200)
-  await page.route('**/rest/items/' + ITEM, (r) =>
-    r.request().method() === 'POST' ? r.fulfill({ status: 400, body: 'nope' }) : r.continue()
-  )
+  await page.route('**/rest/items/' + ITEM, (r) => {
+    if (r.request().method() !== 'POST') return r.continue()
+    injected400++
+    return r.fulfill({ status: 400, body: 'nope' })
+  })
   const beforeRefusal = await probe(page, readButtons, 'Lamp')
   await pressBtn('Lamp', 'off')
   await sleep(900)
@@ -671,7 +683,6 @@ try {
     JSON.stringify(toast)
   )
   await page.unroute('**/rest/items/' + ITEM)
-  errs.length = 0
 
   await fetch(itemUrl(ITEM) + '/state', {
     method: 'PUT',

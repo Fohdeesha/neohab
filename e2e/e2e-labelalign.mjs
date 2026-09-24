@@ -73,6 +73,10 @@ try {
     { id: 'w-tiny', type: 'slider', config: { item: ITEMS.dimmer, label: 'TinyTop' }, layout: { lg: { x: 0, y: 12, w: 4, h: 1 } } },
     { id: 'w-tinyb', type: 'slider', config: { item: ITEMS.dimmer, label: 'TinyBottom', labelPosition: 'bottom' }, layout: { lg: { x: 4, y: 12, w: 4, h: 1 } } },
   ]
+  // a killed earlier run's copies would refuse these POSTs and be tested in their place
+  for (const uid of [UID, DEF_A, DEF_B]) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },

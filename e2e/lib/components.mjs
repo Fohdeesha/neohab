@@ -2,16 +2,18 @@ import { AUTH, NS } from './target.mjs'
 
 const JSON_HDR = { ...AUTH, 'Content-Type': 'application/json' }
 
+// null means the server said it has no such component (404), and nothing else: restoreSettings(null)
+// deletes, so a refused or garbled read must never look like "absent"
 export async function getComponent(url) {
   const res = await fetch(url, { headers: AUTH })
-  if (!res.ok) return null
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`reading ${url} answered HTTP ${res.status}`)
   const body = await res.text()
-  if (!body) return null
   try {
-    return JSON.parse(body)
-  } catch {
-    return null
-  }
+    const parsed = JSON.parse(body)
+    if (parsed && typeof parsed === 'object') return parsed
+  } catch {}
+  throw new Error(`reading ${url} answered HTTP ${res.status} with a body that is not a component`)
 }
 
 export async function putComponent(nsUrl, comp) {
@@ -32,20 +34,8 @@ export const SETTINGS_URL = NS + '/settings'
 
 export const getSettings = () => getComponent(SETTINGS_URL)
 
-export function settingsWith(snapshot, patch) {
-  const base = snapshot ?? { uid: 'settings', component: 'neohab:settings', config: { version: 1 } }
-  return { ...base, config: { ...(base.config ?? { version: 1 }), ...patch } }
-}
-
-export const patchSettings = (snapshot, patch) => putComponent(NS, settingsWith(snapshot, patch))
-
-export function settingsWithoutKeys(snapshot, keys) {
-  const base = snapshot ?? { uid: 'settings', component: 'neohab:settings', config: { version: 1 } }
-  const config = { ...(base.config ?? { version: 1 }) }
-  for (const k of keys) delete config[k]
-  return { ...base, config }
-}
-
+// a suite that needs other settings shows them to its browser with lib/sandbox.mjs sharedSettings();
+// this is only for putting the server's copy back if something wrote it anyway
 export async function restoreSettings(snapshot) {
   if (snapshot) {
     const res = await putComponent(NS, snapshot)

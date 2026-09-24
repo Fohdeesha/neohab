@@ -28,9 +28,6 @@ const dash = (id, name, item) => ({
   },
 })
 
-await put(dash('nh-e2e-mt', 'E2E Multitab', ITEMS.dimmer))
-await put(dash('nh-e2e-mt2', 'E2E Multitab 2', ITEMS.temperature))
-
 const initialDimmer = await itemState(ITEMS.dimmer)
 
 const INSTRUMENT = () => {
@@ -47,6 +44,9 @@ const INSTRUMENT = () => {
 const browser = await launchBrowser()
 const errors = []
 try {
+  await put(dash('nh-e2e-mt', 'E2E Multitab', ITEMS.dimmer))
+  await put(dash('nh-e2e-mt2', 'E2E Multitab 2', ITEMS.temperature))
+
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } })
   await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
   await ctx.addInitScript(INSTRUMENT)

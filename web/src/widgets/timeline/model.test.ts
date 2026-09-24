@@ -4,10 +4,39 @@ import {
   axisTick,
   effectiveColorMaps,
   effectiveTimelineSeries,
+  keepLiveTail,
   partitionHistory,
   thinBands,
   type TimelineConfig
 } from './model'
+
+describe('a refetch that lands after a live change', () => {
+  const asked = 1000
+  const fresh = [
+    { state: 'OFF', start: 0, end: 500 },
+    { state: 'ON', start: 500, end: 1000 }
+  ]
+
+  it('keeps the band the live update opened while the fetch was out', () => {
+    const shown = [...fresh.slice(0, 1), { state: 'ON', start: 500, end: 1200 }, { state: 'OFF', start: 1200, end: 1200 }]
+    expect(keepLiveTail(fresh, shown, asked)).toEqual([
+      { state: 'OFF', start: 0, end: 500 },
+      { state: 'ON', start: 500, end: 1200 },
+      { state: 'OFF', start: 1200, end: 1200 }
+    ])
+  })
+
+  it('takes the answer as it is when nothing changed meanwhile', () => {
+    expect(keepLiveTail(fresh, [{ state: 'ON', start: 0, end: 900 }], asked)).toBe(fresh)
+    expect(keepLiveTail(fresh, undefined, asked)).toBe(fresh)
+  })
+
+  it('does not draw the same change twice when the fetch caught it too', () => {
+    const caught = [...fresh.slice(0, 1), { state: 'ON', start: 500, end: 1000 }, { state: 'OFF', start: 990, end: 1000 }]
+    const shown = [...fresh, { state: 'OFF', start: 1005, end: 1010 }]
+    expect(keepLiveTail(caught, shown, asked)).toEqual([...caught.slice(0, 2), { state: 'OFF', start: 990, end: 1010 }])
+  })
+})
 
 describe('reading the configuration', () => {
   it('keeps the rows that name an item', () => {

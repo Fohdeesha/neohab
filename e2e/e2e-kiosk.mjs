@@ -4,7 +4,7 @@
 // those.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID_A = 'dashboard:nh-e2e-kiosk'
 const UID_B = 'dashboard:nh-e2e-kiosk2'
@@ -45,12 +45,12 @@ async function setKiosk(page, obj) {
 
 const browser = await launch()
 let secureBrowser = null
-let settingsSnapshot = null
-let settingsTouched = false
+let sb = null
 let initialLevel = null
 
 try {
   for (const [uid, id, name] of [[UID_A, 'nh-e2e-kiosk', 'E2E Kiosk'], [UID_B, 'nh-e2e-kiosk2', '57']]) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
     const r = await fetch(NS, {
       method: 'POST',
       headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ try {
     })
     ok('seed ' + uid, r.ok, String(r.status))
   }
-  const st = await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state')
+  const st = await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { headers: AUTH })
   initialLevel = (await st.text()).trim()
   ok('recorded initial ' + CONTROL_ITEM, st.ok && initialLevel.length > 0, initialLevel)
 
@@ -488,15 +488,19 @@ try {
   }
 
   {
-    settingsSnapshot = await getSettings()
-    settingsTouched = true
-    const put = await patchSettings(settingsSnapshot, { controlItem: CONTROL_ITEM })
-    ok('controlItem configured', put.ok, `${put.status} (server had settings: ${!!settingsSnapshot})`)
-
-    const target = initialLevel === '57' ? '58' : '57' // dashboard B is named "57"
-    const expectHash = initialLevel === '57' ? null : '#/d/nh-e2e-kiosk2'
+    // the control item is a SHARED setting every real panel follows, so it is shown to this browser only
+    sb = await sharedSettings({ controlItem: CONTROL_ITEM })
+    const NAVIGATE = '57' // dashboard B is named "57"
+    const neutral = initialLevel === NAVIGATE ? '56' : initialLevel
+    const command = (v) =>
+      fetch(BASE + '/rest/items/' + CONTROL_ITEM, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: v })
+    const expectHash = '#/d/nh-e2e-kiosk2'
 
     const { context, page } = await newPage(browser)
+    await sb.install(context)
+    // both halves need the same trigger: a real change of the item to the value that names dashboard B
+    await command(neutral)
+    await sleep(1500)
     await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded', timeout: 20000 })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     await setKiosk(page, { kiosk: false, screensaver: 'off', screensaverMinutes: 10, wakeLock: false, followControl: true })
@@ -504,27 +508,25 @@ try {
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     await sleep(2500) // SSE connect + tracked-set debounce + priming state
 
-    await fetch(BASE + '/rest/items/' + CONTROL_ITEM, {
-      method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: target,
-    })
-    if (expectHash) {
-      await page.waitForFunction((h) => window.location.hash === h, expectHash, { timeout: 8000 }).catch(() => {})
-      ok('control item change navigates to the named dashboard',
-        (await page.evaluate(() => window.location.hash)) === expectHash,
-        await page.evaluate(() => window.location.hash))
-    } else {
-      ok('control item check skipped (initial state collided with the test value)', true, initialLevel)
-    }
+    await command(NAVIGATE)
+    await page.waitForFunction((h) => window.location.hash === h, expectHash, { timeout: 8000 }).catch(() => {})
+    ok('control item change navigates to the named dashboard',
+      (await page.evaluate(() => window.location.hash)) === expectHash,
+      await page.evaluate(() => window.location.hash))
 
+    await command(neutral)
+    await sleep(1500)
     await setKiosk(page, { kiosk: false, screensaver: 'off', screensaverMinutes: 10, wakeLock: false, followControl: false })
     await page.goto(APP + '#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })
     await sleep(2500)
-    await fetch(BASE + '/rest/items/' + CONTROL_ITEM, {
-      method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: initialLevel,
-    })
+    await command(NAVIGATE)
     await sleep(3000)
-    ok('follow off: no navigation', (await page.evaluate(() => window.location.hash)) === '#/d/nh-e2e-kiosk')
+    const reached = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { headers: AUTH })).text()).trim()
+    ok('follow off: the same change does not navigate',
+      reached === NAVIGATE && (await page.evaluate(() => window.location.hash)) === '#/d/nh-e2e-kiosk',
+      `item=${reached} hash=${await page.evaluate(() => window.location.hash)}`)
     await context.close()
   }
 
@@ -547,19 +549,19 @@ try {
     const d = await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' deleted', d.ok || d.status === 404, String(d.status))
   }
-  if (settingsTouched) {
-    const back = await restoreSettings(settingsSnapshot)
-    ok(`cleanup: settings ${back.mode}`, back.ok, back.detail)
+  if (sb) {
+    const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+    ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
   }
   if (initialLevel !== null) {
-    const cur = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state')).text()).trim()
+    const cur = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { headers: AUTH })).text()).trim()
     if (cur !== initialLevel) {
       await fetch(BASE + '/rest/items/' + CONTROL_ITEM, {
         method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: initialLevel,
       })
       await sleep(1500)
     }
-    const fin = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state')).text()).trim()
+    const fin = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { headers: AUTH })).text()).trim()
     ok('cleanup: ' + CONTROL_ITEM + ' back at initial', fin === initialLevel, `${fin} vs ${initialLevel}`)
   }
   await browser.close()

@@ -36,56 +36,6 @@ console.log(`snapshot: ${dimmer}=${dimmerOrig}, ${ITEMS.switch}=${switchState}, 
 const lowIcon = 'mdi:lightbulb-outline'
 const highIcon = 'mdi:lightbulb'
 
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: UID2,
-    component: 'neohab:dashboard',
-    config: {
-      version: 1, id: 'nh-e2e-sticons2', name: 'nh-e2e Target', columns: 12, rowHeight: 'match',
-      widgets: [{ id: 'w-c', type: 'clock', config: {}, layout: { lg: { x: 0, y: 0, w: 3, h: 3 } } }],
-    },
-  }),
-})
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: UID,
-    component: 'neohab:dashboard',
-    config: {
-      version: 1, id: 'nh-e2e-sticons', name: 'nh-e2e-sticons', columns: 12, rowHeight: 'match',
-      widgets: [
-        {
-          id: 'w-val', type: 'value',
-          config: {
-            item: dimmer, label: 'Level', icon: 'mdi:home', iconColor: '#0000ff',
-            stateIcons: [
-              { state: '0-49', icon: lowIcon, color: '#ff0000' },
-              { state: '50-100', icon: highIcon, color: '#00ff00' },
-            ],
-          },
-          layout: { lg: { x: 0, y: 0, w: 3, h: 3 } },
-        },
-        {
-          id: 'w-nav', type: 'button',
-          config: { label: 'Go', action: 'navigate', navigateDashboard: 'nh-e2e-sticons2', command: 'ON' },
-          layout: { lg: { x: 3, y: 0, w: 3, h: 3 } },
-        },
-        {
-          id: 'w-sw', type: 'button',
-          config: {
-            style: 'switch', toggle: true, nonZeroIsOn: true, item: ITEMS.switch, label: 'Sw', icon: 'mdi:power',
-            stateIcons: [{ state: switchState, icon: 'mdi:sleep', color: '#ff00ff' }],
-          },
-          layout: { lg: { x: 6, y: 0, w: 3, h: 3 } },
-        },
-      ],
-    },
-  }),
-})
-
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
 const errs = []
@@ -103,6 +53,57 @@ const iconOf = async () => {
 }
 
 try {
+  for (const uid of [UID, UID2]) await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID2,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1, id: 'nh-e2e-sticons2', name: 'nh-e2e Target', columns: 12, rowHeight: 'match',
+        widgets: [{ id: 'w-c', type: 'clock', config: {}, layout: { lg: { x: 0, y: 0, w: 3, h: 3 } } }],
+      },
+    }),
+  })
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1, id: 'nh-e2e-sticons', name: 'nh-e2e-sticons', columns: 12, rowHeight: 'match',
+        widgets: [
+          {
+            id: 'w-val', type: 'value',
+            config: {
+              item: dimmer, label: 'Level', icon: 'mdi:home', iconColor: '#0000ff',
+              stateIcons: [
+                { state: '0-49', icon: lowIcon, color: '#ff0000' },
+                { state: '50-100', icon: highIcon, color: '#00ff00' },
+              ],
+            },
+            layout: { lg: { x: 0, y: 0, w: 3, h: 3 } },
+          },
+          {
+            id: 'w-nav', type: 'button',
+            config: { label: 'Go', action: 'navigate', navigateDashboard: 'nh-e2e-sticons2', command: 'ON' },
+            layout: { lg: { x: 3, y: 0, w: 3, h: 3 } },
+          },
+          {
+            id: 'w-sw', type: 'button',
+            config: {
+              style: 'switch', toggle: true, nonZeroIsOn: true, item: ITEMS.switch, label: 'Sw', icon: 'mdi:power',
+              stateIcons: [{ state: switchState, icon: 'mdi:sleep', color: '#ff00ff' }],
+            },
+            layout: { lg: { x: 6, y: 0, w: 3, h: 3 } },
+          },
+        ],
+      },
+    }),
+  })
+
   await page.goto(APP + '#/d/nh-e2e-sticons', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-value .nh-icon--mdi', { timeout: 15000 })
   ok('value widget renders an icon beside the readout', true)

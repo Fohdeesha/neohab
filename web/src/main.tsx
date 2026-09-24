@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './i18n'
 import App from './App.tsx'
 import { AppBoundary } from './components/AppBoundary.tsx'
+import { announceUpdate } from './components/UpdateNotice.tsx'
 import { applyCachedTheme } from './themes/themes.ts'
 import { applyLaunchQuery } from './app/router.ts'
 import { applyDeviceTextSize } from './store/textsize.ts'
@@ -21,6 +22,8 @@ installHistoryHook()
 
 registerSW({
   immediate: true,
+  // left to itself the plugin reloads the page the moment a new build activates, draft or no draft
+  onNeedReload: announceUpdate,
   onRegisteredSW(_url, registration) {
     if (registration) setInterval(() => void registration.update(), 60 * 60 * 1000)
   }

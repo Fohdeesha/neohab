@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { refuseOnProduction } from '../lib/guard.mjs'
 import { ALL_NS, AUTH } from '../lib/target.mjs'
+
+refuseOnProduction('config-wipe deletes every neohab namespace')
 
 const args = process.argv.slice(2)
 if (!args.includes('--yes')) {

@@ -10,16 +10,22 @@ the works. There is no mock server.
 1. `npm install` in this directory (only `playwright-core`; it uses your installed Chrome or Edge.
    Chrome is tried first: on Windows, Edge writes a permanent jump-list file per launch, so a
    battery leaves 63 of them in your profile and Chrome leaves none).
-2. Copy `target.example.json` to `target.local.json` (gitignored) and fill it in:
+2. Copy `target.example.json` to a `target.<name>.json` of your own (any `e2e/target.*.json` but
+   the example is gitignored) and fill it in:
    - `baseUrl` is your openHAB server, for example `http://192.168.1.10:8080`.
    - `token` or `tokenFile` is an openHAB **admin API token** (`oh.` prefix; create one in Main UI
-     under your profile). With `tokenFile`, the path is resolved relative to `target.local.json`,
+     under your profile). With `tokenFile`, the path is resolved relative to the target file,
      and the default name `token.local` is gitignored.
    - `items` names five existing items on that server (semantics below).
+   - `production` is `true` for a server somebody relies on, and `false` (or left out) for a test
+     server. See [A production target](#a-production-target).
 3. Deploy the jar you want to test (`/neohab/index.html` must serve it).
+4. Name the target file in `NEOHAB_E2E_TARGET` on **every** command. There is no default: a suite,
+   the runner or a tool started without it stops before it reaches any server.
 
 Environment overrides: `NEOHAB_E2E_BASE`, `NEOHAB_E2E_TOKEN`, `NEOHAB_E2E_TOKEN_FILE`,
-`NEOHAB_E2E_TARGET`, `NEOHAB_E2E_USER`, `NEOHAB_E2E_PASSWORD`.
+`NEOHAB_E2E_USER`, `NEOHAB_E2E_PASSWORD`. They change what a target file says; they never stand in
+for one.
 
 ### Optional: a throwaway login
 
@@ -82,11 +88,25 @@ item's initial state first and restores it in cleanup, even when checks fail.
 
 ## Running
 
-- One suite: `node e2e-<name>.mjs`. It prints `PASS` or `FAIL` per check and a summary, and the
-  exit code is non-zero on any failure.
-- The battery: `npm run battery` (or `node run.mjs`) runs every safe-additive suite in sequence
-  and summarizes. It prints the server, its openHAB version and the served bundle at both ends of
-  the run, so a log always says what it was about.
+- One suite: `NEOHAB_E2E_TARGET=./target.test.json node e2e-<name>.mjs`. It prints `PASS` or
+  `FAIL` per check and a summary, and the exit code is non-zero on any failure.
+- The battery: `NEOHAB_E2E_TARGET=./target.test.json node run.mjs` (or `npm run battery` with the
+  variable set) runs every safe-additive suite in sequence and summarizes. It prints the server,
+  its openHAB version and the served bundle at both ends of the run, so a log always says what it
+  was about. Name suites after `run.mjs` to run only those.
+- `node run.mjs --list` prints the two suite lists and does nothing else: it loads no target and
+  contacts no server. Importing `run.mjs` does nothing either; only running it as the entry point
+  starts a battery.
+- **Stopping a run.** Ctrl-C (or a SIGTERM) closes the browser and lets the suite go on into its
+  own cleanup, which is what takes its components and items off the server; the runner starts no
+  further suites and prints the summary of what did run. A second Ctrl-C a few seconds later exits
+  at once, cleanup or not, and a suite whose cleanup is still going two minutes after the first one
+  exits by itself. Closing the output (`| head`, a closed terminal) is treated the same way as the
+  first Ctrl-C, so peeking at the start of a run no longer kills a suite halfway through seeding.
+- Each suite gets 30 minutes (`NEOHAB_E2E_SUITE_TIMEOUT_MIN` changes it). One that runs over is
+  asked to stop and clean up, and killed if it has not finished a few minutes later.
+- A suite that had nothing it was allowed to do on the target (see below) exits with code 3, and
+  the battery summary lists it as `SKIP` rather than as a pass or a failure.
 - **One at a time is deliberate.** Running suites concurrently was tried on 2026-09-06 and taken
   out again: most of them read the whole namespace to work out what they created or to check they
   cleaned up, so a second suite's components land in the middle of that. `e2e-generate` found
@@ -116,8 +136,9 @@ A server's own state changes what the suites can see, and two differences matter
 for:
 
 - **A fresh server has no `settings` component** (it appears the first time somebody changes a
-  setting). Suites that snapshot it read it through `lib/components.mjs`, which answers `null`
-  rather than throwing, and cleanup then removes the component instead of writing one back.
+  setting). Suites read it through `lib/components.mjs`, which answers `null` for a 404 and for
+  nothing else: any other failed or unreadable answer throws, because code that restores settings
+  deletes the component when it was `null` to begin with.
 - **A fresh server has no persistence history**, so chart, gauge, timeline and aggregation checks
   have nothing to draw, and some of them need days of it: bars per day, an hour-of-day axis, a
   weekday axis and a heatmap all want data spread across the calendar. rrd4j refuses a value
@@ -155,31 +176,67 @@ Worth knowing before you read the results:
   mixed content rather than on a defect. Without the block they self-skip, and `e2e-https` asserts
   the mixed-content behaviour on purpose.
 
+### A production target
+
+`"production": true` in a target file marks a server somebody relies on (anything but `false` or
+leaving the key out counts, so a typo errs on the safe side). Against such a target:
+
+- `run.mjs` refuses to start if a wipe-cycle suite is named on its command line, each wipe-cycle
+  suite refuses to run, and `tools/config-wipe.mjs` and `tools/config-restore.mjs` refuse too.
+- Nothing creates managed items. A suite that is built on items of its own from start to finish
+  (`e2e-battery`, `e2e-button`, `e2e-colorpower`, `e2e-fade`, `e2e-livedrag`, `e2e-log`,
+  `e2e-slider`, `e2e-stepper`, `e2e-thermostat`, `e2e-value`) exits with code 3 and a
+  `SKIP (production target)` line, and the battery summary shows it as `SKIP`. A suite where only
+  some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-launch`, `e2e-textscale`) skips those
+  sections and prints the same line for each, so a skip is never silent. Those checks are covered
+  on a test server, not on production.
+
 ## Safety model: read before running against a server you care about
 
 The suites fall into two classes.
 
 **Safe-additive** (everything `run.mjs` runs): they only ever create config components with
-`nh-e2e-*` ids, delete exactly those ids in cleanup, snapshot and restore the `settings` component
-verbatim when they touch it, and restore item states. They are designed to run against a server
-with a real configuration on it without disturbing it. On a server that has no `settings`
-component yet, a suite that needs one creates it and **deletes it again** in cleanup: leaving it
-behind would be a change like any other.
+`nh-e2e-*` ids, delete exactly those ids in cleanup (after deleting any a killed earlier run left
+behind, before seeding), and restore item states. They are designed to run against a server with a
+real configuration on it without disturbing it.
 
-One deliberate exception: `e2e-generate.mjs` exercises "one dashboard per group", where the
-generator names the dashboards after the groups it found, so their ids are not `nh-e2e-*`. It
-records the namespace immediately before creating and deletes exactly the uids that appeared. An
-existing dashboard of the same name is never overwritten, because the generator de-duplicates the
-id (`kitchen` becomes `kitchen-2`), which is one of the things that suite checks.
+Two things every panel on a server shares are kept out of the server altogether, by
+`lib/sandbox.mjs`:
+
+- **Version history.** Every save through the app takes a restore point first, and restore points
+  are pruned to a retention limit, so a battery's own used to push a person's out for good.
+  `lib/browser.mjs` answers every write to `neohab:history` and `neohab:historydata` inside the
+  browser, in every context of every suite; reads still reach the server. `e2e-history`, whose
+  subject is the history, is the one suite that turns this off.
+- **The `settings` component**, which every real wall panel obeys the moment it changes: a theme,
+  a control item the panels follow, a speech item they read aloud. A suite that needs a setting
+  (`e2e-kiosk`, `e2e-voiceaudio`, `e2e-breakpoints`, `e2e-lock`, `e2e-sidebar`, `e2e-templates`,
+  `e2e-livedrag`) or that makes the app save one (`e2e-corners`, `e2e-themecss`, `e2e-ember`,
+  `e2e-backgrounds`, `e2e-timeclock`) gets it from `sharedSettings()`: the browser is shown the
+  server's settings with the suite's patch on top, whatever the app saves is kept in the browser,
+  and cleanup checks the server's copy is exactly what it was.
+
+The same helper records every component the app creates through it, so cleanup can delete exactly
+those and nothing somebody else saved in the meantime; `guardExisting()` goes further and answers an
+app delete of anything that was on the server before the run in the browser, so the server keeps it.
+
+`e2e-generate.mjs` exercises "one dashboard per group", where the generator names the dashboards
+after the groups it found, so their ids are not `nh-e2e-*`. It deletes exactly the uids the app
+was seen creating. An existing dashboard of the same name is never overwritten, because the
+generator de-duplicates the id (`kitchen` becomes `kitchen-2`), which is one of the things that
+suite checks.
 
 Four more deliberate exceptions, each for the same reason: the feature under test decides the id,
 so the suite cannot invent one.
 
 - `e2e-gallery.mjs` adds the bundled example widgets, which land under the catalogue's own ids
-  (`widgetdef:gallery-*`). It deletes exactly that prefix, before and after.
+  (`widgetdef:gallery-*`). It deletes only the ones the app created during the run, and checks
+  that every gallery widget already on the server comes out of the run unchanged. When the
+  example it adds, edits and renders is one the server already has, that part is skipped and says
+  so, because every step of it would act on somebody's own copy.
 - `e2e-partial.mjs` imports partial exports, which can create a numbered copy
-  (`dashboard:nh-e2e-pdash-2`). It deletes its own prefixes, and because importing legitimately
-  writes a restore point it also snapshots and restores the two version-history namespaces.
+  (`dashboard:nh-e2e-pdash-2`). It deletes its own prefixes. The restore points its imports take
+  stay in the browser, and it checks the server's version history is exactly as it found it.
 - `e2e-proxyauth.mjs` signs in to an imaginary reverse proxy. Nothing is redirected, requests are
   only inspected, so the server sees ordinary reads with an extra header it ignores.
 - `e2e-floorplan.mjs` is the one suite that writes outside the UI-component namespaces, because
@@ -188,8 +245,9 @@ so the suite cannot invent one.
   managed test item, `nh_e2e_proxy` (a plain Switch bound to nothing). All three are deleted by
   exact uid in cleanup, and the suite additionally diffs the server's full rule-uid list against a
   pre-run capture so a stray cannot survive unnoticed. It never touches file-provided rules or
-  items, which cannot be written through the REST API at all. Its last section saves through the
-  app, so unlike most safe-additive suites it does mint version-history restore points.
+  items, which cannot be written through the REST API at all. On a production target it creates no
+  items: the wall-switch bridge, and the sections that drive its own Color item `nh_e2e_glow`, are
+  skipped with a `SKIP` line. It still creates its scene rules there.
 
 `e2e-launch.mjs` drives the screens people meet when something is wrong: a configuration that
 cannot be read, a server that shows nothing without an account, a save the server refuses, an
@@ -197,10 +255,9 @@ upgrade under an open tab, a widget bound to an item the server does not have, a
 address does not answer, and the notice that explains why live values stopped. Every one of those
 is produced by answering the app's own requests locally, so the server is never reconfigured and
 nothing is written by a refused save. It creates `dashboard:nh-e2e-launch` and its `-empty`,
-`-ghost` and `-img` siblings and deletes all four by exact uid; it commands nothing. Like
-`e2e-audit2` it does leave version-history restore points behind: the refused save is refused at
-the configuration namespace, and the history capture that runs before every write is a different
-namespace and goes through.
+`-ghost` and `-img` siblings and deletes all four by exact uid; it commands nothing. Where the
+server has no labelled Dimmer or Number it creates one for the naming check, `nh_e2e_launch_number`,
+and deletes it again; on a production target it skips that check instead.
 
 Two of those sections are worth knowing about before editing them. The live-updates one fakes a
 server with openHAB's implicit user role off, and it does that by refusing only the requests that
@@ -226,10 +283,10 @@ rather than pressed: everything about a finish is measured from the browser's ow
 so a class that resolves to no rule fails, and the contrast of a caption on a face the accent has
 flooded is a number rather than a judgement. The shipped seed puts the same Dimmer on two tiles **in the same style**,
 differing only by "Count any value above 0 as on", because that setting is what decides whether a
-tile reads as on and the style must be shown to decide nothing. **It is the one safe-additive suite
-that saves through the app**, because the migration has to be proved to reach the server and not
-only the screen, so it mints one version-history restore point exactly as a real edit does. All three
-dashboards and both items are deleted by name in cleanup.
+tile reads as on and the style must be shown to decide nothing. It saves through the app once,
+because the migration has to be proved to reach the server and not only the screen; the restore
+point that save takes stays in the browser like every other suite's. Every dashboard and item it
+creates is deleted by name in cleanup.
 
 `e2e-audit2.mjs`, `e2e-editor.mjs` and `e2e-widgets.mjs` deliberately keep seeding `type: 'switch'`
 dashboards, so the battery drives the migration end to end rather than only where it is tested on
@@ -240,7 +297,8 @@ purpose. Do not "modernise" those seeds.
 name in cleanup. They used to be names nobody had, which was fine until a widget bound to an item
 the server does not have started saying so instead of rendering: the section would have gone on
 passing while testing nothing at all. Real items are what make the lookup tables actually get a
-`constructor` to look up.
+`constructor` to look up. On a production target that section is skipped, since it cannot have
+them.
 
 `e2e-stepper.mjs` drives the stepper widget - six looks, five finishes, a number and a list -
 against five managed items it creates itself (`nh_e2e_stepnum`, `nh_e2e_steplist`,
@@ -268,9 +326,9 @@ pixels every 40ms, because Playwright's own stepped move is over in milliseconds
 a throttle. It also holds every invariant the hold gesture had: a still press, a wobble under 3px and
 a press the sheet has already taken all send nothing. Three managed items it creates itself
 (`nh_e2e_ldim`, `nh_e2e_ldim2`, `nh_e2e_lcol`, bound to nothing) take the commands, one section
-injects a 400 to prove a refusal stops the drag, and one turns the shared setting off on the server
-before opening a fresh browser context, then puts the settings component back verbatim. The dashboard
-and the items are deleted by name in cleanup.
+injects a 400 to prove a refusal stops the drag, and one shows a fresh browser context the shared
+setting turned off, without writing it to the server. The dashboard and the items are deleted by
+name in cleanup.
 
 `e2e-thermostat.mjs` drives the thermostat widget - four looks, the setpoint's buttons and its
 ring, the mode, fan and aux buttons, and the status item - against nine managed items it creates
@@ -310,8 +368,8 @@ is `container-type: size`, which reads like it contains an absolutely positioned
 chain is laid out against the viewport instead, invisible to the DOM and to every spill scan that
 measures children against their parent, and sitting on top of the whole dashboard eating its clicks.
 The editor cannot show it either, since its cells are absolutely positioned and so do contain it.
-It saves once through the app, which mints one restore point, because the bug it exists for only
-appears on a saved dashboard being viewed. The widget list comes from the palette, so a widget added
+It saves once through the app, because the bug it exists for only appears on a saved dashboard
+being viewed. The widget list comes from the palette, so a widget added
 later is covered without editing the suite. It creates and deletes exactly
 `dashboard:nh-e2e-runfit`, binds no items and intercepts commands.
 
@@ -337,10 +395,13 @@ the message, because "Failed to load resource" on its own is a failure nobody ca
 **Wipe-cycle** (`e2e.mjs`, `e2e-editor.mjs`, `e2e-widgets.mjs`, `e2e-settings.mjs`,
 `e2e-importer.mjs`, `e2e-history.mjs`): these test the empty-server flows (onboarding, first
 import, full backup restore, the first restore point) and their cleanup **deletes every neohab
-namespace**. Each one carries a guard that aborts before touching anything if the namespaces are
-not empty, so they cannot eat a live configuration by accident. The intended way to run them is:
+namespace**. Each one refuses to run against a production target at all, and otherwise carries a
+guard (`lib/guard.mjs`) that reads the namespaces with the token and aborts before touching
+anything unless they are empty. The guard fails closed: a refused read, an error page or anything
+that is not a list counts as "not empty". The intended way to run them, on a test server, is:
 
 ```
+export NEOHAB_E2E_TARGET=./target.test.json
 node tools/config-snapshot.mjs snapshot.json          # save the live configuration
 node tools/config-wipe.mjs --yes --snapshot snapshot.json   # empty the namespaces
 node e2e-history.mjs && node e2e.mjs && ...           # history FIRST, then the rest
@@ -348,19 +409,18 @@ node tools/config-restore.mjs snapshot.json           # put it back (verifies co
 ```
 
 **Run `e2e-history.mjs` first.** The other five guard `neohab:config` only, but this one guards
-all three namespaces, and each suite that saves configuration leaves restore points behind. By the
-time it runs last the history is no longer empty and it aborts. Its guard is right to be the
-strict one: it is the suite whose subject is that data.
+all three namespaces. The other suites keep their restore points in the browser now, so a wipe
+cycle only finds history left over from something else, but the guard is right to be the strict
+one: it is the suite whose subject is that data.
 
 The tools cover all three namespaces neohab owns: `neohab:config`, plus `neohab:history` (the
 version-history index) and `neohab:historydata` (its snapshots and shared images). Restore points
 are a user's data too, so a wipe that dropped them could not be undone.
 
-Note that every suite that saves configuration through the app also leaves restore points behind,
-since that is what the history is for. They are pruned to the retention limit like any other, and
-a wipe-cycle run starts from an empty history for the suite that goes first. The restore points a
-full battery accumulates are test artifacts, so clear both history namespaces before restoring if
-the configuration they describe is about to be replaced anyway.
+`config-wipe.mjs` and `config-restore.mjs` refuse a production target. `config-snapshot.mjs` only
+reads, so it runs anywhere, and a snapshot of a production server is how to keep a copy of it.
+Putting a production server back from one is deliberately not something the restore tool does
+without the flag being taken out of its target file first.
 
 Never take the snapshot while a suite is running. You would capture its temporary components and
 restore them as if they were yours.

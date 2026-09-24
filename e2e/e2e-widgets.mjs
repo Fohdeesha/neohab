@@ -1,24 +1,19 @@
 // Parity-widget e2e. SAFETY: commands are only ever sent to the three approved test items (the switch item,
 // the dimmer item, the color item).
 import { launchChromium } from './lib/browser.mjs'
-import { BASE, APP, NS, TOKEN, ITEMS, isAppResource } from './lib/target.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
+import { BASE, APP, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
+import { pickItem as pickFromList } from './lib/ui.mjs'
 
-
-{
-  const pre = await (await fetch(NS)).json()
-  if (pre.length > 0) {
-    console.log('ABORT: namespace holds ' + pre.length + ' components - wipe-cycle suite needs an empty namespace (snapshot + wipe first).')
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces()
 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
-const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sendCmd = (item, cmd) =>
-  fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: cmd })
+  fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
 
 function launch() {
   for (const channel of ['chrome', 'msedge']) {
@@ -57,11 +52,8 @@ async function addWidget(name) {
 
 async function pickItem(itemName) {
   const input = page.locator('.nh-sheet--side .nh-picker input[role="combobox"]')
-  await input.click()
-  await input.fill(itemName)
-  await page.waitForSelector('.nh-picker__option')
-  await page.click(`.nh-picker__option:has(.nh-picker__name:text-is("${itemName}"))`)
-  await sleep(300)
+  const bound = await pickFromList(page, input, itemName)
+  ok(`picking ${itemName} from the list binds it`, bound === itemName, 'value=' + bound)
 }
 
 try {
@@ -181,14 +173,14 @@ try {
   await browser.close()
 }
 
-const list = await (await fetch(NS)).json()
+const list = await (await fetch(NS, { headers: AUTH })).json()
 for (const c of list) {
   await fetch(NS + '/' + encodeURIComponent(c.uid), {
     method: 'DELETE',
     headers: { Authorization: 'Bearer ' + TOKEN },
   })
 }
-const after = await (await fetch(NS)).json()
+const after = await (await fetch(NS, { headers: AUTH })).json()
 ok('cleanup: namespace empty', Array.isArray(after) && after.length === 0, `left=${after.length}`)
 
 await sendCmd(ITEMS.switch, initialStates.sw)

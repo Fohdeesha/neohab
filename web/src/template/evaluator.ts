@@ -143,11 +143,94 @@ function assign(scope: Scope, name: string, value: unknown): void {
   scope[name] = value
 }
 
+// An allow-list, because a deny-list of three names left __lookupGetter__ and a function's .call in reach,
+// and from those Object.prototype itself. A template may read the data it was given (own properties, and
+// a scope's chain of plain scopes) and call the non-mutating string, array and number methods; nothing
+// else on a built-in prototype is reachable, and a function has no members at all.
+const STRING_METHODS = new Set([
+  'at',
+  'charAt',
+  'charCodeAt',
+  'codePointAt',
+  'concat',
+  'endsWith',
+  'includes',
+  'indexOf',
+  'lastIndexOf',
+  'localeCompare',
+  'match',
+  'normalize',
+  'padEnd',
+  'padStart',
+  'repeat',
+  'replace',
+  'replaceAll',
+  'search',
+  'slice',
+  'split',
+  'startsWith',
+  'substr',
+  'substring',
+  'toLocaleLowerCase',
+  'toLocaleUpperCase',
+  'toLowerCase',
+  'toString',
+  'toUpperCase',
+  'trim',
+  'trimEnd',
+  'trimStart'
+])
+const ARRAY_METHODS = new Set([
+  'at',
+  'concat',
+  'every',
+  'filter',
+  'find',
+  'findIndex',
+  'flat',
+  'includes',
+  'indexOf',
+  'join',
+  'lastIndexOf',
+  'map',
+  'slice',
+  'some',
+  'toString'
+])
+const NUMBER_METHODS = new Set(['toExponential', 'toFixed', 'toLocaleString', 'toPrecision', 'toString'])
+
+const BUILTIN_PROTOTYPES = new Set<unknown>([
+  Object.prototype,
+  Array.prototype,
+  Function.prototype,
+  String.prototype,
+  Number.prototype,
+  Boolean.prototype
+])
+
+// own, or inherited through prototypes that are not built-ins (a child scope sits on its parent scope)
+function holds(object: object, key: string): boolean {
+  for (let o: object | null = object; o !== null && !BUILTIN_PROTOTYPES.has(o); o = Object.getPrototypeOf(o) as object | null) {
+    if (Object.prototype.hasOwnProperty.call(o, key)) return true
+  }
+  return false
+}
+
+function readable(object: unknown, key: string): boolean {
+  if (FORBIDDEN_PROPS.has(key)) return false
+  if (typeof object === 'string') return key === 'length' || /^\d+$/.test(key) || STRING_METHODS.has(key)
+  if (typeof object === 'number') return NUMBER_METHODS.has(key)
+  if (typeof object === 'boolean') return key === 'toString'
+  if (typeof object !== 'object' || object === null) return false
+  if (Array.isArray(object) && ARRAY_METHODS.has(key)) return true
+  return holds(object, key)
+}
+
 function evalMember(n: AnyNode, scope: Scope): { object: unknown; value: unknown } {
   const object = evalNode(n.object as jsep.Expression, scope)
   if (object === null || object === undefined) return { object, value: undefined }
   const key = n.computed ? String(evalNode(n.property as jsep.Expression, scope)) : String((n.property as AnyNode).name)
-  if (FORBIDDEN_PROPS.has(key)) return { object, value: undefined }
+  if (!readable(object, key)) return { object, value: undefined }
   return { object, value: (object as Record<string, unknown>)[key] }
 }
 

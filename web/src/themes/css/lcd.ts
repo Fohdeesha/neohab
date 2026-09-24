@@ -1,7 +1,7 @@
 import { fontFace, squareControls, tightCellInsets, wholeTileActive } from './shared'
 
 export const LCD_CSS = `${fontFace('DSEG7', 'dseg7.woff2', '400 700')}${fontFace('DSEG14', 'dseg14.woff2', '400 700')}::selection {
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #000);
 }
 /* Section names sit in the top-RIGHT corner of their panel on the reference console.
@@ -222,8 +222,8 @@ ${wholeTileActive({
   font-size: 0.95rem;
 }
 .nh-chart__chip--on {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #000);
 }
 /* The wind ring: bezel, ticks and readings all in the panel neon. The value/cardinal

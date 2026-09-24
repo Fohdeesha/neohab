@@ -53,10 +53,6 @@ export function drawsFace(v: unknown): boolean {
 }
 
 // plain draws the box inside the tile it always did; anything the user picked fills the tile instead
-export function fillsTile(config: ButtonState): boolean {
-  return drawsFace(config.style) && finishOf(config.finish) !== 'plain'
-}
-
 // a card stacks a chip, a name and a caption, so it needs more room than a face that centres one icon
 export const CARD_FLOOR = 116
 

@@ -3,6 +3,9 @@
 // nh_e2e_fadecol, nh_e2e_fadedim (never file-provided items).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-fade'
 const COLOR_ITEM = 'nh_e2e_fadecol'

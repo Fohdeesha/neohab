@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../../i18n'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { buildForecastView, buildItemsView, clampInt, itemsBinding, patternItems, type ViewOptions, type WeatherView } from './model'
@@ -18,8 +19,8 @@ interface WeatherConfig extends Record<string, unknown> {
 }
 
 function WeatherWidget({ config, ctx }: WidgetProps<WeatherConfig>) {
-  const { t, i18n } = useTranslation()
-  const lang = i18n.language || 'en'
+  const { t } = useTranslation()
+  const lang = appLocale()
 
   const { source, data, sys, located, failed } = useWeather(config)
   const look = config.look === 'compact' || config.look === 'strip' ? config.look : 'hero'

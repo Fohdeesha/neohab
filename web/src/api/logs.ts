@@ -4,6 +4,7 @@ import { getRootInfo } from './items'
 import { hasLogSocket, parseServerVersion, type ServerVersion } from '../model/serverVersion'
 import {
   filterMessage,
+  isNewEntry,
   keepaliveMessage,
   logSocketUrl,
   parseFrame,
@@ -55,6 +56,7 @@ export class LogSocket {
   private closed = true
   private opened = false
   private lastSeq: number | undefined
+  private lastTime: number | undefined
   private nextId = 1
   private retryDelay = RETRY_MIN_MS
   private retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -131,7 +133,9 @@ export class LogSocket {
       if (this.ws !== ws) return
       this.opened = true
       this.retryDelay = RETRY_MIN_MS
-      ws.send(filterMessage(protocol, this.lastSeq))
+      // the whole history every time: after a restart the numbers begin again, and what was seen already
+      // is sorted out as it arrives
+      ws.send(filterMessage(protocol))
       this.keepalive = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send(keepaliveMessage(protocol))
       }, KEEPALIVE_MS)
@@ -140,10 +144,12 @@ export class LogSocket {
 
     ws.onmessage = (e: MessageEvent) => {
       if (this.ws !== ws || typeof e.data !== 'string') return
-      const entries = parseFrame(e.data, () => this.nextId++)
-      for (const entry of entries) {
-        if (entry.seq !== undefined && (this.lastSeq === undefined || entry.seq > this.lastSeq)) this.lastSeq = entry.seq
-      }
+      const entries = parseFrame(e.data, () => this.nextId++).filter((entry) => {
+        if (!isNewEntry(entry, this.lastSeq, this.lastTime)) return false
+        if (entry.seq !== undefined) this.lastSeq = entry.seq
+        this.lastTime = this.lastTime === undefined ? entry.time : Math.max(this.lastTime, entry.time)
+        return true
+      })
       if (entries.length > 0) this.handlers.onEntries(entries)
     }
 

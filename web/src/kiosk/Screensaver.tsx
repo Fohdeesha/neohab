@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useKioskStore } from '../store/kiosk'
+import { appLocale } from '../i18n'
 
 const CHECK_MS = 1000
 
@@ -79,8 +80,8 @@ function SaverClock() {
 
   return (
     <div className="nh-saver__clock" style={{ left: pos.x + '%', top: pos.y + '%' }}>
-      <div className="nh-saver__time">{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-      <div className="nh-saver__date">{now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+      <div className="nh-saver__time">{now.toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' })}</div>
+      <div className="nh-saver__date">{now.toLocaleDateString(appLocale(), { weekday: 'long', month: 'long', day: 'numeric' })}</div>
     </div>
   )
 }

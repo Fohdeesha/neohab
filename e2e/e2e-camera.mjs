@@ -242,7 +242,9 @@ try {
     ok('off-screen "keep": streams even out of view', (await state()).child !== null, JSON.stringify(await state()))
   }
 
-  {
+  if (!CAMERA) {
+    skip('screensaver', 'no "camera" in target configuration')
+  } else {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
     await ctx.addInitScript(
       (t) => {

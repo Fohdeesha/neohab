@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ItemState } from '../../api/types'
-import { buttonFloor, commandFor, drawsFace, fillsTile, finishOf, isActive, styleOf, toggleCommands } from './model'
+import { buttonFloor, commandFor, drawsFace, finishOf, isActive, styleOf, toggleCommands } from './model'
 
 const state = (s: string): ItemState => ({ state: s }) as ItemState
 
@@ -45,15 +45,6 @@ describe('which finish a stored config asks for', () => {
     for (const junk of ['Solid', 'SOLID', '', 0, null, {}, [], true, 'constructor', 'toString']) {
       expect(finishOf(junk), JSON.stringify(junk)).toBe('plain')
     }
-  })
-
-  it('leaves the tile alone for plain, and fills it for a finish someone picked', () => {
-    expect(fillsTile({})).toBe(false)
-    expect(fillsTile({ finish: 'plain' })).toBe(false)
-    expect(fillsTile({ finish: 'glass' })).toBe(true)
-    expect(fillsTile({ style: 'card', finish: 'edge' })).toBe(true)
-    // a switch draws a track, not a face, so there is nothing to fill
-    expect(fillsTile({ style: 'switch', finish: 'solid' })).toBe(false)
   })
 })
 

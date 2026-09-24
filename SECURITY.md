@@ -55,7 +55,12 @@ That shapes what is and is not a vulnerability here.
 
 - Editing always requires an openHAB administrator sign-in. Viewing follows whatever your server
   already allows.
-- Tokens are held in the browser (`localStorage`) for the device that signed in. Reverse-proxy
-  credentials are kept in memory only and are never written to the device.
+- Tokens are held in the browser (`localStorage`) for the device that signed in.
+- Reverse-proxy credentials are kept in memory for the session. "Let the browser remember it" is
+  ticked by default, and while it is ticked they are also offered to the browser's own password
+  store through the Credential Management API (Chromium browsers have it). The browser keeps them
+  on that device and hands them back on the next visit. neohab never writes them to `localStorage`. Untick the box to keep them off the
+  device. Signing out forgets them for the session but leaves a saved copy where it is; remove it
+  from the browser's saved passwords.
 - The diagnostics report on the About screen deliberately contains no addresses, credentials or
   item names, so it is safe to paste into a public issue.

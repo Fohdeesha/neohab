@@ -1,11 +1,13 @@
 // Background images e2e. Covers: a global background URL set in Settings paints the Home screen and any
 // dashboard without one of its own.
-// SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2/-bg3 (+ dashboard:synthbg via the import
-// check) and its own background:* uploads; the `settings`.
+// SAFE with a live config: creates only dashboard:nh-e2e-bg1/-bg2/-bg3, whatever the app itself creates
+// through the upload and the import checks (recorded, and deleted by exact uid), and HELD_BG. The shared
+// `settings` stay in the browser (lib/sandbox.mjs), and the app may not delete anything that was on the
+// server before the run: its background collector would otherwise take a person's own upload with it.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
 import { confirmHabpanelImport } from './lib/ui.mjs'
-import { getSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -32,8 +34,9 @@ const PNG = Buffer.from(
 )
 
 const bgUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid).filter((u) => u.startsWith('background:'))
-const settingsBefore = await getSettings()
+const sb = await sharedSettings()
 const bgUidsBefore = await bgUids()
+const OWN_DASHBOARDS = ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', HELD_DASH]
 
 const seed = async (id, name, config = {}) => {
   const uid = 'dashboard:' + id
@@ -58,6 +61,7 @@ const bgOf = (page, sel) => page.$eval(sel, (el) => getComputedStyle(el).backgro
 
 const browser = await launch()
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, acceptDownloads: true })
+await sb.install(ctx)
 const page = await ctx.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -66,15 +70,19 @@ page.on('dialog', (d) => d.accept())
 await ctx.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 try {
+  // the app may now delete what this run makes and nothing that was here before it
+  await sb.guardExisting()
   ok('seed bg1 (no own background)', await seed('nh-e2e-bg1', 'E2E BG One'))
   ok('seed bg2 (own background)', await seed('nh-e2e-bg2', 'E2E BG Two', { background: DASH_URL }))
 
   await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL)
+  // the field commits on Enter or on leaving it, not on every keystroke
+  await page.press('#nh-set-bg', 'Enter')
   await sleep(1200)
-  const savedSettings = await getSettings()
-  ok('global background persisted', savedSettings.config.background === GLOBAL_URL, String(savedSettings.config.background))
+  const savedSettings = await sb.current()
+  ok('global background persisted', savedSettings?.config?.background === GLOBAL_URL, String(savedSettings?.config?.background))
 
   await page.goto(APP + '#/')
   await page.waitForSelector('.nh-tile', { timeout: 20000 })
@@ -97,12 +105,12 @@ try {
     const inp = document.querySelector('#nh-set-bg')
     return inp && inp.placeholder.includes('KB')
   }, { timeout: 15000 })
-  let afterUpload = await getSettings()
-  for (let i = 0; i < 40 && !/^bg:/.test(afterUpload.config?.background ?? ''); i++) {
+  let afterUpload = await sb.current()
+  for (let i = 0; i < 40 && !/^bg:/.test(afterUpload?.config?.background ?? ''); i++) {
     await sleep(250)
-    afterUpload = await getSettings()
+    afterUpload = await sb.current()
   }
-  ok('upload stored as a bg: reference', /^bg:/.test(afterUpload.config.background ?? ''), String(afterUpload.config.background))
+  ok('upload stored as a bg: reference', /^bg:/.test(afterUpload?.config?.background ?? ''), String(afterUpload?.config?.background))
   const uploaded = await bgUids()
   ok('one background component created', uploaded.length === bgUidsBefore.length + 1, uploaded.join(','))
   const newBgUid = uploaded.find((u) => !bgUidsBefore.includes(u))
@@ -146,6 +154,8 @@ try {
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL)
+  // the field commits on Enter or on leaving it, not on every keystroke
+  await page.press('#nh-set-bg', 'Enter')
   let gcLeft = null
   for (let i = 0; i < 20; i++) {
     await sleep(500)
@@ -154,6 +164,7 @@ try {
   }
   ok('orphaned upload garbage-collected', gcLeft.length === bgUidsBefore.length, gcLeft.join(','))
 
+  for (const uid of [HELD_BG, HELD_DASH]) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -182,6 +193,8 @@ try {
   await page.goto(APP + '#/settings')
   await page.waitForSelector('#nh-set-bg', { timeout: 20000 })
   await page.fill('#nh-set-bg', GLOBAL_URL + '?2')
+  // the field commits on Enter or on leaving it, not on every keystroke
+  await page.press('#nh-set-bg', 'Enter')
   await sleep(2500)
   const heldStatus = (await fetch(NS + '/' + encodeURIComponent(HELD_BG), { headers: AUTH })).status
   ok('an image referenced only from a widget config survives a collection', heldStatus === 200, 'status ' + heldStatus)
@@ -193,6 +206,7 @@ try {
   await page.click('[aria-label="Dashboard settings"]')
   await page.waitForSelector('#nh-dash-bg', { timeout: 10000 })
   await page.fill('#nh-dash-bg', DASH_URL)
+  await page.press('#nh-dash-bg', 'Enter')
   await sleep(400)
   ok('editor live-previews the dashboard background', (await bgOf(page, '.nh-dash')).includes('dash-bg.png'))
   await page.click('button:has-text("Save")')
@@ -212,27 +226,25 @@ try {
     .setInputFiles({ name: 'habpanel-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(synthetic)) })
   await confirmHabpanelImport(page)
   await page.waitForSelector('.nh-report__head', { timeout: 15000 })
-  const importedSettings = await getSettings()
-  ok('importer set the global background', importedSettings.config.background === 'https://example.invalid/habpanel-bg.jpg', String(importedSettings.config.background))
+  const importedSettings = await sb.current()
+  ok('importer set the global background', importedSettings?.config?.background === 'https://example.invalid/habpanel-bg.jpg', String(importedSettings?.config?.background))
   ok('import report mentions the background', (await page.locator('.nh-report__item:has-text("background")').count()) >= 1)
 
   const realErrs = errs.filter((e) => !/ERR_NAME_NOT_RESOLVED/.test(e))
   ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } finally {
-  const settingsBack = await restoreSettings(settingsBefore).catch((e) => ({ ok: false, mode: 'restore FAILED', detail: String(e) }))
-  console.log(`cleanup: settings ${settingsBack.mode} (${settingsBack.detail})`)
-  for (const uid of ['dashboard:nh-e2e-bg1', 'dashboard:nh-e2e-bg2', HELD_DASH, 'dashboard:synthbg']) {
+  // exactly what this run made: its own seeds, and what the app created through the sandbox
+  const mine = [...new Set([...OWN_DASHBOARDS, HELD_BG, ...sb.created])]
+  for (const uid of mine) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
-  for (const uid of await bgUids()) {
-    if (!bgUidsBefore.includes(uid)) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
-  }
-  const after = await getSettings()
-  const norm = (o) => JSON.stringify({ ...o, timestamp: undefined })
-  ok('cleanup: settings content identical', norm(after) === norm(settingsBefore))
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
-  ok('cleanup: no leftovers', !uids.some((u) => u.includes('nh-e2e-bg') || u.includes(HELD_ID) || u === 'dashboard:synthbg'),
-    uids.filter((u) => u.includes('nh-e2e')).join(','))
+  ok('cleanup: no leftovers', !uids.some((u) => mine.includes(u)), uids.filter((u) => mine.includes(u)).join(','))
+  const lost = bgUidsBefore.filter((u) => !uids.includes(u))
+  ok('cleanup: every background that was on the server before the run is still there', lost.length === 0,
+    lost.join(',') + (sb.kept.length ? ` (app deletes kept off the server: ${sb.kept.join(',')})` : ''))
 
   await browser.close()
   const fails = results.filter((r) => !r.pass)

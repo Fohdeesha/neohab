@@ -24,7 +24,7 @@ body {
   background-attachment: fixed;
 }
 ::selection {
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #06130a);
 }
 /* Every widget and home tile is a glass card: translucent green surface, hairline mint border,
@@ -183,8 +183,8 @@ ${wholeTileActive({
   border-color: rgba(190, 255, 210, 0.13);
 }
 .nh-selection__btn--active {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #06130a);
   font-weight: 600;
 }
@@ -197,8 +197,8 @@ ${wholeTileActive({
   border-color: rgba(190, 255, 210, 0.13);
 }
 .nh-chart__chip--on {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #06130a);
 }
 /* Stat tiles: a dim caption naming the figure, a semibold reading with its unit set small. */

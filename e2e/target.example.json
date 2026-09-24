@@ -1,4 +1,5 @@
 {
+  "production": false,
   "baseUrl": "http://openhab.local:8080",
   "tokenFile": "./token.local",
   "items": {

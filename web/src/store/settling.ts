@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { commandMatchesState } from '../model/presets'
-import { SETTLE_MS, settledDisplay, type Settling } from '../model/settling'
+import { DISPLAY_SETTLE_MS, settledDisplay, type Settling } from '../model/settling'
 import { useItemsStore } from './items'
 import { useSteadyStates } from '../widgets/common/useSteadyValue'
 import { emptyMap, mergeMap } from '../model/lookup'
@@ -20,7 +20,7 @@ export function markSettling(commands: { item: string; command: string }[]): voi
   const items = Object.keys(add)
   if (items.length === 0) return
   useSettlingStore.setState((s) => ({ pending: mergeMap(s.pending, add) }))
-  setTimeout(() => dropUnconfirmed(items, at), SETTLE_MS + 50)
+  setTimeout(() => dropUnconfirmed(items, at), DISPLAY_SETTLE_MS + 50)
 }
 
 export function clearSettling(items: string[]): void {

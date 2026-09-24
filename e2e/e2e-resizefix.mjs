@@ -43,6 +43,7 @@ const cellStyle = (i) =>
   }, i)
 
 try {
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
   await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },

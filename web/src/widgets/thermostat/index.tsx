@@ -6,7 +6,8 @@ import { WidgetFrame } from '../common/WidgetFrame'
 import { rangeControl, stepDecimals } from '../common/itemControl'
 import type { ItemControl } from '../common/itemControl'
 import { useOptimisticValue } from '../common/useOptimisticValue'
-import { atLimit, fractionOf, stepNumber } from '../common/stepping'
+import { fractionOf } from '../common/stepping'
+import { dialFraction, valueAtFraction } from '../common/dialPointer'
 import { holdTookGesture } from '../../components/useLongPress'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 import { useItemsStore } from '../../store/items'
@@ -32,10 +33,13 @@ import {
   modeFrom,
   onRing,
   rampColor,
+  rangeIsKnown,
   readTemp,
   sameState,
   scaleOf,
   statusOf,
+  stepBlocked,
+  stepSetpoint,
   tempParts,
   toneOf,
   unitOf,
@@ -55,7 +59,9 @@ const LOOK_COMPONENTS: Record<ThermostatLook, ComponentType<{ view: ThermoView }
 function useCommanded(ctx: WidgetProps['ctx'], item: string | undefined) {
   const bound = typeof item === 'string' && item !== ''
   const live = knownState(bound ? ctx.getItem(item)?.state : undefined) ?? null
-  const optimistic = useOptimisticValue<string | null>(live, live ?? '', (a, b) => a !== null && b !== null && sameState(a, b))
+  const optimistic = useOptimisticValue<string | null>(live, live ?? '', (a, b) => a !== null && b !== null && sameState(a, b), {
+    item: bound ? item : undefined
+  })
   const send = (command: string) => {
     if (!bound || ctx.editing) return
     optimistic.commit(command)
@@ -84,10 +90,16 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
   }, [wantsCatalog])
   const scale = scaleOf(config, catalogItem, unit)
   const decimals = stepDecimals(scale.step)
+  // with no range from the widget or the item, 10-30 or 50-90 is a guess: a setpoint outside it says the
+  // guess is wrong, and the far end of it is no place to send a boiler
+  const rangeKnown = rangeIsKnown(config, catalogItem)
 
-  const optimistic = useOptimisticValue<number | undefined>(sp.value, sp.value ?? 'none', (a, b) => closeSetpoint(a, b, scale.step))
+  const optimistic = useOptimisticValue<number | undefined>(sp.value, sp.value ?? 'none', (a, b) => closeSetpoint(a, b, scale.step), {
+    item: setpointItem || undefined
+  })
   const [drag, setDrag] = useState<number | null>(null)
   const shown = drag ?? optimistic.display
+  const blocked = (dir: 1 | -1): boolean => stepBlocked(shown, dir, scale, rangeKnown)
 
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
@@ -103,37 +115,43 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
   }
 
   const onStep = (dir: 1 | -1) => {
-    if (ctx.editing || setpointItem === '') return
-    if (atLimit(shown, dir, scale)) return
-    const next = stepNumber(shown, dir, scale)
+    if (ctx.editing || setpointItem === '' || shown === undefined || blocked(dir)) return
+    const next = stepSetpoint(shown, dir, scale, rangeKnown)
     optimistic.commit(next)
     sendSetpoint(next, SEND_DELAY_MS)
   }
 
   const svgRef = useRef<SVGSVGElement | null>(null)
-  const valueAtPointer = (e: PointerEvent<SVGSVGElement>): { value: number; onBand: boolean } => {
+  // the fraction a press is dragging from, so a drag through the gap stays at the end it left by
+  const dragFrac = useRef<number | null>(null)
+  const pointerAt = (e: PointerEvent<SVGSVGElement>): { angle: number; dist: number } => {
     const rect = svgRef.current!.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
-    const dist = Math.hypot(e.clientX - cx, e.clientY - cy) / (rect.width / 2)
-    const angle = angleOfPoint(cx, cy, e.clientX, e.clientY)
-    return { value: valueAtAngle(angle, arc, scale), onBand: onRing(dist, angle, look) }
+    return { angle: angleOfPoint(cx, cy, e.clientX, e.clientY), dist: Math.hypot(e.clientX - cx, e.clientY - cy) / (rect.width / 2) }
   }
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     if (ctx.editing || setpointItem === '' || !draggable(look)) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
-    const at = valueAtPointer(e)
-    if (!at.onBand) return
-    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
-    setDrag(at.value)
+    const at = pointerAt(e)
+    if (!onRing(at.dist, at.angle, look)) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const v = valueAtAngle(at.angle, arc, scale)
+    dragFrac.current = fractionOf(v, scale)
+    setDrag(v)
   }
   const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
-    if (drag !== null) setDrag(valueAtPointer(e).value)
+    if (drag === null || dragFrac.current === null) return
+    const frac = dialFraction(pointerAt(e).angle, arc.start + 90, arc.sweep, dragFrac.current)
+    if (frac === null) return
+    dragFrac.current = frac
+    setDrag(valueAtFraction(frac, scale.min, scale.max, scale.step, decimals))
   }
   const onPointerUp = () => {
     if (drag === null) return
     const v = drag
     setDrag(null)
+    dragFrac.current = null
     if (holdTookGesture()) return
     optimistic.commit(v)
     sendSetpoint(v, 0)
@@ -179,10 +197,20 @@ function ThermostatWidget({ config, ctx }: WidgetProps<ThermostatConfig>) {
     currentFraction: current.value === undefined ? undefined : fractionOf(current.value, scale),
     ramped: tone === 'neutral',
     arc,
-    atMin: atLimit(shown, -1, scale),
-    atMax: atLimit(shown, 1, scale),
+    atMin: blocked(-1),
+    atMax: blocked(1),
     onStep,
-    ring: { ref: svgRef, onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => setDrag(null), dragging: drag !== null },
+    ring: {
+      ref: svgRef,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel: () => {
+        setDrag(null)
+        dragFrac.current = null
+      },
+      dragging: drag !== null
+    },
     mode: hvac,
     activity,
     labels: {

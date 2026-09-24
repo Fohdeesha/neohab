@@ -65,5 +65,6 @@ export {
   instanceHasDetail,
   instanceLiveDrag,
   instanceNeedsItem,
+  primaryItemOf,
   widgetDetailView
 } from './registry'

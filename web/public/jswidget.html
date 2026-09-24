@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- only ever loaded in a frame sandboxed without allow-same-origin, so it has no reach into the
+         app. the widget's code runs here as a plain script, which the app's own policy refuses. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src * data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; style-src * 'unsafe-inline'"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        color: var(--nh-text, inherit);
+        font-family: system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      ;(function () {
+        'use strict'
+        var pending = new Map()
+        var seq = 0
+        var subs = new Map()
+        var readyCbs = []
+        var ready = false
+        var started = false
+        var oh = {
+          config: {},
+          theme: {},
+          getItem: function (name) {
+            return new Promise(function (resolve) {
+              var id = ++seq
+              pending.set(id, resolve)
+              parent.postMessage({ neohab: true, type: 'getItem', id: id, name: String(name) }, '*')
+            })
+          },
+          sendCommand: function (name, command) {
+            parent.postMessage({ neohab: true, type: 'sendCommand', name: String(name), command: String(command) }, '*')
+          },
+          onChange: function (name, cb) {
+            name = String(name)
+            if (!subs.has(name)) {
+              subs.set(name, [])
+              parent.postMessage({ neohab: true, type: 'subscribe', names: [name] }, '*')
+            }
+            subs.get(name).push(cb)
+          },
+          onReady: function (cb) {
+            if (ready) cb()
+            else readyCbs.push(cb)
+          }
+        }
+        window.oh = oh
+        function applyTheme(theme) {
+          oh.theme = theme
+          for (var k in theme) document.documentElement.style.setProperty('--nh-' + k, theme[k])
+        }
+        window.addEventListener('message', function (e) {
+          if (e.source !== parent) return
+          var m = e.data
+          if (!m || m.neohab !== true) return
+          if (m.type === 'result' && pending.has(m.id)) {
+            pending.get(m.id)(m.value)
+            pending.delete(m.id)
+          } else if (m.type === 'item') {
+            var cbs = subs.get(m.name) || []
+            for (var i = 0; i < cbs.length; i++) cbs[i](m.state)
+          } else if (m.type === 'theme') {
+            if (m.theme) applyTheme(m.theme)
+          } else if (m.type === 'init' && !started) {
+            started = true
+            if (m.config) oh.config = m.config
+            if (m.theme) applyTheme(m.theme)
+            // a script element rather than a function, so the widget's top-level names are global as before
+            var el = document.createElement('script')
+            el.textContent = typeof m.script === 'string' ? m.script : ''
+            document.body.appendChild(el)
+            ready = true
+            for (var j = 0; j < readyCbs.length; j++) readyCbs[j]()
+          }
+        })
+        parent.postMessage({ neohab: true, type: 'ready' }, '*')
+      })()
+    </script>
+  </body>
+</html>

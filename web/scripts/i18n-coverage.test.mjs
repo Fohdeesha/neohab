@@ -25,8 +25,9 @@ const translated = new Set(Object.keys(catalog).map((k) => k.replace(/_(zero|one
 
 const text = (node) => (node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : undefined)
 
-// t('x') and i18n.t('x') and AppBoundary's say('x'), which forwards to i18n.t
-const TRANSLATORS = new Set(['t', 'say'])
+// t('x') and i18n.t('x') and AppBoundary's say('x'), which forwards to i18n.t, and msg('x') from
+// model/message.ts, a key written now and translated where it is shown
+const TRANSLATORS = new Set(['t', 'say', 'msg'])
 
 function scan() {
   const calls = []

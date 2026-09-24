@@ -6,7 +6,7 @@ import { NumberSetting } from '../components/NumberSetting'
 import { downloadJson } from '../components/download'
 import type { Dashboard } from '../model/dashboard'
 import { partialFileName } from '../model/partial'
-import { columnsOf, gapOf, hasTabletLayout, mdColumnsOf } from '../model/layout'
+import { columnsOf, gapOf, hasTabletLayout, MAX_COLUMNS, mdColumnsOf } from '../model/layout'
 import { clearTabletLayout, setDashSettingsOpen, stopEditing, updateDashboardMeta } from '../store/editor'
 import { buildDashboardExport, collectUnusedBackgrounds, deleteDashboard, useConfigStore } from '../store/config'
 import { notify } from '../store/notify'
@@ -100,7 +100,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
           mode="live"
           value={columnsOf(dashboard)}
           min={1}
-          max={60}
+          max={MAX_COLUMNS}
           onCommit={(n) => updateDashboardMeta({ columns: n }, 'dash:columns')}
         />
 
@@ -161,7 +161,7 @@ export function DashboardSettingsPanel({ dashboard }: { dashboard: Dashboard }) 
               mode="live"
               value={mdColumnsOf(dashboard)}
               min={1}
-              max={60}
+              max={MAX_COLUMNS}
               hint={fieldHint(t('The tablet layout can use a different grid. Fewer columns means bigger cells on a tablet.'))}
               onCommit={(n) => updateDashboardMeta({ mdColumns: n }, 'dash:mdcolumns')}
             />

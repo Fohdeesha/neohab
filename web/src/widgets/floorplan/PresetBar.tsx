@@ -12,6 +12,7 @@ import { PresetManageDialog } from './PresetManage'
 import type { FloorplanLight } from './model'
 
 const ONE_CHIP_ROW = 55
+const PRESET_REFRESH_MS = 5 * 60_000
 
 // matches .nh-fplan__bar's own bottom inset: the room the bar needs is its height plus that
 export const BAR_INSET = 8
@@ -41,10 +42,27 @@ export function PresetBar({
 
   useEffect(() => {
     void loadPresets()
+    // a wall panel stays open for days: presets saved elsewhere, or a list that failed to load, are
+    // picked up when it is looked at again and every few minutes, not only on a reload
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void loadPresets()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = window.setInterval(() => void loadPresets(), PRESET_REFRESH_MS)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.clearInterval(timer)
+    }
   }, [admin])
 
-  const statusItems = useMemo(() => [...new Set(summaries.map((s) => s.statusItem).filter((i): i is string => !!i))], [summaries])
-  useEffect(() => subscribeItems(statusItems), [statusItems])
+  // every item a chip's highlight reads, not only the ones drawn on this plan
+  const watched = useMemo(() => {
+    const names = new Set<string>()
+    for (const s of summaries) if (s.statusItem) names.add(s.statusItem)
+    for (const p of Object.values(full)) for (const l of p.lights) names.add(l.item)
+    return [...names]
+  }, [summaries, full])
+  useEffect(() => subscribeItems(watched), [watched])
   const states = useItemsStore((s) => s.states)
   const settled = useSettledState()
 

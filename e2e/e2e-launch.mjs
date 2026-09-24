@@ -1,6 +1,7 @@
 // The first-run and failure paths a public-launch review went through by hand.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS, UNREACHABLE } from './lib/target.mjs'
+import { skipOnProduction } from './lib/guard.mjs'
 
 const APP = BASE + '/neohab/index.html'
 const UID = 'dashboard:nh-e2e-launch'
@@ -53,6 +54,7 @@ const seed = async () => {
 }
 
 const seedEmpty = async () => {
+  await fetch(NS + '/' + UID + '-empty', { method: 'DELETE', headers: AUTH }).catch(() => {})
   const r = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -101,7 +103,7 @@ try {
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-welcome', { timeout: 15000 }).catch(() => {})
     const html = (await probe(page, () => document.querySelector('.nh-welcome')?.textContent ?? '')) ?? ''
-    ok('an HTML answer is reported as one, not as a JavaScript error', !/is not a function/.test(html), html.slice(0, 120))
+    ok('an HTML answer is reported as one, not as a JavaScript error', html.length > 0 && !/is not a function/.test(html), html.slice(0, 120) || '(no welcome shown)')
     ok('and it offers a way to try again', (await page.locator('.nh-welcome button', { hasText: /again/i }).count()) === 1)
 
     await page.unroute(/\/rest\/ui\/components\/neohab:config$/)
@@ -117,7 +119,7 @@ try {
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-welcome', { timeout: 15000 }).catch(() => {})
     const text = (await probe(page, () => document.querySelector('.nh-welcome')?.textContent ?? '')) ?? ''
-    ok('a 502 is described without the REST call in it', !/\/rest\//.test(text) && !/GET /.test(text), text.slice(0, 140))
+    ok('a 502 is described without the REST call in it', text.length > 0 && !/\/rest\//.test(text) && !/GET /.test(text), text.slice(0, 140) || '(no welcome shown)')
     await ctx.close()
   }
 
@@ -137,7 +139,7 @@ try {
       title: document.querySelector('.nh-sheet__title')?.textContent ?? '',
       text: document.querySelector('.nh-signin__text')?.textContent ?? '',
     }))) ?? { title: '', text: '' }
-    ok('the sheet is about signing in to see, not about editing', !/edit/i.test(sheet.title) && !/edit/i.test(sheet.text), JSON.stringify(sheet))
+    ok('the sheet is about signing in to see, not about editing', sheet.title.length > 0 && !/edit/i.test(sheet.title) && !/edit/i.test(sheet.text), JSON.stringify(sheet))
 
     await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -261,7 +263,7 @@ try {
     ok('the Save button is inside the toolbar', bar != null && bar.saveRight <= bar.barRight, JSON.stringify(bar))
     ok('the title stays on one line', bar != null && bar.titleLines === 1, JSON.stringify(bar))
     const hint = (await probe(page, () => document.querySelector('.nh-dash__edithint')?.textContent ?? '')) ?? ''
-    ok('the edit hint does not tell a phone about Ctrl+C', !/Ctrl/.test(hint), hint.slice(0, 100))
+    ok('the edit hint does not tell a phone about Ctrl+C', hint.length > 0 && !/Ctrl/.test(hint), hint.slice(0, 100) || '(no edit hint shown)')
     await ctx.close()
   }
 
@@ -298,7 +300,8 @@ try {
     // again in the cleanup - the behaviour under test needs an item with a LABEL, and an
     // unlabelled one deliberately leaves the Name empty.
     let labelled = all.find((i) => named(i) && /^(Dimmer|Number)/.test(i.type))
-    if (!labelled) {
+    const noSeeding = !labelled && skipOnProduction(ok, 'binding fills the Name: this server has no labelled Dimmer or Number, and one may not be created here')
+    if (!labelled && !noSeeding) {
       const seed = { type: 'Number', name: SEED_ITEM, label: 'E2E Launch Number' }
       const r = await fetch(BASE + '/rest/items/' + SEED_ITEM, {
         method: 'PUT',
@@ -311,51 +314,53 @@ try {
         labelled = seed
       }
     }
-    ok(`an item every widget under test offers${seededItem ? ' (seeded: this server had no labelled Dimmer or Number)' : ''}`, !!labelled, JSON.stringify(labelled ?? null))
-    const { ctx, page } = await open()
-    await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
-    await page.reload({ waitUntil: 'domcontentloaded' })
-    await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 20000 })
-    await page.click('[aria-label="Edit dashboard"]')
-    await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, { timeout: 10000 })
+    if (!noSeeding) {
+      ok(`an item every widget under test offers${seededItem ? ' (seeded: this server had no labelled Dimmer or Number)' : ''}`, !!labelled, JSON.stringify(labelled ?? null))
+      const { ctx, page } = await open()
+      await page.goto(APP + '#/d/' + DASH, { waitUntil: 'domcontentloaded' })
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 20000 })
+      await page.click('[aria-label="Edit dashboard"]')
+      await page.waitForFunction(() => document.querySelectorAll('.nh-grid--edit .nh-cell').length > 0, { timeout: 10000 })
 
-    const nameField = page.locator('.nh-sheet--side .nh-field', { has: page.locator('.nh-field__label', { hasText: /^Name$/ }) }).locator('input')
-    for (const widget of ['Value', 'Button', 'Slider']) {
-      await page.click('[aria-label="Add widget"]')
-      await page.waitForSelector('.nh-palette__card', { timeout: 8000 })
-      await page.locator('.nh-palette__card', { hasText: new RegExp('^' + widget) }).first().click()
-      await page.waitForSelector('.nh-sheet--side input[role="combobox"]', { timeout: 8000 })
+      const nameField = page.locator('.nh-sheet--side .nh-field', { has: page.locator('.nh-field__label', { hasText: /^Name$/ }) }).locator('input')
+      for (const widget of ['Value', 'Button', 'Slider']) {
+        await page.click('[aria-label="Add widget"]')
+        await page.waitForSelector('.nh-palette__card', { timeout: 8000 })
+        await page.locator('.nh-palette__card', { hasText: new RegExp('^' + widget) }).first().click()
+        await page.waitForSelector('.nh-sheet--side input[role="combobox"]', { timeout: 8000 })
 
-      const combo = page.locator('.nh-sheet--side input[role="combobox"]').first()
-      const before = await nameField.inputValue().catch(() => '(no Name field)')
-      ok(`a fresh ${widget} carries no name of its own`, before === '', JSON.stringify(before))
+        const combo = page.locator('.nh-sheet--side input[role="combobox"]').first()
+        const before = await nameField.inputValue().catch(() => '(no Name field)')
+        ok(`a fresh ${widget} carries no name of its own`, before === '', JSON.stringify(before))
 
-      await combo.click()
-      await page.keyboard.type(String(labelled?.name ?? ITEMS.dimmer).slice(0, 6).toLowerCase(), { delay: 40 })
-      await page.waitForSelector('.nh-picker__option', { timeout: 8000 }).catch(() => {})
-      await page
-        .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + (labelled?.name ?? 'no_such_item') + '$') }) })
-        .first()
-        .click({ timeout: 8000 })
-        .catch(() => {})
-      await sleep(500)
-      const named = await nameField.inputValue().catch(() => '')
-      const bound = await combo.inputValue().catch(() => '')
-      ok(`binding an item fills a ${widget}'s empty Name from the item's label`, !!labelled && named === labelled.label, `name=${named} want=${labelled?.label}`)
+        await combo.click()
+        await page.keyboard.type(String(labelled?.name ?? ITEMS.dimmer).slice(0, 6).toLowerCase(), { delay: 40 })
+        await page.waitForSelector('.nh-picker__option', { timeout: 8000 }).catch(() => {})
+        await page
+          .locator('.nh-picker__option', { has: page.locator('.nh-picker__name', { hasText: new RegExp('^' + (labelled?.name ?? 'no_such_item') + '$') }) })
+          .first()
+          .click({ timeout: 8000 })
+          .catch(() => {})
+        await sleep(500)
+        const named = await nameField.inputValue().catch(() => '')
+        const bound = await combo.inputValue().catch(() => '')
+        ok(`binding an item fills a ${widget}'s empty Name from the item's label`, !!labelled && named === labelled.label, `name=${named} want=${labelled?.label}`)
 
-      if (widget === 'Value') {
-        await page.click('[aria-label="Undo"]')
-        await sleep(400)
-        const afterUndo = await nameField.inputValue().catch(() => '')
-        const boundAfterUndo = await combo.inputValue().catch(() => '')
-        ok(
-          'one undo takes back both the item and the name',
-          bound === labelled?.name && named === labelled?.label && afterUndo === '' && boundAfterUndo === '',
-          `before=${bound}/${named} after=${boundAfterUndo}/${afterUndo}`
-        )
+        if (widget === 'Value') {
+          await page.click('[aria-label="Undo"]')
+          await sleep(400)
+          const afterUndo = await nameField.inputValue().catch(() => '')
+          const boundAfterUndo = await combo.inputValue().catch(() => '')
+          ok(
+            'one undo takes back both the item and the name',
+            bound === labelled?.name && named === labelled?.label && afterUndo === '' && boundAfterUndo === '',
+            `before=${bound}/${named} after=${boundAfterUndo}/${afterUndo}`
+          )
+        }
       }
+      await ctx.close()
     }
-    await ctx.close()
   }
 
   {
@@ -500,7 +505,14 @@ try {
           rowHeight: 60,
           widgets: [
             { id: 'ghost', type: 'slider', config: { label: 'Gone', item: GHOST }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-            { id: 'real', type: 'slider', config: { label: 'Here', item: ITEMS.dimmer }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } }
+            { id: 'real', type: 'slider', config: { label: 'Here', item: ITEMS.dimmer }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
+            // the item it is about is here and only its inner ring's is not
+            {
+              id: 'rings',
+              type: 'dial',
+              config: { label: 'Two rings', item: ITEMS.dimmer, item2: GHOST, style: 'ring', readOnly: true },
+              layout: { lg: { x: 6, y: 0, w: 3, h: 3 } }
+            }
           ]
         }
       })
@@ -520,8 +532,13 @@ try {
         return {
           ghost: (ghost?.innerText ?? '').replace(/\s+/g, ' ').trim(),
           ghostIsError: !!ghost?.querySelector('.nh-widget--error'),
+          ghostName: ghost?.querySelector('.nh-widget__labeltext')?.textContent ?? null,
           real: (of('here')?.innerText ?? '').replace(/\s+/g, ' ').trim(),
           realIsError: !!of('here')?.querySelector('.nh-widget--error'),
+          rings: (() => {
+            const cell = of('two rings')
+            return cell ? { error: !!cell.querySelector('.nh-widget--error'), svg: !!cell.querySelector('svg') } : null
+          })(),
           sliders: document.querySelectorAll('.nh-gcell input[type="range"]').length
         }
       })
@@ -532,8 +549,14 @@ try {
     const seen = await read(null)
     ok('a widget whose item is not on the server says so', /not on this openhab server/i.test(seen.ghost ?? ''), (seen.ghost ?? '').slice(0, 90))
     ok('and it names the item, so the reader knows which', (seen.ghost ?? '').includes(GHOST), (seen.ghost ?? '').slice(0, 90))
+    ok('and it keeps the tile’s own name, so the reader knows which tile', seen.ghostName === 'Gone', String(seen.ghostName))
+    ok(
+      'a missing inner-ring item leaves the dial drawn rather than blanking the tile',
+      seen.rings !== null && seen.rings.error === false && seen.rings.svg === true,
+      JSON.stringify(seen.rings)
+    )
     ok('rather than drawing a control at its floor', seen.sliders === 1, 'range inputs on the page: ' + seen.sliders)
-    ok('a widget whose item IS on the server keeps its control', seen.realIsError === false, (seen.real ?? '').slice(0, 60))
+    ok('a widget whose item IS on the server keeps its control', (seen.real ?? '').length > 0 && seen.realIsError === false, (seen.real ?? '').slice(0, 60) || '(tile not found)')
     ok('and still shows that item’s value', /\d/.test(seen.real ?? ''), (seen.real ?? '').slice(0, 60))
 
     // the other half: not knowing is not the same as knowing it is missing
@@ -542,9 +565,32 @@ try {
     )
     ok(
       'a server that will not list its items is never used to call an item missing',
-      refused.ghostIsError === false,
-      (refused.ghost ?? '').slice(0, 90)
+      (refused.ghost ?? '').length > 0 && refused.ghostIsError === false,
+      (refused.ghost ?? '').slice(0, 90) || '(tile not found)'
     )
+  }
+
+  // A browser too old to lay the app out is told so before the bundle loads, and in the language this
+  // device was set to rather than always in English
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1000, height: 700 } })
+    await ctx.addInitScript(() => {
+      if (window.top !== window) return
+      try {
+        localStorage.setItem('neohab:language', 'de')
+      } catch {}
+      Object.defineProperty(window.CSS, 'supports', { value: () => false, configurable: true })
+    })
+    const page = await ctx.newPage()
+    await page.goto(APP, { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => document.body.innerText.includes('neohab'), undefined, { timeout: 10000 }).catch(() => {})
+    const notice = await page.evaluate(() => {
+      const el = [...document.body.children].find((c) => c.id !== 'root' && c.querySelector('h1'))
+      return el ? { lang: el.getAttribute('lang'), title: el.querySelector('h1').textContent } : null
+    })
+    ok('an old browser is told why before the app runs', notice !== null && notice.title.length > 0, JSON.stringify(notice))
+    ok('and it is told in the language this device was set to', notice?.lang === 'de' && /zu alt für neohab/.test(notice.title), JSON.stringify(notice))
+    await ctx.close()
   }
 
   // An image whose address does not answer drew an empty tile: no picture and nothing said,
@@ -652,7 +698,7 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-launch'))
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid.includes('nh-e2e-launch'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
   if (seededItem) {
     await fetch(BASE + '/rest/items/' + seededItem, { method: 'DELETE', headers: AUTH }).catch(() => {})

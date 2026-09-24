@@ -1,10 +1,11 @@
 // Sign-in flow e2e: the "Log in with openHAB" button must actually START the PKCE flow.
-// SAFE with a live config: creates only dashboard:nh-e2e-pkce (deleted; only in the exchange section),
-// commands nothing, and only ever signs in as the throwaway user.
+// SAFE with a live config: creates only dashboard:nh-e2e-pkce and dashboard:nh-e2e-sisave (both
+// deleted by exact uid), commands nothing, and only ever signs in as the throwaway user.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, AUTH, TEST_USER, HTTPS } from './lib/target.mjs'
 
 const PKCE_UID = 'dashboard:nh-e2e-pkce'
+const SAVE_UID = 'dashboard:nh-e2e-sisave'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -107,6 +108,8 @@ try {
       (await page.locator('text=Signed in as an administrator.').count()) === 1
     )
 
+    // a killed earlier run's copy would answer the check below whatever this session could write
+    await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
     await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 10000 })
     const viaTile = (await page.locator('.nh-tile--new').count()) === 1
@@ -151,6 +154,87 @@ try {
     await page.close()
   }
 
+  // "Sign in and save" leads with the openHAB login, which is another page: the draft has to survive the trip,
+  // and the app has to come back to the dashboard rather than to Home. The save is refused once to get there.
+  if (TEST_USER) {
+    await fetch(NS + '/' + SAVE_UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
+    await fetch(NS, {
+      method: 'POST',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: SAVE_UID,
+        component: 'neohab:dashboard',
+        config: { version: 3, id: 'nh-e2e-sisave', name: 'NH E2E Sign-in round trip', columns: 12, rowHeight: 'match', widgets: [] }
+      })
+    })
+    const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } })
+    const page = await ctx.newPage()
+    const dialogs = []
+    page.on('dialog', (d) => {
+      dialogs.push(d.type())
+      void d.accept()
+    })
+    // back on the app, the code is exchanged for a session and the address tidied; leaving before that loses it
+    const login = async () => {
+      await page.fill('input[name="username"]', TEST_USER.name)
+      await page.fill('input[type="password"]', TEST_USER.password)
+      await Promise.all([
+        page.waitForURL((u) => u.pathname.endsWith('/neohab/index.html'), { timeout: 15000 }),
+        page.click('form button[type="submit"], form input[type="submit"], form button')
+      ])
+      await page.waitForFunction(() => !location.search.includes('code='), undefined, { timeout: 15000 }).catch(() => {})
+      await page.waitForFunction(() => !!localStorage.getItem('neohab:refreshToken'), undefined, { timeout: 10000 }).catch(() => {})
+    }
+    await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('h2:text-is("Account")', { timeout: 15000 })
+    await page.click('section:has(h2:text-is("Account")) button:has-text("Sign in")')
+    await clickLogin(page)
+    await login()
+    ok('sign in and save: signed in from Settings comes back to Settings', /#\/settings/.test(page.url()), page.url().slice(-40))
+
+    await page.goto(APP + '#/d/nh-e2e-sisave', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
+    await page.click('[aria-label="Edit dashboard"]')
+    await page.click('[aria-label="Dashboard settings"]')
+    await page.fill('#nh-dash-name', 'NH E2E Sign-in round trip, kept')
+    // every write of the first save is refused as an expired session would be (an update, then the create it
+    // falls back to), so nothing reaches the server until the sign-in has happened
+    let refusing = true
+    let refused = 0
+    await page.route(/neohab(:|%3A)config/, async (route) => {
+      const m = route.request().method()
+      if ((m === 'PUT' || m === 'POST') && refusing) {
+        refused++
+        return route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":{"message":"Authentication required"}}' })
+      }
+      return route.fallback()
+    })
+    // exact and scoped: the sidebar lists dashboards by name, and a text match is a case-insensitive substring
+    await page.click('.nh-dash__bar button:text-is("Save")')
+    await page.waitForSelector('button:has-text("Sign in and save")', { timeout: 10000 }).catch(() => {})
+    ok('sign in and save: a refused save offers the sign-in', (await page.locator('button:has-text("Sign in and save")').count()) === 1, 'refused=' + refused)
+    refusing = false
+    await page.click('button:has-text("Sign in and save")').catch(() => {})
+    const authUrl = await clickLogin(page).catch(() => page.url())
+    ok('sign in and save: the openHAB login page opened', new URL(authUrl).pathname.endsWith('/auth'), authUrl.slice(0, 80))
+    ok('sign in and save: leaving for it asked nothing', !dialogs.includes('beforeunload'), dialogs.join(',') || 'no dialogs')
+    await login().catch(() => {})
+    await page.waitForFunction(() => location.hash.startsWith('#/d/'), undefined, { timeout: 10000 }).catch(() => {})
+    ok('sign in and save: back on the dashboard it started from', page.url().includes('#/d/nh-e2e-sisave'), page.url().slice(-40))
+    let saved = null
+    for (let i = 0; i < 20 && saved !== 'NH E2E Sign-in round trip, kept'; i++) {
+      await sleep(500)
+      const r = await fetch(NS + '/' + SAVE_UID, { headers: AUTH })
+      saved = r.ok ? (await r.json()).config?.name : null
+    }
+    ok('sign in and save: the change made before the login is on the server', saved === 'NH E2E Sign-in round trip, kept', String(saved))
+    await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('button:has-text("Sign out on this device")', { timeout: 10000 }).catch(() => {})
+    await page.click('button:has-text("Sign out on this device")').catch(() => {})
+    await sleep(800)
+    await ctx.close()
+  }
+
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
     await page.addInitScript(() => {
@@ -176,9 +260,12 @@ try {
 }
 
 await fetch(NS + '/' + PKCE_UID, { method: 'DELETE', headers: AUTH })
+await fetch(NS + '/' + SAVE_UID, { method: 'DELETE', headers: AUTH })
 {
   const r = await fetch(NS + '/' + PKCE_UID, { headers: AUTH })
   ok('cleanup: exchange dashboard absent', !r.ok)
+  const s = await fetch(NS + '/' + SAVE_UID, { headers: AUTH })
+  ok('cleanup: sign-in-and-save dashboard absent', !s.ok)
 }
 
 let allPass = true

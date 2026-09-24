@@ -74,23 +74,32 @@ describe('validation', () => {
     expect(validatePartialBundle(bundle())).toBeNull()
   })
 
+  const refusal = (v: unknown) => validatePartialBundle(v)?.key
+
   it('refuses a file carrying anything but the component kinds it may carry', () => {
     const bad = bundle({ components: [dashboard('k'), c('settings', { theme: 'evil' }, 'neohab:settings')] }) as PartialBundle
-    expect(validatePartialBundle(bad)).toMatch(/may not carry/)
+    expect(refusal(bad)).toMatch(/may not carry/)
+    expect(validatePartialBundle(bad)?.values).toEqual({ uid: 'settings' })
+    // a bare prefix resolves back to a uid with no id at all
+    expect(refusal(bundle({ components: [dashboard('k'), c('icon:', {}, 'neohab:icon')] }))).toMatch(/may not carry/)
+  })
+
+  it('refuses a file listing one uid twice, which would stop an import halfway', () => {
+    expect(refusal(bundle({ components: [dashboard('k'), icon('a'), icon('a')] }))).toMatch(/twice/)
   })
 
   it('refuses a file whose kind and primary disagree', () => {
     const bad = bundle({
       manifest: { app: 'neohab', formatVersion: PARTIAL_FORMAT_VERSION, exportedAt: 'n', kind: 'theme', primary: 'dashboard:k' }
     }) as PartialBundle
-    expect(validatePartialBundle(bad)).toMatch(/but describes/)
+    expect(refusal(bad)).toMatch(/but describes/)
   })
 
   it('refuses versions, kinds and shapes it does not know', () => {
-    expect(validatePartialBundle(bundle({ manifest: { ...(bundle() as PartialBundle).manifest, formatVersion: 99 } }))).toMatch(/version/)
-    expect(validatePartialBundle(bundle({ components: [] }))).toMatch(/no components/)
-    expect(validatePartialBundle({ manifest: { app: 'other' } })).toMatch(/Not a neohab file/)
-    expect(validatePartialBundle(null)).toMatch(/Not a neohab file/)
+    expect(refusal(bundle({ manifest: { ...(bundle() as PartialBundle).manifest, formatVersion: 99 } }))).toMatch(/version/)
+    expect(refusal(bundle({ components: [] }))).toMatch(/no components/)
+    expect(refusal({ manifest: { app: 'other' } })).toMatch(/Not a neohab file/)
+    expect(refusal(null)).toMatch(/Not a neohab file/)
   })
 
   it('distinguishes a partial file from a whole-configuration backup', () => {
@@ -231,6 +240,26 @@ describe('import resolution', () => {
     expect(ids).not.toContain('w1')
     expect(new Set(config.stackOrder)).toEqual(new Set(ids))
     expect(config.stackOrder[0]).toBe(ids[1])
+  })
+
+  it("a file's config.id cannot make a copy stand in for a different dashboard", () => {
+    const existing = [dashboard('home'), dashboard('shared')]
+    const hostile = c('dashboard:shared', { version: 1, id: 'home', name: 'Shared', columns: 12, rowHeight: 'match', widgets: [] })
+    for (const mode of ['copy', 'overwrite'] as const) {
+      const out = resolvePartialImport(bundleOf([hostile], 'dashboard:shared'), existing, mode, newId)
+      for (const x of out.components) expect((x.config as { id: string }).id, mode).toBe(x.uid.slice('dashboard:'.length))
+    }
+    const fresh = resolvePartialImport(bundleOf([hostile], 'dashboard:shared'), [], 'copy', newId)
+    expect((fresh.components[0].config as { id: string }).id).toBe('shared')
+  })
+
+  it('a renamed copy never lands on a uid the same file is writing', () => {
+    const existing = [dashboard('a')]
+    const incoming = bundleOf([dashboard('a', [{ id: 'w', type: 'label', config: {} }]), dashboard('a-2')], 'dashboard:a')
+    const out = resolvePartialImport(incoming, existing, 'copy', newId)
+    const uids = out.components.map((x) => x.uid)
+    expect(new Set(uids).size).toBe(uids.length)
+    expect(out.primaryUid).toBe('dashboard:a-3')
   })
 
   it('overwrite mode writes under the original uids and skips what is unchanged', () => {

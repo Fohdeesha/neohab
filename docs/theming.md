@@ -209,8 +209,9 @@ Gate yours on the complementary range:
 ```
 
 **2. Style both halves of a control state.** `.nh-button--plain` and `.nh-button--plain.nh-button--active`
-have the same specificity, so styling the base flattens the active state. Style both. The editor says so
-as you type.
+have the same specificity, so styling the base flattens the active state. The same goes for
+`.nh-selection__btn--active`, `.nh-chip--on`, the dashed `.nh-chip--action` and the listening
+`.nh-iconbtn--live`. Style both. The editor says so as you type.
 
 **3. Never set `fill` or `stroke` on these.** Their paint is an **attribute** the widget computes,
 such as a per-instance gradient, a severity colour or a live tint, and a stylesheet declaration
@@ -280,9 +281,9 @@ A flat theme with square corners and an outlined button:
 /* Both halves of the control state, for every control that has one. Touching the base of one of
    these and not its --active is what rule 2 is about, and the editor will say so. */
 .nh-button--plain { background: transparent; border: 1px solid var(--nh-border); }
-.nh-button--plain.nh-button--active { background: var(--nh-primary); color: var(--nh-accent-ink); }
+.nh-button--plain.nh-button--active { background: var(--nh-cellaccent, var(--nh-primary)); color: var(--nh-accent-ink); }
 .nh-selection__btn { background: transparent; border: 1px solid var(--nh-border); }
-.nh-selection__btn--active { background: var(--nh-primary); color: var(--nh-accent-ink); }
+.nh-selection__btn--active { background: var(--nh-cellaccent, var(--nh-primary)); color: var(--nh-accent-ink); }
 ```
 
 ### Which built-in to copy

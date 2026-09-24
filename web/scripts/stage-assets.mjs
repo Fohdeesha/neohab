@@ -1,13 +1,30 @@
 // stages what the app serves from its own jar (icon packs, theme webfonts) so nothing reaches for the internet
 // at runtime; each pack ships its own licence
-import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const dest = join(root, 'public', 'icons')
+// outside public/, because everything in public/ is copied into the jar
+const stamps = join(root, 'node_modules', '.cache', 'neohab-stage')
 
 rmSync(join(root, 'dist'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+
+mkdirSync(stamps, { recursive: true })
+if (existsSync(dest)) {
+  for (const f of readdirSync(dest)) if (f.endsWith('.stamp')) rmSync(join(dest, f), { force: true })
+}
+
+// the stamp says what was staged last time and the folder says whether it is still all there, so a
+// half-deleted or hand-emptied pack is staged again rather than trusted
+function isStaged(dir, stamp, files) {
+  const stampFile = join(stamps, dir + '.stamp')
+  const packDir = join(dest, dir)
+  if (!existsSync(stampFile) || readFileSync(stampFile, 'utf8') !== stamp || !existsSync(packDir)) return false
+  const present = new Set(readdirSync(packDir))
+  return present.size === files.length && files.every((f) => present.has(f))
+}
 
 const mdiSrc = join(root, 'node_modules', '@mdi', 'svg')
 if (!existsSync(mdiSrc)) {
@@ -16,14 +33,14 @@ if (!existsSync(mdiSrc)) {
 }
 const mdiMeta = JSON.parse(readFileSync(join(mdiSrc, 'meta.json'), 'utf8'))
 const mdiVersion = JSON.parse(readFileSync(join(mdiSrc, 'package.json'), 'utf8')).version
-const mdiStampFile = join(dest, 'mdi.stamp')
-const mdiStamp = `${mdiVersion}:${mdiMeta.length}`
-if (!existsSync(mdiStampFile) || readFileSync(mdiStampFile, 'utf8') !== mdiStamp) {
+const mdiFiles = [...readdirSync(join(mdiSrc, 'svg')), 'LICENSE']
+const mdiStamp = `${mdiVersion}:${mdiFiles.length}`
+if (!isStaged('mdi', mdiStamp, mdiFiles)) {
   rmSync(join(dest, 'mdi'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   mkdirSync(join(dest, 'mdi'), { recursive: true })
   cpSync(join(mdiSrc, 'svg'), join(dest, 'mdi'), { recursive: true })
   cpSync(join(mdiSrc, 'LICENSE'), join(dest, 'mdi', 'LICENSE'))
-  writeFileSync(mdiStampFile, mdiStamp)
+  writeFileSync(join(stamps, 'mdi.stamp'), mdiStamp)
 }
 const mdiIndex = mdiMeta.filter((m) => !m.deprecated).map((m) => (m.aliases?.length ? m.name + '|' + m.aliases.join(' ') : m.name))
 writeFileSync(join(dest, 'mdi-index.json'), JSON.stringify(mdiIndex))
@@ -62,9 +79,8 @@ function stageIconifyPack({ pkg, dir, curate }) {
     .sort()
 
   const packDir = join(dest, dir)
-  const stampFile = join(dest, dir + '.stamp')
   const stamp = `${version}:${kept.length}`
-  if (!existsSync(stampFile) || readFileSync(stampFile, 'utf8') !== stamp) {
+  if (!isStaged(dir, stamp, [...kept.map((n) => n + '.svg'), 'ATTRIBUTION.txt'])) {
     rmSync(packDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
     mkdirSync(packDir, { recursive: true })
     for (const name of kept) {
@@ -81,7 +97,7 @@ function stageIconifyPack({ pkg, dir, curate }) {
         `License: ${info.license?.title ?? ''} (${info.license?.spdx ?? ''}) ${info.license?.url ?? ''}\n` +
         `Bundled unmodified from https://www.npmjs.com/package/@iconify-json/${pkg} (icon data via Iconify).\n`
     )
-    writeFileSync(stampFile, stamp)
+    writeFileSync(join(stamps, dir + '.stamp'), stamp)
   }
 
   const aliasTerms = {}

@@ -234,7 +234,10 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
         />
       </section>
 
-      {editing ? <ThemeEditor theme={editing} onChange={setEditing} onClose={() => setEditing(null)} onNotice={onNotice} /> : null}
+      {/* keyed, so opening another theme starts a fresh editor rather than keeping the last one's ticks */}
+      {editing ? (
+        <ThemeEditor key={editing.id} theme={editing} onChange={setEditing} onClose={() => setEditing(null)} onNotice={onNotice} />
+      ) : null}
     </>
   )
 }

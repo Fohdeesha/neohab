@@ -10,6 +10,10 @@ export function listRulesFull(tag: string): Promise<SceneRule[]> {
   return api.get<SceneRule[]>(`/rest/rules?tags=${encodeURIComponent(tag)}`)
 }
 
+export function getRule(uid: string): Promise<SceneRule> {
+  return api.get<SceneRule>(`/rest/rules/${encodeURIComponent(uid)}`)
+}
+
 export function createRule(rule: SceneRule): Promise<void> {
   return api.post('/rest/rules', rule)
 }

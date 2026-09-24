@@ -16,11 +16,6 @@ export function offsetFromReading(reading: ClockReading): number | null {
   return serverSecond + HEADER_RESOLUTION_MS / 2 - (sent + received) / 2
 }
 
-export function readingUncertaintyMs(reading: ClockReading): number {
-  const roundTrip = Math.max(0, reading.received - reading.sent)
-  return HEADER_RESOLUTION_MS / 2 + roundTrip / 2
-}
-
 // the Date header is whole seconds, so that IS the resolution: printing a finer figure would invent precision
 export const SAME_SECOND_MS = 1000
 

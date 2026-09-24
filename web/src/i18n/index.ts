@@ -73,6 +73,21 @@ async function activate(code: string): Promise<void> {
   await i18n.changeLanguage(code)
 }
 
+/**
+ * The locale dates, times and numbers are written in: the app's language, keeping the browser's own
+ * region when the two agree (so English stays en-GB or en-US), and the bare language when they do not.
+ * The browser's locale alone gave an English tile on a German interface.
+ */
+export function appLocale(): string {
+  const lang = i18n.language || 'en'
+  if (typeof navigator !== 'undefined') {
+    for (const cand of navigator.languages ?? [navigator.language]) {
+      if (typeof cand === 'string' && cand.slice(0, 2).toLowerCase() === lang) return cand
+    }
+  }
+  return lang
+}
+
 export async function setLanguage(choice: string): Promise<void> {
   try {
     if (choice === 'auto') localStorage.removeItem(STORAGE_KEY)

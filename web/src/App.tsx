@@ -4,7 +4,7 @@ import { registerBuiltinWidgets } from './widgets'
 import { startItemTracking } from './store/items'
 import { loadConfig, useConfigStore } from './store/config'
 import { getRootInfo } from './api/items'
-import { completeLogin } from './api/auth'
+import { completeLogin, takeReturnHash } from './api/auth'
 import { errorText } from './api/errors'
 import { notify } from './store/notify'
 import { refreshAuthStatus } from './store/auth'
@@ -29,6 +29,8 @@ import { useDeviceThemeStore } from './store/deviceTheme'
 
 registerBuiltinWidgets()
 
+const RELOAD_AFTER_FAILURE_MS = 30_000
+
 export default function App({ credentialsReady }: { credentialsReady?: Promise<unknown> }) {
   const { t } = useTranslation()
   const route = useRoute()
@@ -37,7 +39,17 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
   const themeId = useConfigStore((s) => s.settings.theme)
   const deviceThemeId = useDeviceThemeStore((s) => s.themeId)
   const customThemes = useConfigStore((s) => s.customThemes)
+  const loadFailed = useConfigStore((s) => s.error !== null && !s.authRequired)
   const [ohVersion, setOhVersion] = useState<string>()
+
+  // a wall panel that booted while openHAB restarted has nobody there to press Try again
+  useEffect(() => {
+    if (!loadFailed) return
+    const timer = window.setInterval(() => {
+      if (!useConfigStore.getState().loading) void loadConfig()
+    }, RELOAD_AFTER_FAILURE_MS)
+    return () => window.clearInterval(timer)
+  }, [loadFailed])
 
   useEffect(() => {
     if (!loaded) return
@@ -63,12 +75,15 @@ export default function App({ credentialsReady }: { credentialsReady?: Promise<u
     async function boot() {
       await credentialsReady
 
+      // back to where the sign-in started, rather than wherever the login page's redirect lands
+      const backTo = () => {
+        history.replaceState(null, '', window.location.pathname + (takeReturnHash() || window.location.hash))
+        window.dispatchEvent(new HashChangeEvent('hashchange'))
+      }
       try {
-        if (await completeLogin()) {
-          history.replaceState(null, '', window.location.pathname + window.location.hash)
-        }
+        if (await completeLogin()) backTo()
       } catch (err) {
-        history.replaceState(null, '', window.location.pathname + window.location.hash)
+        backTo()
         notify(t('Sign-in could not be completed: {{error}}', { error: errorText(err) }))
       }
 

@@ -11,7 +11,8 @@ import { buildTagIndex, type TagIndex } from '../generate/semantics'
 import { pickedCluster, surveySources, type Cluster, type SourceKind } from '../generate/sources'
 import { getWidgetDefinition } from '../widgets'
 import { ensureCatalog, useCatalogStore } from '../store/catalog'
-import { saveDashboard, useConfigStore } from '../store/config'
+import { deleteDashboard, loadConfig, saveDashboard, useConfigStore } from '../store/config'
+import { exclusive } from '../store/bulk'
 
 type Step = 'source' | 'pick' | 'clusters' | 'preview'
 
@@ -84,7 +85,20 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
       existingIds
     })
     try {
-      for (const dashboard of built) await saveDashboard(dashboard)
+      await exclusive(async () => {
+        const saved: string[] = []
+        try {
+          for (const dashboard of built) {
+            await saveDashboard(dashboard)
+            saved.push(dashboard.id)
+          }
+        } catch (err) {
+          // all or nothing: a retry makes the whole set again, so a half left behind would sit beside it
+          for (const id of saved) await deleteDashboard(id).catch(() => {})
+          void loadConfig()
+          throw err
+        }
+      })
       onClose()
       if (built.length === 1) navigate({ name: 'dashboard', id: built[0].id })
       else navigate({ name: 'home' })
@@ -100,9 +114,16 @@ export function GenerateSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet wide title={title} onClose={onClose} scrollResetKey={step}>
       {!survey ? (
-        <p className="nh-settings__text">
-          {catalogLoading || !index ? t('Reading your items…') : t('No items could be read from this server.')}
-        </p>
+        catalogLoading || !index ? (
+          <p className="nh-settings__text">{t('Reading your items…')}</p>
+        ) : (
+          <div className="nh-settings__row">
+            <p className="nh-settings__text">{t('No items could be read from this server.')}</p>
+            <button type="button" className="nh-btn" onClick={() => ensureCatalog()}>
+              {t('Try again')}
+            </button>
+          </div>
+        )
       ) : step === 'source' ? (
         <SourceStep survey={survey} onChoose={chooseSource} />
       ) : step === 'pick' ? (

@@ -58,6 +58,7 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
   const manual = parseChoices(config.choices)
   const wantsCatalog = mode === 'list' && manual.length === 0 && typeof config.item === 'string' && config.item !== ''
   const catalogItem = useCatalogStore((s) => (wantsCatalog ? s.items.find((i) => i.name === config.item) : undefined))
+  const catalog = useCatalogStore((s) => (s.loaded ? 'ready' : s.failed ? 'failed' : 'loading'))
   useEffect(() => {
     if (wantsCatalog) ensureCatalog()
   }, [wantsCatalog])
@@ -67,7 +68,9 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
   const state = ctx.getItem(config.item)
   const liveNumber = numericValue(state)
   const live: string | null = mode === 'number' ? (liveNumber === undefined ? null : String(liveNumber)) : knownState(state?.state)
-  const optimistic = useOptimisticValue<string | null>(live, live ?? '', (a, b) => closeEnough(a, b, mode, scale.step))
+  const optimistic = useOptimisticValue<string | null>(live, live ?? '', (a, b) => closeEnough(a, b, mode, scale.step), {
+    item: config.item || undefined
+  })
   const shown = optimistic.display
 
   const parsed = mode === 'number' && shown !== null ? Number(shown) : NaN
@@ -155,7 +158,14 @@ function StepperWidget({ config, ctx }: WidgetProps<StepperConfig>) {
     <WidgetFrame label={config.label}>
       <div className={'nh-step nh-step--' + look + ' nh-step--' + finish}>
         {mode === 'list' && n === 0 ? (
-          <div className="nh-step__empty">{t('No choices - set them in the widget settings')}</div>
+          // the item's own options are still on their way, or never arrived: neither is a widget nobody set up
+          <div className="nh-step__empty">
+            {!wantsCatalog || catalog === 'ready'
+              ? t('No choices - set them in the widget settings')
+              : catalog === 'failed'
+                ? t('The item list could not be read.')
+                : t('Loading…')}
+          </div>
         ) : (
           <Look view={view} />
         )}

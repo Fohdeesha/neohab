@@ -13,6 +13,7 @@ import {
   mergeIndexes,
   shouldCapture,
   toEntry,
+  unnamedCount,
   type HistoryIndex,
   type SnapshotEntry,
   type SnapshotMeta,
@@ -76,10 +77,20 @@ describe('retention', () => {
     expect(drop.map((s) => s.id)).toEqual(['2', '1'])
   })
 
-  it('drops everything when the history is turned off', () => {
+  it('drops every unnamed point when the history is turned off', () => {
     const { keep, drop } = applyRetention([meta('1')], 0)
     expect(keep).toEqual([])
     expect(drop).toHaveLength(1)
+  })
+
+  it('never drops a point somebody named, and does not count it against the limit', () => {
+    const named = (id: string, label: string) => ({ ...meta(id), label })
+    const list = [meta('6'), named('5', 'before the move'), meta('4'), meta('3'), named('2', '  '), named('1', 'first')]
+    const { keep, drop } = applyRetention(list, 2)
+    expect(keep.map((s) => s.id)).toEqual(['6', '5', '4', '1'])
+    expect(drop.map((s) => s.id)).toEqual(['3', '2'])
+    expect(applyRetention(list, 0).keep.map((s) => s.id)).toEqual(['5', '1'])
+    expect(unnamedCount(list)).toBe(4)
   })
 })
 

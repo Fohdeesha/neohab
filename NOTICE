@@ -78,8 +78,35 @@ jsep 1.4.0
 hls.js 1.6.16
 * License: Apache License 2.0
 * Copyright: Copyright (c) 2017 Dailymotion (http://www.dailymotion.com)
+* Copyright: Copyright (c) 2013-2015 Brightcove, for src/remux/mp4-generator.js and
+  src/demux/exp-golomb.ts, which hls.js derives from videojs-contrib-hls
 * Project: https://github.com/video-dev/hls.js
 * Source: https://github.com/video-dev/hls.js
+* hls.js carries four pieces of other people's code, listed next under their own licenses.
+
+eventemitter3 5.0.1, bundled inside hls.js
+* License: MIT
+* Copyright: Copyright (c) 2014 Arnout Kazemier
+* Project: https://github.com/primus/eventemitter3
+* Source: https://github.com/primus/eventemitter3
+
+CEA-608 caption parser from dash.js, inside hls.js as src/utils/cea-608-parser.ts
+* License: BSD 3-Clause, in the DASH Industry Forum's own words below
+* Copyright: Copyright (c) 2015-2016, DASH Industry Forum.
+* Project: https://github.com/Dash-Industry-Forum/dash.js
+* Source: https://github.com/Dash-Industry-Forum/dash.js/blob/development/externals/cea608-parser.js
+
+vtt.js VTTCue, inside hls.js as src/utils/vttcue.ts
+* License: Apache License 2.0
+* Copyright: Copyright 2013 vtt.js Contributors
+* Project: https://github.com/mozilla/vtt.js
+* Source: https://github.com/mozilla/vtt.js
+
+utf.js, inside hls.js as src/utils/utf8-utils.ts
+* Copyright: Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
+* License: no named license. The author's terms, as hls.js quotes them:
+  "This library is free.  You can redistribute it and/or modify it."
+* Source: http://www.onicos.com/staff/iz/amuse/javascript/expert/utf.txt
 
 DOMPurify 3.4.15
 * License: Mozilla Public License 2.0 or Apache License 2.0, at the recipient's option.
@@ -88,6 +115,41 @@ DOMPurify 3.4.15
   copyright line; its license file is the Apache License 2.0 text.
 * Project: https://github.com/cure53/DOMPurify
 * Source: https://github.com/cure53/DOMPurify
+
+--- Written into the jar by the build ---
+
+These are build tools, but each of them puts some of its own code into the files the jar serves.
+
+Workbox 7.4.1
+* License: MIT
+* Copyright: Copyright 2018 Google LLC
+* Packages: workbox-core, workbox-precaching, workbox-routing and workbox-strategies in
+  web/workbox-<hash>.js; workbox-window in web/assets/workbox-window.prod.es5-<hash>.js; and
+  workbox-build, whose template is the body of web/sw.js
+* Project: https://github.com/GoogleChrome/workbox
+* Source: https://github.com/GoogleChrome/workbox
+
+rollup-plugin-off-main-thread 3.0.0-pre1
+* License: Apache License 2.0
+* Copyright: Copyright 2018 Google Inc. All Rights Reserved.
+* The module loader at the top of web/sw.js. Installed as
+  @trickfilm400/rollup-plugin-off-main-thread, a fork of Surma's original.
+* Project: https://github.com/Trickfilm400/rollup-plugin-off-main-thread
+* Source: https://github.com/Trickfilm400/rollup-plugin-off-main-thread
+
+vite-plugin-pwa 1.3.0
+* License: MIT
+* Copyright: Copyright (c) 2020-PRESENT Anthony Fu <https://github.com/antfu>
+* The code in the application bundle that registers the service worker.
+* Project: https://github.com/vite-pwa/vite-plugin-pwa
+* Source: https://github.com/vite-pwa/vite-plugin-pwa
+
+Vite 7.3.6
+* License: MIT
+* Copyright: Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+* The module preload helper and polyfill in the application bundle.
+* Project: https://vite.dev
+* Source: https://github.com/vitejs/vite
 
 --- Bundled as assets ---
 
@@ -369,6 +431,10 @@ notices:
   Copyright (c) 2019 Paul Henschel
   Copyright (c) 2022 Leon Sorokin
   Copyright (c) 2013 Stephen Oney, https://ericsmekens.github.io/jsep/
+  Copyright (c) 2014 Arnout Kazemier
+  Copyright 2018 Google LLC
+  Copyright (c) 2020-PRESENT Anthony Fu <https://github.com/antfu>
+  Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
   Copyright (c) Microsoft Corporation.
   Copyright (c) Icons8 LLC
   Copyright (c) 2020-2024 Bas Milius
@@ -494,3 +560,39 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+=== BSD 3-Clause License
+
+The CEA-608 caption parser inside hls.js is covered by this notice, reproduced as it appears in
+hls.js's src/utils/cea-608-parser.ts:
+
+
+The copyright in this software is being made available under the BSD License,
+included below. This software may be subject to other third party and contributor
+rights, including patent rights, and no such rights are granted under this license.
+
+Copyright (c) 2015-2016, DASH Industry Forum.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation and/or
+ other materials provided with the distribution.
+ 2. Neither the name of Dash Industry Forum nor the names of its
+ contributors may be used to endorse or promote products derived from this software
+ without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY
+ EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.

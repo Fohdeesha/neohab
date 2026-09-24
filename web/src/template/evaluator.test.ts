@@ -197,4 +197,62 @@ describe('the sandbox', () => {
     expect(evaluate('text()', s)).toBeUndefined()
     expect(evaluate('obj.a()', s)).toBeUndefined()
   })
+
+  it('cannot reach Object.prototype through __lookupGetter__ and a function call', () => {
+    expect(evaluate("''.__lookupGetter__('__proto__').call({})", s)).toBeUndefined()
+    expect(evaluate("text.__lookupGetter__('__proto__')", s)).toBeUndefined()
+    expect(evaluate("obj.__defineGetter__('x', fn)", s)).toBeUndefined()
+    expect(({} as Record<string, unknown>).x).toBeUndefined()
+  })
+
+  it('hands out no member of Object.prototype or Function.prototype, on any kind of value', () => {
+    const scope2 = scope({ text: 'hello', obj: { a: 1 }, list: [1, 2], fn: () => 1, n: 5, yes: true })
+    const members = [...Object.getOwnPropertyNames(Object.prototype), ...Object.getOwnPropertyNames(Function.prototype)]
+    const leaked: string[] = []
+    for (const receiver of ['text', 'obj', 'list', 'fn', 'n', 'yes', 'this']) {
+      for (const name of members) {
+        for (const expr of [`${receiver}.${name}`, `${receiver}["${name}"]`]) {
+          const out = evaluate(expr, scope2)
+          if (out === undefined) continue
+          const own = (Object.prototype as unknown as Record<string, unknown>)[name]
+          const fnOwn = (Function.prototype as unknown as Record<string, unknown>)[name]
+          if (out === own || out === fnOwn || out === Object.prototype || out === Function.prototype) leaked.push(expr)
+        }
+      }
+    }
+    expect(leaked).toEqual([])
+  })
+
+  it('gives a function no members at all, so call, apply and bind are out of reach', () => {
+    for (const expr of ['fn.call', 'fn.apply', 'fn.bind', 'fn.name', 'fn.length', 'fn.toString'])
+      expect(evaluate(expr, s), expr).toBeUndefined()
+  })
+
+  it('still offers what templates read and call', () => {
+    const s2 = scope({ text: 'a,b', list: ['x', 'y'], n: 3.14159, item: { state: 'ON', label: 'Lamp' } })
+    expect(evaluate('text.length', s2)).toBe(3)
+    expect(evaluate('text.split(",").join("-")', s2)).toBe('a-b')
+    expect(evaluate('text.toUpperCase()', s2)).toBe('A,B')
+    expect(evaluate('list.length', s2)).toBe(2)
+    expect(evaluate('list.indexOf("y")', s2)).toBe(1)
+    expect(evaluate('list[0]', s2)).toBe('x')
+    expect(evaluate('n.toFixed(2)', s2)).toBe('3.14')
+    expect(evaluate('item.state', s2)).toBe('ON')
+    expect(evaluate('text[0]', s2)).toBe('a')
+  })
+
+  it('reads a name a child scope inherits from its parent scope, as ng-repeat nests them', () => {
+    const parent = scope({ config: { title: 'x' } })
+    const child: Scope = Object.create(parent)
+    child.row = 1
+    expect(evaluate('this.config.title', child)).toBe('x')
+    expect(evaluate('this.row', child)).toBe(1)
+  })
+
+  it('does not let a template sort or empty a list it was handed', () => {
+    const list = [3, 1, 2]
+    const s2 = scope({ list })
+    for (const expr of ['list.sort()', 'list.reverse()', 'list.pop()', 'list.push(9)', 'list.splice(0)', 'list.fill(0)']) evaluate(expr, s2)
+    expect(list).toEqual([3, 1, 2])
+  })
 })

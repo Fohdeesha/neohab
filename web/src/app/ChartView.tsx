@@ -2,17 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store/config'
 import { navigate } from './router'
-import {
-  calendarLabel,
-  calendarWindow,
-  categoryLabels,
-  heatmapMatrix,
-  windowIsCurrent,
-  type CalendarUnit
-} from '../widgets/chart/aggregate'
-import { loadChartData } from '../widgets/chart/data'
+import { calendarLabel, calendarWindow, categoryLabels, windowIsCurrent, type CalendarUnit } from '../widgets/chart/aggregate'
+import { loadChartData, loadHeatmapData } from '../widgets/chart/data'
 import { DEFAULT_MAX_POINTS, PERIOD_CHIPS, periodMs, type ChartConfig } from '../widgets/chart/model'
-import { plotSeries, resolveChart } from '../widgets/chart/resolve'
+import { formatChartValue, plotSeries, resolveChart } from '../widgets/chart/resolve'
+import { classifyHistoryError } from '../model/persistence'
+import { appLocale } from '../i18n'
+import { PersistenceNotice, usePersistenceAdvice } from '../widgets/common/HistoryStatus'
 import type { ChartHandle } from '../widgets/chart/plot'
 import type { HeatmapHandle } from '../widgets/chart/heatmap'
 import { useShallow } from 'zustand/react/shallow'
@@ -31,7 +27,8 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
   const [unit, setUnit] = useState<CalendarUnit | 'rolling'>('rolling')
   const [offset, setOffset] = useState(0)
   const [period, setPeriod] = useState(config.period ?? '24h')
-  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error' | 'nopersistence'>('loading')
+  const advice = usePersistenceAdvice(status === 'nopersistence')
   const hostRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<ChartHandle | null>(null)
   const heatRef = useRef<HeatmapHandle | null>(null)
@@ -52,32 +49,21 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
       return
     }
     let disposed = false
-    const fmtValue = (i: number, v: number): string => {
-      const unitLabel = units[i]
-      const abs = Math.abs(v)
-      const dec = abs >= 100 ? 0 : abs >= 10 ? 1 : 2
-      let out = v.toFixed(dec)
-      if (dec > 0) out = out.replace(/\.?0+$/, '')
-      return unitLabel ? out + ' ' + unitLabel : out
-    }
+    const fmtValue = (i: number, v: number): string => formatChartValue(v, units[i])
 
     const ctrl = new AbortController()
 
     async function run() {
-      const tables = await loadChartData({
-        items: resolved.series.map((s) => s.item),
-        aggregates: resolved.series.map((s) => s.aggregate),
-        from: window.from,
-        to: window.to,
-        groupBy: resolved.heatmap ? 'none' : resolved.groupBy,
-        service: resolved.service,
-        maxPoints: resolved.heatmap ? 0 : (resolved.maxPoints ?? DEFAULT_MAX_POINTS),
-        signal: ctrl.signal
-      })
-      if (disposed || !hostRef.current) return
-
       if (resolved.heatmap) {
-        const matrix = heatmapMatrix(tables[0][0], tables[0][1], window.to, resolved.series[0].aggregate)
+        const matrix = await loadHeatmapData({
+          item: resolved.series[0].item,
+          aggregate: resolved.series[0].aggregate,
+          from: window.from,
+          to: window.to,
+          service: resolved.service,
+          signal: ctrl.signal
+        })
+        if (disposed || !hostRef.current) return
         if (matrix.cells.flat().every((c) => c === null)) {
           setStatus('empty')
           return
@@ -87,7 +73,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         if (!heatRef.current) {
           heatRef.current = hm.createHeatmap({
             host: hostRef.current,
-            weekdays: categoryLabels('dayOfWeek'),
+            weekdays: categoryLabels('dayOfWeek', appLocale()),
             formatValue: (v) => fmtValue(0, v),
             title: t('Heatmap of {{name}} by hour and weekday', { name: resolved.series[0].label })
           })
@@ -97,6 +83,17 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         return
       }
 
+      const tables = await loadChartData({
+        items: resolved.series.map((s) => s.item),
+        aggregates: resolved.series.map((s) => s.aggregate),
+        from: window.from,
+        to: window.to,
+        groupBy: resolved.groupBy,
+        service: resolved.service,
+        maxPoints: resolved.maxPoints ?? DEFAULT_MAX_POINTS,
+        signal: ctrl.signal
+      })
+      if (disposed || !hostRef.current) return
       if (tables.every((tbl) => tbl[0].length === 0)) {
         setStatus('empty')
         return
@@ -109,7 +106,9 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
           series: plotSeries(resolved.series),
           thresholds: resolved.thresholds,
           xMode: resolved.categorical ? 'category' : 'time',
-          categoryLabels: resolved.categorical ? categoryLabels(resolved.groupBy) : undefined,
+          categoryLabels: resolved.categorical ? categoryLabels(resolved.groupBy, appLocale()) : undefined,
+          locale: appLocale(),
+          ariaLabel: t('Chart of {{names}}', { names: resolved.series.map((s) => s.label).join(', ') }),
           yMin: resolved.yMin,
           yMax: resolved.yMax,
           y2Min: resolved.y2Min,
@@ -125,8 +124,8 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
     }
 
     setStatus('loading')
-    run().catch(() => {
-      if (!disposed) setStatus('error')
+    run().catch((err: unknown) => {
+      if (!disposed) setStatus(classifyHistoryError(err))
     })
     return () => {
       disposed = true
@@ -221,7 +220,7 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
               onClick={() => setOffset(offset - 1)}>
               ◀
             </button>
-            <span className="nh-chartview__label">{calendarLabel(unit, window)}</span>
+            <span className="nh-chartview__label">{calendarLabel(unit, window, appLocale())}</span>
             <button
               type="button"
               className="nh-iconbtn"
@@ -244,7 +243,15 @@ export function ChartView({ dashboardId, widgetId }: { dashboardId: string; widg
         <div className={'nh-chart' + (resolved.heatmap ? ' nh-heatmap' : '')} ref={hostRef}>
           {status !== 'ready' ? (
             <span className="nh-chart__status">
-              {status === 'loading' ? t('Loading history…') : status === 'empty' ? t('No history data') : t('Could not load history')}
+              {status === 'loading' ? (
+                t('Loading history…')
+              ) : status === 'empty' ? (
+                t('No history data')
+              ) : status === 'nopersistence' ? (
+                <PersistenceNotice advice={advice} />
+              ) : (
+                t('Could not load history')
+              )}
             </span>
           ) : null}
         </div>

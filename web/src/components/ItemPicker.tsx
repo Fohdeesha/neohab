@@ -8,7 +8,6 @@ interface ItemPickerProps {
   id: string
   value: string
   onChange: (itemName: string) => void
-  allowUnknown?: boolean
   itemTypes?: string[]
   placeholder?: string
 }
@@ -30,10 +29,11 @@ function typeMatches(item: Item, types?: string[]): boolean {
 const MAX_RESULTS = 200
 const MARGIN = 8
 
-export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowUnknown }: ItemPickerProps) {
+export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: ItemPickerProps) {
   const { t } = useTranslation()
   const items = useCatalogStore((s) => s.items)
   const loaded = useCatalogStore((s) => s.loaded)
+  const failed = useCatalogStore((s) => s.failed)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
@@ -72,6 +72,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
     setOpen(true)
     setHighlight(0)
     openedAt.current = Date.now()
+    ensureCatalog({ refresh: true })
   }
 
   useEffect(() => {
@@ -152,6 +153,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
           role="combobox"
           aria-expanded={open}
           aria-controls={id + '-list'}
+          aria-activedescendant={open && matches[highlight] ? `${id}-opt-${highlight}` : undefined}
           autoComplete="off"
           value={query ?? value}
           placeholder={placeholder ?? t('Search or pick an item…')}
@@ -161,11 +163,9 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
             if (!open) openList()
             setHighlight(0)
             // typing filters, it does not bind: writing each keystroke through leaves a widget bound to a half-typed name
-            if (allowUnknown || text === '' || items.some((i) => i.name === text)) onChange(text)
+            if (text === '' || items.some((i) => i.name === text)) onChange(text)
           }}
-          onBlur={() => {
-            if (!allowUnknown) setQuery(null)
-          }}
+          onBlur={() => setQuery(null)}
           onFocus={() => {
             if (!restoringFocus.current) openList()
           }}
@@ -222,6 +222,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
           {matches.map((item, i) => (
             <li
               key={item.name}
+              id={`${id}-opt-${i}`}
               role="option"
               aria-selected={item.name === value}
               className={
@@ -246,7 +247,16 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder, allowU
           {truncated > 0 ? (
             <li className="nh-picker__empty">{t('…and {{count}} more - type to narrow the list', { count: truncated })}</li>
           ) : null}
-          {matches.length === 0 ? <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li> : null}
+          {matches.length === 0 && failed ? (
+            <li className="nh-picker__empty">
+              {t('The item list could not be read.')}{' '}
+              <button type="button" className="nh-report__link" onPointerDown={(e) => e.preventDefault()} onClick={() => ensureCatalog()}>
+                {t('Try again')}
+              </button>
+            </li>
+          ) : matches.length === 0 ? (
+            <li className="nh-picker__empty">{loaded ? t('No matching items') : t('Loading items…')}</li>
+          ) : null}
         </ul>
       ) : null}
     </div>

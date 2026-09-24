@@ -18,7 +18,9 @@ import {
   type PartialPlan
 } from '../model/partial'
 import type { CustomWidgetDef } from '../model/widgetdef'
-import { exportableRule, isImportableSceneRule, NEOHAB_TAG, type SceneRule } from '../model/presets'
+import { exportableRule, isImportableSceneRule, NEOHAB_TAG, rulesFromBackup, type SceneRule } from '../model/presets'
+import { idOfUid, normaliseConfig } from '../model/normalise'
+import { exclusive } from './bulk'
 import { createOrUpdateRule, deleteRule, listRuleSummaries, listRulesFull, upsertRule } from '../api/rules'
 import type { Theme } from '../themes/themes'
 
@@ -143,7 +145,7 @@ function parseComponents(components: UIComponent[]) {
       incompatible.push(c)
       continue
     }
-    const config = named(result.config)
+    const config = normaliseConfig(kind, c.uid, result.config)
     if (kind === 'dashboard') dashboards.push(config as unknown as Dashboard)
     else if (kind === 'theme') customThemes.push(config as unknown as Theme)
     else if (kind === 'widgetdef') widgetDefs.push(config as unknown as CustomWidgetDef)
@@ -159,14 +161,6 @@ function parseComponents(components: UIComponent[]) {
 
 function byName<T extends { name?: string; id?: string }>(a: T, b: T): number {
   return String(a.name ?? a.id ?? '').localeCompare(String(b.name ?? b.id ?? ''))
-}
-
-// the name is drawn on nearly every screen at once, so a non-string one takes Home, the sidebar and Settings
-// together
-export function named(config: Record<string, unknown>): Record<string, unknown> {
-  const name = config?.name
-  if (name === undefined || typeof name === 'string') return config
-  return { ...config, name: String(name) }
 }
 
 // a request with no timeout does not fail, it pends - a wall panel would sit on "loading" for ever
@@ -223,7 +217,17 @@ export function onBeforeConfigWrite(fn: (kind: ConfigWriteKind) => Promise<void>
   beforeWrite = fn
 }
 
+// After a failed load the store holds defaults, not the server's configuration, so a save from it would
+// write those defaults over the real thing. A bulk import reads the server for itself and may go ahead.
+function assertWritable(): void {
+  const s = useConfigStore.getState()
+  if (!s.loaded || s.error !== null) {
+    throw new Error(i18n.t('Nothing can be saved until the configuration has loaded. Reload the page to try again.'))
+  }
+}
+
 async function beforeConfigWrite(kind: ConfigWriteKind = 'single'): Promise<void> {
+  if (kind === 'single') assertWritable()
   if (beforeWrite) await beforeWrite(kind)
 }
 
@@ -246,10 +250,6 @@ async function upsert<C>(component: UIComponent<C>): Promise<void> {
   useConfigStore.setState((s) => ({ serverUids: new Set([...s.serverUids, component.uid]) }))
 }
 
-export function getDashboard(id: string): Dashboard | undefined {
-  return useConfigStore.getState().dashboards.find((d) => d.id === id)
-}
-
 export async function saveDashboard(dashboard: Dashboard): Promise<void> {
   await beforeConfigWrite()
   await upsert(dashboardComponent(dashboard))
@@ -270,11 +270,16 @@ export async function deleteDashboard(id: string): Promise<void> {
   }))
 }
 
-export async function saveSettings(patch: Partial<AppSettings>): Promise<string | null> {
-  const next = { ...useConfigStore.getState().settings, ...patch }
-  useConfigStore.setState({ settings: next })
-  await beforeConfigWrite()
+/**
+ * `record: false` skips the restore point, for a write that is itself about the history: taking one
+ * while lowering the limit would push out one more old point than the person was told about.
+ */
+export async function saveSettings(patch: Partial<AppSettings>, opts?: { record?: boolean }): Promise<string | null> {
   try {
+    assertWritable()
+    const next = { ...useConfigStore.getState().settings, ...patch }
+    useConfigStore.setState({ settings: next })
+    if (opts?.record !== false) await beforeConfigWrite()
     await upsert(settingsComponent(next))
     return null
   } catch (err) {
@@ -352,7 +357,8 @@ export async function saveBackground(bg: CustomBackground): Promise<void> {
 
 export async function collectUnusedBackgrounds(alsoKeep: (string | undefined)[] = []): Promise<void> {
   const s = useConfigStore.getState()
-  if (!s.loaded) return
+  // deleting on incomplete knowledge: a store that failed to load holds no references at all
+  if (!s.loaded || s.error !== null) return
   const referenced = collectBackgroundRefs([s.settings, s.dashboards, s.widgetDefs, s.incompatible, alsoKeep])
   for (const bg of s.backgrounds) {
     if (referenced.has(bg.id)) continue
@@ -379,20 +385,7 @@ export interface ExportBundle {
 }
 
 export async function buildExportBundle(includeBackgrounds = true): Promise<ExportBundle> {
-  const s = useConfigStore.getState()
-  let components: UIComponent[]
-  if (s.serverUids.size > 0) {
-    components = await listComponents()
-  } else {
-    components = [
-      settingsComponent(s.settings) as unknown as UIComponent,
-      ...s.dashboards.map((d) => dashboardComponent(d)),
-      ...s.customThemes.map((t) => themeComponent(t)),
-      ...s.widgetDefs.map((d) => widgetDefComponent(d)),
-      ...s.customIcons.map((i) => iconComponent(i)),
-      ...s.backgrounds.map((b) => backgroundComponent(b))
-    ] as unknown as UIComponent[]
-  }
+  let components = await allComponents()
   if (!includeBackgrounds) {
     components = components.filter((c) => !c.uid.startsWith(BACKGROUND_PREFIX))
   }
@@ -427,56 +420,92 @@ export async function buildExportBundle(includeBackgrounds = true): Promise<Expo
 
 export function validateBundle(bundle: unknown): string | null {
   const b = bundle as Partial<ExportBundle> | null
-  if (!b || typeof b !== 'object') return 'Not a neohab backup file'
-  if (b.manifest?.app !== 'neohab') return 'Not a neohab backup file'
-  if (b.manifest.formatVersion !== 1) return `Unsupported backup version: ${String(b.manifest.formatVersion)}`
-  if (!Array.isArray(b.components)) return 'Backup contains no components'
-  if (b.components.some((c) => typeof c?.uid !== 'string' || typeof c?.component !== 'string')) {
-    return 'Backup contains invalid components'
+  if (!b || typeof b !== 'object') return i18n.t('Not a neohab backup file')
+  if (b.manifest?.app !== 'neohab') return i18n.t('Not a neohab backup file')
+  if (b.manifest.formatVersion !== 1)
+    return i18n.t('Unsupported backup version: {{version}}', { version: String(b.manifest.formatVersion) })
+  if (!Array.isArray(b.components)) return i18n.t('Backup contains no components')
+  if (b.components.some((c) => typeof c?.uid !== 'string' || typeof c?.component !== 'string' || kindOf(c.uid) === null)) {
+    return i18n.t('Backup contains invalid components')
   }
+  const twice = duplicateUid(b.components)
+  if (twice) return i18n.t('Backup lists {{uid}} twice', { uid: twice })
   if (b.scenes !== undefined) {
     if (!Array.isArray(b.scenes) || !b.scenes.every((r) => isImportableSceneRule(r))) {
-      return 'Backup contains invalid presets'
+      return i18n.t('Backup contains invalid presets')
     }
   }
   return null
 }
 
-export type ImportMode = 'replace' | 'merge'
+function duplicateUid(components: { uid: string }[]): string | null {
+  const seen = new Set<string>()
+  for (const c of components) {
+    if (seen.has(c.uid)) return c.uid
+    seen.add(c.uid)
+  }
+  return null
+}
 
-export async function importBundle(bundle: ExportBundle, mode: ImportMode): Promise<void> {
-  await beforeConfigWrite('bulk')
-  const existing = await listComponents()
+// what gets written: the id always comes from the uid, which is the storage key, so a file cannot make a
+// component stand in for a different one
+function asStored(c: UIComponent): UIComponent {
+  const kind = kindOf(c.uid)
+  if (!kind || kind === 'settings') return c
+  const config = c.config && typeof c.config === 'object' && !Array.isArray(c.config) ? c.config : {}
+  return { ...c, config: { ...config, id: idOfUid(c.uid) } }
+}
+
+async function writeAll(components: UIComponent[], existing: UIComponent[]): Promise<void> {
   const have = new Set(existing.map((c) => c.uid))
-
-  for (const c of bundle.components) {
+  for (const c of components) {
     if (have.has(c.uid)) await updateComponent(c)
     else await addComponent(c)
+    have.add(c.uid)
   }
+}
 
-  if (mode === 'replace') {
-    const keep = new Set(bundle.components.map((c) => c.uid))
-    for (const c of existing) {
-      if (!keep.has(c.uid)) await deleteComponent(c.uid)
-    }
-  }
+export type ImportMode = 'replace' | 'merge'
 
-  if (Array.isArray(bundle.scenes)) {
-    const scenes = bundle.scenes.filter((r) => isImportableSceneRule(r))
-    const haveRules = new Set((await listRuleSummaries().catch(() => [])).map((r) => r.uid))
-    for (const r of scenes) {
-      if (haveRules.has(r.uid)) await upsertRule(r)
-      else await createOrUpdateRule(r)
-    }
-    if (mode === 'replace') {
-      const keep = new Set(scenes.map((r) => r.uid))
-      const existingRules = await listRulesFull(NEOHAB_TAG).catch(() => [] as SceneRule[])
-      for (const r of existingRules) {
-        if (r.editable !== false && isImportableSceneRule(r) && !keep.has(r.uid)) await deleteRule(r.uid)
+export function importBundle(bundle: ExportBundle, mode: ImportMode): Promise<void> {
+  return exclusive(async () => {
+    try {
+      await beforeConfigWrite('bulk')
+      const existing = await listComponents()
+      const components = bundle.components.map(asStored)
+      await writeAll(components, existing)
+
+      if (mode === 'replace') {
+        const keep = new Set(components.map((c) => c.uid))
+        // a backup saved without its images still points at them, and replacing must not delete what it uses
+        const used = collectBackgroundRefs(components.map((c) => c.config))
+        for (const c of existing) {
+          if (keep.has(c.uid)) continue
+          if (c.uid.startsWith(BACKGROUND_PREFIX) && used.has(c.uid.slice(BACKGROUND_PREFIX.length))) continue
+          await deleteComponent(c.uid)
+        }
       }
+
+      if (Array.isArray(bundle.scenes)) {
+        const onServer = await listRulesFull(NEOHAB_TAG).catch(() => [] as SceneRule[])
+        const rules = rulesFromBackup(bundle.scenes, onServer)
+        const haveRules = new Set((await listRuleSummaries().catch(() => [])).map((r) => r.uid))
+        for (const r of rules) {
+          if (haveRules.has(r.uid)) await upsertRule(r)
+          else await createOrUpdateRule(r)
+        }
+        if (mode === 'replace') {
+          const keep = new Set(rules.map((r) => r.uid))
+          for (const r of onServer) {
+            if (r.editable !== false && isImportableSceneRule(r) && !keep.has(r.uid)) await deleteRule(r.uid)
+          }
+        }
+      }
+    } finally {
+      // a failure halfway leaves the server changed, and the screen has to show what it now holds
+      await loadConfig()
     }
-  }
-  await loadConfig()
+  })
 }
 
 async function allComponents(): Promise<UIComponent[]> {
@@ -516,20 +545,21 @@ export interface PartialImportResult {
   written: number
 }
 
-export async function importPartialBundle(bundle: PartialBundle, mode: PartialImportMode): Promise<PartialImportResult> {
-  await beforeConfigWrite('bulk')
-  const existing = await listComponents()
-  const resolved = resolvePartialImport(bundle, existing, mode, newWidgetId)
-  const have = new Set(existing.map((c) => c.uid))
-  for (const c of resolved.components) {
-    if (have.has(c.uid)) await updateComponent(c)
-    else await addComponent(c)
-  }
-  await loadConfig()
-  return {
-    primaryUid: resolved.primaryUid,
-    renamed: resolved.renamed,
-    reused: resolved.reused,
-    written: resolved.components.length
-  }
+export function importPartialBundle(bundle: PartialBundle, mode: PartialImportMode): Promise<PartialImportResult> {
+  return exclusive(async () => {
+    try {
+      await beforeConfigWrite('bulk')
+      const existing = await listComponents()
+      const resolved = resolvePartialImport(bundle, existing, mode, newWidgetId)
+      await writeAll(resolved.components, existing)
+      return {
+        primaryUid: resolved.primaryUid,
+        renamed: resolved.renamed,
+        reused: resolved.reused,
+        written: resolved.components.length
+      }
+    } finally {
+      await loadConfig()
+    }
+  })
 }

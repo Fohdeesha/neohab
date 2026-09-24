@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../../i18n'
 import type { WidgetProps } from '../types'
 import { buildForecastView, buildItemsView, clampInt, itemsBinding, locationOf, type ViewOptions } from './model'
 import { useWeather } from './useWeather'
@@ -11,10 +12,10 @@ const COL_ICON = 46
 const HERO_ICON = 104
 
 export function WeatherDetail({ config, ctx }: WidgetProps<Record<string, unknown>>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { source, data, sys, located, failed } = useWeather(config)
 
-  const opts: ViewOptions = { days: 7, hours: SHEET_HOURS, showPrecip: true, lang: i18n.language || 'en', t }
+  const opts: ViewOptions = { days: 7, hours: SHEET_HOURS, showPrecip: true, lang: appLocale(), t }
 
   let view = null
   let message: string | null = null

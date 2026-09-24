@@ -98,23 +98,6 @@ const WIDGETS = [
     defaultSourceClock(14),
 ]
 
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: UID,
-    component: 'neohab:dashboard',
-    config: {
-      version: 1,
-      id: 'nh-e2e-clocktime',
-      name: 'nh-e2e-clocktime',
-      columns: 12,
-      rowHeight: 'match',
-      widgets: WIDGETS,
-    },
-  }),
-})
-
 const browser = await launch()
 const errs = []
 
@@ -230,6 +213,24 @@ const closeSheet = async (page) => {
 }
 
 try {
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 1,
+        id: 'nh-e2e-clocktime',
+        name: 'nh-e2e-clocktime',
+        columns: 12,
+        rowHeight: 'match',
+        widgets: WIDGETS,
+      },
+    }),
+  })
+
   const { page } = await openPage(null)
   const all = await readAll(page)
   ok('every seeded clock rendered', (all?.cells ?? []).length === WIDGETS.length, `cells=${all?.cells?.length}`)

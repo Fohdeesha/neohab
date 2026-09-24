@@ -207,10 +207,3 @@ export function classify(item: Item, index: TagIndex): Semantics {
   }
   return { kind: null }
 }
-
-export function hasSemanticModel(items: Item[], index: TagIndex): boolean {
-  return items.some((item) => {
-    const kind = classify(item, index).kind
-    return kind === 'location' || kind === 'equipment'
-  })
-}

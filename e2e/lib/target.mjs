@@ -2,31 +2,46 @@
  * Target configuration for the e2e suites.
  *
  * The suites run against a live openHAB server with the neohab jar deployed. Nothing about
- * that server is hardcoded here: copy `target.example.json` to `target.local.json` (gitignored)
- * next to the suites and fill in your server, token and test items. Environment variables
- * override the file: NEOHAB_E2E_BASE, NEOHAB_E2E_TOKEN, NEOHAB_E2E_TOKEN_FILE,
- * NEOHAB_E2E_TARGET (path to an alternative target json).
+ * that server is hardcoded here: copy `target.example.json` to a `target.<name>.json` of your own
+ * (gitignored) and fill in your server, token and test items, then name that file in
+ * NEOHAB_E2E_TARGET on every command. There is no default. Environment variables override the
+ * file: NEOHAB_E2E_BASE, NEOHAB_E2E_TOKEN, NEOHAB_E2E_TOKEN_FILE.
+ *
+ * `"production": true` in a target file marks a server somebody relies on: the wipe tools and the
+ * wipe-cycle suites refuse to run against it, and suites that would create items skip that part.
  *
  * The test items are commanded by some suites (and always restored to their recorded initial
  * state) - see README.md for the exact semantics before pointing them at real devices.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const here = dirname(fileURLToPath(import.meta.url))
-const cfgPath = process.env.NEOHAB_E2E_TARGET ?? resolve(here, '..', 'target.local.json')
+if (!process.env.NEOHAB_E2E_TARGET) {
+  console.error(
+    'e2e: NEOHAB_E2E_TARGET is not set, so there is no server to run against.\n' +
+      'Name the target file on every command, for example:\n' +
+      '  NEOHAB_E2E_TARGET=./target.test.json node e2e-corners.mjs\n' +
+      'There is no default target, so nothing can reach a server by accident (see e2e/README.md).'
+  )
+  process.exit(2)
+}
+
+export const TARGET_FILE = resolve(process.env.NEOHAB_E2E_TARGET)
+const cfgPath = TARGET_FILE
 
 let cfg
 try {
   cfg = JSON.parse(readFileSync(cfgPath, 'utf8'))
 } catch {
   console.error(
-    `e2e: no target configuration at ${cfgPath}\n` +
-      'Copy e2e/target.example.json to e2e/target.local.json and fill it in (see e2e/README.md).'
+    `e2e: no readable target configuration at ${cfgPath}\n` +
+      'Copy e2e/target.example.json, fill it in and point NEOHAB_E2E_TARGET at it (see e2e/README.md).'
   )
   process.exit(2)
 }
+
+// anything but absent or false counts, so a typo in the flag fails safe
+export const PRODUCTION = cfg.production !== undefined && cfg.production !== false
 
 export const BASE = String(process.env.NEOHAB_E2E_BASE ?? cfg.baseUrl ?? '').replace(/\/+$/, '')
 if (!BASE) {

@@ -19,7 +19,7 @@ import { hasTabletLayout, type Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs, useEditorStore } from '../store/editor'
 import { useCatalogStore } from '../store/catalog'
 import { useConfigStore } from '../store/config'
-import { defSettings, mergedSettingValues, type WidgetDefSetting } from '../model/widgetdef'
+import { defSettings, mergedSettingValues, settingChoices, settingKind, type WidgetDefSetting } from '../model/widgetdef'
 import { NumberSetting } from '../components/NumberSetting'
 import { mixedContent } from '../model/url'
 import { parseColor } from '../themes/contrast'
@@ -277,6 +277,8 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
     return <p className="nh-settings__text">{t('Custom widget “{{id}}” was not found on this server.', { id: defId })}</p>
   }
   const schema = defSettings(def)
+  // a HABPanel template reads an icon as a name in an openHAB iconset, which is not what the icon picker writes
+  const habpanelIcons = !Array.isArray(def.settings)
   if (schema.length === 0) {
     return <p className="nh-settings__text">{t('“{{name}}” has no settings.', { name: def.name })}</p>
   }
@@ -288,7 +290,7 @@ function CustomWidgetFields({ widget, defId }: { widget: WidgetInstance; defId: 
     <>
       <h3 className="nh-form__section">{t('“{{name}}” settings', { name: def.name })}</h3>
       {schema.map((s) => (
-        <CustomField key={s.id} setting={s} value={values[s.id]} onChange={(v) => setValue(s.id, v)} />
+        <CustomField key={s.id} setting={s} value={values[s.id]} habpanelIcons={habpanelIcons} onChange={(v) => setValue(s.id, v)} />
       ))}
     </>
   )
@@ -313,10 +315,70 @@ function numberValue(value: unknown): number | '' {
   return ''
 }
 
-function CustomField({ setting, value, onChange }: { setting: WidgetDefSetting; value: unknown; onChange: (v: unknown) => void }) {
+function CustomField({
+  setting,
+  value,
+  habpanelIcons,
+  onChange
+}: {
+  setting: WidgetDefSetting
+  value: unknown
+  habpanelIcons: boolean
+  onChange: (v: unknown) => void
+}) {
+  const { t } = useTranslation()
   const id = 'cw-' + setting.id
   const label = setting.label ?? setting.id
-  switch (setting.type) {
+  const kind = settingKind(setting)
+  const choices = kind === 'choices' ? settingChoices(setting) : []
+  if (kind === 'choices' && choices.length > 0) {
+    const current = typeof value === 'string' ? value : ''
+    return (
+      <label className="nh-field" htmlFor={id}>
+        <span className="nh-field__label">{label}</span>
+        <select id={id} value={current} onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}>
+          {choices.includes(current) ? null : <option value={current}>{current}</option>}
+          {choices.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  if (kind === 'color') {
+    const hasValue = typeof value === 'string' && value !== ''
+    return (
+      <label className="nh-field nh-field--row" htmlFor={id}>
+        <span className="nh-field__label">{label}</span>
+        <span className="nh-colorfield">
+          {hasValue ? (
+            <button type="button" className="nh-colorfield__clear" onClick={() => onChange(undefined)}>
+              {t('Clear')}
+            </button>
+          ) : null}
+          <input
+            id={id}
+            type="color"
+            value={(hasValue ? toHex(value as string) : null) ?? '#888888'}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </span>
+      </label>
+    )
+  }
+  if (kind === 'icon' && !habpanelIcons) {
+    return (
+      <div className="nh-field">
+        <label className="nh-field__label" htmlFor={id}>
+          {label}
+        </label>
+        <IconPicker id={id} value={typeof value === 'string' ? value : ''} onChange={onChange} />
+      </div>
+    )
+  }
+  switch (kind) {
     case 'item':
       return (
         <div className="nh-field">
@@ -412,30 +474,16 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       )
     case 'select': {
       const current = typeof value === 'string' ? value : ''
-      const loose = field.options.filter((o) => !o.group)
-      const groups: string[] = []
-      for (const o of field.options) if (o.group && !groups.includes(o.group)) groups.push(o.group)
       return (
         <label className="nh-field" htmlFor={id}>
           <span className="nh-field__label">{t(field.label)}</span>
           <select id={id} value={current} onChange={(e) => set(e.target.value === '' ? undefined : e.target.value)}>
             {/* placeholder row only when nothing (not even a default) resolves */}
             {field.options.some((o) => o.value === current) ? null : <option value={current} />}
-            {loose.map((o) => (
+            {field.options.map((o) => (
               <option key={o.value} value={o.value}>
                 {t(o.label)}
               </option>
-            ))}
-            {groups.map((g) => (
-              <optgroup key={g} label={g}>
-                {field.options
-                  .filter((o) => o.group === g)
-                  .map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-              </optgroup>
             ))}
           </select>
         </label>

@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
-import { categoryLabels, heatmapMatrix } from './aggregate'
+import { categoryLabels } from './aggregate'
 import { DEFAULT_MAX_POINTS, PERIOD_CHIPS, PERIOD_IDS, chipPeriods, effectiveSeries, periodMs, type ChartConfig } from './model'
-import { loadChartData, parseState, type SeriesTable } from './data'
-import { numOpt, plotSeries, resolveChart } from './resolve'
+import { loadChartData, loadHeatmapData, parseState, type SeriesTable } from './data'
+import { formatChartValue, numOpt, plotSeries, resolveChart } from './resolve'
+import { intervalMs } from '../../model/interval'
+import { appLocale } from '../../i18n'
 import { navigate, useRoute } from '../../app/router'
 import { classifyHistoryError } from '../../model/persistence'
 import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus'
@@ -50,6 +52,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ctxRef = useRef(ctx)
   ctxRef.current = ctx
+  const liveRef = useRef(false)
 
   const seriesKey = JSON.stringify(resolved)
   const optionsKey =
@@ -74,30 +77,19 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
 
     const windowMs = periodMs(period)
 
-    const fmtValue = (i: number, v: number): string => {
-      const unit = ctxRef.current.getItem(resolved[i]?.item ?? '')?.unit
-      const abs = Math.abs(v)
-      const dec = abs >= 100 ? 0 : abs >= 10 ? 1 : 2
-      let out = v.toFixed(dec)
-      if (dec > 0) out = out.replace(/\.?0+$/, '')
-      return unit ? out + ' ' + unit : out
-    }
+    const fmtValue = (i: number, v: number): string => formatChartValue(v, ctxRef.current.getItem(resolved[i]?.item ?? '')?.unit)
 
     async function loadHeatmap() {
       const to = Date.now() / 1000
-      const from = to - windowMs / 1000
-      const [table] = await loadChartData({
-        items: [resolved[0].item],
-        aggregates: [resolved[0].aggregate],
-        from,
+      const matrix = await loadHeatmapData({
+        item: resolved[0].item,
+        aggregate: resolved[0].aggregate,
+        from: to - windowMs / 1000,
         to,
-        groupBy: 'none',
         service: config.service || undefined,
-        maxPoints: 0, // the matrix does the reducing; decimating first would blur the cells
         signal: ctrl.signal
       })
       if (disposed) return
-      const matrix = heatmapMatrix(table[0], table[1], to, resolved[0].aggregate)
       if (matrix.cells.flat().every((c) => c === null)) {
         heatRef.current?.destroy()
         heatRef.current = null
@@ -109,7 +101,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       if (!heatRef.current) {
         heatRef.current = hm.createHeatmap({
           host: hostRef.current,
-          weekdays: categoryLabels('dayOfWeek'),
+          weekdays: categoryLabels('dayOfWeek', appLocale()),
           formatValue: (v) => fmtValue(0, v),
           title: t('Heatmap of {{name}} by hour and weekday', { name: resolved[0].label })
         })
@@ -133,6 +125,21 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
       if (disposed) return
       tablesRef.current = tables
       lastLiveRef.current.clear()
+      // persistence may not have stored the latest change yet (an everyMinute strategy, rrd4j), and a
+      // refresh would otherwise drop the tail the live updates drew until the item changed again
+      if (liveRef.current) {
+        const nowS = Date.now() / 1000
+        tables.forEach((tbl, i) => {
+          const st = ctxRef.current.getItem(resolved[i].item)
+          const v = st ? parseState(st.state) : null
+          if (v === null) return
+          lastLiveRef.current.set(i, v)
+          if (tbl[1][tbl[1].length - 1] !== v) {
+            tbl[0].push(nowS)
+            tbl[1].push(v)
+          }
+        })
+      }
       if (tables.every((tbl) => tbl[0].length === 0)) {
         handleRef.current?.destroy()
         handleRef.current = null
@@ -147,7 +154,9 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
           series: plotSeries(resolved),
           thresholds,
           xMode: categorical ? 'category' : 'time',
-          categoryLabels: categorical ? categoryLabels(groupBy) : undefined,
+          categoryLabels: categorical ? categoryLabels(groupBy, appLocale()) : undefined,
+          locale: appLocale(),
+          ariaLabel: t('Chart of {{names}}', { names: resolved.map((s) => s.label).join(', ') }),
           yMin: numOpt(config.yMin),
           yMax: numOpt(config.yMax),
           y2Min: numOpt(config.y2Min),
@@ -172,10 +181,12 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     run().catch((err: unknown) => {
       if (!disposed) setStatus(classifyHistoryError(err))
     })
-    const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : 300
-    const timer = setInterval(() => {
-      if (!zoomedRef.current) void run().catch(() => {})
-    }, refreshSec * 1000)
+    const timer = setInterval(
+      () => {
+        if (!zoomedRef.current) void run().catch(() => {})
+      },
+      intervalMs(config.refresh, { unit: 's', min: 10, max: 86_400, fallback: 300 })
+    )
 
     return () => {
       disposed = true
@@ -194,6 +205,7 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
   }, [seriesKey, optionsKey, period, config.service, config.refresh])
 
   const liveTracked = config.live !== false && !grouped && !heatmap
+  liveRef.current = liveTracked
   const liveKey = liveTracked ? JSON.stringify(resolved.map((s) => ctx.getItem(s.item)?.state)) : ''
   useEffect(() => {
     if (!liveTracked || status !== 'ready') return
@@ -246,7 +258,8 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
 
   const showChips = config.picker !== false && chips.length > 0
   const showLegend = config.legend !== false && resolved.length >= 2 && !heatmap
-  const label = config.label ?? (resolved.length === 1 ? resolved[0].label : undefined)
+  // WidgetHost takes the name away for "not at all"; the series' own name must not stand in for it
+  const label = config.labelMode === 'none' ? undefined : (config.label ?? (resolved.length === 1 ? resolved[0].label : undefined))
   const onDashboard = route.name === 'dashboard' ? route.id : null
   const canExpand = config.expand !== false && !ctx.editing && onDashboard !== null
 

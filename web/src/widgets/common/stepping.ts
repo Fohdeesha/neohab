@@ -1,5 +1,6 @@
 import { stepDecimals } from './itemControl'
 import type { NumericScale } from './itemControl'
+import { stateMatches } from './stateIcon'
 
 export function snapToStep(v: number, step: number): number {
   return Number(v.toFixed(stepDecimals(step)))
@@ -22,10 +23,8 @@ export function fractionOf(v: number | undefined, scale: NumericScale): number {
   return Math.min(1, Math.max(0, Number.isFinite(f) ? f : 0))
 }
 
+// the one rule for "is this command the state", so a choice of 1 reads as current against 1.0 on the tile,
+// the stepper and the detail sheet alike
 export function sameCommand(a: string, b: string): boolean {
-  if (a === b) return true
-  if (a.trim() === '' || b.trim() === '') return false
-  const x = Number(a)
-  const y = Number(b)
-  return Number.isFinite(x) && Number.isFinite(y) && x === y
+  return stateMatches(a, b)
 }

@@ -4,6 +4,9 @@
 // nh_e2e_logdim (a Dimmer bound to nothing) Writes a few WARN.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-log'
 const DASH = 'nh-e2e-log'
@@ -507,12 +510,16 @@ try {
   const target = page.locator('.nh-widget:has(.nh-widget__labeltext:text-is("Events"))').first()
   await target.scrollIntoViewIfNeeded().catch(() => {})
   const b = await target.boundingBox().catch(() => null)
+  let heldHash = null
   if (b) {
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
     await page.mouse.down()
     await sleep(750)
+    // the hold has fired by now; the page it opens must wait for the press to end, or the release lands on it
+    heldHash = await page.evaluate(() => location.hash).catch(() => null)
     await page.mouse.up()
   }
+  ok('the full-screen log waits for the press to end before it opens', heldHash === '#/d/' + DASH, String(heldHash))
   await page.waitForSelector('.nh-logview', { timeout: 6000 }).catch(() => {})
   const opened = await probe(page, () => ({
     hash: location.hash,

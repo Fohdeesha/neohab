@@ -18,7 +18,7 @@ body {
   background-attachment: fixed;
 }
 ::selection {
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
 }
 /* Every widget is a lit panel: a translucent navy surface with the page's light falling
@@ -192,8 +192,8 @@ body {
   border-color: color-mix(in srgb, var(--nh-primary) 40%, transparent);
 }
 .nh-selection__btn--active {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
 }
 .nh-switch--on .nh-switch__track {
@@ -264,6 +264,9 @@ body {
 .nh-iconbtn {
   border-color: transparent;
   color: color-mix(in srgb, var(--nh-primary) 45%, var(--nh-text));
+}
+.nh-iconbtn--live {
+  color: var(--nh-primary);
 }
 /* The filled accent is the board's selected column: a lit plate rather than a flat fill -
    the same light falls across it, and its lower edge sinks. White content, so the dark-ink

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { numericScale } from '../common/itemControl'
 import {
-  LOOK_AXIS,
   LOOK_FLOOR,
   arrowsOf,
   atLimit,
@@ -59,10 +58,9 @@ describe('reading a stored configuration', () => {
     for (const v of [false, 'true', 1, null, undefined, {}]) expect(wrapOf(v)).toBe(false)
   })
 
-  it('gives every look a floor and an axis', () => {
+  it('gives every look a floor', () => {
     for (const look of ['stack', 'pair', 'spinner', 'split', 'carousel', 'range'] as const) {
       expect(LOOK_FLOOR[look]).toBeGreaterThan(0)
-      expect(['vertical', 'horizontal']).toContain(LOOK_AXIS[look])
     }
     expect(LOOK_FLOOR.stack).toBeGreaterThan(LOOK_FLOOR.spinner)
   })

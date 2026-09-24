@@ -1,8 +1,9 @@
 // Ember theme + compass widget + accent tiles + theme-driven chart palette.
-// SAFE with a live config: creates only dashboard:nh-e2e-ember and deletes exactly it.
+// SAFE with a live config: creates only dashboard:nh-e2e-ember and deletes exactly it. Picking Ember writes
+// the SHARED theme, which stays in this suite's browser (lib/sandbox.mjs).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, FORMATTED_ITEM } from './lib/target.mjs'
-import { getSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID = 'dashboard:nh-e2e-ember'
 const results = []
@@ -56,11 +57,12 @@ const samplePlot = (sel) => {
 
 const browser = await launch()
 const errs = []
-const settingsBefore = await getSettings()
+const sb = await sharedSettings()
 const initialDimmer = await itemState(ITEMS.dimmer)
 
 async function newPage(themeOverride) {
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } })
+  await sb.install(page)
   page.on('pageerror', (e) => errs.push(String(e.message)))
   page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
   page.on('dialog', (d) => d.accept())
@@ -304,8 +306,8 @@ try {
   const del = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
   const gone = (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).status === 404
   ok('cleanup: ' + UID + ' deleted', gone, 'del=' + del.status)
-  const settingsBack = await restoreSettings(settingsBefore)
-  ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
   await sendItem(ITEMS.dimmer, initialDimmer)
   await sleep(700)
   const restored = await itemState(ITEMS.dimmer)

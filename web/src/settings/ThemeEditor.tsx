@@ -193,7 +193,7 @@ function TokenField({ spec, theme, onSet }: { spec: TokenSpec; theme: Theme; onS
           </button>
         ) : null}
       </div>
-      <p className="nh-field__hint">{t(spec.hint)}</p>
+      <p className="nh-field__hint">{t(spec.hint, spec.hintValues)}</p>
     </div>
   )
 }
@@ -207,12 +207,8 @@ const LEVEL_LABEL: Record<ContrastLevel, string> = {
 
 function ContrastReport({ theme }: { theme: Theme }) {
   const { t } = useTranslation()
-  const rows = CONTRAST_PAIRS.map((pair) => {
-    const fg = theme.tokens[pair.fg] ?? TOKEN_SPECS.find((s) => s.key === pair.fg)?.fallback
-    const bg = theme.tokens[pair.bg] ?? TOKEN_SPECS.find((s) => s.key === pair.bg)?.fallback
-    const ratio = contrastOf(fg, bg)
-    return { pair, ratio }
-  })
+  const tokenOf = (key: string) => theme.tokens[key] ?? TOKEN_SPECS.find((s) => s.key === key)?.fallback
+  const rows = CONTRAST_PAIRS.map((pair) => ({ pair, ratio: contrastOf(tokenOf(pair.fg), tokenOf(pair.bg), tokenOf('bg')) }))
   const worst = rows.reduce<number | null>((m, r) => (r.ratio === null ? m : m === null ? r.ratio : Math.min(m, r.ratio)), null)
 
   return (
@@ -254,7 +250,7 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
         p
       )
     case 'activeState':
-      return t('.{{control}} is styled but .{{control}}--active is not, so the on state looks the same. Style both.', p)
+      return t('.{{control}} is styled but .{{state}} is not, so both look the same. Style both.', p)
     case 'borderImageRadius':
       return t(
         'border-image squares off rounded corners, and the corner radius is {{radius}}. Set the radius token to 0px, or drop the border gradient.',

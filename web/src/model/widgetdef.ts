@@ -6,6 +6,8 @@ export interface WidgetDefSetting {
   label?: string
   description?: string
   default?: unknown
+  // comma separated, as HABPanel writes it
+  choices?: unknown
 }
 
 export interface CustomWidgetDef {
@@ -34,13 +36,27 @@ export function defSettings(def: CustomWidgetDef): WidgetDefSetting[] {
   return Array.isArray(list) ? list.filter((s) => s && typeof s.id === 'string') : []
 }
 
+/** HABPanel's names for two of these; a definition imported from it keeps its own */
+export function settingKind(setting: WidgetDefSetting): string {
+  if (setting.type === 'checkbox') return 'boolean'
+  if (setting.type === 'choice') return 'choices'
+  return typeof setting.type === 'string' ? setting.type : 'string'
+}
+
+export function settingChoices(setting: WidgetDefSetting): string[] {
+  const raw = setting.choices
+  const list = typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw.filter((c): c is string => typeof c === 'string') : []
+  return [...new Set(list.map((c) => c.trim()).filter((c) => c !== ''))]
+}
+
 export function coerceSettingValue(setting: WidgetDefSetting, value: unknown): unknown {
   if (value === undefined || value === null) return value
-  switch (setting.type) {
+  switch (settingKind(setting)) {
     case 'number': {
       const n = Number(value)
       return Number.isFinite(n) ? n : value
     }
+    // a checkbox once went through a text box and was stored as "false", which a template reads as true
     case 'boolean':
       return value === true || value === 'true'
     default:

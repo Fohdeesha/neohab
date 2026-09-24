@@ -17,12 +17,15 @@ export function SignInSheet({
   onClose,
   onToken,
   initialProxy = false,
-  reason = 'edit'
+  reason = 'edit',
+  keepDraft
 }: {
   onClose: () => void
   onToken: () => void
   initialProxy?: boolean
   reason?: 'edit' | 'view'
+  // the openHAB login is another page, so an unsaved draft has to be carried through it
+  keepDraft?: { keep: () => boolean; drop: () => void }
 }) {
   const { t } = useTranslation()
   const [token, setToken] = useState('')
@@ -43,7 +46,16 @@ export function SignInSheet({
         <button
           type="button"
           className="nh-btn nh-btn--primary"
-          onClick={() => authorize().catch((err) => notify(t('Sign-in failed: {{error}}', { error: errorText(err) })))}>
+          onClick={() => {
+            if (keepDraft && !keepDraft.keep()) {
+              notify(t('Your changes could not be kept through the sign-in page. Use an API token instead.'))
+              return
+            }
+            authorize().catch((err) => {
+              keepDraft?.drop()
+              notify(t('Sign-in failed: {{error}}', { error: errorText(err) }))
+            })
+          }}>
           {t('Log in with openHAB')}
         </button>
 

@@ -11,6 +11,8 @@ export interface TokenSpec {
   label: string
   kind: TokenKind
   hint: string
+  // filled into the hint where it is translated, so one sentence serves several tokens
+  hintValues?: Record<string, number>
   fallback: string
 }
 
@@ -99,7 +101,7 @@ export const TOKEN_SPECS: TokenSpec[] = [
     fallback: '#3fb950',
     hint: 'A reading that moved the way you want - the stat tile’s trend arrow.'
   },
-  { key: 'bad', group: 'Semantic', kind: 'color', label: 'Bad', fallback: '#e5484d', hint: 'A reading that moved the wrong way.' },
+  { key: 'bad', group: 'Semantic', kind: 'color', label: 'Bad', fallback: '#ff6b70', hint: 'A reading that moved the wrong way.' },
   {
     key: 'accent-ink',
     group: 'Semantic',
@@ -120,7 +122,8 @@ export const TOKEN_SPECS: TokenSpec[] = [
     hint:
       i === 0
         ? 'Colour of the first chart series, and of a timeline’s first state. Unset uses the built-in palette, which is checked for colour-blind separation.'
-        : `Colour of chart series ${i + 1}. Unset keeps the built-in palette’s own choice.`
+        : 'Colour of chart series {{n}}. Unset keeps the built-in palette’s own choice.',
+    hintValues: i === 0 ? undefined : { n: i + 1 }
   })),
 
   {
@@ -172,8 +175,6 @@ export const TOKEN_SPECS: TokenSpec[] = [
     hint: 'Strength (0-1) of the sunk film at the start of that band. 0 is off.'
   }
 ]
-
-export type TokenKey = string
 
 export const THEME_TOKENS: readonly string[] = TOKEN_SPECS.map((t) => t.key)
 

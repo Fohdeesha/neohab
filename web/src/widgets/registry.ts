@@ -49,6 +49,23 @@ export function instanceNeedsItem(type: string, config: Record<string, unknown>)
   })
 }
 
+/**
+ * The item a widget is about: the first item field it shows, cannot do without and has a name in. When
+ * the server has no such item the content is replaced by a notice. A second reading, an inner ring, a fan
+ * item or a floor plan lamp is not this, so one of those renamed no longer blanks the whole tile.
+ */
+export function primaryItemOf(type: string, config: Record<string, unknown>): string | undefined {
+  const def = registry.get(type)
+  if (!def?.itemKeys) return undefined
+  const merged = effective(def, config)
+  for (const f of def.settings) {
+    if (f.type !== 'item' || (f.showIf && !f.showIf(merged)) || (f.optional && f.optional(merged))) continue
+    const v = merged[f.key]
+    if (typeof v === 'string' && v !== '') return v
+  }
+  return undefined
+}
+
 export function instanceMinHeight(type: string, config: Record<string, unknown>): number {
   const def = registry.get(type)
   if (!def) return 0

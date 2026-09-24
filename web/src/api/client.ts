@@ -1,16 +1,10 @@
 import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
-import { ohUrl } from './base'
+import { ApiError, boundedFetch, ohUrl } from './base'
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public detail = ''
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
+export { ApiError }
+
+// long enough for a year of persistence or a large image upload on a slow link
+const REQUEST_TIMEOUT_MS = 60_000
 
 interface RequestOptions {
   method?: string
@@ -49,14 +43,15 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   if (token) applyAuthHeader(headers, token)
 
   const url = ohUrl(path)
-  let res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
+  const init = { method: opts.method ?? 'GET', headers, body, signal: opts.signal }
+  let res = await boundedFetch(url, init, REQUEST_TIMEOUT_MS)
   if (res.status === 401 && token) {
     // a stale token must not break what anonymous access allows, so retry once without it - the proxy's own
     // credentials stay
     headers.delete('Authorization')
     headers.delete('X-OPENHAB-TOKEN')
     applyProxyAuth(headers)
-    res = await fetch(url, { method: opts.method ?? 'GET', headers, body, signal: opts.signal })
+    res = await boundedFetch(url, init, REQUEST_TIMEOUT_MS)
   }
   if (!res.ok) {
     const detail = await errorDetail(res)

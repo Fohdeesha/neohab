@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { refreshMs } from '../../model/interval'
 import { mixedContent, safeUrl } from '../../model/url'
 
 interface ImageConfig {
@@ -15,11 +16,12 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
   const [cacheBust, setCacheBust] = useState(0)
   const [failed, setFailed] = useState(false)
 
+  const period = refreshMs(config.refresh)
   useEffect(() => {
-    if (!config.refresh || config.refresh <= 0) return
-    const id = setInterval(() => setCacheBust(Date.now()), config.refresh * 1000)
+    if (period === null) return
+    const id = setInterval(() => setCacheBust(Date.now()), period)
     return () => clearInterval(id)
-  }, [config.refresh])
+  }, [period])
 
   // a new address, or the next refresh, is a fresh try: a camera snapshot that 404s once should
   // not leave the tile saying so for ever
@@ -58,7 +60,7 @@ function ImageWidget({ config }: WidgetProps<ImageConfig>) {
 
   return (
     <WidgetFrame label={config.label} bare>
-      <img className="nh-image" src={src} alt={config.label ?? 'image'} onError={() => setFailed(true)} />
+      <img className="nh-image" src={src} alt={config.label ?? ''} onError={() => setFailed(true)} />
     </WidgetFrame>
   )
 }

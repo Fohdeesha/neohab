@@ -14,6 +14,7 @@ export interface TimelineConfig {
   series?: TimelineSeries[]
   colorMaps?: TimelineColorMap[]
   label?: string
+  labelMode?: string
   period?: string
   service?: string
   refresh?: number
@@ -70,11 +71,25 @@ const DAY_SPAN = 48 * 3600e3
  * over a few hours - and printing them anyway is what ran "10:19 AM06:19 PM02:19 AM" together on a
  * phone.
  */
-export function axisTick(ms: number, spanMs: number): string {
+export function axisTick(ms: number, spanMs: number, locale?: string): string {
   const d = new Date(ms)
-  if (spanMs > DAY_SPAN) return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-  if (spanMs <= MINUTE_SPAN) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  return d.toLocaleTimeString([], { hour: 'numeric' })
+  if (spanMs > DAY_SPAN) return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' })
+  if (spanMs <= MINUTE_SPAN) return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
+  return d.toLocaleTimeString(locale, { hour: 'numeric' })
+}
+
+/**
+ * A refetch answers what persistence held when it was asked, so a band the live updates opened after
+ * that moment is not in the answer - and replacing the rows with it wiped a change seconds old.
+ */
+export function keepLiveTail(fresh: TimelineBand[], shown: TimelineBand[] | undefined, askedAt: number): TimelineBand[] {
+  const tail = (shown ?? []).filter((b) => b.start > askedAt)
+  if (tail.length === 0) return fresh
+  const last = fresh[fresh.length - 1]
+  // the refetch caught the change the live band shows, so the server's account of when it happened stands
+  if (last && last.state === tail[0].state) return [...fresh.slice(0, -1), { ...last, end: tail[0].end }, ...tail.slice(1)]
+  const closed = last ? [...fresh.slice(0, -1), { ...last, end: tail[0].start }] : fresh
+  return [...closed, ...tail]
 }
 
 export function autoRefreshSeconds(periodMs: number): number {

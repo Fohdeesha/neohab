@@ -187,6 +187,8 @@ export interface WeatherData {
   current: WeatherCurrent
   hourly: WeatherHour[]
   daily: WeatherDay[]
+  // the location's offset from UTC, which is what lets a forecast say how old it is
+  utcOffsetSeconds?: number
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
@@ -249,7 +251,14 @@ export function normalizeForecast(json: unknown): WeatherData | null {
     }
   }
 
-  return { current, hourly, daily }
+  const offset = num(root.utc_offset_seconds)
+  return offset === null ? { current, hourly, daily } : { current, hourly, daily, utcOffsetSeconds: offset }
+}
+
+// the location's wall-clock time now, in the forecast's own "2026-09-23T15:00" form
+export function localNow(data: WeatherData, nowMs: number): string | null {
+  if (data.utcOffsetSeconds === undefined) return null
+  return new Date(nowMs + data.utcOffsetSeconds * 1000).toISOString().slice(0, 16)
 }
 
 export interface WeatherLocation {
@@ -388,9 +397,34 @@ function condition(code: number | null, isDay: boolean, t: (s: string) => string
   return cond ? { icon: cond.icon, label: t(cond.label) } : { icon: UNKNOWN_ICON, label: '' }
 }
 
-export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOptions): WeatherView {
+/**
+ * A panel that lost its connection keeps the last forecast it had, and read literally that forecast's
+ * "today" was yesterday. So the view is built from the real clock at the location: past hours and days
+ * go, and once an hour has passed since the reading, "now" comes from the hourly forecast for this hour
+ * rather than from a reading that is no longer current.
+ */
+function asOfNow(data: WeatherData, nowMs: number): WeatherCurrent {
+  const now = localNow(data, nowMs)
+  if (now === null || now.slice(0, 13) <= data.current.time.slice(0, 13)) return data.current
+  const hour = data.hourly.find((h) => h.time.slice(0, 13) === now.slice(0, 13))
+  if (!hour) return { ...data.current, time: now }
+  return {
+    time: now,
+    temp: hour.temp,
+    feels: null,
+    humidity: null,
+    windSpeed: null,
+    windDir: null,
+    precip: null,
+    precipProb: hour.precipProb,
+    code: hour.code,
+    isDay: hour.isDay
+  }
+}
+
+export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOptions, nowMs = Date.now()): WeatherView {
   const units = unitLabels(sys)
-  const cur = data.current
+  const cur = asOfNow(data, nowMs)
   const cond = condition(cur.code, cur.isDay, o.t)
 
   const windSpeed = round(cur.windSpeed)
@@ -412,18 +446,22 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
   }
 
   const today = cur.time.slice(0, 10)
-  const days: DayColumn[] = data.daily.slice(0, o.days).map((d) => {
-    const dc = condition(d.code, true, o.t)
-    return {
-      key: d.date,
-      label: d.date.slice(0, 10) === today ? o.t('Today') : weekdayLabel(d.date, o.lang),
-      icon: dc.icon,
-      high: deg(d.high),
-      low: deg(d.low),
-      precipProb: o.showPrecip ? percent(d.precipProb) : undefined
-    }
-  })
+  const days: DayColumn[] = data.daily
+    .filter((d) => d.date.slice(0, 10) >= today)
+    .slice(0, o.days)
+    .map((d) => {
+      const dc = condition(d.code, true, o.t)
+      return {
+        key: d.date,
+        label: d.date.slice(0, 10) === today ? o.t('Today') : weekdayLabel(d.date, o.lang),
+        icon: dc.icon,
+        high: deg(d.high),
+        low: deg(d.low),
+        precipProb: o.showPrecip ? percent(d.precipProb) : undefined
+      }
+    })
 
+  const todays = data.daily.find((d) => d.date.slice(0, 10) === today)
   return {
     icon: cond.icon,
     label: cond.label,
@@ -431,9 +469,9 @@ export function buildForecastView(data: WeatherData, sys: UnitSystem, o: ViewOpt
     feels: cur.feels === null ? undefined : deg(cur.feels),
     humidity: cur.humidity === null ? undefined : Math.round(cur.humidity) + '%',
     wind,
-    precipProb: percent(data.daily[0] ? data.daily[0].precipProb : cur.precipProb),
-    high: data.daily[0] ? deg(data.daily[0].high) : undefined,
-    low: data.daily[0] ? deg(data.daily[0].low) : undefined,
+    precipProb: percent(todays ? todays.precipProb : cur.precipProb),
+    high: todays ? deg(todays.high) : undefined,
+    low: todays ? deg(todays.low) : undefined,
     hours,
     days
   }

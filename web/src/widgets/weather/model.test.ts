@@ -10,6 +10,7 @@ import {
   expandPattern,
   hourLabel,
   itemsBinding,
+  localNow,
   locationOf,
   meteoIcon,
   normalizeForecast,
@@ -238,9 +239,11 @@ describe('time labels', () => {
 
 describe('buildForecastView', () => {
   const data = normalizeForecast(fixture)!
+  // the moment the fixture was fetched, so the view is built as it was that day
+  const asOf = Date.parse(data.current.time + ':00Z') - (data.utcOffsetSeconds ?? 0) * 1000
 
   it('builds the current block from a real response', () => {
-    const v = buildForecastView(data, 'imperial', opts)
+    const v = buildForecastView(data, 'imperial', opts, asOf)
     expect(v.temp).toEqual({ num: '83', unit: '°F' })
     expect(v.icon).toBe('clear-day')
     expect(v.label).toBe('Mainly clear')
@@ -251,29 +254,29 @@ describe('buildForecastView', () => {
   })
 
   it('starts the hour columns strictly after the current time and honours the count', () => {
-    const v = buildForecastView(data, 'imperial', opts)
+    const v = buildForecastView(data, 'imperial', opts, asOf)
     expect(v.hours.length).toBe(12)
     for (const h of v.hours) expect(h.key > data.current.time, h.key).toBe(true)
   })
 
   it('labels the first daily column Today and the rest by weekday', () => {
-    const v = buildForecastView(data, 'imperial', opts)
+    const v = buildForecastView(data, 'imperial', opts, asOf)
     expect(v.days.length).toBe(5)
     expect(v.days[0].label).toBe('Today')
     expect(v.days[1].label).toBe(weekdayLabel(data.daily[1].date, 'en-US'))
   })
 
   it('drops precipitation columns when the toggle is off, and zero chances always', () => {
-    const off = buildForecastView(data, 'imperial', { ...opts, showPrecip: false })
+    const off = buildForecastView(data, 'imperial', { ...opts, showPrecip: false }, asOf)
     expect(off.days.every((d) => d.precipProb === undefined)).toBe(true)
-    const on = buildForecastView(data, 'imperial', opts)
+    const on = buildForecastView(data, 'imperial', opts, asOf)
     for (const d of on.days) {
       if (d.precipProb !== undefined) expect(d.precipProb).toMatch(/^[1-9]\d*%$/)
     }
   })
 
   it("reads the current block's precipitation as today's chance, not this hour's", () => {
-    const v = buildForecastView(data, 'imperial', opts)
+    const v = buildForecastView(data, 'imperial', opts, asOf)
     expect(fixture.daily.precipitation_probability_max[0]).not.toBe(fixture.current.precipitation_probability)
     expect(v.precipProb).toBe(fixture.daily.precipitation_probability_max[0] + '%')
   })
@@ -286,9 +289,27 @@ describe('buildForecastView', () => {
   })
 
   it('shows metric units when asked', () => {
-    const v = buildForecastView(data, 'metric', opts)
+    const v = buildForecastView(data, 'metric', opts, asOf)
     expect(v.temp.unit).toBe('°C')
     expect(v.wind).toContain('km/h')
+  })
+
+  it('ages a forecast the panel could not refresh: yesterday is not "Today"', () => {
+    const nextDay = asOf + 24 * 3600e3
+    const v = buildForecastView(data, 'imperial', opts, nextDay)
+    expect(v.days[0].key.slice(0, 10)).toBe(data.daily[1].date.slice(0, 10))
+    expect(v.days[0].label).toBe('Today')
+    const localTime = localNow(data, nextDay)!
+    expect(localTime.slice(0, 10)).toBe(data.daily[1].date.slice(0, 10))
+    expect(v.hours.length).toBeGreaterThan(0)
+    for (const h of v.hours) expect(h.key > localTime, h.key).toBe(true)
+    // "now" is the forecast for this hour, and the readings only the stale current block had are gone
+    expect(v.humidity).toBeUndefined()
+    expect(v.high).toBe(Math.round(fixture.daily.temperature_2m_max[1]) + '°')
+  })
+
+  it('leaves a forecast alone within the hour it was read', () => {
+    expect(buildForecastView(data, 'imperial', opts, asOf + 10 * 60e3)).toEqual(buildForecastView(data, 'imperial', opts, asOf))
   })
 
   it('renders dashes, not crashes, when readings are null', () => {

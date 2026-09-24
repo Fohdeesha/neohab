@@ -158,6 +158,12 @@ ${tightCellInsets({ label: '5px 0 0', labelBottom: '4px 0 6px', body: '6px 8px 8
 .nh-button--plain.nh-button--active .nh-icon--mdi {
   background-color: var(--nh-bg);
 }
+.nh-chip--action {
+  border-style: dashed;
+}
+.nh-iconbtn--live {
+  color: var(--nh-primary);
+}
 .nh-button--plain.nh-button--active .nh-button__caption {
   color: var(--nh-bg);
   opacity: 0.7;

@@ -7,14 +7,20 @@ function finite(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+// far past any real dashboard; `h: 1e9` from a paste or a hand edit laid out a billion grid rows
+export const MAX_CELLS = 5000
+export const MAX_COLUMNS = 60
+
+const cells = (v: number, min: number): number => Math.min(MAX_CELLS, Math.max(min, Math.round(v)))
+
 // repairs field by field, because clamping alone cannot fix a value that is not a number
 export function sanitizeRect(stored: Partial<Rect> | undefined): Rect {
   if (!stored) return { x: 0, y: 0, w: 3, h: 3 }
   return {
-    x: Math.max(0, Math.round(finite(stored.x, 0))),
-    y: Math.max(0, Math.round(finite(stored.y, 0))),
-    w: Math.max(1, Math.round(finite(stored.w, 1))),
-    h: Math.max(1, Math.round(finite(stored.h, 1)))
+    x: cells(finite(stored.x, 0), 0),
+    y: cells(finite(stored.y, 0), 0),
+    w: cells(finite(stored.w, 1), 1),
+    h: cells(finite(stored.h, 1), 1)
   }
 }
 
@@ -32,6 +38,7 @@ export const MD_BELOW = 1200 // px
 
 export const SIDE_PANEL_WIDTH = 391
 export const SIDE_PANEL_MIN = 900 // px of viewport
+export const SURFACE_PADDING = 12 // px each side, .nh-dash__surface
 
 // a LAYOUT zoom, not a transform: the grid is laid out at the full run-mode width and only drawn smaller, so
 // container queries still answer for the real cell
@@ -94,7 +101,7 @@ export function widgetsOf(dashboard: Dashboard): WidgetInstance[] {
 }
 
 export function columnsFrom(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.round(value) : 1
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.min(MAX_COLUMNS, Math.round(value)) : 1
 }
 
 export function columnsOf(dashboard: Dashboard): number {
@@ -103,7 +110,7 @@ export function columnsOf(dashboard: Dashboard): number {
 
 export function mdColumnsOf(dashboard: Dashboard): number {
   const v = dashboard.mdColumns
-  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.round(v) : columnsOf(dashboard)
+  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? columnsFrom(v) : columnsOf(dashboard)
 }
 
 // a stored `gap: "wide"` made the cell width NaN
@@ -483,13 +490,37 @@ export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPl
 export function findFreeSpot(dashboard: Dashboard, w: number, h: number): Rect {
   const columns = columnsOf(dashboard)
   const width = Math.max(1, Math.min(Math.round(finite(w, 1)), columns))
-  const height = Math.max(1, Math.round(finite(h, 1)))
-  const maxY = widgetsOf(dashboard).reduce((m, wi) => Math.max(m, rectOf(wi).y + rectOf(wi).h), 0)
-  for (let y = 0; y <= maxY; y++) {
-    for (let x = 0; x <= columns - width; x++) {
+  const height = cells(finite(h, 1), 1)
+  const taken = widgetsOf(dashboard).map(rectOf)
+  // the first free spot in reading order has its top at 0 or on a widget's bottom edge, and its left at 0
+  // or on a widget's right edge, so only those are tried - the same answer as walking every cell, at a
+  // cost that does not grow with how tall somebody made a widget
+  const ys = [...new Set([0, ...taken.map((r) => r.y + r.h)])].sort((a, b) => a - b)
+  const xs = [...new Set([0, ...taken.map((r) => r.x + r.w)])].filter((x) => x <= columns - width).sort((a, b) => a - b)
+  for (const y of ys) {
+    for (const x of xs) {
       const rect = { x, y, w: width, h: height }
-      if (!overlapsAny(dashboard, rect)) return rect
+      if (!taken.some((r) => collides(rect, r))) return rect
     }
   }
-  return { x: 0, y: maxY, w: width, h: height }
+  return { x: 0, y: ys[ys.length - 1], w: width, h: height }
+}
+
+/**
+ * Rects fitted to a grid of `columns`, in reading order, each pushed down past whatever it would land on.
+ * Clamping alone put widgets squarely on top of each other when the column count went down.
+ */
+export function fitToColumns(rects: ReadonlyMap<string, Rect>, columns: number): Map<string, Rect> {
+  const order = [...rects].sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
+  const placed: Rect[] = []
+  const out = new Map<string, Rect>()
+  for (const [id, rect] of order) {
+    const r = clampRect(rect, columns)
+    for (let hit = placed.find((p) => collides(r, p)); hit; hit = placed.find((p) => collides(r, p))) {
+      r.y = hit.y + hit.h
+    }
+    placed.push(r)
+    out.set(id, r)
+  }
+  return out
 }

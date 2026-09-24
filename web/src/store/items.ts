@@ -38,11 +38,14 @@ export const useItemsStore = create<ItemsState>(() => ({
 readStatesFrom((name) => useItemsStore.getState().states[name]?.state)
 
 function applyStates(delta: StateMap): void {
+  const before = useItemsStore.getState().states
+  const changed = Object.keys(delta).filter((name) => before[name]?.state !== delta[name]?.state)
   useItemsStore.setState((s) => ({ states: mergeMap(s.states, delta) }))
   snapshot = mergeMap(snapshot, delta)
-  // the server has answered for these items, so nothing is waiting on them any more - whether the
-  // answer is the one that was asked for or not
-  clearUnconfirmed(Object.keys(delta))
+  // a changed state is the server's answer, whether it is the one asked for or not. The same state sent
+  // again is not: the tracker repeats every tracked item whenever the tracked list changes, and taking
+  // that as an answer ended the hold and let the next press repeat the command.
+  if (changed.length > 0) clearUnconfirmed(changed)
 }
 
 function recomputeUnion(force = false): void {

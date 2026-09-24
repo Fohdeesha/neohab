@@ -1,10 +1,11 @@
 // Voice & audio e2e: the Settings section, the TTS speech item (spoken on change, primed at boot, per-device
 // mute), the web-audio sink (synthetic SSE events.
-// SAFE with a live config: creates only dashboard:nh-e2e-voice (deleted), patches the `settings` component
-// and restores it VERBATIM, commands only the configured dimmer.
+// SAFE with a live config: creates only dashboard:nh-e2e-voice (deleted), commands only the configured
+// dimmer. The shared voice settings it needs are shown to its own pages only (lib/sandbox.mjs), so no real
+// panel starts speaking the dimmer while it runs.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, ITEMS, HTTPS } from './lib/target.mjs'
-import { getSettings, patchSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID = 'dashboard:nh-e2e-voice'
 const results = []
@@ -26,20 +27,18 @@ function launch() {
   return launchChromium({ headless: true })
 }
 
-const settingsOrig = await getSettings()
 const dimmer = ITEMS.dimmer
 const dimmerOrig = (await getItem(dimmer)).state
-console.log(`snapshot: settings ${settingsOrig ? 'present' : 'absent'}, ${dimmer}=${dimmerOrig}`)
+console.log(`snapshot: ${dimmer}=${dimmerOrig}`)
 
 // the mic button follows a SHARED setting, so establish it rather than assume whoever runs this
-// server left it alone - absent is its default, which is on. Before the browser exists: after a page
-// has fetched the configuration once, the next navigation in that context reads its own cached copy.
-const micReady = await putComponent(NS, settingsWithoutKeys(settingsOrig, ['voiceButton']))
-console.log(`voice button setting established for this run: ${micReady.status}`)
+// server left it alone - absent is its default, which is on
+const sb = await sharedSettings({ voiceButton: undefined })
 
 const browser = await launch()
 
 try {
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
   await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -55,6 +54,7 @@ try {
 
   {
     const page = await browser.newPage({ viewport: { width: 1400, height: 950 } })
+    await sb.install(page)
     const errs = []
     page.on('pageerror', (e) => errs.push(String(e.message)))
     page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
@@ -91,10 +91,10 @@ try {
   }
 
   {
-    const wrote = await patchSettings(settingsOrig, { speechItem: dimmer })
-    ok('speech item configured', wrote.ok, `${wrote.status} (server had settings: ${!!settingsOrig})`)
+    sb.present({ voiceButton: undefined, speechItem: dimmer })
 
     const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await sb.install(page)
     await page.addInitScript((t) => {
       try { localStorage.setItem('neohab:apiToken', t) } catch {}
       window.__spoken = []
@@ -114,6 +114,7 @@ try {
     await page.close()
 
     const page2 = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await sb.install(page2)
     await page2.addInitScript((t) => {
       try {
         localStorage.setItem('neohab:apiToken', t)
@@ -134,6 +135,7 @@ try {
 
   {
     const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await sb.install(page)
     let audioFetches = 0
     let sseServed = 0
     let mode = 'play' // flipped to 'stop' after the first play is observed
@@ -182,6 +184,7 @@ try {
     await page.close()
 
     const page2 = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+    await sb.install(page2)
     let sseHits = 0
     await page2.route((url) => url.pathname === '/rest/events' && (url.search || '').includes('webaudio'), async (route) => {
       sseHits++
@@ -206,8 +209,8 @@ try {
 }
 
 await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
-const settingsBack = await restoreSettings(settingsOrig)
-ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
+const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
 await postItem(dimmer, dimmerOrig)
 await new Promise((r) => setTimeout(r, 1200))
 const dimmerAfter = (await getItem(dimmer)).state

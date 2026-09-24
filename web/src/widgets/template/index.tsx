@@ -158,7 +158,7 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
 
   const body = notice ? (
     <div className="nh-template">
-      <span className="nh-template__badge">template</span>
+      <span className="nh-template__badge">{i18n.t('Template')}</span>
       <span className="nh-template__text">{notice}</span>
     </div>
   ) : (

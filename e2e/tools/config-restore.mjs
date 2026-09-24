@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs'
+import { refuseOnProduction } from '../lib/guard.mjs'
 import { ALL_NS, AUTH } from '../lib/target.mjs'
+
+// it is the second half of a wipe cycle, which never runs on production; putting a production
+// server back from a snapshot is done with the flag taken out of its target file, on purpose
+refuseOnProduction('config-restore rewrites every neohab namespace from a file')
 
 const file = process.argv[2]
 if (!file) {

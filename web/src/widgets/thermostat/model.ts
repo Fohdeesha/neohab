@@ -38,9 +38,6 @@ export interface ThermostatConfig {
 
 export const SEND_DELAY_MS = 350
 
-export const DEFAULT_HEAT_COLOR = '#f26a1b'
-export const DEFAULT_COOL_COLOR = '#1f8cee'
-
 export const DEFAULT_COMMANDS = {
   heat: 'HEAT',
   cool: 'COOL',
@@ -126,6 +123,30 @@ export function scaleOf(config: RangeInput, item: Item | undefined, unit: string
 
 export function hasOwnRange(config: RangeInput): boolean {
   return [config.min, config.max, config.step].every((v) => Number.isFinite(finiteOr(v, NaN)))
+}
+
+// a range somebody gave, on the widget or on the item; anything else is the built-in guess
+export function rangeIsKnown(config: RangeInput, item: Item | undefined): boolean {
+  const sd = item?.stateDescription
+  const given = (own: unknown, fromItem: unknown) => Number.isFinite(finiteOr(own, finiteOr(fromItem, NaN)))
+  return given(config.min, sd?.minimum) && given(config.max, sd?.maximum)
+}
+
+/**
+ * Whether a press of + or - has nowhere to go. An unknown setpoint (NULL after a restart) has no
+ * "one step up" at all, so both are refused rather than sending the minimum.
+ */
+export function stepBlocked(current: number | undefined, dir: 1 | -1, scale: NumericScale, rangeKnown: boolean): boolean {
+  if (current === undefined || !Number.isFinite(current)) return true
+  if (!rangeKnown && (current < scale.min || current > scale.max)) return false
+  return dir > 0 ? current >= scale.max : current <= scale.min
+}
+
+// outside a guessed range the guess is what is wrong, so the setpoint moves one step from where it is
+export function stepSetpoint(current: number, dir: 1 | -1, scale: NumericScale, rangeKnown: boolean): number {
+  const next = snapToStep(current + dir * scale.step, scale.step)
+  if (!rangeKnown && (current < scale.min || current > scale.max)) return next
+  return Math.min(scale.max, Math.max(scale.min, next))
 }
 
 export function formatSetpoint(v: number | undefined, step: number): string {

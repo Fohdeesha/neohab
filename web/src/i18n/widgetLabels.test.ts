@@ -51,10 +51,24 @@ it('translates every field and group label a widget puts on the settings panel',
   expect(checked).toBeGreaterThan(200)
 })
 
-it('translates every name the theme editor puts on a token', () => {
+it('translates every name and hint the theme editor puts on a token', () => {
   expect(TOKEN_SPECS.length).toBeGreaterThan(15)
-  const missing = TOKEN_SPECS.filter((spec) => !translated.has(spec.label)).map((spec) => `${spec.key}: ${spec.label}`)
+  const missing = TOKEN_SPECS.flatMap((spec) => [spec.label, spec.hint].filter((s) => !translated.has(s)).map((s) => `${spec.key}: ${s}`))
+  expect([...new Set(missing)]).toEqual([])
+})
+
+it('translates the hint under every widget field', () => {
+  const missing: string[] = []
+  let checked = 0
+  for (const def of listWidgetDefinitions()) {
+    for (const field of def.settings ?? []) {
+      if (!('hint' in field) || typeof field.hint !== 'string') continue
+      checked++
+      if (!translated.has(field.hint)) missing.push(`${def.type}.${field.key}: ${JSON.stringify(field.hint)}`)
+    }
+  }
   expect(missing).toEqual([])
+  expect(checked).toBeGreaterThan(30)
 })
 
 it('translates every row of the theme editor’s readability panel', () => {

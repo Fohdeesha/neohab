@@ -38,6 +38,8 @@ await page.addInitScript((t) => {
 const cellFont = (sel) => page.$eval(sel, (el) => parseFloat(getComputedStyle(el).fontSize))
 
 try {
+  // a killed earlier run's copies would be tested in place of fresh ones, or push the import to -2
+  for (const uid of [UID, IMPORT_UID]) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },

@@ -135,9 +135,23 @@ export function shouldCapture(opts: {
   return opts.now - opts.lastWriteAt >= opts.windowMin * 60_000
 }
 
+export const isNamed = (s: SnapshotMeta): boolean => typeof s.label === 'string' && s.label.trim() !== ''
+
+// the limit counts the unnamed points only: one somebody named goes when they delete it, never by age
 export function applyRetention(snapshots: SnapshotMeta[], limit: number): { keep: SnapshotMeta[]; drop: SnapshotMeta[] } {
-  if (limit <= 0) return { keep: [], drop: snapshots }
-  return { keep: snapshots.slice(0, limit), drop: snapshots.slice(limit) }
+  const keep: SnapshotMeta[] = []
+  const drop: SnapshotMeta[] = []
+  let unnamed = 0
+  for (const s of snapshots) {
+    if (isNamed(s)) keep.push(s)
+    else if (unnamed++ < Math.max(0, limit)) keep.push(s)
+    else drop.push(s)
+  }
+  return { keep, drop }
+}
+
+export function unnamedCount(snapshots: SnapshotMeta[]): number {
+  return snapshots.filter((s) => !isNamed(s)).length
 }
 
 export function mergeIndexes(mine: HistoryIndex, theirs: HistoryIndex): HistoryIndex {

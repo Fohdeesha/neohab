@@ -3,6 +3,9 @@
 // items nh_e2e_stepnum, nh_e2e_steplist, nh_e2e_stepfan.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-stepper'
 const NUM = 'nh_e2e_stepnum'

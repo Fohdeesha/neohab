@@ -39,8 +39,10 @@ const acceptDialogs = (d) => d.accept()
 page.on('dialog', acceptDialogs)
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
-const seed = async (uid, id, name, widgets) =>
-  fetch(NS, {
+const seed = async (uid, id, name, widgets) => {
+  // a killed earlier run's copy would otherwise refuse the POST and be tested in its place
+  await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  return fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -49,6 +51,7 @@ const seed = async (uid, id, name, widgets) =>
       config: { version: 1, id, name, columns: COLS, rowHeight: ROW, gap: GAP, widgets },
     }),
   })
+}
 
 const cellCount = () => page.locator('.nh-cell').count()
 const selCount = async () => {

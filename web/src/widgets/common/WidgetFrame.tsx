@@ -10,13 +10,17 @@ interface WidgetFrameProps {
   aside?: ReactNode
   center?: boolean
   bare?: boolean
+  className?: string
   children: ReactNode
 }
 
-export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside, center, bare, children }: WidgetFrameProps) {
+export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside, center, bare, className, children }: WidgetFrameProps) {
   const headed = Boolean(label || icon || aside)
   return (
-    <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '') + (headed ? ' nh-widget--headed' : '')}>
+    <div
+      className={
+        'nh-widget' + (bare ? ' nh-widget--bare' : '') + (headed ? ' nh-widget--headed' : '') + (className ? ' ' + className : '')
+      }>
       {headed ? (
         <div className="nh-widget__label">
           {/* icon + name travel together so the per-widget Name alignment (--nh-labelalign,

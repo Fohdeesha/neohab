@@ -31,7 +31,7 @@ import { useSurfaceBounds } from './useSurfaceBounds'
 import { WidgetHost } from './WidgetHost'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
-import { useLongPress } from './useLongPress'
+import { useLongPress, whenPressEnds } from './useLongPress'
 import { WidgetDetail } from './WidgetDetail'
 import { instanceDetailRoute, instanceHasDetail } from '../widgets'
 import { navigate } from '../app/router'
@@ -40,27 +40,24 @@ function Cell({
   className,
   style,
   instance,
-  editing,
   stacked,
   onDetail
 }: {
   className: string
   style: React.CSSProperties
   instance: WidgetInstance
-  editing: boolean
   stacked?: boolean
   onDetail: (w: WidgetInstance) => void
 }) {
-  const press = useLongPress(() => onDetail(instance), !editing && instanceHasDetail(instance.type, instance.config))
+  const press = useLongPress(() => onDetail(instance), instanceHasDetail(instance.type, instance.config))
   return (
     <div className={className} style={style} {...press}>
-      <WidgetHost instance={instance} editing={editing} stacked={stacked} />
+      <WidgetHost instance={instance} editing={false} stacked={stacked} />
     </div>
   )
 }
 
-export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
-  const { editing = false } = props
+export function Grid(props: { dashboard: Dashboard }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(ref)
@@ -71,7 +68,7 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
   const openDetail = (w: WidgetInstance) => {
     const route = instanceDetailRoute(w.type, props.dashboard.id, w.id)
-    if (route) navigate(route)
+    if (route) whenPressEnds(() => navigate(route))
     else setDetail(w)
   }
 
@@ -124,7 +121,6 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
             <Cell
               key={w.id}
               instance={w}
-              editing={editing}
               stacked
               onDetail={openDetail}
               className={
@@ -168,7 +164,6 @@ export function Grid(props: { dashboard: Dashboard; editing?: boolean }) {
           <Cell
             key={w.id}
             instance={w}
-            editing={editing}
             onDetail={openDetail}
             className={'nh-gcell' + (widgetLabelBottom(w) ? ' nh-labelbottom' : '') + (widgetAccent(w) ? ` nh-acc-${widgetAccent(w)}` : '')}
             style={

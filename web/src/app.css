@@ -11,7 +11,7 @@
   --nh-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 
   --nh-good: #3fb950;
-  --nh-bad: #e5484d;
+  --nh-bad: #ff6b70;
   --nh-accent-ink: #ffffff;
   --nh-brand-ink: #ffffff;
 
@@ -250,7 +250,7 @@ button {
 
 .nh-selbar {
   position: sticky;
-  top: 0;
+  top: var(--nh-dashbar-h, 0px);
   z-index: 9;
   display: flex;
   flex-wrap: wrap;
@@ -346,6 +346,29 @@ button {
   text-align: center;
 }
 
+/* a notice that keeps the tile's frame and name puts its message in the body instead */
+.nh-widget--notice:has(> .nh-widget__body) {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  text-align: inherit;
+}
+
+.nh-widget--notice > .nh-widget__body {
+  gap: 4px;
+  padding: 10px;
+  color: var(--nh-text-dim);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.nh-widget--notice.nh-widget--headed > .nh-widget__body {
+  padding: 4px 10px 10px;
+}
+
 /* clamped, so the height budget the regimes below assume holds at any tile width: a long name in a
    narrow tile otherwise wraps past the cell, and the flex centring clips both ends of the block */
 .nh-widget__errtitle {
@@ -391,10 +414,25 @@ button {
    38px, where the title alone wants 24px and two lines want 46px. Measured at 16px and 20.8px cell
    fonts. */
 @container nh-cell (max-height: calc(2.6em + 20px)) {
-  .nh-widget--notice {
+  .nh-widget--notice,
+  .nh-widget--notice > .nh-widget__body {
     padding: 4px 8px;
   }
   .nh-widget__errtitle {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -webkit-line-clamp: 1;
+  }
+}
+
+/* the same three regimes under a name row, which costs about 1.05em and 2px more than the padding it
+   takes the place of */
+@container nh-cell (max-height: calc(3.65em + 22px)) {
+  .nh-widget--notice.nh-widget--headed > .nh-widget__body {
+    padding: 2px 8px 4px;
+  }
+  .nh-widget--headed .nh-widget__errtitle {
     max-width: 100%;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -407,10 +445,21 @@ button {
    too - three clamped lines of a 63-character sentence in a tile this narrow would be a fragment
    nobody can read, so below it the title stands alone. */
 @container nh-cell (min-height: calc(5.4em + 24px)) and (min-width: calc(9em + 20px)) {
-  .nh-widget__errhint {
+  .nh-widget--notice:not(.nh-widget--headed) .nh-widget__errhint {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+}
+
+/* under a name row the explanation gets two lines rather than three; its first sentence is the part that
+   matters, and it fits in two */
+@container nh-cell (min-height: calc(5.5em + 26px)) and (min-width: calc(9em + 20px)) {
+  .nh-widget--notice.nh-widget--headed .nh-widget__errhint {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow: hidden;
   }
 }
@@ -960,7 +1009,7 @@ button {
   margin-bottom: 8px;
   padding: 6px 10px;
   font-size: 0.82rem;
-  color: #ff9a8a;
+  color: var(--nh-bad);
   background: rgba(200, 60, 40, 0.12);
   border: 1px solid rgba(200, 60, 40, 0.4);
   border-radius: 8px;
@@ -1670,9 +1719,9 @@ button {
 }
 
 .nh-color__pbtn--active {
-  background-color: var(--nh-primary);
+  background-color: var(--nh-cellaccent, var(--nh-primary));
   background-image: none;
-  border-color: var(--nh-primary);
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink);
 }
 
@@ -2009,8 +2058,8 @@ button {
 }
 
 .nh-chip--on {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
 }
 
@@ -2092,7 +2141,7 @@ button {
 @media (min-width: 900px) {
   .nh-sheet--side {
     left: auto;
-    top: 57px;
+    top: var(--nh-dashbar-h, 57px);
     bottom: 0;
     width: 391px;
     max-height: none;
@@ -2124,7 +2173,7 @@ button {
 .nh-form__error {
   margin: 0;
   font-size: 0.85rem;
-  color: #ef6b68;
+  color: var(--nh-bad);
 }
 
 .nh-field {
@@ -2156,7 +2205,7 @@ button {
   margin: -8px 0 0;
   font-size: 0.75rem;
   line-height: 1.4;
-  color: var(--nh-bad, #e5534b);
+  color: var(--nh-bad);
 }
 
 /* an <input> with no type attribute IS a text input, and three of ours have none */
@@ -2910,7 +2959,8 @@ button {
 }
 
 .nh-chart__expand {
-  font-size: 0.8em;
+  /* like the range chips: it can park in the name row, where an em would be 0.8 of 0.8 */
+  font-size: var(--nh-cellfont, 1em);
   line-height: 1;
   padding: 4px 7px;
   border-radius: 8px;
@@ -3042,7 +3092,7 @@ button {
   border: 1px solid var(--nh-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .nh-chart__tt--show {
@@ -3237,7 +3287,7 @@ button {
   left: 6px;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.7em;
+  font-size: 0.85em;
   background: rgba(0, 0, 0, 0.65);
   color: #fff;
   pointer-events: none;
@@ -4690,7 +4740,7 @@ button {
 
 .nh-log {
   --lg-warn: #e0a526;
-  --lg-error: var(--nh-bad, #e5484d);
+  --lg-error: var(--nh-bad);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -4848,7 +4898,7 @@ button {
   font: inherit;
   font-weight: 500;
   color: var(--nh-accent-ink, #fff);
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   border: none;
   border-radius: 999px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -4892,8 +4942,8 @@ button {
 .nh-log__pause--on,
 .nh-log__pause--on:hover {
   color: var(--nh-accent-ink, #fff);
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
 }
 
 .nh-logview__tools {
@@ -4945,7 +4995,7 @@ button {
 }
 
 .nh-logview__state--live {
-  color: var(--nh-good, #3fb950);
+  color: var(--nh-good);
   border-color: currentColor;
 }
 
@@ -5128,6 +5178,10 @@ button {
   align-items: center;
 }
 
+.nh-defeditor__choices {
+  grid-column: 1 / -1;
+}
+
 .nh-defeditor__setting input,
 .nh-defeditor__setting select {
   min-width: 0;
@@ -5291,7 +5345,7 @@ button {
   background: var(--nh-surface-2);
   box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
   color: var(--nh-text);
-  font-size: 13px;
+  font-size: 15px;
   pointer-events: auto;
 }
 
@@ -5309,7 +5363,7 @@ button {
   border-radius: var(--nh-radius);
   background: var(--nh-surface);
   color: var(--nh-text);
-  font-size: 13px;
+  font-size: 15px;
   white-space: nowrap;
 }
 
@@ -5322,7 +5376,7 @@ button {
   border-radius: var(--nh-radius);
   background: none;
   color: var(--nh-text-dim);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
@@ -5728,9 +5782,15 @@ button {
   cursor: pointer;
 }
 
-.nh-tl__band:focus-visible {
+.nh-tl__band:focus-visible,
+.nh-tl__band--cursor {
   outline: 2px solid var(--nh-text);
   outline-offset: -2px;
+}
+
+.nh-tl__track:focus-visible {
+  outline: 2px solid var(--nh-primary);
+  outline-offset: 2px;
 }
 
 .nh-tl__axis {
@@ -5745,6 +5805,11 @@ button {
   text-align: center;
   font-size: 0.8em;
   color: var(--nh-text-dim);
+}
+
+/* kept in the tree while empty, so a screen reader hears it change; it takes back the gap it sits after */
+.nh-tl__info:empty {
+  margin-top: -4px;
 }
 
 .nh-gen__list {
@@ -6005,17 +6070,17 @@ button {
   border-radius: 999px;
   background: var(--nh-surface-2);
   color: var(--nh-text-dim);
-  font-size: 0.75em;
+  font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .nh-histrow__kind--added {
-  color: #4ac97e;
+  color: var(--nh-good);
 }
 
 .nh-histrow__kind--removed {
-  color: #e0685f;
+  color: var(--nh-bad);
 }
 
 .nh-histrow__name {
@@ -6198,7 +6263,7 @@ button {
   border-radius: 999px;
   background: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
-  font-size: 0.62em;
+  font-size: 0.8em;
   font-weight: 700;
   letter-spacing: 0.03em;
   line-height: 1.6;
@@ -6226,11 +6291,11 @@ button {
 }
 
 .nh-stat__arrow--good {
-  fill: var(--nh-good, #3fb950);
+  fill: var(--nh-good);
 }
 
 .nh-stat__arrow--bad {
-  fill: var(--nh-bad, #e5484d);
+  fill: var(--nh-bad);
 }
 
 .nh-stat__sub {
@@ -7168,6 +7233,13 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.9rem;
+  padding: 0;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 .nh-planedit__label {
@@ -7331,7 +7403,7 @@ button {
 }
 
 .nh-weather__collabel {
-  font-size: 0.62em;
+  font-size: 0.8em;
   color: var(--nh-text-dim);
   white-space: nowrap;
 }
@@ -7353,7 +7425,7 @@ button {
 }
 
 .nh-weather__colprob {
-  font-size: 0.6em;
+  font-size: 0.8em;
   color: var(--nh-text-dim);
   white-space: pre;
 }
@@ -7707,7 +7779,7 @@ button {
 .nh-clockdetail__head,
 .nh-wdetail__head {
   margin: 0 0 8px;
-  font-size: 0.74em;
+  font-size: 0.85em;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -7931,11 +8003,11 @@ button {
 }
 
 .nh-clockdetail__diff--same {
-  color: var(--nh-good, #3fb950);
+  color: var(--nh-good);
 }
 
 .nh-clockdetail__diff--off {
-  color: var(--nh-bad, #e5484d);
+  color: var(--nh-bad);
 }
 
 .nh-clockdetail__diff--unknown {

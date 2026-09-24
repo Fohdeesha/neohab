@@ -20,6 +20,16 @@ export function BackgroundField({
   const backgrounds = useConfigStore((s) => s.backgrounds)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  // held until blur or Enter: every keystroke was a write, and the first one left an uploaded image
+  // unreferenced, so the clean-up deleted it before the address was even finished
+  const [draft, setDraft] = useState<string | null>(null)
+
+  const commit = () => {
+    if (draft === null) return
+    const next = draft.trim() || undefined
+    setDraft(null)
+    if (next !== (uploaded ? undefined : value)) void onChange(next)
+  }
 
   const resolved = resolveBackgroundRef(value, backgrounds)
   const uploaded = value !== undefined && isUploadedBackground(value)
@@ -48,7 +58,7 @@ export function BackgroundField({
         <input
           id={id}
           type="text"
-          value={uploaded ? '' : (value ?? '')}
+          value={draft ?? (uploaded ? '' : (value ?? ''))}
           placeholder={
             !uploaded
               ? t('Image URL, or upload one')
@@ -59,7 +69,11 @@ export function BackgroundField({
                   ? t('Uploaded image ({{mb}} MB)', { mb: ((uploadedBytes ?? 0) / (1024 * 1024)).toFixed(1) })
                   : t('Uploaded image ({{kb}} KB)', { kb: Math.round((uploadedBytes ?? 0) / 1024) })
           }
-          onChange={(e) => void onChange(e.target.value || undefined)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+          }}
         />
         <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => fileRef.current?.click()}>
           {busy ? t('Uploading…') : t('Upload image…')}

@@ -20,49 +20,6 @@ const put = async (comp) => {
   return r.ok
 }
 
-await put({
-  uid: 'widgetdef:nh-e2e-a3-tpl',
-  component: 'neohab:widgetdef',
-  tags: [],
-  config: {
-    version: 1,
-    id: 'nh-e2e-a3-tpl',
-    name: 'E2E A3 Template',
-    template:
-      '<div x-init="total = 0">' +
-      '<span x-for="n in [1,2,3]"><i x-init="total = total + n"></i></span>' +
-      '<b class="a3-sum">{{ total }}</b>' +
-      '<em class="a3-extra">{{ config.toString }}</em>' +
-      '</div>',
-  },
-})
-
-const SAME = BASE + '/neohab/tile.png'
-const crossUrl = new URL(BASE)
-crossUrl.port = String(Number(crossUrl.port || '80') + 1)
-const CROSS = crossUrl.origin + '/nothing.png'
-
-await put({
-  uid: 'dashboard:nh-e2e-a3',
-  component: 'neohab:dashboard',
-  tags: [],
-  config: {
-    version: 1,
-    id: 'nh-e2e-a3',
-    name: 'E2E Audit3',
-    columns: 12,
-    rowHeight: 'match',
-    gap: 5,
-    widgets: [
-      { id: 'a3-f-same', type: 'frame', config: { url: SAME, label: 'Same' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-      { id: 'a3-f-on', type: 'frame', config: { url: SAME, label: 'On', sandbox: true }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-      { id: 'a3-f-cross', type: 'frame', config: { url: CROSS, label: 'Cross', sandbox: true }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
-      { id: 'a3-f-str', type: 'frame', config: { url: SAME, label: 'Str', refresh: '30' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
-      { id: 'a3-tpl', type: 'template', config: { customwidget: 'nh-e2e-a3-tpl', config: { toString: 'kept' } }, layout: { lg: { x: 0, y: 2, w: 4, h: 2 } } },
-    ],
-  },
-})
-
 const browser = await launchBrowser()
 const newPage = async (ctx) => {
   const page = await ctx.newPage()
@@ -70,6 +27,49 @@ const newPage = async (ctx) => {
 }
 
 try {
+  await put({
+    uid: 'widgetdef:nh-e2e-a3-tpl',
+    component: 'neohab:widgetdef',
+    tags: [],
+    config: {
+      version: 1,
+      id: 'nh-e2e-a3-tpl',
+      name: 'E2E A3 Template',
+      template:
+        '<div x-init="total = 0">' +
+        '<span x-for="n in [1,2,3]"><i x-init="total = total + n"></i></span>' +
+        '<b class="a3-sum">{{ total }}</b>' +
+        '<em class="a3-extra">{{ config.toString }}</em>' +
+        '</div>',
+    },
+  })
+
+  const SAME = BASE + '/neohab/tile.png'
+  const crossUrl = new URL(BASE)
+  crossUrl.port = String(Number(crossUrl.port || '80') + 1)
+  const CROSS = crossUrl.origin + '/nothing.png'
+
+  await put({
+    uid: 'dashboard:nh-e2e-a3',
+    component: 'neohab:dashboard',
+    tags: [],
+    config: {
+      version: 1,
+      id: 'nh-e2e-a3',
+      name: 'E2E Audit3',
+      columns: 12,
+      rowHeight: 'match',
+      gap: 5,
+      widgets: [
+        { id: 'a3-f-same', type: 'frame', config: { url: SAME, label: 'Same' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
+        { id: 'a3-f-on', type: 'frame', config: { url: SAME, label: 'On', sandbox: true }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
+        { id: 'a3-f-cross', type: 'frame', config: { url: CROSS, label: 'Cross', sandbox: true }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+        { id: 'a3-f-str', type: 'frame', config: { url: SAME, label: 'Str', refresh: '30' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
+        { id: 'a3-tpl', type: 'template', config: { customwidget: 'nh-e2e-a3-tpl', config: { toString: 'kept' } }, layout: { lg: { x: 0, y: 2, w: 4, h: 2 } } },
+      ],
+    },
+  })
+
   {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } })
     await ctx.addInitScript((t) => {
@@ -194,7 +194,7 @@ try {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid.includes('nh-e2e-a3'))
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid.includes('nh-e2e-a3'))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 }
 

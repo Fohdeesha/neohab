@@ -16,20 +16,36 @@ interface SseEnvelope {
  */
 export class ReportStream {
   private source: EventSource | null = null
+  private open = false
   private items = new Set<string>()
-  private opened: Promise<void> = Promise.resolve()
+  private waiters = new Set<() => void>()
+  private scheduled = false
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectDelay = 1000
 
-  constructor(private onReport: (item: string, value: string) => void) {}
+  constructor(
+    private onReport: (item: string, value: string) => void,
+    private makeSource: (url: string) => EventSource = (url) => new EventSource(url)
+  ) {}
 
-  /** listening for all of these, reopening if needed; settles once open or after a bound either way */
+  /**
+   * Listening for all of these, reopening if needed; settles once open, or after a bound either way.
+   * Everything asked for in one tick shares one reconnect: five commands a preset sends at once used to
+   * tear down each other's stream, and all but the last waited out the bound.
+   */
   listen(names: Iterable<string>): Promise<void> {
     const wanted = [...names].filter((n) => ITEM_NAME.test(n))
-    if (this.source && wanted.every((n) => this.items.has(n))) return this.opened
+    const known = wanted.every((n) => this.items.has(n))
+    if (known && this.source && !this.scheduled) return this.open ? Promise.resolve() : this.nextOpen()
     for (const n of wanted) this.items.add(n)
-    this.connect()
-    return this.opened
+    if (!this.scheduled) {
+      this.scheduled = true
+      queueMicrotask(() => {
+        this.scheduled = false
+        this.connect()
+      })
+    }
+    return this.nextOpen()
   }
 
   close(): void {
@@ -39,7 +55,25 @@ export class ReportStream {
     }
     this.source?.close()
     this.source = null
+    this.open = false
     this.items.clear()
+    this.settleWaiters()
+  }
+
+  private nextOpen(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer)
+        this.waiters.delete(done)
+        resolve()
+      }
+      const timer = setTimeout(done, OPEN_WAIT_MS)
+      this.waiters.add(done)
+    })
+  }
+
+  private settleWaiters(): void {
+    for (const w of [...this.waiters]) w()
   }
 
   private connect(): void {
@@ -49,21 +83,19 @@ export class ReportStream {
     }
     this.source?.close()
     this.source = null
-    if (this.items.size === 0) return
+    this.open = false
+    if (this.items.size === 0) {
+      this.settleWaiters()
+      return
+    }
     const topics = [...this.items].sort().map((n) => `openhab/items/${n}/state`)
-    const source = new EventSource(ohUrl('/rest/events?topics=') + encodeURIComponent(topics.join(',')))
+    const source = this.makeSource(ohUrl('/rest/events?topics=') + encodeURIComponent(topics.join(',')))
     this.source = source
-    let settle = () => {}
-    this.opened = new Promise<void>((resolve) => {
-      const done = setTimeout(resolve, OPEN_WAIT_MS)
-      settle = () => {
-        clearTimeout(done)
-        resolve()
-      }
-    })
     source.onopen = () => {
+      if (this.source !== source) return
+      this.open = true
       this.reconnectDelay = 1000
-      settle()
+      this.settleWaiters()
     }
 
     source.onmessage = (e) => {
@@ -81,11 +113,12 @@ export class ReportStream {
     }
 
     source.onerror = () => {
-      // a stream the server refuses must not hold up the command that is waiting on it
-      settle()
       source.close()
       if (this.source !== source) return
+      // a stream the server refuses must not hold up the commands that are waiting on it
+      this.settleWaiters()
       this.source = null
+      this.open = false
       if (this.reconnectTimer || this.items.size === 0) return
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null

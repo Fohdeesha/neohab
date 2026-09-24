@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import type { ItemChoice } from '../common/itemControl'
+import { useOptimisticValue } from '../common/useOptimisticValue'
 
 interface PlayerConfig {
   item: string
@@ -10,10 +11,19 @@ interface PlayerConfig {
 
 function PlayerWidget({ config, ctx }: WidgetProps<PlayerConfig>) {
   const { t } = useTranslation()
-  const state = ctx.getItem(config.item)
-  const playing = state?.state === 'PLAY'
+  const state = ctx.getItem(config.item)?.state
+  // through the same hold every other control has, so play/pause does not flip back while the player catches up
+  const optimistic = useOptimisticValue<string | undefined>(state, state ?? '', (live, sent) => live === sent, {
+    item: config.item || undefined
+  })
+  const playing = optimistic.display === 'PLAY'
   const send = (command: string) => {
-    if (!ctx.editing && config.item) ctx.sendCommand(config.item, command)
+    if (ctx.editing || !config.item) return
+    const settles = command === 'PLAY' || command === 'PAUSE'
+    if (settles) optimistic.commit(command)
+    void ctx.sendCommand(config.item, command).then((accepted) => {
+      if (!accepted && settles) optimistic.cancel(command)
+    })
   }
 
   return (

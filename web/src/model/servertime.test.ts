@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HEADER_RESOLUTION_MS,
   SAME_SECOND_MS,
   MAX_ROUND_TRIP_MS,
   clockDifference,
   displayNow,
   formatDuration,
   msToNextBoundary,
-  offsetFromReading,
-  readingUncertaintyMs
+  offsetFromReading
 } from './servertime'
 
 describe('one reading of the server clock', () => {
@@ -18,11 +16,6 @@ describe('one reading of the server clock', () => {
 
   it('reads two clocks that agree as agreeing', () => {
     expect(offsetFromReading({ sent: 4000, received: 4000, serverSecond: 4000 })).toBe(500)
-  })
-
-  it('never guesses further out than half the header plus half the trip', () => {
-    const reading = { sent: 1000, received: 1120, serverSecond: 5000 }
-    expect(readingUncertaintyMs(reading)).toBe(HEADER_RESOLUTION_MS / 2 + 60)
   })
 
   it('refuses a reading that says more about the network than the clock', () => {

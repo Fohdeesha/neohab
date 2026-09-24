@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { lastChangeAt, lastChangeFromHistory, lastUpdateAt, mainUiItemPath, relativeTime } from './itemDetail'
+import { lastChangeAt, lastChangeFromHistory, mainUiItemPath, relativeTime } from './itemDetail'
 
 const NOW = Date.UTC(2026, 7, 19, 12, 0, 0)
 
-describe('lastChangeAt / lastUpdateAt', () => {
+describe('lastChangeAt', () => {
   it('reads the epoch openHAB 5 serves', () => {
     expect(lastChangeAt({ lastStateChange: 1787089241630 })).toBe(1787089241630)
-    expect(lastUpdateAt({ lastStateUpdate: 1787089327443 })).toBe(1787089327443)
   })
 
   it('is absent on openHAB 4, which serves no such field', () => {
     expect(lastChangeAt({})).toBeUndefined()
-    expect(lastUpdateAt({})).toBeUndefined()
   })
 
   it('treats "not fetched yet" the same as "not served"', () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { navigate } from '../app/router'
+import { useDialog } from '../components/dialog'
 import { useConfigStore } from '../store/config'
 import { useEditorStore } from '../store/editor'
 import { subscribeItems, useItemState } from '../store/items'
@@ -19,7 +20,6 @@ function cornerOf(x: number, y: number): string | null {
 
 export function KioskRuntime() {
   const kiosk = useKioskMode()
-  const { t } = useTranslation()
   const [confirming, setConfirming] = useState(false)
 
   const wantWake = useKioskStore((s) => s.settings.wakeLock)
@@ -112,20 +112,29 @@ export function KioskRuntime() {
 
   if (!confirming) return null
   return (
-    <div className="nh-kioskexit" role="dialog" aria-modal="true" aria-label={t('Exit kiosk mode on this device?')}>
+    <KioskExitDialog
+      onStay={() => setConfirming(false)}
+      onExit={() => {
+        setConfirming(false)
+        setKioskSettings({ kiosk: false })
+      }}
+    />
+  )
+}
+
+function KioskExitDialog({ onStay, onExit }: { onStay: () => void; onExit: () => void }) {
+  const { t } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  useDialog(ref, onStay, true)
+  return (
+    <div ref={ref} tabIndex={-1} className="nh-kioskexit" role="dialog" aria-modal="true" aria-label={t('Exit kiosk mode on this device?')}>
       <div className="nh-kioskexit__box">
         <p>{t('Exit kiosk mode on this device?')}</p>
         <div className="nh-kioskexit__actions">
-          <button type="button" className="nh-btn nh-btn--ghost" onClick={() => setConfirming(false)}>
+          <button type="button" className="nh-btn nh-btn--ghost" onClick={onStay}>
             {t('Stay in kiosk mode')}
           </button>
-          <button
-            type="button"
-            className="nh-btn nh-btn--primary"
-            onClick={() => {
-              setConfirming(false)
-              setKioskSettings({ kiosk: false })
-            }}>
+          <button type="button" className="nh-btn nh-btn--primary" onClick={onExit}>
             {t('Exit')}
           </button>
         </div>

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useDialog } from './dialog'
 import { createPortal } from 'react-dom'
 import { holdTookGesture } from './useLongPress'
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../i18n'
 import { getItem } from '../api/items'
 import { ohUrl } from '../api/base'
 import { getItemHistory } from '../api/persistence'
@@ -18,7 +20,7 @@ import type { WidgetInstance } from '../model/dashboard'
 import { selectStates, subscribeItems, useItemsStore } from '../store/items'
 import { useKioskMode } from '../store/kiosk'
 import { useShallow } from 'zustand/react/shallow'
-import { getWidgetDefinition, instanceCommands, instanceControl, itemsForInstance, widgetDetailView } from '../widgets'
+import { getWidgetDefinition, instanceCommands, instanceControl, instanceLiveDrag, itemsForInstance, widgetDetailView } from '../widgets'
 import { WidgetBoundary } from './WidgetBoundary'
 import { chartWidget } from '../widgets/chart'
 import { isPeriod } from '../widgets/chart/model'
@@ -42,15 +44,18 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
   const DetailView = widgetDetailView(instance.type)
   const ownTitle = typeof config.label === 'string' && config.label.trim() !== '' ? config.label : t(def?.name ?? 'Details')
   const commands = useMemo(() => instanceCommands(instance.type, config), [instance.type, config])
+  // the sheet's slider is the widget's own control, so it drags the way the widget does: its own setting
+  // where it has one, and never live where the widget is not (a thermostat setpoint drives a boiler)
+  const liveConfig = useMemo(
+    () => ({ liveDrag: instanceLiveDrag(instance.type, config) ? config.liveDrag : 'release' }),
+    [instance.type, config]
+  )
   const [chosen, setChosen] = useState<string | null>(items.length === 1 ? items[0] : null)
   const [label, setLabel] = useState<string | null>(null)
   useEffect(() => setLabel(null), [chosen])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef<HTMLDivElement>(null)
+  useDialog(panelRef, onClose, true)
 
   // portalled into the body (a grid cell is a size container, so a fixed child would be laid out and clipped to
   // the tile), and the scrim ignores the click that ends the hold which opened it
@@ -61,7 +66,14 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
 
   return createPortal(
     <div className="nh-detail" onClick={onScrimClick}>
-      <div className="nh-detail__panel" role="dialog" aria-label={t('Details')} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="nh-detail__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('Details')}
+        onClick={(e) => e.stopPropagation()}>
         <header className="nh-detail__head">
           {!DetailView && chosen && items.length > 1 ? (
             <button type="button" className="nh-iconbtn" aria-label={t('Back')} onClick={() => setChosen(null)}>
@@ -80,14 +92,18 @@ export function WidgetDetail({ instance, onClose }: { instance: WidgetInstance; 
           {DetailView ? (
             <WidgetPane instance={instance} config={config} items={items} View={DetailView} />
           ) : chosen ? (
-            <ItemPane
-              key={chosen}
-              name={chosen}
-              commands={commands}
-              control={instanceControl(instance.type, config, chosen)}
-              period={historyPeriodOf(config)}
-              onLabel={setLabel}
-            />
+            // its own boundary: a throw in here would otherwise take the whole dashboard with it
+            <WidgetBoundary type={instance.type} resetKey={chosen}>
+              <ItemPane
+                key={chosen}
+                name={chosen}
+                commands={commands}
+                control={instanceControl(instance.type, config, chosen)}
+                liveConfig={liveConfig}
+                period={historyPeriodOf(config)}
+                onLabel={setLabel}
+              />
+            </WidgetBoundary>
           ) : (
             <>
               <p className="nh-detail__hint">{t('This widget uses several items. Which one?')}</p>
@@ -147,24 +163,33 @@ function historyPeriodOf(config: Record<string, unknown>): string {
 
 // the item's own command options come BEFORE the numeric slider: an item listing what it accepts is telling
 // you exactly that
-function renderControl(control: ItemControl, name: string, ctx: WidgetContext, state: string | undefined, options: CommandOption[]) {
+function renderControl(
+  control: ItemControl,
+  name: string,
+  ctx: WidgetContext,
+  state: string | undefined,
+  options: CommandOption[],
+  live: { liveDrag?: unknown }
+) {
   switch (control.kind) {
     case 'color':
-      return <ColorControl item={name} ctx={ctx} power={control.power === true} />
+      return <ColorControl item={name} ctx={ctx} power={control.power === true} config={live} />
     case 'range':
-      return <RangeControl item={name} ctx={ctx} min={control.min} max={control.max} step={control.step} unit={control.unit} />
+      return (
+        <RangeControl item={name} ctx={ctx} min={control.min} max={control.max} step={control.step} unit={control.unit} config={live} />
+      )
     case 'onoff':
-      return <SwitchControl item={name} ctx={ctx} on={control.on} off={control.off} />
+      return <SwitchControl item={name} ctx={ctx} on={control.on} off={control.off} nonZeroIsOn={control.nonZeroIsOn === true} />
     case 'choices':
       return control.choices.length ? <ChoiceControl item={name} ctx={ctx} choices={control.choices} /> : null
     case 'auto': {
       const kind = stateKind(state)
-      if (kind === 'color') return <ColorControl item={name} ctx={ctx} />
+      if (kind === 'color') return <ColorControl item={name} ctx={ctx} config={live} />
       if (kind === 'onoff') return <SwitchControl item={name} ctx={ctx} />
       if (options.length) {
         return <ChoiceControl item={name} ctx={ctx} choices={options.map((o) => ({ command: o.command, label: o.label ?? o.command }))} />
       }
-      return kind === 'level' ? <RangeControl item={name} ctx={ctx} /> : null
+      return kind === 'level' ? <RangeControl item={name} ctx={ctx} config={live} /> : null
     }
   }
 }
@@ -173,16 +198,18 @@ function ItemPane({
   name,
   commands,
   control,
+  liveConfig,
   period,
   onLabel
 }: {
   name: string
   commands: boolean
   control: ItemControl | undefined
+  liveConfig: { liveDrag?: unknown }
   period: string
   onLabel: (label: string | null) => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const kiosk = useKioskMode()
   const [item, setItem] = useState<Item | null>(null)
   const [failed, setFailed] = useState(false)
@@ -254,11 +281,12 @@ function ItemPane({
   // Array.isArray, not `?? []`: this renders outside any WidgetBoundary
   const optionsRaw = item?.commandDescription?.commandOptions
   const options = Array.isArray(optionsRaw) ? optionsRaw : []
-  const controlNode = commands && !readOnly && control ? renderControl(control, name, ctx, live?.state ?? item?.state, options) : null
+  const controlNode =
+    commands && !readOnly && control ? renderControl(control, name, ctx, live?.state ?? item?.state, options, liveConfig) : null
   const stored = history.kind === 'at' ? history.time : undefined
   const reported = serverChange ?? stored
   const changed = observed !== undefined && (reported === undefined || observed > reported) ? observed : reported
-  const relative = changed === undefined ? undefined : relativeTime(changed, Date.now(), i18n.language)
+  const relative = changed === undefined ? undefined : relativeTime(changed, Date.now(), appLocale())
   const heldAllWindow = changed === undefined && history.kind === 'before'
 
   const chartConfig = useMemo(
@@ -288,7 +316,7 @@ function ItemPane({
           <div className="nh-detail__row">
             <dt>{t('Last changed')}</dt>
             {/* The exact moment on hover; the relative form is what is worth reading at a glance. */}
-            <dd title={new Date(changed as number).toLocaleString(i18n.language)}>{relative}</dd>
+            <dd title={new Date(changed as number).toLocaleString(appLocale())}>{relative}</dd>
           </div>
         ) : heldAllWindow ? (
           <div className="nh-detail__row">

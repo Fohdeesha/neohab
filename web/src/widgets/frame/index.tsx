@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { refreshMs } from '../../model/interval'
 import { isSameOrigin, mixedContent, safeUrl } from '../../model/url'
 
 interface FrameConfig {
@@ -15,11 +16,12 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
   const { t } = useTranslation()
   const [generation, setGeneration] = useState(0)
 
+  const period = refreshMs(config.refresh)
   useEffect(() => {
-    if (!config.refresh || config.refresh <= 0) return
-    const id = setInterval(() => setGeneration((n) => n + 1), config.refresh * 1000)
+    if (period === null) return
+    const id = setInterval(() => setGeneration((n) => n + 1), period)
     return () => clearInterval(id)
-  }, [config.refresh])
+  }, [period])
 
   const url = safeUrl(config.url)
   if (!url) {
@@ -49,7 +51,7 @@ function FrameWidget({ config }: WidgetProps<FrameConfig>) {
         key={`${generation}:${sandboxed}`}
         className="nh-frame"
         src={url}
-        title={config.label ?? 'frame'}
+        title={config.label || t('Embedded page')}
         sandbox={sandboxed ? 'allow-scripts' : undefined}
       />
     </WidgetFrame>

@@ -6,12 +6,23 @@ import {
   convertHabpanel,
   panelConfigFromComponent,
   parseHabpanelFile,
+  planWidgetDefs,
   sharedSettingsNotes,
   withoutSharedSettings,
+  withRenamedCustomWidgets,
   type HabpanelImportResult,
   type HPPanelConfig
 } from '../importer/habpanel'
-import { beginBulkConfigWrite, saveDashboard, saveRawComponent, saveSettings, useConfigStore } from '../store/config'
+import {
+  beginBulkConfigWrite,
+  deleteDashboard,
+  deleteWidgetDef,
+  saveDashboard,
+  saveSettings,
+  saveWidgetDef,
+  useConfigStore
+} from '../store/config'
+import { exclusive } from '../store/bulk'
 import { navigate } from '../app/router'
 import { errorText } from '../api/errors'
 import { Sheet } from '../components/Sheet'
@@ -70,24 +81,30 @@ export function HabpanelImport({ onNotice }: { onNotice: NoticeFn }) {
     const converted = applyShared ? pending.converted : withoutSharedSettings(pending.converted)
     setPending(null)
     setBusy(true)
+    const created = { dashboards: [] as string[], defs: [] as string[] }
     try {
-      await beginBulkConfigWrite()
-      for (const dashboard of converted.dashboards) {
-        await saveDashboard(dashboard)
-      }
-      for (const def of converted.widgetDefs) {
-        await saveRawComponent(def)
-      }
-      if (Object.keys(converted.settingsPatch).length > 0) {
-        await saveSettings(converted.settingsPatch)
-      }
+      await exclusive(async () => {
+        await beginBulkConfigWrite()
+        const defs = planWidgetDefs(converted.widgetDefs, useConfigStore.getState().widgetDefs)
+        for (const def of defs.write) {
+          await saveWidgetDef(def)
+          if (defs.created.includes(def.id)) created.defs.push(def.id)
+        }
+        for (const dashboard of converted.dashboards) {
+          await saveDashboard(withRenamedCustomWidgets(dashboard, defs.renames))
+          created.dashboards.push(dashboard.id)
+        }
+        if (Object.keys(converted.settingsPatch).length > 0) {
+          const failed = await saveSettings(converted.settingsPatch)
+          if (failed) throw new Error(failed)
+        }
+      })
       setResult(converted)
     } catch (err) {
-      onNotice(
-        t('Import failed: {{error}}', {
-          error: errorText(err)
-        })
-      )
+      // the dashboards got fresh ids, so trying again after a failure halfway would leave two of each
+      for (const id of created.dashboards) await deleteDashboard(id).catch(() => undefined)
+      for (const id of created.defs) await deleteWidgetDef(id).catch(() => undefined)
+      onNotice(t('Import failed: {{error}}', { error: errorText(err) }))
     } finally {
       setBusy(false)
     }

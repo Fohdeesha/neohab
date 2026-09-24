@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
-import { useGridEditSurface } from '../components/useEditSurface'
 import { listWidgetDefinitions } from '../widgets'
 import { addWidget, cancelPlacing, setPaletteOpen, startPlacing, useEditorStore } from '../store/editor'
 import { useConfigStore } from '../store/config'
 
 const DRAG_THRESHOLD_PX = 5
 
-export function PaletteSheet() {
+export function PaletteSheet({ canDrag }: { canDrag: boolean }) {
   const { t } = useTranslation()
   const customDefs = useConfigStore((s) => s.widgetDefs)
   const placing = useEditorStore((s) => s.placing)
-  const canDrag = useGridEditSurface()
   const pressRef = useRef<{ x: number; y: number; start: () => void } | null>(null)
   const all = listWidgetDefinitions()
   const templateSize = all.find((d) => d.type === 'template')?.defaultSize ?? { w: 3, h: 3 }

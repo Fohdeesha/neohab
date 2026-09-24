@@ -10,8 +10,9 @@
 //
 // The widget list comes from the palette, so a widget added later is covered without editing this.
 // SAFE with a live config: creates and deletes exactly dashboard:nh-e2e-runfit and
-// dashboard:nh-e2e-runpast. It saves once through the app, which mints one restore point - that is
-// the point, since the bug this exists for is only visible on a saved dashboard being viewed.
+// dashboard:nh-e2e-runpast. It saves once through the app - that is the point, since the bug this
+// exists for is only visible on a saved dashboard being viewed - and the restore point that save takes
+// stays in the browser (lib/sandbox.mjs).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
 
@@ -84,6 +85,7 @@ try {
   // nothing this suite does may reach a real device
   await page.route('**/rest/items/*', (route) => (route.request().method() === 'POST' ? route.fulfill({ status: 200, body: '' }) : route.continue()))
 
+  for (const uid of [UID, PAST_UID]) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },

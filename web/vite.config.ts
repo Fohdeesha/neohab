@@ -1,15 +1,25 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import pkg from './package.json'
 
-const pkgVersion = (
-  JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8')) as { version?: string }
-).version ?? '0.0.0'
+// Only what can run is locked down: no inline script, no javascript: URL, no eval, anywhere in the app's
+// own origin. Images, frames, streams and styles stay open, because templates, cameras and the weather
+// feed all reach other hosts. A JavaScript widget runs in public/jswidget.html, a page with its own policy.
+const CONTENT_POLICY = "script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'"
+
+// build only: the dev server injects an inline script of its own
+const contentPolicy = {
+  name: 'neohab-content-policy',
+  apply: 'build' as const,
+  transformIndexHtml: () => [
+    { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CONTENT_POLICY }, injectTo: 'head-prepend' as const }
+  ]
+}
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  // '.' is the working directory, as process.cwd() was, and keeps this file free of node's types
+  const env = loadEnv(mode, '.', '')
   const target = env.OPENHAB_URL || 'http://localhost:8080'
   const proxy = Object.fromEntries(
     ['/rest', '/auth', '^/icon/', '/static', '/images'].map((path) => [
@@ -22,6 +32,7 @@ export default defineConfig(({ mode }) => {
     base: './',
     plugins: [
       react(),
+      contentPolicy,
       VitePWA({
         registerType: 'autoUpdate',
         manifestFilename: 'manifest.json',
@@ -43,7 +54,19 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ['index.html', 'assets/*.{js,css}', 'tile.png', 'pwa-*.png', 'favicon.{svg,ico}', 'apple-touch-icon.png', 'fonts/*.woff2', 'backgrounds/*.jpg', 'docs/*.html'],
+          globPatterns: [
+            'index.html',
+            'probe.js',
+            'jswidget.html',
+            'assets/*.{js,css}',
+            'tile.png',
+            'pwa-*.png',
+            'favicon.{svg,ico}',
+            'apple-touch-icon.png',
+            'fonts/*.woff2',
+            'backgrounds/*.jpg',
+            'docs/*.html'
+          ],
           globIgnores: ['**/hls-*.js'],
           navigateFallback: null,
           // a shortcut into a dashboard launches index.html?app=<id>, which has to hit the same
@@ -53,7 +76,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     define: {
-      __NEOHAB_VERSION__: JSON.stringify(pkgVersion),
+      __NEOHAB_VERSION__: JSON.stringify(pkg.version),
     },
     server: {
       proxy,

@@ -59,10 +59,13 @@ const CLASSIC_ENTRIES: PackEntry[] = CLASSIC_ICONS.map((n) => ({ ref: 'oh:' + n,
 
 const loadedIndexes = new Map<string, PackEntry[]>()
 const indexPromises = new Map<string, Promise<void>>()
+// a failed read is forgotten, so opening the picker again asks again instead of "loading" for ever
+const failedIndexes = new Set<string>()
 
 function loadIndex(file: string, prefix: string): Promise<void> {
   let p = indexPromises.get(file)
   if (!p) {
+    failedIndexes.delete(file)
     p = fetch('icons/' + file)
       .then((r) => (r.ok ? (r.json() as Promise<string[]>) : Promise.reject(new Error(String(r.status)))))
       .then((rows) => {
@@ -79,15 +82,29 @@ function loadIndex(file: string, prefix: string): Promise<void> {
           })
         )
       })
+      .catch((err: unknown) => {
+        indexPromises.delete(file)
+        failedIndexes.add(file)
+        throw err
+      })
     indexPromises.set(file, p)
   }
   return p
 }
 
+// merged once per set of packs: sorting ~1,900 names with localeCompare on every keystroke was the cost
+const mergedPacks = new Map<string, PackEntry[]>()
+
 const packEntries = (packs: [file: string, prefix: string][], sorted: boolean): PackEntry[] => {
+  const key = packs.map(([file]) => file).join('|') + (sorted ? '|sorted' : '')
+  const complete = packs.every(([file]) => loadedIndexes.has(file))
+  const cached = complete ? mergedPacks.get(key) : undefined
+  if (cached) return cached
   const entries = packs.flatMap(([file]) => loadedIndexes.get(file) ?? [])
   // two packs in one tab interleave by name; one pack keeps the order it was built in
-  return sorted && entries.length > 0 && packs.length > 1 ? [...entries].sort((a, b) => a.label.localeCompare(b.label)) : entries
+  const out = sorted && entries.length > 0 && packs.length > 1 ? [...entries].sort((a, b) => a.label.localeCompare(b.label)) : entries
+  if (complete) mergedPacks.set(key, out)
+  return out
 }
 
 const MAX_RESULTS = 120
@@ -109,6 +126,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
   const [query, setQuery] = useState('')
   const [pos, setPos] = useState<ListPos | null>(null)
   const [loadTick, setLoadTick] = useState(0)
+  const [retry, setRetry] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -129,7 +147,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
     return () => {
       cancelled = true
     }
-  }, [open, tab])
+  }, [open, tab, retry])
 
   const openedAt = useRef(0)
   const placeList = () => {
@@ -186,6 +204,7 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
 
   const packs = TAB_PACKS[tab]
   const packsReady = !packs || packs.every(([file]) => loadedIndexes.has(file))
+  const packsFailed = !packsReady && (packs ?? []).some(([file]) => failedIndexes.has(file))
 
   const { matches, truncated } = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -325,7 +344,16 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
           ) : null}
           {uploadError ? <div className="nh-iconpicker__error">{uploadError}</div> : null}
           <div className="nh-iconpicker__grid">
-            {!packsReady ? <span className="nh-picker__empty">{t('Loading icon library…')}</span> : null}
+            {packsFailed ? (
+              <span className="nh-picker__empty">
+                {t('The icon library could not be loaded.')}{' '}
+                <button type="button" className="nh-report__link" onClick={() => setRetry((n) => n + 1)}>
+                  {t('Try again')}
+                </button>
+              </span>
+            ) : !packsReady ? (
+              <span className="nh-picker__empty">{t('Loading icon library…')}</span>
+            ) : null}
             {matches.map((entry) => (
               <button key={entry.ref} type="button" className="nh-iconpicker__cell" title={entry.ref} onClick={() => select(entry.ref)}>
                 <Icon icon={entry.ref} size={26} />

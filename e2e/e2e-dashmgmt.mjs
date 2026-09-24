@@ -29,6 +29,8 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 try {
+  // a killed earlier run's copy would make the app name this one nh-e2e-mgmt-2
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
   await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-tile--new, .nh-welcome__actions button', { timeout: 15000 })
   const viaTile = (await page.locator('.nh-tile--new').count()) === 1

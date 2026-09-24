@@ -1,16 +1,20 @@
-// keyed on the viewport, not the container, so a docked panel cannot flip the editor to the stacked surface
-// mid-drag
 import { SIDE_PANEL_MIN } from '../model/layout'
 import { useSidebarLayout } from '../store/sidebar'
 import { useSurfaceBounds } from './useSurfaceBounds'
 import { useViewportWidth } from './useViewportWidth'
 
-export function useGridEditSurface(): boolean {
+/**
+ * The answer run mode gives: the grid's own width against the phone threshold. `runWidth` is that width, taken
+ * from a box a docked panel cannot narrow: measured on the surface itself, it lagged the panel closing by a
+ * frame, and that frame was a stack, which also reset the tablet layout to the desktop one. 0 until measured.
+ * The viewport alone read 844px as a grid on a phone in landscape that run mode, 24px of padding narrower,
+ * stacks.
+ */
+export function useGridEditSurface(runWidth: number): boolean {
   const viewportWidth = useViewportWidth()
   const sidebarInset = useSidebarLayout().inset
-  // the same threshold run mode uses, or the editor would draw a stack of a board that renders as a grid
   const { phoneBelow } = useSurfaceBounds()
-  return viewportWidth - sidebarInset >= phoneBelow
+  return (runWidth > 0 ? runWidth : viewportWidth - sidebarInset) >= phoneBelow
 }
 
 export function useSidePanelDocked(): boolean {

@@ -3,6 +3,9 @@
 // item nh_e2e_slide Enters edit mode once and leaves without.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-slider'
 const ITEM = 'nh_e2e_slide'

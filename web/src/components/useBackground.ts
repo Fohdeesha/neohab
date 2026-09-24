@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import type { Dashboard } from '../model/dashboard'
 import { cssUrl } from './download'
 import { resolveBackgroundRef } from '../model/background'
@@ -8,10 +8,9 @@ export function useBackgroundStyle(dashboard?: Dashboard): CSSProperties | undef
   const globalRef = useConfigStore((s) => s.settings.background)
   const backgrounds = useConfigStore((s) => s.backgrounds)
   const url = resolveBackgroundRef(dashboard?.background || globalRef, backgrounds)
-  if (!url) return undefined
-  return {
-    backgroundImage: `url("${cssUrl(url)}")`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center'
-  }
+  // an uploaded background is a data URI of megabytes, so the escaped copy is made once rather than per render
+  return useMemo(
+    () => (url ? { backgroundImage: `url("${cssUrl(url)}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined),
+    [url]
+  )
 }

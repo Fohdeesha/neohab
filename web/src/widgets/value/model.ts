@@ -113,17 +113,55 @@ export function barFraction(value: number | undefined, min: unknown, max: unknow
   return Math.min(1, Math.max(0, (value - lo) / (hi - lo)))
 }
 
+type SparkPoint = { time: number; value: number }
+
+export const SPARK_POINTS = 240
+
+function extent(values: number[]): [number, number] {
+  let lo = Infinity
+  let hi = -Infinity
+  for (const v of values) {
+    if (v < lo) lo = v
+    if (v > hi) hi = v
+  }
+  return [lo, hi]
+}
+
+// a sparkline is a few hundred pixels wide, and a week of raw persistence can be hundreds of thousands of
+// rows: a path nobody can tell apart from this one, and a Math.min(...) that overflows the stack. The
+// lowest and highest reading of each slice are kept, in time order, so a spike still shows.
+export function thinSpark(points: SparkPoint[]): SparkPoint[] {
+  if (points.length <= SPARK_POINTS) return points
+  const [t0, t1] = extent(points.map((p) => p.time))
+  const slices = SPARK_POINTS / 2
+  const span = (t1 - t0) / slices
+  if (!(span > 0)) return [points[0], points[points.length - 1]]
+  const lows: (SparkPoint | undefined)[] = []
+  const highs: (SparkPoint | undefined)[] = []
+  for (const p of points) {
+    const b = Math.min(slices - 1, Math.floor((p.time - t0) / span))
+    if (!lows[b] || p.value < lows[b]!.value) lows[b] = p
+    if (!highs[b] || p.value > highs[b]!.value) highs[b] = p
+  }
+  const out: SparkPoint[] = []
+  for (let b = 0; b < slices; b++) {
+    const lo = lows[b]
+    const hi = highs[b]
+    if (!lo || !hi) continue
+    if (lo === hi) out.push(lo)
+    else out.push(...(lo.time <= hi.time ? [lo, hi] : [hi, lo]))
+  }
+  return out
+}
+
 // a fixed 0..100 box the svg stretches, so the look needs no measurement of its own. A flat series
 // has no span to scale against and is drawn along the middle rather than divided by a zero range.
-export function sparkPath(points: { time: number; value: number }[]): string {
-  const usable = points.filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time))
+export function sparkPath(points: SparkPoint[]): string {
+  const usable = thinSpark(points.filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time)))
   if (usable.length === 0) return ''
-  const times = usable.map((p) => p.time)
   const values = usable.map((p) => p.value)
-  const t0 = Math.min(...times)
-  const t1 = Math.max(...times)
-  const v0 = Math.min(...values)
-  const v1 = Math.max(...values)
+  const [t0, t1] = extent(usable.map((p) => p.time))
+  const [v0, v1] = extent(values)
   const tSpan = t1 - t0
   const vSpan = v1 - v0
   const f = (n: number) => (Math.round(n * 100) / 100).toString()

@@ -27,6 +27,7 @@ import {
   HISTORY_VERSION,
   INDEX_COMPONENT,
   INDEX_UID,
+  MAX_HISTORY_LIMIT,
   SNAPSHOT_COMPONENT,
   SNAPSHOT_PREFIX,
   SUMMARY_NAMES,
@@ -43,6 +44,7 @@ import {
   type StoredBlob
 } from '../model/history'
 import { loadConfig, onBeforeConfigWrite, useConfigStore } from './config'
+import { exclusive } from './bulk'
 import { notify } from './notify'
 import { errorText } from '../api/errors'
 
@@ -61,6 +63,19 @@ export const useHistoryStore = create<HistoryState>(() => ({
   busy: false,
   error: null
 }))
+
+// a count rather than a flag: a capture ending in the middle of a restore must not re-enable Restore
+let busyCount = 0
+
+function enterBusy(): void {
+  busyCount++
+  useHistoryStore.setState({ busy: true })
+}
+
+function leaveBusy(): void {
+  busyCount = Math.max(0, busyCount - 1)
+  useHistoryStore.setState({ busy: busyCount > 0 })
+}
 
 async function writeIndex(index: HistoryIndex): Promise<void> {
   await putIndexComponent(indexComponent(index), useHistoryStore.getState().indexStored)
@@ -223,23 +238,86 @@ async function clearHistory(index: HistoryIndex): Promise<void> {
   useHistoryStore.setState({ index: emptyIndex(), indexStored: false })
 }
 
-// captures run one at a time, or two would each write an index computed from its own read
+// the index as it is now: this tab's copy merged with what another admin tab may have written since
+async function currentIndex(): Promise<HistoryIndex> {
+  const mine = useHistoryStore.getState().index ?? (await readIndex())
+  const stored = await readStoredIndex().catch(() => null)
+  return stored ? mergeIndexes(mine, stored) : mine
+}
+
+// writes `index` minus what the limit drops, then deletes the dropped points and any image body no point
+// still uses
+async function settle(index: HistoryIndex, limit: number): Promise<HistoryIndex> {
+  const { keep, drop } = applyRetention(index.snapshots, limit)
+  if (keep.length === 0) {
+    await clearHistory(index)
+    return emptyIndex()
+  }
+  let next: HistoryIndex = { version: HISTORY_VERSION, snapshots: keep, blobs: index.blobs }
+  await writeIndex(next)
+
+  for (const gone of drop) {
+    await deleteDataComponent(SNAPSHOT_PREFIX + gone.id).catch(() => undefined)
+    snapshotCache.delete(gone.id)
+  }
+
+  const orphans = unusedBlobs(next)
+  if (orphans.length > 0) {
+    const removed = new Set<string>()
+    for (const hash of orphans) {
+      try {
+        await deleteDataComponent(BLOB_PREFIX + hash)
+        removed.add(hash)
+      } catch {
+        // retried on the next capture
+      }
+    }
+    if (removed.size > 0) {
+      next = { ...next, blobs: next.blobs.filter((h) => !removed.has(h)) }
+      await writeIndex(next)
+    }
+  }
+  return next
+}
+
+// captures and everything else that rewrites the index run one at a time, or two would each write an
+// index computed from its own read
 let captureChain: Promise<unknown> = Promise.resolve()
 
-export function captureSnapshot(force = false): Promise<boolean> {
-  const run = captureChain.then(
-    () => runCapture(force),
-    () => runCapture(force)
-  )
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = captureChain.then(fn, fn)
   captureChain = run.catch(() => undefined)
   return run
+}
+
+export function captureSnapshot(force = false): Promise<boolean> {
+  return serial(() => runCapture(force))
+}
+
+/** Applies the current limit now, rather than at the next change. */
+export function pruneHistory(): Promise<void> {
+  return serial(async () => {
+    const index = await currentIndex()
+    if (index.snapshots.length === 0 && index.blobs.length === 0) return
+    await settle(index, historyLimits().limit)
+  })
+}
+
+export function deleteSnapshot(id: string): Promise<void> {
+  return serial(async () => {
+    const index = await currentIndex()
+    await settle({ ...index, snapshots: index.snapshots.filter((s) => s.id !== id) }, MAX_HISTORY_LIMIT)
+    await deleteDataComponent(SNAPSHOT_PREFIX + id).catch(() => undefined)
+    snapshotCache.delete(id)
+  })
 }
 
 async function runCapture(force = false): Promise<boolean> {
   const { limit, windowMin } = historyLimits()
   if (!historyEnabled(limit)) {
+    // off: nothing new is recorded, the unnamed points go, and the named ones stay until deleted
     const known = useHistoryStore.getState().index ?? (await readStoredIndex())
-    if (known && (known.snapshots?.length > 0 || known.blobs?.length > 0)) await clearHistory(known)
+    if (known && (known.snapshots?.length > 0 || known.blobs?.length > 0)) await settle(known, 0)
     else useHistoryStore.setState({ index: emptyIndex() })
     markWrite()
     return false
@@ -263,10 +341,7 @@ async function runCapture(force = false): Promise<boolean> {
     return false
   }
 
-  // hand the flag back rather than forcing it off, or a capture taken as the first step of a restore re-enables
-  // Restore mid-flight
-  const wasBusy = useHistoryStore.getState().busy
-  useHistoryStore.setState({ busy: true })
+  enterBusy()
   try {
     const { entries, bodies } = await captureEntries()
 
@@ -299,35 +374,11 @@ async function runCapture(force = false): Promise<boolean> {
     // re-read before overwriting - a second admin tab has its own copy of the index
     const stored = (await readStoredIndex().catch(() => null)) ?? index
     const combined = mergeIndexes({ version: HISTORY_VERSION, snapshots: [meta, ...index.snapshots], blobs: [...known] }, stored)
-    const { keep, drop } = applyRetention(combined.snapshots, limit)
-    let next: HistoryIndex = { version: HISTORY_VERSION, snapshots: keep, blobs: combined.blobs }
-    await writeIndex(next)
-
-    for (const gone of drop) {
-      await deleteDataComponent(SNAPSHOT_PREFIX + gone.id).catch(() => undefined)
-      snapshotCache.delete(gone.id)
-    }
-
-    const orphans = unusedBlobs(next)
-    if (orphans.length > 0) {
-      const removed = new Set<string>()
-      for (const hash of orphans) {
-        try {
-          await deleteDataComponent(BLOB_PREFIX + hash)
-          removed.add(hash)
-        } catch {
-          // retried on the next capture
-        }
-      }
-      if (removed.size > 0) {
-        next = { ...next, blobs: next.blobs.filter((h) => !removed.has(h)) }
-        await writeIndex(next)
-      }
-    }
+    await settle(combined, limit)
     markWrite()
     return true
   } finally {
-    useHistoryStore.setState({ busy: wasBusy })
+    leaveBusy()
   }
 }
 
@@ -351,15 +402,16 @@ export interface RestoreResult {
   skipped: string[]
 }
 
-let restoreInFlight = false
+export function restoreSnapshot(id: string): Promise<RestoreResult> {
+  return exclusive(() => runRestore(id))
+}
 
-export async function restoreSnapshot(id: string): Promise<RestoreResult> {
-  if (restoreInFlight) throw new Error(i18n.t('A restore is already running on this device.'))
-  restoreInFlight = true
-  useHistoryStore.setState({ busy: true })
+async function runRestore(id: string): Promise<RestoreResult> {
+  enterBusy()
+  let wrote = false
   try {
     const snapshot = await getSnapshot(id)
-    if (!snapshot) throw new Error('That restore point is no longer stored on the server.')
+    if (!snapshot) throw new Error(i18n.t('That restore point is no longer stored on the server.'))
 
     await captureSnapshot(true)
 
@@ -387,9 +439,11 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
 
     const existing = await listComponents()
     const have = new Set(existing.map((c) => c.uid))
+    wrote = true
     for (const component of target) {
       if (have.has(component.uid)) await updateComponent(component)
       else await addComponent(component)
+      have.add(component.uid)
     }
 
     const keep = new Set([...target.map((c) => c.uid), ...skipped])
@@ -400,29 +454,30 @@ export async function restoreSnapshot(id: string): Promise<RestoreResult> {
       removed++
     }
 
-    await loadConfig()
     markWrite()
     return { restored: target.length, removed, skipped }
   } finally {
-    restoreInFlight = false
-    useHistoryStore.setState({ busy: false })
+    // after a failure halfway too: the screen has to show what the server now holds
+    if (wrote) await loadConfig()
+    leaveBusy()
   }
 }
 
-export async function renameSnapshot(id: string, label: string): Promise<void> {
-  const index = useHistoryStore.getState().index
-  if (!index) return
-  const trimmed = label.trim()
-  const snapshots = index.snapshots.map((s) => (s.id === id ? { ...s, label: trimmed || undefined } : s))
-  const next: HistoryIndex = { ...index, snapshots }
-  await writeIndex(next)
+export function renameSnapshot(id: string, label: string): Promise<void> {
+  return serial(async () => {
+    // merged with the stored index first, or a point another tab added meanwhile would be written out of it
+    const index = await currentIndex()
+    const trimmed = label.trim()
+    const snapshots = index.snapshots.map((s) => (s.id === id ? { ...s, label: trimmed || undefined } : s))
+    await writeIndex({ ...index, snapshots })
 
-  const snapshot = await getSnapshot(id)
-  if (snapshot) {
-    const updated: Snapshot = { ...snapshot, label: trimmed || undefined }
-    cacheSnapshot(updated)
-    await putDataComponent<Snapshot>({ uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: updated }, true)
-  }
+    const snapshot = await getSnapshot(id)
+    if (snapshot) {
+      const updated: Snapshot = { ...snapshot, label: trimmed || undefined }
+      cacheSnapshot(updated)
+      await putDataComponent<Snapshot>({ uid: SNAPSHOT_PREFIX + id, component: SNAPSHOT_COMPONENT, config: updated }, true)
+    }
+  })
 }
 
 export async function currentEntries(): Promise<SnapshotEntry[]> {

@@ -1,8 +1,14 @@
 import i18n from '../i18n'
+import { NetworkError } from './base'
 import { ApiError } from './client'
 
+// a fetch that went through boundedFetch says so itself; one that did not reports a TypeError whose
+// wording depends on the browser, and every OTHER TypeError is a bug that must not read as "unreachable"
+const FETCH_FAILURE = /failed to fetch|networkerror|load failed|network connection/i
+
 function isNetworkError(err: unknown): boolean {
-  return err instanceof TypeError && !(err instanceof ApiError)
+  if (err instanceof NetworkError) return !err.timedOut
+  return err instanceof TypeError && FETCH_FAILURE.test(err.message)
 }
 
 function apiErrorText(err: ApiError): string {
@@ -19,6 +25,7 @@ function apiErrorText(err: ApiError): string {
 
 export function errorText(err: unknown): string {
   if (err instanceof ApiError) return apiErrorText(err)
+  if (err instanceof NetworkError && err.timedOut) return i18n.t('the openHAB server did not answer in time')
   if (isNetworkError(err)) return i18n.t('the openHAB server could not be reached')
   if (err instanceof Error) return err.message
   return String(err)

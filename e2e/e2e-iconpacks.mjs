@@ -7,10 +7,10 @@ import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
-const listNs = async () => await (await fetch(NS)).json()
+const listNs = async () => await (await fetch(NS, { headers: AUTH })).json()
 
 const ITEM = ITEMS.switch
 const origState = await getState(ITEM)
@@ -48,24 +48,6 @@ ok(
   ['thumbs-up', 'waving-hand', 'vertical-traffic-light', 'flag-in-hole'].every((n) => fluentNames.has(n))
 )
 
-await sendCmd(ITEM, 'OFF')
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: 'dashboard:nh-e2e-packs',
-    component: 'neohab:dashboard',
-    config: {
-      version: 1, id: 'nh-e2e-packs', name: 'nh-e2e-packs', columns: 12, rowHeight: 80, gap: 8,
-      widgets: [
-        { id: 'b1', type: 'button', config: { label: 'PackBtn', icon: 'fluent:light-bulb', iconActive: 'fluent:fire', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-        { id: 'b2', type: 'button', config: { label: 'TintBtn', icon: 'mdi:lightbulb', iconColor: '#ff0000', iconColorActive: '#00ff00', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-        { id: 's1', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, label: 'MeteoSwitch', icon: 'meteo:clear-day', iconSize: 36, item: ITEM } , layout: { lg: { x: 6, y: 0, w: 3, h: 3 } } },
-      ],
-    },
-  }),
-})
-
 function launch() {
   for (const channel of ['chrome', 'msedge']) {
     try { return launchChromium({ channel, headless: true }) } catch {}
@@ -81,6 +63,28 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 try {
+  // a killed earlier run's copies would be tested in place of fresh ones, or push the uploads to -2
+  for (const uid of ['dashboard:nh-e2e-packs', 'icon:e2e-cust-png', 'icon:e2e-cust-bmp', 'icon:e2e-cust-svg']) {
+    await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  }
+  await sendCmd(ITEM, 'OFF')
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: 'dashboard:nh-e2e-packs',
+      component: 'neohab:dashboard',
+      config: {
+        version: 1, id: 'nh-e2e-packs', name: 'nh-e2e-packs', columns: 12, rowHeight: 80, gap: 8,
+        widgets: [
+          { id: 'b1', type: 'button', config: { label: 'PackBtn', icon: 'fluent:light-bulb', iconActive: 'fluent:fire', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
+          { id: 'b2', type: 'button', config: { label: 'TintBtn', icon: 'mdi:lightbulb', iconColor: '#ff0000', iconColorActive: '#00ff00', iconSize: 40, command: 'ON', commandAlt: 'OFF', toggle: true, item: ITEM }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
+          { id: 's1', type: 'button', config: { style: 'switch', toggle: true, nonZeroIsOn: true, label: 'MeteoSwitch', icon: 'meteo:clear-day', iconSize: 36, item: ITEM } , layout: { lg: { x: 6, y: 0, w: 3, h: 3 } } },
+        ],
+      },
+    }),
+  })
+
   await page.goto(BASE + '/neohab/index.html#/d/nh-e2e-packs', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.nh-button', { timeout: 15000 })
   await sleep(1500)

@@ -1,8 +1,10 @@
 import type { UIComponent } from '../api/types'
+import { nextFreeId } from '../model/components'
 import type { Dashboard, Rect, WidgetInstance } from '../model/dashboard'
 import { MODEL_VERSION, newWidgetId, slugifyDashboardId } from '../model/dashboard'
 import { clampRect, findFreeSpot } from '../model/layout'
 import { emptyMap, lookup } from '../model/lookup'
+import type { CustomWidgetDef } from '../model/widgetdef'
 import type { AppSettings } from '../store/config'
 
 type HPWidget = Record<string, unknown> & { type: string }
@@ -579,6 +581,60 @@ export function convertHabpanel(cfg: HPPanelConfig, existingDashboardIds: string
 
   const widgetCount = dashboards.reduce((sum, d) => sum + d.widgets.length, 0)
   return { dashboards, widgetDefs, settingsPatch, widgetCount, notes: report.list() }
+}
+
+export interface WidgetDefPlan {
+  write: CustomWidgetDef[]
+  // written where nothing had that id before, so a failed import can take them back
+  created: string[]
+  // HABPanel id -> the id it was imported under, for the dashboards that use it
+  renames: Map<string, string>
+}
+
+// a definition somebody has worked on in neohab carries its own template, script or settings; one that
+// only holds what HABPanel had is safe to refresh from HABPanel again
+const editedHere = (def: CustomWidgetDef): boolean =>
+  def.source !== 'habpanel' || def.template !== undefined || def.script !== undefined || def.settings !== undefined
+
+/**
+ * Importing HABPanel a second time must not write over a custom widget that was edited since: that one
+ * is kept, and HABPanel's comes in beside it as a copy, with the imported dashboards pointed at the copy.
+ */
+export function planWidgetDefs(incoming: UIComponent[], existing: CustomWidgetDef[]): WidgetDefPlan {
+  const byId = new Map(existing.map((d) => [d.id, d]))
+  const taken = new Set(existing.map((d) => d.id))
+  for (const c of incoming) taken.add(String((c.config as { id?: unknown }).id))
+  const plan: WidgetDefPlan = { write: [], created: [], renames: new Map() }
+  for (const c of incoming) {
+    const def = c.config as unknown as CustomWidgetDef
+    const mine = byId.get(def.id)
+    if (!mine) {
+      plan.write.push(def)
+      plan.created.push(def.id)
+    } else if (!editedHere(mine)) {
+      plan.write.push(def)
+    } else {
+      const id = nextFreeId(def.id, taken)
+      taken.add(id)
+      const n = /-(\d+)$/.exec(id)?.[1]
+      plan.write.push({ ...def, id, name: n ? `${def.name} (${n})` : def.name })
+      plan.created.push(id)
+      plan.renames.set(def.id, id)
+    }
+  }
+  return plan
+}
+
+export function withRenamedCustomWidgets(dashboard: Dashboard, renames: Map<string, string>): Dashboard {
+  if (renames.size === 0) return dashboard
+  return {
+    ...dashboard,
+    widgets: dashboard.widgets.map((w) => {
+      const ref = (w.config as { customwidget?: unknown }).customwidget
+      const to = typeof ref === 'string' ? renames.get(ref) : undefined
+      return to ? { ...w, config: { ...w.config, customwidget: to } } : w
+    })
+  }
 }
 
 export interface SharedSettingNote {

@@ -49,7 +49,7 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
     })
     for (const dimension of [MAX_DIMENSION, MAX_DIMENSION / 2]) {
       const dataUri = drawToPng(img, dimension)
-      const bytes = Math.round((dataUri.length - dataUri.indexOf(',') - 1) * 0.75)
+      const bytes = dataUriBytes(dataUri)
       if (bytes <= maxKB * 1024) return { dataUri, bytes }
     }
     throw new Error(
@@ -65,8 +65,11 @@ async function processRaster(file: File, maxKB: number): Promise<ProcessedIcon> 
   }
 }
 
-const MAX_BACKGROUND_DIMENSION = 5120
-const MAX_BACKGROUND_BYTES = 24 * 1024 * 1024
+// every client downloads every background with the configuration, so a 4K screen's worth is the ceiling
+const BACKGROUND_DIMENSIONS = [3840, 2560, 1920]
+const MAX_BACKGROUND_BYTES = 6 * 1024 * 1024
+
+const dataUriBytes = (uri: string): number => Math.round((uri.length - uri.indexOf(',') - 1) * 0.75)
 
 export async function processBackgroundFile(file: File): Promise<ProcessedIcon> {
   if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
@@ -80,9 +83,15 @@ export async function processBackgroundFile(file: File): Promise<ProcessedIcon> 
     await img.decode().catch(() => {
       throw new Error(i18n.t('That image could not be decoded by the browser.'))
     })
-    for (const dimension of [MAX_BACKGROUND_DIMENSION, 3840, 2560, 1920]) {
-      const dataUri = drawToPng(img, dimension)
-      const bytes = Math.round((dataUri.length - dataUri.indexOf(',') - 1) * 0.75)
+    const alpha = file.type !== 'image/jpeg' && hasTransparency(img)
+    for (const dimension of BACKGROUND_DIMENSIONS) {
+      const canvas = drawToCanvas(img, dimension)
+      // a photo is a fraction of the size as JPEG and a floor plan's line art is usually smaller as PNG, so an
+      // opaque image keeps whichever is smaller; one with real transparency has to stay PNG
+      const png = canvas.toDataURL('image/png')
+      const jpeg = alpha ? null : canvas.toDataURL('image/jpeg', 0.85)
+      const dataUri = jpeg !== null && jpeg.startsWith('data:image/jpeg') && jpeg.length < png.length ? jpeg : png
+      const bytes = dataUriBytes(dataUri)
       if (bytes <= MAX_BACKGROUND_BYTES) return { dataUri, bytes }
     }
     throw new Error(i18n.t('That image is too large to store even after downscaling.'))
@@ -91,7 +100,16 @@ export async function processBackgroundFile(file: File): Promise<ProcessedIcon> 
   }
 }
 
-function drawToPng(img: HTMLImageElement, maxDimension: number): string {
+// read at a reduced size: smoothing averages a transparent pixel into its neighbours, so none is missed
+function hasTransparency(img: HTMLImageElement): boolean {
+  const canvas = drawToCanvas(img, 1024)
+  const data = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data
+  if (!data) return true
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 255) return true
+  return false
+}
+
+function drawToCanvas(img: HTMLImageElement, maxDimension: number): HTMLCanvasElement {
   const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight))
   const w = Math.max(1, Math.round(img.naturalWidth * scale))
   const h = Math.max(1, Math.round(img.naturalHeight * scale))
@@ -101,7 +119,11 @@ function drawToPng(img: HTMLImageElement, maxDimension: number): string {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error(i18n.t('Canvas is unavailable in this browser.'))
   ctx.drawImage(img, 0, 0, w, h)
-  return canvas.toDataURL('image/png')
+  return canvas
+}
+
+function drawToPng(img: HTMLImageElement, maxDimension: number): string {
+  return drawToCanvas(img, maxDimension).toDataURL('image/png')
 }
 
 function readAsDataUrl(file: File): Promise<string> {

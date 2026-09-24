@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SemanticTag } from '../api/tags'
 import type { Item } from '../api/types'
-import { buildTagIndex, classify, hasSemanticModel, labelFromTagName } from './semantics'
+import { buildTagIndex, classify, labelFromTagName } from './semantics'
 
 const item = (name: string, tags?: string[], over: Partial<Item> = {}): Item =>
   ({ name, type: 'Switch', state: 'OFF', tags, ...over }) as Item
@@ -92,15 +92,5 @@ describe('classifying an item', () => {
   it('takes the first of several tags of the same root, not the last', () => {
     const sem = classify(item('i', ['Kitchen', 'Bedroom']), DEFAULTS)
     expect(sem.tag?.name).toBe('Kitchen')
-  })
-})
-
-describe('detecting a model at all', () => {
-  it('is true only when something is a location or equipment', () => {
-    expect(hasSemanticModel([item('a', ['Kitchen'])], DEFAULTS)).toBe(true)
-    expect(hasSemanticModel([item('a', ['Lightbulb'])], DEFAULTS)).toBe(true)
-    expect(hasSemanticModel([item('a', ['Measurement']), item('b', ['Temperature'])], DEFAULTS)).toBe(false)
-    expect(hasSemanticModel([item('a')], DEFAULTS)).toBe(false)
-    expect(hasSemanticModel([], DEFAULTS)).toBe(false)
   })
 })

@@ -16,6 +16,8 @@ interface CatalogState {
   items: Item[]
   loaded: boolean
   loading: boolean
+  // the full catalog could not be read, so a picker says so instead of "loading" for ever
+  failed: boolean
   names: ReadonlySet<string> | null
   // items whose `autoupdate` metadata vetoes the update openHAB would otherwise post on a command,
   // so commanding one of these produces no state at all until the binding reports back
@@ -27,6 +29,7 @@ export const useCatalogStore = create<CatalogState>(() => ({
   items: [],
   loaded: false,
   loading: false,
+  failed: false,
   names: null,
   noAutoUpdate: new Set<string>(),
   namesStatus: 'idle'
@@ -35,13 +38,25 @@ export const useCatalogStore = create<CatalogState>(() => ({
 const vetoed = (rows: { name: string; metadata?: unknown }[]): ReadonlySet<string> =>
   new Set(rows.filter((i) => autoUpdateVetoed(i.metadata)).map((i) => i.name))
 
-export function ensureCatalog(): void {
+// an item made in Main UI after this page loaded has to be pickable without a reload
+const STALE_MS = 30_000
+
+// bumped when the credentials change, so an answer to the old question cannot land after it
+let generation = 0
+let loadedAt = 0
+
+export function ensureCatalog(opts?: { refresh?: boolean }): void {
   const s = useCatalogStore.getState()
-  if (s.loaded || s.loading) return
-  useCatalogStore.setState({ loading: true })
+  if (s.loading) return
+  if (s.loaded && !(opts?.refresh && Date.now() - loadedAt > STALE_MS)) return
+  const gen = generation
+  // a refresh keeps the list it has on screen until the new one arrives
+  useCatalogStore.setState({ loading: true, failed: false })
   getItems()
     .then((items) => {
+      if (gen !== generation) return
       items.sort((a, b) => a.name.localeCompare(b.name))
+      loadedAt = Date.now()
       useCatalogStore.setState({
         items,
         loaded: true,
@@ -51,27 +66,40 @@ export function ensureCatalog(): void {
         namesStatus: 'ready'
       })
     })
-    .catch(() => useCatalogStore.setState({ loading: false }))
+    .catch(() => {
+      if (gen !== generation) return
+      useCatalogStore.setState((st) => ({ loading: false, failed: !st.loaded }))
+    })
 }
 
 export function ensureItemNames(): void {
   const s = useCatalogStore.getState()
   if (s.namesStatus !== 'idle' && s.namesStatus !== 'failed') return
   if (s.loading) return
+  const gen = generation
   useCatalogStore.setState({ namesStatus: 'loading' })
   getItemNames()
     .then((items) => {
+      if (gen !== generation) return
       useCatalogStore.setState({ names: new Set(items.map((i) => i.name)), noAutoUpdate: vetoed(items), namesStatus: 'ready' })
     })
     .catch((err: unknown) => {
+      if (gen !== generation) return
       // a refused read is an answer, and a different one from "the server did not respond"
       const denied = err instanceof ApiError && (err.status === 401 || err.status === 403)
       useCatalogStore.setState({ namesStatus: denied ? 'denied' : 'failed' })
     })
 }
 
+/** After a sign-in or sign-out: what this device may read has changed, so everything is asked again. */
 export function forgetCatalog(): void {
-  useCatalogStore.setState({ items: [], loaded: false, loading: false, names: null, namesStatus: 'idle' })
+  const before = useCatalogStore.getState()
+  generation++
+  loadedAt = 0
+  useCatalogStore.setState({ items: [], loaded: false, loading: false, failed: false, names: null, namesStatus: 'idle' })
+  // the widgets that asked once will not ask again, so the question goes out on their behalf
+  if (before.loaded || before.loading) ensureCatalog()
+  else if (before.namesStatus !== 'idle') ensureItemNames()
 }
 
 /**

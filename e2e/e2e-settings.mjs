@@ -3,15 +3,9 @@
 import { launchChromium } from './lib/browser.mjs'
 import { readFileSync } from 'node:fs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
 
-
-{
-  const pre = await (await fetch(NS)).json()
-  if (pre.length > 0) {
-    console.log('ABORT: namespace holds ' + pre.length + ' components - wipe-cycle suite needs an empty namespace (snapshot + wipe first).')
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces()
 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -19,7 +13,7 @@ const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 
 const restGet = async (p) => {
-  const r = await fetch(p)
+  const r = await fetch(p, { headers: AUTH })
   return { status: r.status, body: r.ok ? await r.json() : null }
 }
 const restDelete = async (p) => (await fetch(p, { method: 'DELETE', headers: AUTH })).status
@@ -142,6 +136,39 @@ try {
   ok('merge keeps components not in the bundle', survivor.status === 200)
   const merged = await restGet(NS + '/dashboard:nh-e2e-set')
   ok('merge overwrites components in the bundle', merged.status === 200)
+
+  // a backup made without images, restored with Replace everything, must not delete the images the restored
+  // dashboards still use: it used to, because nothing in the file named them
+  const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const bgSeed = await restPost('background:nh-e2e-slim', 'neohab:background', { version: 1, id: 'nh-e2e-slim', dataUri: 'data:image/png;base64,' + PIXEL, bytes: 70 })
+  const dashSeed = await restPost('dashboard:nh-e2e-slimdash', 'neohab:dashboard', {
+    version: 1,
+    id: 'nh-e2e-slimdash',
+    name: 'E2E Slim Backup',
+    columns: 12,
+    rowHeight: 40,
+    background: 'bg:nh-e2e-slim',
+    widgets: []
+  })
+  ok('slim backup: an uploaded image and a dashboard using it', (bgSeed === 200 || bgSeed === 201) && (dashSeed === 200 || dashSeed === 201), `${bgSeed}/${dashSeed}`)
+  await page.goto(APP + '#/settings', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#nh-export-bg', { timeout: 15000 })
+  await page.uncheck('#nh-export-bg')
+  const slimDownload = page.waitForEvent('download')
+  await page.click('button:has-text("Export configuration")')
+  const slim = JSON.parse(readFileSync(await (await slimDownload).path(), 'utf8'))
+  ok(
+    'slim backup: the file carries the dashboard and not the image',
+    slim.components.some((c) => c.uid === 'dashboard:nh-e2e-slimdash') && !slim.components.some((c) => c.uid.startsWith('background:')),
+    slim.components.map((c) => c.uid).join(',')
+  )
+  await page.locator('section:has(h2:text-is("Backup")) input[type="file"]').setInputFiles({ name: 'neohab-config.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(slim)) })
+  await page.waitForSelector('button:has-text("Replace everything")', { timeout: 5000 })
+  await page.click('button:has-text("Replace everything")')
+  await page.waitForSelector('.nh-toast__text:has-text("Backup imported")', { timeout: 15000 }).catch(() => {})
+  ok('slim backup: the replace went through', (await restGet(NS + '/dashboard:nh-e2e-slimdash')).status === 200)
+  ok('slim backup: the image the restored dashboard uses is still there', (await restGet(NS + '/background:nh-e2e-slim')).status === 200)
 
   ok('no console/page errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '))
 } catch (err) {

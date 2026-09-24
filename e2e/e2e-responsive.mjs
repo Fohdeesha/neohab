@@ -10,10 +10,10 @@ const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
-const listNs = async () => await (await fetch(NS)).json()
+const listNs = async () => await (await fetch(NS, { headers: AUTH })).json()
 
 const SWITCH_ITEM = ITEMS.switch
 const SLIDER_ITEM = ITEMS.dimmer
@@ -50,11 +50,6 @@ const DASH = {
       { id: 'r-tpl', type: 'template', config: { label: 'date time', template: '<iframe name="t" frameborder="0" src="' + UNREACHABLE + 'widget-host.invalid/time.html"> </iframe>' }, layout: { lg: { x: 3, y: 1, w: 2, h: 1 } } },
     ],
   },
-}
-
-{
-  const r = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(DASH) })
-  ok('seed dashboard created', r.ok, String(r.status))
 }
 
 const cellRowHeight = (columns, gap, rowHeight, containerWidth) => {
@@ -119,6 +114,12 @@ const iframeDarkCheck = async (page, hostSel) => {
 
 const browser = await launchBrowser()
 try {
+  {
+    for (const uid of [DASH.uid, STROBE_UID]) await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const r = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(DASH) })
+    ok('seed dashboard created', r.ok, String(r.status))
+  }
+
   const VIEWPORTS = [
     { name: 'phone-360', viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
     { name: 'phone-393', viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
@@ -182,7 +183,7 @@ try {
     JSON.stringify(iconHeights)
   )
 
-  const liveResp = (await (await fetch(NS)).json())
+  const liveResp = (await (await fetch(NS, { headers: AUTH })).json())
     .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-'))
     .sort((a, b) => (b.config.widgets?.length ?? 0) - (a.config.widgets?.length ?? 0))
     .slice(0, 3)

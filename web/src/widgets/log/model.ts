@@ -71,11 +71,34 @@ export function wrapOf(raw: unknown): boolean {
   return raw === true
 }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
 // bounded, or a pasted config turns into a regex farm
 const MAX_PATTERNS = 50
 const MAX_PATTERN_LENGTH = 200
+
+// a wildcard walk rather than a regex: "a*****b" compiled to .*.*.*.* backtracks exponentially on a logger
+// name that does not match, and this runs for every line on every tile
+export function globMatch(pattern: string, text: string): boolean {
+  let p = 0
+  let t = 0
+  let star = -1
+  let mark = 0
+  while (t < text.length) {
+    if (p < pattern.length && pattern[p] === text[t]) {
+      p++
+      t++
+    } else if (p < pattern.length && pattern[p] === '*') {
+      star = p++
+      mark = t
+    } else if (star !== -1) {
+      p = star + 1
+      t = ++mark
+    } else {
+      return false
+    }
+  }
+  while (p < pattern.length && pattern[p] === '*') p++
+  return p === pattern.length
+}
 
 export function loggerMatcher(text: unknown): ((logger: string) => boolean) | null {
   if (typeof text !== 'string') return null
@@ -87,13 +110,22 @@ export function loggerMatcher(text: unknown): ((logger: string) => boolean) | nu
     .map((s) => s.slice(0, MAX_PATTERN_LENGTH))
   if (lines.length === 0) return null
   const tests = lines.map((line): ((logger: string) => boolean) => {
-    if (line.includes('*')) {
-      const re = new RegExp('^' + line.split('*').map(escapeRe).join('.*') + '$')
-      return (logger) => re.test(logger)
-    }
+    if (line.includes('*')) return (logger) => globMatch(line, logger)
     return (logger) => logger === line || logger.startsWith(line + '.')
   })
   return (logger) => tests.some((test) => test(logger))
+}
+
+/**
+ * Whether a line from a reconnected socket is one this page has not seen. The socket asks for the
+ * server's whole history again, because an openHAB restart numbers its lines from 0, and asking for
+ * everything after the last number seen got nothing back until the new count passed the old one. A
+ * number that went backwards with a later time is that restart; a number already seen is a repeat.
+ */
+export function isNewEntry(entry: LogEntry, lastSeq: number | undefined, lastTime: number | undefined): boolean {
+  if (entry.seq === undefined || lastSeq === undefined) return true
+  if (entry.seq > lastSeq) return true
+  return lastTime !== undefined && entry.time > lastTime
 }
 
 export interface LogFilter {

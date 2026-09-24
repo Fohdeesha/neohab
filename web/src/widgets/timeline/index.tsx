@@ -14,11 +14,14 @@ import {
   axisTick,
   effectiveColorMaps,
   effectiveTimelineSeries,
+  keepLiveTail,
   partitionHistory,
   thinBands,
   type TimelineBand,
   type TimelineConfig
 } from './model'
+import { intervalMs } from '../../model/interval'
+import { appLocale } from '../../i18n'
 
 const MIN_CURRENT_PCT = 0.4
 const THIN_DIVISOR = 1500
@@ -38,8 +41,8 @@ function numOpt(v: unknown): number | undefined {
 
 function fmtTick(ms: number, spanMs: number): string {
   const d = new Date(ms)
-  if (spanMs <= 48 * 3600e3) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  if (spanMs <= 48 * 3600e3) return d.toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' })
 }
 
 function fmtRange(band: TimelineBand, spanMs: number): string {
@@ -70,6 +73,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   const advice = usePersistenceAdvice(status === 'nopersistence')
   const [rows, setRows] = useState<TimelineBand[][]>([])
   const [info, setInfo] = useState<string | null>(null)
+  const [cursor, setCursor] = useState<{ row: number; band: number } | null>(null)
   const [nowTick, setNowTick] = useState(() => Date.now())
 
   const windowMs = periodMs(period)
@@ -78,6 +82,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   useEffect(() => {
     let disposed = false
     setInfo(null)
+    setCursor(null)
 
     const ctrl = new AbortController()
 
@@ -95,7 +100,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       )
       if (disposed) return
       const partitioned = results.map((points) => thinBands(partitionHistory(points, now - windowMs, now), windowMs / THIN_DIVISOR))
-      setRows(partitioned)
+      setRows((shown) => partitioned.map((fresh, i) => keepLiveTail(fresh, shown[i], now)))
       setNowTick(now)
       setStatus(partitioned.some((r) => r.length > 0) ? 'ready' : 'empty')
     }
@@ -110,8 +115,12 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       if (!disposed) setStatus(classifyHistoryError(err))
     })
 
-    const refreshSec = numOpt(config.refresh) && numOpt(config.refresh)! > 0 ? numOpt(config.refresh)! : autoRefreshSeconds(windowMs)
-    const refetch = setInterval(() => void load().catch(() => {}), refreshSec * 1000)
+    const stored = numOpt(config.refresh)
+    const refreshEvery =
+      stored !== undefined && stored > 0
+        ? intervalMs(stored, { unit: 's', min: 10, max: 86_400, fallback: 300 })
+        : autoRefreshSeconds(windowMs) * 1000
+    const refetch = setInterval(() => void load().catch(() => {}), refreshEvery)
     const tick = setInterval(() => setNowTick(Date.now()), 60_000)
     return () => {
       disposed = true
@@ -168,7 +177,9 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
   const chips = useMemo(() => chipPeriods(config.periods, config.period, period), [config.periods, config.period, period])
 
   const showChips = config.picker !== false && chips.length > 0
-  const label = config.label ?? (series.length === 1 ? series[0].label || series[0].item : undefined)
+  // WidgetHost takes the name away for "not at all"; the item's own name must not stand in for it
+  const label =
+    config.labelMode === 'none' ? undefined : (config.label ?? (series.length === 1 ? series[0].label || series[0].item : undefined))
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const wrapWidth = useContainerWidth(wrapRef)
@@ -200,7 +211,25 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
                 <span className="nh-tl__name" title={s.label || s.item}>
                   {s.label || s.item}
                 </span>
-                <div className="nh-tl__track">
+                {/* one tab stop a row rather than one a band, which on a dense row would be hundreds: the arrow
+                    keys walk the bands, newest first, and the readout below says which */}
+                <div
+                  className="nh-tl__track"
+                  tabIndex={0}
+                  role="group"
+                  aria-label={s.label || s.item}
+                  onKeyDown={(e) => {
+                    const bands = rows[i] ?? []
+                    if (bands.length === 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+                    e.preventDefault()
+                    const at = cursor?.row === i ? cursor.band : bands.length
+                    const next = e.key === 'Home' ? 0 : e.key === 'End' ? bands.length - 1 : e.key === 'ArrowLeft' ? at - 1 : at + 1
+                    const band = Math.max(0, Math.min(bands.length - 1, next))
+                    setCursor({ row: i, band })
+                    const b = bands[band]
+                    setInfo(`${s.label || s.item} · ${b.state} · ${fmtRange(b, windowMs)}`)
+                  }}
+                  onBlur={() => setCursor(null)}>
                   {(rows[i] ?? []).map((b, j, arr) => {
                     let left = Math.max(0, ((b.start - windowStart) / windowMs) * 100)
                     let right = Math.min(100, ((b.end - windowStart) / windowMs) * 100 + 0.06)
@@ -214,7 +243,7 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
                         key={j}
                         type="button"
                         tabIndex={-1} // a dense row would otherwise be hundreds of tab stops
-                        className="nh-tl__band"
+                        className={'nh-tl__band' + (cursor?.row === i && cursor.band === j ? ' nh-tl__band--cursor' : '')}
                         style={{ left: left + '%', width: right - left + '%', background: colorFor(b.state) }}
                         title={`${s.label || s.item}: ${b.state} (${fmtRange(b, windowMs)})`}
                         onClick={() => setInfo(`${s.label || s.item} · ${b.state} · ${fmtRange(b, windowMs)}`)}
@@ -226,10 +255,12 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
             ))}
             <div className="nh-tl__axis">
               {ticks.map((tms, i) => (
-                <span key={i}>{axisTick(tms, windowMs)}</span>
+                <span key={i}>{axisTick(tms, windowMs, appLocale())}</span>
               ))}
             </div>
-            {info ? <div className="nh-tl__info">{info}</div> : null}
+            <div className="nh-tl__info" aria-live="polite">
+              {info}
+            </div>
           </div>
         ) : (
           <div className="nh-tl nh-tl--status">

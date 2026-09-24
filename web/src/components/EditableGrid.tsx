@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard, Rect } from '../model/dashboard'
 import {
@@ -41,11 +41,9 @@ import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
-import { useGridEditSurface } from './useEditSurface'
+import { LONG_PRESS_MS } from './useLongPress'
 
 const BUMP_DWELL_MS = 400
-
-const LONG_PRESS_MS = 500
 
 interface DragState {
   id: string
@@ -99,7 +97,7 @@ function boxesOverlap(
   return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 }
 
-export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
+export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Dashboard; gridSurface: boolean }) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -107,14 +105,13 @@ export function EditableGrid({ dashboard: draft }: { dashboard: Dashboard }) {
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const bp = useEditorStore((s) => s.bp)
   const placing = useEditorStore((s) => s.placing)
-  const dashboard = projectDashboard(draft, bp)
+  const dashboard = useMemo(() => projectDashboard(draft, bp), [draft, bp])
   const editedSurfaces = surfacesOf(bp)
   // with a second layout in play, Delete takes a widget off the one on screen rather than the board
   const scopedDelete = hasTabletLayout(draft)
   const [placeTarget, setPlaceTarget] = useState<{ rect: Rect; valid: boolean } | null>(null)
   const containerWidth = useContainerWidth(containerRef)
   const coarse = useCoarsePointer()
-  const gridSurface = useGridEditSurface()
   const dwellRef = useRef<number | null>(null)
   const longPressRef = useRef<number | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)

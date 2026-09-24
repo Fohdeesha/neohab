@@ -47,12 +47,26 @@ export function numOpt(v: unknown): number | undefined {
   return undefined
 }
 
+const GROUPINGS: GroupBy[] = ['none', 'hour', 'day', 'week', 'month', 'hourOfDay', 'dayOfWeek', 'monthOfYear']
+
+// a colour reaches uPlot's canvas and a CSS background, and a stored one can be anything
+const colorOr = (v: unknown, fallback: string): string => (typeof v === 'string' && v.trim() !== '' ? v : fallback)
+
+// the chart widget and its full-screen page print a value the same way
+export function formatChartValue(v: number, unit: string | undefined): string {
+  const abs = Math.abs(v)
+  const dec = abs >= 100 ? 0 : abs >= 10 ? 1 : 2
+  let out = v.toFixed(dec)
+  if (dec > 0) out = out.replace(/\.?0+$/, '')
+  return unit ? out + ' ' + unit : out
+}
+
 export function resolveChart(config: ChartConfig): ResolvedChart {
   const scheme = chartScheme()
   const series = effectiveSeries(config).map((s, i) => ({
     item: s.item,
-    label: s.label || s.item,
-    color: s.color || seriesColor(i, scheme),
+    label: typeof s.label === 'string' && s.label ? s.label : s.item,
+    color: colorOr(s.color, seriesColor(i, scheme)),
     axis: s.axis === 'y2' ? ('y2' as const) : ('y' as const),
     width: numOpt(s.width) ?? 2,
     fill: numOpt(s.fill) ?? 20,
@@ -66,11 +80,11 @@ export function resolveChart(config: ChartConfig): ResolvedChart {
       from: numOpt(th.from),
       to: numOpt(th.to),
       axis: th.axis === 'y2' ? ('y2' as const) : ('y' as const),
-      color: th.color || '#d03b3b',
-      label: th.label
+      color: colorOr(th.color, '#d03b3b'),
+      label: typeof th.label === 'string' ? th.label : undefined
     }))
     .filter((th) => th.from !== undefined || th.to !== undefined)
-  const groupBy: GroupBy = (config.groupBy as GroupBy) ?? 'none'
+  const groupBy: GroupBy = GROUPINGS.includes(config.groupBy as GroupBy) ? (config.groupBy as GroupBy) : 'none'
   return {
     series,
     thresholds,

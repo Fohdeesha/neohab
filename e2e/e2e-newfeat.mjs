@@ -10,7 +10,7 @@ const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 
 const restGet = async (p) => {
-  const r = await fetch(p)
+  const r = await fetch(p, { headers: AUTH })
   return { status: r.status, body: r.ok ? await r.json() : null }
 }
 const restDelete = async (uid) =>
@@ -29,7 +29,7 @@ const sendCmd = (item, val) =>
     headers: { ...AUTH, 'Content-Type': 'text/plain' },
     body: val,
   })
-const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 
 function launch() {
   for (const channel of ['chrome', 'msedge']) {
@@ -48,6 +48,8 @@ const browser = await launch()
 const consoleErrors = []
 
 try {
+  // a killed earlier run can have left either behind, and a POST onto it would test the stale one
+  for (const uid of [STACK_UID, ICONS_UID]) await restDelete(uid)
   const st1 = await restPost(STACK_UID, 'neohab:dashboard', {
     version: 1,
     id: 'nh-e2e-stack',

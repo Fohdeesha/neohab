@@ -8,6 +8,8 @@ import {
   filterMessage,
   filterOf,
   formatTime,
+  globMatch,
+  isNewEntry,
   keepOf,
   keepaliveMessage,
   lastMatching,
@@ -281,5 +283,44 @@ describe('presentation', () => {
       /^\d{2}:\d{2}:\d{2}[.,]\d{3} \[WARN \] \[openhab\.event\.ItemStateChangedEvent\] - Item 'nh_dimmer' changed from 60 to 61\njava\.lang\.Foo\n\tat x$/
     )
     expect(entryText(entry(), 'en')).not.toContain('\n')
+  })
+})
+
+describe('logger globs', () => {
+  it('matches the way a shell glob does', () => {
+    expect(globMatch('org.openhab.*', 'org.openhab.core.items')).toBe(true)
+    expect(globMatch('*.items', 'org.openhab.core.items')).toBe(true)
+    expect(globMatch('org.*.items', 'org.openhab.core.items')).toBe(true)
+    expect(globMatch('org.*.things', 'org.openhab.core.items')).toBe(false)
+    expect(globMatch('*', '')).toBe(true)
+    expect(globMatch('a*', '')).toBe(false)
+  })
+
+  it('answers at once for a pattern full of stars that cannot match, which a regex could not', () => {
+    const pattern = 'a' + '*'.repeat(60) + 'b'
+    const logger = 'a'.repeat(5000)
+    const started = performance.now()
+    expect(globMatch(pattern, logger)).toBe(false)
+    expect(loggerMatcher(pattern)!(logger)).toBe(false)
+    expect(performance.now() - started).toBeLessThan(200)
+  })
+})
+
+describe('lines from a reconnected socket', () => {
+  const line = (seq: number | undefined, time: number) => entry({ seq, time })
+
+  it('keeps what has not been seen and drops what has', () => {
+    expect(isNewEntry(line(101, 5000), 100, 4000)).toBe(true)
+    expect(isNewEntry(line(100, 4000), 100, 4000)).toBe(false)
+    expect(isNewEntry(line(99, 3990), 100, 4000)).toBe(false)
+  })
+
+  it('takes a restarted server numbering from 0 again for new lines, by their later time', () => {
+    expect(isNewEntry(line(3, 90_000), 5000, 4000)).toBe(true)
+  })
+
+  it('treats everything as new before anything was seen, and on a server that numbers nothing', () => {
+    expect(isNewEntry(line(1, 1), undefined, undefined)).toBe(true)
+    expect(isNewEntry(line(undefined, 1), 100, 4000)).toBe(true)
   })
 })

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { ItemPicker } from '../components/ItemPicker'
+import { NumberSetting } from '../components/NumberSetting'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
 import { effectiveSeries, type ChartConfig, type ChartSeries, type ChartThreshold } from '../widgets/chart/model'
@@ -133,28 +134,30 @@ export function ChartSeriesField({ widget }: { widget: WidgetInstance }) {
             </label>
           </div>
           <div className="nh-chartcard__row">
-            <label className="nh-chartcard__cell">
-              <span>{t('Line width')}</span>
-              <input
-                type="number"
-                min={0}
-                max={8}
-                step={0.5}
-                value={s.width ?? 2}
-                onChange={(e) => patch(i, { width: e.target.value === '' ? undefined : Number(e.target.value) })}
-              />
-            </label>
-            <label className="nh-chartcard__cell">
-              <span>{t('Fill %')}</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={5}
-                value={s.fill ?? 20}
-                onChange={(e) => patch(i, { fill: e.target.value === '' ? undefined : Number(e.target.value) })}
-              />
-            </label>
+            <NumberSetting
+              id={`f-${widget.id}-series-${i}-width`}
+              className="nh-chartcard__cell"
+              label={<span>{t('Line width')}</span>}
+              mode="live"
+              min={0}
+              max={8}
+              step={0.5}
+              value={typeof s.width === 'number' && Number.isFinite(s.width) ? s.width : 2}
+              onCommit={(n) => patch(i, { width: n })}
+              onClear={() => patch(i, { width: undefined })}
+            />
+            <NumberSetting
+              id={`f-${widget.id}-series-${i}-fill`}
+              className="nh-chartcard__cell"
+              label={<span>{t('Fill %')}</span>}
+              mode="live"
+              min={0}
+              max={100}
+              step={5}
+              value={typeof s.fill === 'number' && Number.isFinite(s.fill) ? s.fill : 20}
+              onCommit={(n) => patch(i, { fill: n })}
+              onClear={() => patch(i, { fill: undefined })}
+            />
             <label className="nh-chartcard__cell nh-chartcard__cell--check">
               <span>{t('Points')}</span>
               <input type="checkbox" checked={s.points === true} onChange={(e) => patch(i, { points: e.target.checked || undefined })} />

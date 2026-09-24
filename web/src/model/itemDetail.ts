@@ -10,10 +10,6 @@ export function lastChangeAt(item: Pick<Item, 'lastStateChange'> | null | undefi
   return epoch(item?.lastStateChange)
 }
 
-export function lastUpdateAt(item: Pick<Item, 'lastStateUpdate'> | null | undefined): number | undefined {
-  return epoch(item?.lastStateUpdate)
-}
-
 // a day is what one request can carry: 1,441 rows on rrd4j, against 10,081 for a week
 export const CHANGE_LOOKBACK_MS = 24 * 3600e3
 

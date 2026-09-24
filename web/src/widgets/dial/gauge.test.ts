@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  angleToValue,
   arcOf,
   blockLit,
   fractionOf,
@@ -22,6 +21,7 @@ import {
   type DialConfig,
   zeroFractionOf
 } from './gauge'
+import { dialFraction, keyStep, valueAtFraction } from '../common/dialPointer'
 
 const cfg = (over: Partial<DialConfig> = {}): DialConfig => ({ item: 'X', ...over })
 
@@ -188,20 +188,67 @@ describe('ticks', () => {
 })
 
 describe('pointer interaction', () => {
+  const at = (svgAngle: number, start: number, sweep: number, previous: number | null = null) =>
+    dialFraction(svgAngle, start, sweep, previous)
+
   it('snaps to the step and stays inside the range', () => {
-    expect(angleToValue(-90, 0, 100, 0, 360, 1, 0)).toBe(0)
-    expect(angleToValue(0, 0, 100, 0, 360, 1, 0)).toBe(25)
-    expect(angleToValue(-90, 0, 10, 0, 360, 0.1, 1)).toBe(0)
+    expect(valueAtFraction(at(-90, 0, 360)!, 0, 100, 1, 0)).toBe(0)
+    expect(valueAtFraction(at(0, 0, 360)!, 0, 100, 1, 0)).toBe(25)
+    expect(valueAtFraction(at(-90, 0, 360)!, 0, 10, 0.1, 1)).toBe(0)
   })
 
   it('snaps to the step precision rather than trailing float noise', () => {
-    const v = angleToValue(12.3, 60, 80, 0, 270, 0.1, 1)
+    const v = valueAtFraction(at(12.3, 0, 270)!, 60, 80, 0.1, 1)
     expect(String(v)).toBe(String(Number(v.toFixed(1))))
   })
 
-  it('clamps an angle in the arc gap to whichever end is nearer', () => {
-    expect(angleToValue(190, 0, 100, 0, 270, 1, 0)).toBe(100)
-    expect(angleToValue(260, 0, 100, 0, 270, 1, 0)).toBe(0)
+  it('takes no press in the gap at all', () => {
+    expect(at(190, 0, 270)).toBeNull()
+    expect(at(260, 0, 270)).toBeNull()
+  })
+
+  // the classic dial: 225 from twelve, 270 round. Its min end is at 7:30 and the gap is at the bottom.
+  it('holds the min end when a drag runs past it, never jumping to max', () => {
+    const nearMin = at(140, 225, 270)!
+    expect(nearMin).toBeGreaterThan(0)
+    expect(nearMin).toBeLessThan(0.05)
+    // a few degrees past the min end, into the gap
+    expect(at(130, 225, 270, nearMin)).toBe(0)
+    // and on round through the whole gap, still the end it left by
+    expect(at(60, 225, 270, 0)).toBe(0)
+    expect(at(45, 225, 270, 0)).toBe(0)
+  })
+
+  it('holds the max end the same way, from the other side', () => {
+    const nearMax = at(40, 225, 270)!
+    expect(nearMax).toBeGreaterThan(0.95)
+    expect(at(50, 225, 270, nearMax)).toBe(1)
+    expect(at(125, 225, 270, 1)).toBe(1)
+  })
+
+  it('does not wrap from max to min at the top of a full ring', () => {
+    const justBelowTop = at(-91, 0, 360)!
+    expect(justBelowTop).toBeGreaterThan(0.99)
+    expect(at(-89, 0, 360, justBelowTop)).toBe(1)
+    expect(at(-89, 0, 360, 0.01)).toBeCloseTo(1 / 360, 5)
+    expect(at(-91, 0, 360, 0.001)).toBe(0)
+  })
+
+  it('follows an ordinary drag faithfully', () => {
+    const a = at(180, 225, 270)!
+    const b = at(270, 225, 270, a)!
+    expect(b).toBeGreaterThan(a)
+    expect(at(180, 225, 270, b)).toBeCloseTo(a, 9)
+  })
+
+  it('steps with the keys a slider answers to', () => {
+    expect(keyStep('ArrowUp', 50, 0, 100, 1, 0)).toBe(51)
+    expect(keyStep('ArrowLeft', 50, 0, 100, 1, 0)).toBe(49)
+    expect(keyStep('PageUp', 50, 0, 100, 1, 0)).toBe(60)
+    expect(keyStep('Home', 50, 0, 100, 1, 0)).toBe(0)
+    expect(keyStep('End', 50, 0, 100, 1, 0)).toBe(100)
+    expect(keyStep('ArrowUp', 100, 0, 100, 1, 0)).toBe(100)
+    expect(keyStep('Enter', 50, 0, 100, 1, 0)).toBeNull()
   })
 
   it('addresses whichever ring the pointer is nearer', () => {

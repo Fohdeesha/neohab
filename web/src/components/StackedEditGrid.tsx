@@ -25,9 +25,8 @@ import { addToSelection, selectWidget, toggleWidgetSelection, updateDashboardMet
 import { CellHandle } from './CellHandle'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
+import { LONG_PRESS_MS } from './useLongPress'
 import { WidgetHost } from './WidgetHost'
-
-const LONG_PRESS_MS = 500
 
 interface DragState {
   id: string

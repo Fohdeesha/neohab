@@ -100,7 +100,7 @@ export function BackupSection({ onNotice }: { onNotice: NoticeFn }) {
     if (looksPartial(parsed)) {
       const invalid = validatePartialBundle(parsed)
       if (invalid) {
-        onNotice(t('Import failed: {{error}}', { error: invalid }))
+        onNotice(t('Import failed: {{error}}', { error: t(invalid.key, invalid.values) }))
         return
       }
       const bundle = parsed as PartialBundle

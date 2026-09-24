@@ -15,7 +15,8 @@ export function RangeControl({
   min = 0,
   max = 100,
   step = 1,
-  unit
+  unit,
+  config
 }: {
   item: string
   ctx: WidgetContext
@@ -23,6 +24,8 @@ export function RangeControl({
   max?: number
   step?: number
   unit?: string
+  // the widget this stands in for: its live-drag choice, or release-only where the widget has none
+  config?: { liveDrag?: unknown }
 }) {
   const state = ctx.getItem(item)
   const [drag, setDrag] = useState<number | null>(null)
@@ -39,9 +42,9 @@ export function RangeControl({
     }
   }
   const commitOn = useKeyboardCommit(commit)
-  // no config of its own, so this one follows the shared setting
   const live = useLiveCommand<number>({
     item,
+    config,
     editing: ctx.editing,
     command: String,
     send: (v) => ctx.sendCommand(item, String(v)),
@@ -85,10 +88,24 @@ export function RangeControl({
   )
 }
 
-export function SwitchControl({ item, ctx, on = 'ON', off = 'OFF' }: { item: string; ctx: WidgetContext; on?: string; off?: string }) {
+export function SwitchControl({
+  item,
+  ctx,
+  on = 'ON',
+  off = 'OFF',
+  nonZeroIsOn = false
+}: {
+  item: string
+  ctx: WidgetContext
+  on?: string
+  off?: string
+  nonZeroIsOn?: boolean
+}) {
   const { t } = useTranslation()
   const state = ctx.getItem(item)
-  const currentlyOn = stateMatches(on, state?.state) || isOn(state)
+  // the tile's own rule: its off command is off whatever the number, and a level only counts as on where
+  // the widget says so. Reading any non-zero state as on lit "On" for a tile whose on command is 0.
+  const currentlyOn = stateMatches(off, state?.state) ? false : stateMatches(on, state?.state) || (nonZeroIsOn && isOn(state))
   const send = (cmd: string) => {
     if (!ctx.editing) void ctx.sendCommand(item, cmd)
   }

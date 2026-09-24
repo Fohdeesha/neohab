@@ -10,12 +10,19 @@
  * arguments merged in. A suite that passes `args` of its own (the kiosk suite's insecure-origin
  * flag) keeps them.
  *
- * It is also where a browser is guaranteed to be shut: a profile left in %TEMP% is a launch that
- * never reached its close, and 68 of the 69 suites only close inside their own `finally`, which
- * cannot catch a Ctrl-C or a throw before the try begins. Both are handled here for all of them,
- * and `tempclean` clears what a hard kill still manages to leave.
+ * Every context a launched browser makes keeps the app's version-history writes in the browser
+ * (lib/sandbox.mjs), so an ordinary save in a suite mints no restore point on the server; the one
+ * suite whose subject is the history calls realHistory() first.
+ *
+ * It is also where an interrupted run is handled. A Ctrl-C, a SIGTERM, the runner's abort file or
+ * a closed stdout closes the browser and lets the suite carry on into its own cleanup, since that
+ * is the part that takes its components and items off the server; the process only exits by itself
+ * if that cleanup has not finished two minutes later, or on a second interrupt. `tempclean` clears
+ * what a hard kill still manages to leave.
  */
+import { existsSync } from 'node:fs'
 import { chromium } from 'playwright-core'
+import { keepHistoryLocal } from './sandbox.mjs'
 import { LAUNCH_ARGS } from './target.mjs'
 import { sweepBrowserTemp, sweepSummary } from './tempclean.mjs'
 
@@ -23,12 +30,6 @@ const summary = sweepSummary(sweepBrowserTemp())
 if (summary) console.log(summary)
 
 const live = new Set()
-
-function track(browser) {
-  live.add(browser)
-  browser.on('disconnected', () => live.delete(browser))
-  return browser
-}
 
 function closeLive() {
   const all = [...live]
@@ -39,31 +40,94 @@ function closeLive() {
   ])
 }
 
-let bailing = false
+const CLEANUP_BACKSTOP_MS = 120_000
+// the console hands a Ctrl-C to the runner and the suite alike, and the runner passes it on too
+const SAME_INTERRUPT_MS = 3000
 
-function bail(code) {
-  if (bailing) process.exit(code)
-  bailing = true
+let interrupted = null
+
+function hardExit(code) {
   const done = () => process.exit(code)
   closeLive().then(done, done)
 }
 
-process.on('SIGINT', () => bail(130))
-process.on('SIGTERM', () => bail(143))
-// node would print these and exit 1 by itself; the point of taking them over is the close, so
-// they print the same thing and keep the same exit code
-process.on('uncaughtException', (err) => {
-  console.error(err)
-  bail(1)
-})
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled rejection:', err)
-  bail(1)
+function interrupt(reason, code, { fromSignal = false } = {}) {
+  const now = Date.now()
+  if (interrupted) {
+    if (!fromSignal || now - interrupted.at < SAME_INTERRUPT_MS) return
+    console.error(`e2e: ${reason} again - exiting now, without waiting for cleanup`)
+    return hardExit(code)
+  }
+  interrupted = { reason, code, at: now }
+  process.exitCode = code
+  console.error(`\ne2e: ${reason} - closing the browser so the suite goes straight to its cleanup (interrupt again to exit at once)`)
+  void closeLive()
+  setTimeout(() => {
+    console.error(`e2e: cleanup had not finished ${CLEANUP_BACKSTOP_MS / 1000}s after the interrupt - exiting`)
+    process.exit(code)
+  }, CLEANUP_BACKSTOP_MS).unref()
+}
+
+process.on('SIGINT', () => interrupt('interrupted (SIGINT)', 130, { fromSignal: true }))
+process.on('SIGTERM', () => interrupt('terminated (SIGTERM)', 143, { fromSignal: true }))
+
+// a suite whose reporter prints ALL PASS after being cut short has not passed anything
+process.on('exit', () => {
+  if (interrupted && !process.exitCode) process.exitCode = interrupted.code
 })
 
+// node would print these and exit 1 by itself, which skips the suite's cleanup; the browser is
+// shut instead and the suite's own finally still runs. Once interrupted, the closed browser's
+// pending calls reject by the dozen, and none of that is news.
+process.on('uncaughtException', (err) => {
+  if (interrupted) return console.error('e2e: after the interrupt:', String(err?.message ?? err).split('\n')[0])
+  console.error(err)
+  interrupt('uncaught exception', 1)
+})
+process.on('unhandledRejection', (err) => {
+  if (interrupted) return console.error('e2e: after the interrupt:', String(err?.message ?? err).split('\n')[0])
+  console.error('Unhandled rejection:', err)
+  interrupt('unhandled rejection', 1)
+})
+
+// `| head` closing the pipe used to kill a suite mid-seed at its next write (EPIPE); nobody is
+// reading, so any failure to write is treated as an interrupt and the suite cleans up in silence
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', () => interrupt('output closed', 1))
+}
+
+// run.mjs cannot deliver a catchable signal to a child on Windows, so it asks by creating a file
+const ABORT_FILE = process.env.NEOHAB_E2E_ABORT_FILE
+if (ABORT_FILE) {
+  setInterval(() => {
+    if (!interrupted && existsSync(ABORT_FILE)) interrupt('stopped by run.mjs', 1)
+  }, 1000).unref()
+}
+
+let realHistoryWanted = false
+
+// for the suites whose subject IS the version history
+export function realHistory() {
+  realHistoryWanted = true
+}
+
+function prepare(browser) {
+  live.add(browser)
+  browser.on('disconnected', () => live.delete(browser))
+  // Browser.newPage goes through newContext on the instance, so this covers both
+  const newContext = browser.newContext.bind(browser)
+  browser.newContext = async (opts = {}) => {
+    const ctx = await newContext(opts)
+    if (!realHistoryWanted) await keepHistoryLocal(ctx)
+    return ctx
+  }
+  return browser
+}
+
 export async function launchChromium(opts = {}) {
+  if (interrupted) throw new Error('e2e: not launching a browser after an interrupt')
   const args = [...(opts.args ?? []), ...LAUNCH_ARGS]
-  return track(await chromium.launch(args.length ? { ...opts, args } : opts))
+  return prepare(await chromium.launch(args.length ? { ...opts, args } : opts))
 }
 
 // Chrome first: Playwright gives each launch a fresh user-data-dir, and Edge derives a new
@@ -76,7 +140,9 @@ export async function launchBrowser(opts = {}) {
   for (const channel of CHANNELS) {
     try {
       return await launchChromium({ headless: true, ...opts, channel })
-    } catch {}
+    } catch (err) {
+      if (interrupted) throw err
+    }
   }
   return launchChromium({ headless: true, ...opts })
 }

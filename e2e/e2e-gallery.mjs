@@ -1,9 +1,12 @@
 // Bundled widget examples e2e - the "Start from an example" row inside Custom widgets. Covers: the
 // catalogue is served from the add-on itself (so it works with no internet and no cross-origin permission).
-// SAFE with a live config: creates only widgetdef:gallery-* (+ any -2 copy) and dashboard:nh-e2e-gal,
-// deletes exactly those, and commands NOTHING.
+// SAFE with a live config: creates dashboard:nh-e2e-gal and whatever widgetdef:gallery-* the app adds
+// during the run (recorded through lib/sandbox.mjs), deletes exactly those, and commands NOTHING. A
+// gallery widget that was on the server before the run belongs to somebody and is never deleted: if the
+// one this suite adds and edits is among them, that part is skipped and says so.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -21,7 +24,7 @@ async function launch() {
 
 const DASH = 'nh-e2e-gal'
 const UID = 'dashboard:' + DASH
-const MINE = /^(widgetdef:gallery-|dashboard:nh-e2e-gal)/
+const GALLERY = /^widgetdef:gallery-/
 
 const list = async () => (await (await fetch(NS, { headers: AUTH })).json())
 const get = async (u) => {
@@ -39,13 +42,14 @@ const put = async (component) => {
   return r.ok
 }
 
-const cleanup = async () => {
-  for (const c of await list()) if (MINE.test(c.uid)) await del(c.uid)
-}
-await cleanup()
+// every gallery widget already on the server, as it was, so the end of the run can prove none was touched
+const theirs = new Map((await list()).filter((c) => GALLERY.test(c.uid)).map((c) => [c.uid, JSON.stringify(c.config)]))
+const sb = await sharedSettings()
+const mine = () => [...new Set([UID, ...sb.created])]
 
 const browser = await launch()
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } })
+await sb.install(ctx)
 const page = await ctx.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -62,6 +66,7 @@ const openSettings = async () => {
 const example = (name) => page.locator('.nh-examples button').filter({ hasText: name }).first()
 
 try {
+  await del(UID)
   const indexRes = await fetch(BASE + '/neohab/gallery/index.json')
   ok('the bundled catalogue is served from the jar', indexRes.ok, String(indexRes.status))
   const index = await indexRes.json()
@@ -95,92 +100,98 @@ try {
     (await example(first.name).getAttribute('title')) === first.description,
     String(await example(first.name).getAttribute('title'))
   )
-  const before = await page.locator('.nh-deflist__row').count()
+  // adding, editing and rendering it would all act on somebody's own copy
+  const clean = !theirs.has('widgetdef:' + first.id) && !theirs.has('widgetdef:' + first.id + '-2')
+  if (!clean) {
+    ok(`SKIP: this server already has widgetdef:${first.id}, so adding, editing and rendering it are left out`, true)
+  } else {
+    const before = await page.locator('.nh-deflist__row').count()
 
-  await example(first.name).click()
-  await page.waitForSelector('.nh-toast__text', { timeout: 20000 })
-  const notice = await page.textContent('.nh-toast__text')
-  ok('adding reports success', /Added/.test(notice ?? ''), String(notice))
-  const stored = await get('widgetdef:' + first.id)
-  ok('a widgetdef component was created', stored !== null)
-  ok('with the catalogue id', stored?.config.id === first.id, String(stored?.config.id))
-  ok('and its template', typeof stored?.config.template === 'string' && stored.config.template.length > 20)
-  ok('marked as coming from the gallery', stored?.config.source === 'gallery', String(stored?.config.source))
-  await page.waitForFunction((n) => document.querySelectorAll('.nh-deflist__row').length === n + 1, before, { timeout: 20000 }).catch(() => {})
-  ok(
-    'and it joins the custom widget list above',
-    (await page.locator('.nh-deflist__row').filter({ hasText: first.name }).count()) === 1,
-    `${before} rows before, ${await page.locator('.nh-deflist__row').count()} after`
-  )
+    await example(first.name).click()
+    await page.waitForSelector('.nh-toast__text', { timeout: 20000 })
+    const notice = await page.textContent('.nh-toast__text')
+    ok('adding reports success', /Added/.test(notice ?? ''), String(notice))
+    const stored = await get('widgetdef:' + first.id)
+    ok('a widgetdef component was created', stored !== null)
+    ok('with the catalogue id', stored?.config.id === first.id, String(stored?.config.id))
+    ok('and its template', typeof stored?.config.template === 'string' && stored.config.template.length > 20)
+    ok('marked as coming from the gallery', stored?.config.source === 'gallery', String(stored?.config.source))
+    await page.waitForFunction((n) => document.querySelectorAll('.nh-deflist__row').length === n + 1, before, { timeout: 20000 }).catch(() => {})
+    ok(
+      'and it joins the custom widget list above',
+      (await page.locator('.nh-deflist__row').filter({ hasText: first.name }).count()) === 1,
+      `${before} rows before, ${await page.locator('.nh-deflist__row').count()} after`
+    )
 
-  await example(first.name).click()
-  await page.waitForSelector('.nh-toast__text:has-text("already in your custom widgets")', { timeout: 20000 })
-  ok('adding it again says it is already there', true)
-  ok('and made no copy', (await get('widgetdef:' + first.id + '-2')) === null)
+    await example(first.name).click()
+    await page.waitForSelector('.nh-toast__text:has-text("already in your custom widgets")', { timeout: 20000 })
+    ok('adding it again says it is already there', true)
+    ok('and made no copy', (await get('widgetdef:' + first.id + '-2')) === null)
 
-  ok(
-    'edit the installed widget locally',
-    await put({
-      uid: 'widgetdef:' + first.id,
-      component: 'neohab:widgetdef',
-      config: { ...stored.config, template: '<div>my own version</div>' },
+    ok(
+      'edit the installed widget locally',
+      await put({
+        uid: 'widgetdef:' + first.id,
+        component: 'neohab:widgetdef',
+        config: { ...stored.config, template: '<div>my own version</div>' },
+      })
+    )
+    await openSettings()
+    await example(first.name).click()
+    await page
+      .waitForSelector('.nh-toast__text:has-text("Added as")', { timeout: 20000 })
+      .catch(() => {})
+    const copy = await get('widgetdef:' + first.id + '-2')
+    ok('the bundled version landed under a free id', copy !== null)
+    ok('and my edited one is untouched', (await get('widgetdef:' + first.id))?.config.template === '<div>my own version</div>')
+    await del('widgetdef:' + first.id + '-2')
+
+    await del('widgetdef:' + first.id)
+    await openSettings()
+    await example(first.name).click()
+    await page.waitForSelector('.nh-toast__text:has-text("Added")', { timeout: 20000 })
+    ok(
+      'seed a dashboard using it',
+      await put({
+        uid: UID,
+        component: 'neohab:dashboard',
+        config: {
+          version: 1, id: DASH, name: 'E2E Gallery', columns: 12, rowHeight: 60, gap: 8,
+          widgets: [
+            {
+              id: 'w-gal',
+              type: 'template',
+              config: { label: 'Gal', customwidget: first.id, config: { label: 'Test', min: 0, max: 100 } },
+              layout: { lg: { x: 0, y: 0, w: 4, h: 3 } },
+            },
+          ],
+        },
+      })
+    )
+    await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-template__host', { timeout: 20000 })
+    const shadow = await page.evaluate(async () => {
+      const host = document.querySelector('.nh-template__host')
+      for (let i = 0; i < 40 && (host?.shadowRoot?.childElementCount ?? 0) < 2; i++) {
+        await new Promise((r) => setTimeout(r, 100))
+      }
+      return { html: host?.shadowRoot?.innerHTML ?? '', text: document.body.innerText }
     })
-  )
-  await openSettings()
-  await example(first.name).click()
-  await page
-    .waitForSelector('.nh-toast__text:has-text("Added as")', { timeout: 20000 })
-    .catch(() => {})
-  const copy = await get('widgetdef:' + first.id + '-2')
-  ok('the bundled version landed under a free id', copy !== null)
-  ok('and my edited one is untouched', (await get('widgetdef:' + first.id))?.config.template === '<div>my own version</div>')
-  await del('widgetdef:' + first.id + '-2')
+    ok('the installed widget renders its own markup', /class="pb"|pb__track/.test(shadow.html), shadow.html.slice(0, 120))
+    ok('with no "not found" notice', !/was not found/.test(shadow.text))
 
-  await del('widgetdef:' + first.id)
-  await openSettings()
-  await example(first.name).click()
-  await page.waitForSelector('.nh-toast__text:has-text("Added")', { timeout: 20000 })
-  ok(
-    'seed a dashboard using it',
-    await put({
-      uid: UID,
-      component: 'neohab:dashboard',
-      config: {
-        version: 1, id: DASH, name: 'E2E Gallery', columns: 12, rowHeight: 60, gap: 8,
-        widgets: [
-          {
-            id: 'w-gal',
-            type: 'template',
-            config: { label: 'Gal', customwidget: first.id, config: { label: 'Test', min: 0, max: 100 } },
-            layout: { lg: { x: 0, y: 0, w: 4, h: 3 } },
-          },
-        ],
-      },
-    })
-  )
-  await page.goto(APP + `#/d/${DASH}`, { waitUntil: 'domcontentloaded' })
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.nh-template__host', { timeout: 20000 })
-  const shadow = await page.evaluate(async () => {
-    const host = document.querySelector('.nh-template__host')
-    for (let i = 0; i < 40 && (host?.shadowRoot?.childElementCount ?? 0) < 2; i++) {
-      await new Promise((r) => setTimeout(r, 100))
-    }
-    return { html: host?.shadowRoot?.innerHTML ?? '', text: document.body.innerText }
-  })
-  ok('the installed widget renders its own markup', /class="pb"|pb__track/.test(shadow.html), shadow.html.slice(0, 120))
-  ok('with no "not found" notice', !/was not found/.test(shadow.text))
-
-  await page.click('[aria-label="Edit dashboard"]')
-  await page.waitForSelector('.nh-grid--edit', { timeout: 15000 })
-  await page.click('[aria-label="Add widget"]')
-  await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
-  ok(
-    'the added widget is offered in the palette',
-    (await page.locator('.nh-palette__card', { hasText: first.name }).count()) >= 1
-  )
-  await page.click('.nh-sheet__close')
-  await page.click('button:has-text("Exit")')
+    await page.click('[aria-label="Edit dashboard"]')
+    await page.waitForSelector('.nh-grid--edit', { timeout: 15000 })
+    await page.click('[aria-label="Add widget"]')
+    await page.waitForSelector('.nh-palette__card', { timeout: 10000 })
+    ok(
+      'the added widget is offered in the palette',
+      (await page.locator('.nh-palette__card', { hasText: first.name }).count()) >= 1
+    )
+    await page.click('.nh-sheet__close')
+    await page.click('button:has-text("Exit")')
+  }
 
   // an example carries a template or a script that the app then runs, so the catalogue has to be the
   // jar's own: pressing every one of them must not reach a single URL off this origin
@@ -205,10 +216,16 @@ try {
 } catch (err) {
   ok('suite ran to completion', false, String(err).slice(0, 250))
 } finally {
-  await cleanup()
-  const left = (await list()).map((c) => c.uid).filter((u) => MINE.test(u))
-  ok('cleanup: no leftovers', left.length === 0, left.join(','))
   await browser.close()
+  // only what this run made; the app records every component it creates through the sandbox
+  for (const uid of mine()) if (!theirs.has(uid)) await del(uid)
+  const after = await list()
+  const left = after.map((c) => c.uid).filter((u) => mine().includes(u) && !theirs.has(u))
+  ok('cleanup: no leftovers', left.length === 0, left.join(','))
+  const now = new Map(after.map((c) => [c.uid, JSON.stringify(c.config)]))
+  const touched = [...theirs].filter(([uid, cfg]) => now.get(uid) !== cfg).map(([uid]) => uid)
+  ok('cleanup: every gallery widget that was on the server before the run is still there, unchanged', touched.length === 0,
+    touched.join(',') || `${theirs.size} checked`)
   const fails = results.filter((r) => !r.pass)
   console.log(`\n${results.length - fails.length}/${results.length} checks passed`)
   console.log(fails.length ? 'FAILURES: ' + fails.map((f) => f.name).join(' ; ') : 'ALL PASS')

@@ -12,7 +12,8 @@ export interface ItemRange extends NumericScale {
 export type ItemControl =
   | { kind: 'auto' }
   | ItemRange
-  | { kind: 'onoff'; on: string; off: string }
+  // nonZeroIsOn: the widget reads any value above zero as on, as the button's own setting does
+  | { kind: 'onoff'; on: string; off: string; nonZeroIsOn?: boolean }
   | { kind: 'choices'; choices: ItemChoice[] }
   | { kind: 'color'; power?: boolean }
 

@@ -11,6 +11,9 @@ export const EMBER_CSS = `/* Stat-tile typography: labels center by DEFAULT via 
   border-color: color-mix(in srgb, var(--nh-text) 8%, transparent);
   box-shadow: none;
 }
+.nh-widget--bare {
+  border-color: transparent;
+}
 /* Labels keep the case they were typed in, small and quiet - the reference writes
    "Temp" and "Rain: Month", not "TEMP". */
 .nh-widget__label {
@@ -67,7 +70,7 @@ ${tightCellInsets({ label: '9px 10px 0', labelBottom: '0 10px 9px', body: '8px 1
   background: color-mix(in srgb, var(--nh-primary) 16%, transparent);
 }
 .nh-button--plain.nh-button--active {
-  background: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
 }
 .nh-button--plain.nh-button--active .nh-icon--mdi {
@@ -85,8 +88,8 @@ ${wholeTileActive({ plate: 'var(--nh-primary)', border: 'var(--nh-primary)' })}/
   background: transparent;
 }
 .nh-selection__btn--active {
-  background: var(--nh-primary);
-  border-color: var(--nh-primary);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  border-color: var(--nh-cellaccent, var(--nh-primary));
   color: var(--nh-accent-ink, #fff);
 }
 .nh-roller__btn,

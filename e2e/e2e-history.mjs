@@ -1,19 +1,12 @@
 // Version history suite: capture before a change, coalescing, the diff view, renaming, restoring,
 // retention, hash-shared images, turning it off, and a failed capture not failing the save it protects.
-import { launchChromium } from './lib/browser.mjs'
+import { launchChromium, realHistory } from './lib/browser.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
 import { ALL_NS, APP, AUTH, HISTORY_DATA_NS, HISTORY_NS, NS, TOKEN } from './lib/target.mjs'
 
-{
-  const counts = []
-  for (const [kind, url] of ALL_NS) counts.push([kind, (await (await fetch(url)).json()).length])
-  if (counts.some(([, n]) => n > 0)) {
-    console.log(
-      'ABORT: ' + counts.map(([k, n]) => `${n} ${k}`).join(' + ') + ' components present - ' +
-        'wipe-cycle suite needs empty namespaces (snapshot + wipe first).'
-    )
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces(ALL_NS)
+// the version history is this suite's subject, so the app's writes to it must reach the server
+realHistory()
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const results = []
@@ -353,8 +346,25 @@ try {
     ok(`change applied (${id})`, await changeTheme(name, id))
     await sleep(800)
   }
-  const pruned = await waitSnapshots(2)
-  ok('only the newest two restore points are kept', pruned?.snapshots?.length === 2, `count=${pruned?.snapshots?.length}`)
+  // the point named above is kept whatever the limit, so the limit counts the unnamed ones; waiting for the
+  // pre-restore point to go is what says both changes have been through the prune
+  const undoId = afterRestoreIndex.snapshots[0].id
+  let pruned = null
+  for (const until = Date.now() + 15000; Date.now() < until; await sleep(250)) {
+    pruned = await histIndex()
+    if (!pruned?.snapshots?.some((s) => s.id === undoId)) break
+  }
+  const unnamed = pruned?.snapshots?.filter((s) => !s.label) ?? []
+  ok(
+    'only the newest two unnamed restore points are kept',
+    unnamed.length === 2 && !unnamed.some((s) => s.id === undoId),
+    `unnamed=${unnamed.length}, all=${pruned?.snapshots?.length}`
+  )
+  ok(
+    'a named restore point survives the limit',
+    droppedIds.some((id) => renamed.snapshots[0].id === id) && pruned?.snapshots?.some((s) => s.label === 'before the rework') === true,
+    JSON.stringify(pruned?.snapshots?.map((s) => s.label ?? '-'))
+  )
   const uidsNow = await dataUids()
   const orphaned = droppedIds.filter((id) => uidsNow.includes('snap:' + id) && !pruned.snapshots.some((s) => s.id === id))
   ok('the dropped restore points are deleted, not just delisted', orphaned.length === 0, orphaned.join(','))
@@ -462,8 +472,14 @@ try {
   await forgetWindow()
   await changeTheme('neohab Dark', 'dark')
   await sleep(1500)
-  const offUids = [...(await histUids()), ...(await dataUids())]
-  ok('with history off the stored points are removed, index included', offUids.length === 0, offUids.join(','))
+  const offIndex = await histIndex()
+  const offData = await dataUids()
+  const namedId = offIndex?.snapshots?.find((s) => s.label === 'before the rework')?.id
+  ok(
+    'with history off the unnamed points are removed and the named one stays',
+    namedId !== undefined && offIndex.snapshots.length === 1 && offData.length === 1 && offData[0] === 'snap:' + namedId,
+    JSON.stringify({ index: offIndex?.snapshots?.map((s) => s.label ?? s.id), data: offData })
+  )
 
   ok(
     'turn history back on',

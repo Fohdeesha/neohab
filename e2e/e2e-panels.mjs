@@ -129,6 +129,8 @@ try {
     const bg = page.locator('.nh-sheet .nh-bgfield input[type="text"]')
     if (await bg.count()) {
       await bg.first().fill('https://example.invalid/plan.png')
+      // committed, so the thumbnail and its clear button are there to crowd the row
+      await bg.first().press('Enter')
       await sleep(350)
       const m2 = await probe(page, measurePanel, PANEL_MIN_CONTROL)
       if (m2 && m2.controls) record(name + ' (image set)', m2)

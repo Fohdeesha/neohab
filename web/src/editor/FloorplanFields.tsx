@@ -113,9 +113,17 @@ function PlanLightsSheet({ widget, onClose }: { widget: WidgetInstance; onClose:
             {lights.map((l) => (
               <div key={l.id} className={'nh-planedit__row' + (sel === l.id ? ' nh-planedit__row--sel' : '')} onClick={() => setSel(l.id)}>
                 <div className="nh-planedit__rowline">
-                  <span className="nh-planedit__item" title={l.item}>
+                  <button
+                    type="button"
+                    className="nh-planedit__item"
+                    title={l.item}
+                    aria-pressed={sel === l.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSel(l.id)
+                    }}>
                     {l.item}
-                  </span>
+                  </button>
                   <button
                     type="button"
                     className="nh-iconbtn"

@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useConfigStore } from '../store/config'
+import { loadConfig, useConfigStore } from '../store/config'
 import {
   clearSelection,
+  dropDraftKeptThroughSignIn,
+  isLeavingForSignIn,
+  keepDraftThroughSignIn,
   pasteWidgets,
   redo,
   removeWidgets,
+  resumeDraft,
   saveDraft,
   selectAll,
   setDashSettingsOpen,
@@ -13,6 +17,7 @@ import {
   setPaletteOpen,
   startEditing,
   stopEditing,
+  takeDraftKeptThroughSignIn,
   undo,
   useEditorStore
 } from '../store/editor'
@@ -29,12 +34,12 @@ import { editingAllowed, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
-import { anySheetOpen } from '../components/Sheet'
+import { anyDialogOpen } from '../components/dialog'
 import { useCoarsePointer } from '../components/useCoarsePointer'
 import { useGridEditSurface, useSidePanelDocked } from '../components/useEditSurface'
 import { useContainerWidth } from '../components/useContainerWidth'
 import { useSurfaceBounds } from '../components/useSurfaceBounds'
-import { widgetsOf, editZoom } from '../model/layout'
+import { widgetsOf, editZoom, SIDE_PANEL_WIDTH, SURFACE_PADDING } from '../model/layout'
 import { navigate } from './router'
 import i18n from '../i18n'
 import { useBackgroundStyle } from '../components/useBackground'
@@ -45,6 +50,8 @@ import { SignInSheet } from '../editor/SignInSheet'
 import { NavButton } from './Sidebar'
 import { VoiceButton } from '../audio/VoiceButton'
 
+const DRAFT_THROUGH_SIGNIN = { keep: keepDraftThroughSignIn, drop: dropDraftKeptThroughSignIn }
+
 function isTyping(): boolean {
   const el = document.activeElement as HTMLElement | null
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
@@ -54,11 +61,14 @@ export function DashboardView({ id }: { id: string }) {
   const { t } = useTranslation()
   const saved = useConfigStore((s) => s.dashboards.find((d) => d.id === id))
   const authRequired = useConfigStore((s) => s.authRequired)
+  const loadError = useConfigStore((s) => s.error)
+  const reloading = useConfigStore((s) => s.loading)
   const editor = useEditorStore()
-  const gridSurface = useGridEditSurface()
   const clipboardCount = useClipboardStore((s) => s.widgets.length)
-  const surfaceRef = useRef<HTMLDivElement>(null)
-  const surfaceWidth = useContainerWidth(surfaceRef)
+  // the width run mode's grid gets, from a box the docked panel's margin cannot narrow
+  const dashRef = useRef<HTMLDivElement>(null)
+  const dashWidth = useContainerWidth(dashRef)
+  const runWidth = dashWidth > 0 ? dashWidth - 2 * SURFACE_PADDING : 0
   const panelDocked = useSidePanelDocked()
   const bounds = useSurfaceBounds()
   const kiosk = useKioskMode()
@@ -75,7 +85,8 @@ export function DashboardView({ id }: { id: string }) {
     editing && editor.panelOpen && selectedIds.length === 1 ? editor.draft!.widgets.find((w) => w.id === selectedIds[0]) : undefined
 
   const panelOpen = editing && !!(selected || editor.dashSettingsOpen)
-  const zoom = editZoom(surfaceWidth, panelOpen && panelDocked)
+  const zoom = editZoom(runWidth - SIDE_PANEL_WIDTH, panelOpen && panelDocked)
+  const gridSurface = useGridEditSurface(runWidth)
 
   // asked AFTER the navigation: window.confirm inside the route change wedges a dialog into a navigation nothing
   // can finish
@@ -95,10 +106,43 @@ export function DashboardView({ id }: { id: string }) {
     }
   }, [id])
 
+  // the selection bar sticks under this bar and the side panel starts below it, and it wraps to a second row
+  // when the window is narrow, so its height is measured rather than assumed
+  const barRef = useRef<HTMLElement>(null)
+  const hasBar = !(kiosk && !editing)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el) return
+    const root = document.documentElement
+    const publish = () => root.style.setProperty('--nh-dashbar-h', el.offsetHeight + 'px')
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      root.style.removeProperty('--nh-dashbar-h')
+    }
+  }, [hasBar])
+
+  // the stack is drawn from the desktop layout, so after a tablet turns to portrait that is the layout a delete
+  // or an add in it has to change, not the tablet one it can no longer show
+  useEffect(() => {
+    if (editing && !gridSurface && editor.bp === 'md') setEditBreakpoint('lg')
+  }, [editing, gridSurface, editor.bp])
+
+  // a draft carried through the openHAB login page comes back here, and is saved as the button promised
+  useEffect(() => {
+    if (!saved || useEditorStore.getState().editing) return
+    const kept = takeDraftKeptThroughSignIn(saved.id)
+    if (!kept) return
+    resumeDraft(saved, kept)
+    void saveDraft()
+  }, [saved])
+
   useEffect(() => {
     if (!editing) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!useEditorStore.getState().dirty) return
+      if (!useEditorStore.getState().dirty || isLeavingForSignIn()) return
       e.preventDefault()
       e.returnValue = ''
     }
@@ -125,7 +169,7 @@ export function DashboardView({ id }: { id: string }) {
         e.preventDefault()
         removeWidgets(ids)
       } else if (key === 'escape') {
-        if (anySheetOpen() || e.defaultPrevented) return
+        if (anyDialogOpen() || e.defaultPrevented) return
         const s = useEditorStore.getState()
         e.preventDefault()
         if (s.selectedIds.length > 0) clearSelection()
@@ -185,13 +229,21 @@ export function DashboardView({ id }: { id: string }) {
       <div className="nh-dash">
         <header className="nh-dash__bar">
           <NavButton />
-          <span className="nh-dash__title">{authRequired ? t('Sign in') : t('Not found')}</span>
+          <span className="nh-dash__title">{authRequired ? t('Sign in') : loadError ? t('Could not load') : t('Not found')}</span>
         </header>
         {authRequired ? (
           <div className="nh-dash__empty">
             <p>{t('This openHAB server needs you to sign in before it will show anything.')}</p>
             <button type="button" className="nh-btn nh-btn--primary" onClick={() => setSignInOpen(true)}>
               {t('Sign in')}
+            </button>
+          </div>
+        ) : loadError ? (
+          // a panel that booted while openHAB restarted: the dashboard is not missing, it was never read
+          <div className="nh-dash__empty">
+            <p>{t('The configuration could not be loaded: {{error}}', { error: loadError })}</p>
+            <button type="button" className="nh-btn nh-btn--primary" disabled={reloading} onClick={() => void loadConfig()}>
+              {reloading ? t('Trying again…') : t('Try again')}
             </button>
           </div>
         ) : (
@@ -229,11 +281,11 @@ export function DashboardView({ id }: { id: string }) {
   }
 
   return (
-    <div className="nh-dash" style={backgroundStyle}>
+    <div ref={dashRef} className="nh-dash" style={backgroundStyle}>
       {/* Kiosk mode is a full-screen dashboard: no header at all (edit mode cannot start while
           it is on, but a draft in progress keeps its toolbar if kiosk flips mid-edit). */}
-      {kiosk && !editing ? null : (
-        <header className="nh-dash__bar">
+      {!hasBar ? null : (
+        <header ref={barRef} className="nh-dash__bar">
           {editing ? (
             <>
               <span className="nh-dash__title">{t('Editing - {{name}}', { name: dashboard.name })}</span>
@@ -350,10 +402,10 @@ export function DashboardView({ id }: { id: string }) {
         </div>
       ) : null}
 
-      <div ref={surfaceRef} className={'nh-dash__surface' + (panelOpen ? ' nh-dash__surface--panel' : '')}>
+      <div className={'nh-dash__surface' + (panelOpen ? ' nh-dash__surface--panel' : '')}>
         {editing ? (
           <div className="nh-editzoom" style={{ '--nh-editzoom': zoom } as React.CSSProperties}>
-            <EditableGrid dashboard={dashboard} />
+            <EditableGrid dashboard={dashboard} gridSurface={gridSurface} />
           </div>
         ) : (
           <Grid dashboard={dashboard} />
@@ -376,9 +428,10 @@ export function DashboardView({ id }: { id: string }) {
 
       {editing && selected ? <SettingsPanel key={selected.id} widget={selected} /> : null}
       {editing && !selected && editor.dashSettingsOpen ? <DashboardSettingsPanel dashboard={dashboard} /> : null}
-      {editing && editor.paletteOpen ? <PaletteSheet /> : null}
+      {editing && editor.paletteOpen ? <PaletteSheet canDrag={gridSurface} /> : null}
       {signInOpen ? (
         <SignInSheet
+          keepDraft={retryAfterSignIn ? DRAFT_THROUGH_SIGNIN : undefined}
           onClose={() => {
             setSignInOpen(false)
             setRetryAfterSignIn(false)

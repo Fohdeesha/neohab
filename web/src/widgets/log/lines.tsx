@@ -73,6 +73,9 @@ export function LogLines({ entries, wrap, full = false, empty, lang }: LogLinesP
       <div
         className="nh-log__scroll"
         ref={ref}
+        role="log"
+        aria-live="off"
+        tabIndex={0}
         onScroll={onScroll}
         onWheel={reader}
         onPointerDown={reader}

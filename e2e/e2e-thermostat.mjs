@@ -4,6 +4,9 @@
 // items nh_e2e_thcur, nh_e2e_thset, nh_e2e_thmode.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-thermostat'
 const CUR = 'nh_e2e_thcur'
@@ -424,7 +427,9 @@ try {
   await putState(STAT, 'heating')
 
   const unknown = await reading('Unknown')
-  ok('a setpoint with no state reads a dash with both buttons live and no handle', unknown?.sp === '-' && !unknown?.upOff && !unknown?.downOff, JSON.stringify(unknown))
+  // after a restart a setpoint is NULL, and "+" used to send the bottom of the range: a heating setpoint of 50
+  // for someone who asked for warmer. With nothing to step from, neither button guesses.
+  ok('a setpoint with no state reads a dash, with neither button offering a guess', unknown?.sp === '-' && unknown?.upOff === true && unknown?.downOff === true, JSON.stringify(unknown))
   const noHandle = await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Unknown')
     return { track: !!w?.querySelector('.nh-thermo__track'), handle: !!w?.querySelector('.nh-thermo__handle'), fill: !!w?.querySelector('.nh-thermo__fill') }
@@ -432,7 +437,7 @@ try {
   ok('and draws its track but neither a handle nor a fill for it', noHandle && noHandle.track && !noHandle.handle && !noHandle.fill, JSON.stringify(noHandle))
   await tile('Unknown').locator('.nh-thermo__btn--up').click({ timeout: 5000 }).catch(() => {})
   await sleep(900)
-  ok('its first press starts it at the minimum of the Fahrenheit range', (await reading('Unknown'))?.sp === '50' && (await getState(NULLI)) === '50', String(await getState(NULLI)))
+  ok('and a press sends nothing', (await getState(NULLI)) === 'NULL', String(await getState(NULLI)))
   const bare = await probe(page, () => {
     const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Bare')
     return { bar: !!w?.querySelector('.nh-thermo__bar'), status: !!w?.querySelector('.nh-thermo__status'), tone: w?.querySelector('.nh-thermo')?.className }

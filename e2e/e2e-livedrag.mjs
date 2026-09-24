@@ -1,11 +1,14 @@
 // Live dragging: a slider, colour picker or dial commands the device AS it is dragged, throttled, and the
 // released value always goes last. SAFE with a live config. Creates and deletes exactly:
 // dashboard:nh-e2e-livedrag (neohab:config), managed items nh_e2e_ldim, nh_e2e_ldim2, nh_e2e_lcol (bound to
-// nothing, so the commands drive no device). Snapshots the settings component for one section and puts it
-// back verbatim. Saves nothing through the app.
+// nothing, so the commands drive no device). One section needs the shared live-drag setting off, which is
+// shown to that browser context only (lib/sandbox.mjs). Saves nothing through the app.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-livedrag'
 const DIM = 'nh_e2e_ldim'
@@ -187,8 +190,6 @@ const readSampler = (page) =>
   })
 
 let context, page
-let settingsSnapshot = null
-let settingsPatched = false
 
 try {
   console.log('-- A: setup --')
@@ -328,7 +329,7 @@ try {
   await sleep(400)
 
   console.log('\n-- C: the colour picker --')
-  const B = ['Fader', 'input[aria-label="b"]']
+  const B = ['Fader', 'input.nh-color__b']
   await putState(COL, '200,60,70')
   await sleep(2500)
   const btrack = await boxOf(page, ...B)
@@ -399,12 +400,10 @@ try {
   const relDrag = since(mark, DIM2)
   ok('a widget set to Only on release sends once, whatever the shared setting says', relDrag.length === 1, `${relDrag.length}: ${bodies(relDrag)}`)
 
-  // the shared setting off: established BEFORE the browser context that reads it exists
-  settingsSnapshot = await getSettings()
-  const patched = await patchSettings(settingsSnapshot, { liveDrag: false })
-  settingsPatched = patched.ok
-  ok('turned the shared setting off on the server', patched.ok, 'HTTP ' + patched.status)
+  // the shared setting off, shown to this one context only and in place before its first page loads
+  const sb = await sharedSettings({ liveDrag: false })
   const context2 = await newContext()
+  await sb.install(context2)
   const page2 = await newPage(context2)
   await page2.goto(APP + '#/d/nh-e2e-livedrag', { waitUntil: 'load' })
   await page2.waitForSelector('.nh-fader__input', { timeout: 20000 }).catch(() => {})
@@ -429,9 +428,8 @@ try {
   })
   ok('the Controls section shows the switch off', setting?.present === true && setting.checked === false, JSON.stringify(setting))
   await context2.close()
-  const restored = await restoreSettings(settingsSnapshot)
-  settingsPatched = !restored.ok
-  ok('settings component put back ' + restored.mode, restored.ok, restored.detail)
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('the shared settings on the server were never written', untouched.ok, untouched.detail)
 
   console.log('\n-- F: what else follows the drag --')
   await sleep(1000)
@@ -487,10 +485,6 @@ try {
   ok('suite ran without crashing', false, String(e && (e.stack || e.message)))
 } finally {
   try {
-    if (settingsPatched && settingsSnapshot !== undefined) {
-      const r = await restoreSettings(settingsSnapshot)
-      ok('settings restored after a failure: ' + r.mode, r.ok, r.detail)
-    }
     await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
     for (const item of [DIM, DIM2, COL]) await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
     const left = await fetch(NS, { headers: AUTH })

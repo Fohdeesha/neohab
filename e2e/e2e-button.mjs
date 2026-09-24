@@ -5,10 +5,13 @@
 // dashboard:nh-e2e-btnlegacy, dashboard:nh-e2e-btnface and dashboard:nh-e2e-noauto (neohab:config),
 // managed items nh_e2e_btn, nh_e2e_btnstr, nh_e2e_noauto and nh_e2e_noautodim - the last two carrying
 // autoupdate metadata of their own, which is deleted with the item.
-// It SAVES through the app once, on purpose - the migration has to be proved to write back - so it mints
-// one version-history restore point, like any real edit.
+// It SAVES through the app once, on purpose - the migration has to be proved to write back. The restore
+// point that save takes stays in the browser (lib/sandbox.mjs).
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, isAppResource } from './lib/target.mjs'
+import { skipSuiteOnProduction } from './lib/guard.mjs'
+
+skipSuiteOnProduction('every check here drives managed items this suite creates')
 
 const UID = 'dashboard:nh-e2e-button'
 const LEGACY_UID = 'dashboard:nh-e2e-btnlegacy'
@@ -256,7 +259,8 @@ try {
   await putState(STR, 'STOPPED')
   await sleep(400)
 
-  for (const uid of [UID, LEGACY_UID]) {
+  // every dashboard this suite seeds, so a killed earlier run's copy is never the one tested
+  for (const uid of [UID, LEGACY_UID, FACE_UID, NOAUTO_UID]) {
     await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   }
 

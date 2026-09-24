@@ -1,4 +1,7 @@
+import i18n from '../../i18n'
 import { hsbToCss, type Hsb } from '../../model/color'
+
+const CHANNEL_NAMES: Record<keyof Hsb, string> = { h: 'Hue', s: 'Saturation', b: 'Brightness' }
 
 export function ColorSliders({
   hsb,
@@ -43,7 +46,7 @@ export function ColorSliders({
       step={1}
       value={Math.round(hsb[key])}
       disabled={disabled}
-      aria-label={key}
+      aria-label={i18n.t(CHANNEL_NAMES[key])}
       onChange={(e) => onInput({ ...hsb, [key]: Number(e.target.value) })}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

@@ -45,7 +45,7 @@ try {
 
   await page.goto(APP + '#/d/nh-e2e-cmdfail', { waitUntil: 'domcontentloaded', timeout: 20000 })
   const slider = page.locator('.nh-fader__input')
-  const hue = page.locator('input[aria-label="h"]')
+  const hue = page.locator('input.nh-color__h')
   await slider.waitFor({ state: 'visible', timeout: 10000 })
   await sleep(1500)
 
@@ -134,7 +134,7 @@ try {
       if ((await stateOf(DIM)) === dimInitial) break
     }
     const now = await stateOf(DIM)
-    console.log('restored ' + DIM + ' = ' + now + (now === dimInitial ? ' (exact)' : ' (WANT ' + dimInitial + ')'))
+    ok('cleanup: ' + DIM + ' restored', now === dimInitial, `${now} vs ${dimInitial}`)
   }
   console.log(COLOR + ' = ' + (await stateOf(COLOR)) + ' (never commanded here)')
   if (browser) await browser.close()
@@ -142,4 +142,5 @@ try {
   for (const r of results) console.log((r.pass ? ' PASS ' : ' FAIL ') + r.name + (r.detail ? '  [' + r.detail + ']' : ''))
   const failed = results.filter((r) => !r.pass).length
   console.log(failed ? `\n${failed} FAILED` : '\nALL PASS')
+  process.exitCode = failed ? 1 : 0
 }

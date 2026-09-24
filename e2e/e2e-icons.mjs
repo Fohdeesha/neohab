@@ -6,36 +6,10 @@ import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 
 const origSwitch = await getState(ITEMS.switch)
 const origColor = await getState(ITEMS.color)
-
-for (let i = 0; i < 3; i++) {
-  await fetch(`${BASE}/rest/items/${ITEMS.color}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: '210,70,55' })
-  await sleep(900)
-  const s = Number((await getState(ITEMS.color)).split(',')[1])
-  if (Number.isFinite(s) && s > 10) break
-}
-
-await fetch(NS, {
-  method: 'POST',
-  headers: { ...AUTH, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    uid: 'dashboard:nh-icons-test',
-    component: 'neohab:dashboard',
-    config: {
-      version: 1, id: 'nh-icons-test', name: 'nh-icons-test', columns: 12, rowHeight: 80, gap: 8,
-      widgets: [
-        { id: 'b1', type: 'button', config: { label: 'MDI', icon: 'mdi:lightbulb', iconSize: 40, command: 'ON', item: ITEMS.switch, toggle: true, commandAlt: 'OFF' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
-        { id: 'b2', type: 'button', config: { label: 'OH', icon: 'oh:light', iconSize: 40, command: 'ON', item: ITEMS.switch }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
-        { id: 'b3', type: 'button', config: { item: ITEMS.switch, label: 'HiddenLabel', icon: 'mdi:garage', hideLabel: true, command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
-        { id: 'b4', type: 'button', config: { item: ITEMS.switch, label: 'Typo', icon: 'mdi:lightbub', iconSize: 40, command: 'ON' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
-        { id: 'c1', type: 'color', config: { label: 'Color', item: ITEMS.color }, layout: { lg: { x: 0, y: 2, w: 4, h: 3 } } },
-      ],
-    },
-  }),
-})
 
 function launch() {
   for (const channel of ['chrome', 'msedge']) {
@@ -52,6 +26,33 @@ page.on('dialog', (d) => d.accept())
 await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', t) } catch {} }, TOKEN)
 
 try {
+  await fetch(NS + '/dashboard:nh-icons-test', { method: 'DELETE', headers: AUTH }).catch(() => {})
+  for (let i = 0; i < 3; i++) {
+    await fetch(`${BASE}/rest/items/${ITEMS.color}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: '210,70,55' })
+    await sleep(900)
+    const s = Number((await getState(ITEMS.color)).split(',')[1])
+    if (Number.isFinite(s) && s > 10) break
+  }
+
+  await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: 'dashboard:nh-icons-test',
+      component: 'neohab:dashboard',
+      config: {
+        version: 1, id: 'nh-icons-test', name: 'nh-icons-test', columns: 12, rowHeight: 80, gap: 8,
+        widgets: [
+          { id: 'b1', type: 'button', config: { label: 'MDI', icon: 'mdi:lightbulb', iconSize: 40, command: 'ON', item: ITEMS.switch, toggle: true, commandAlt: 'OFF' }, layout: { lg: { x: 0, y: 0, w: 3, h: 2 } } },
+          { id: 'b2', type: 'button', config: { label: 'OH', icon: 'oh:light', iconSize: 40, command: 'ON', item: ITEMS.switch }, layout: { lg: { x: 3, y: 0, w: 3, h: 2 } } },
+          { id: 'b3', type: 'button', config: { item: ITEMS.switch, label: 'HiddenLabel', icon: 'mdi:garage', hideLabel: true, command: 'ON' }, layout: { lg: { x: 6, y: 0, w: 3, h: 2 } } },
+          { id: 'b4', type: 'button', config: { item: ITEMS.switch, label: 'Typo', icon: 'mdi:lightbub', iconSize: 40, command: 'ON' }, layout: { lg: { x: 9, y: 0, w: 3, h: 2 } } },
+          { id: 'c1', type: 'color', config: { label: 'Color', item: ITEMS.color }, layout: { lg: { x: 0, y: 2, w: 4, h: 3 } } },
+        ],
+      },
+    }),
+  })
+
   const idx = await fetch(BASE + '/neohab/icons/mdi-index.json')
   ok('mdi index served from jar', idx.ok, String(idx.status))
   const names = await idx.json()
@@ -150,7 +151,7 @@ for (let i = 0; i < 3; i++) {
   await sleep(4000)
   if ((await getState(ITEMS.color)) === origColor) break
 }
-ok('cleanup: dashboard removed', !(await (await fetch(NS)).json()).some((c) => c.uid === 'dashboard:nh-icons-test'))
+ok('cleanup: dashboard removed', !(await (await fetch(NS, { headers: AUTH })).json()).some((c) => c.uid === 'dashboard:nh-icons-test'))
 ok('cleanup: items restored', (await getState(ITEMS.switch)) === origSwitch && (await getState(ITEMS.color)) === origColor,
   `switch=${await getState(ITEMS.switch)} color=${await getState(ITEMS.color)} want ${origSwitch}/${origColor}`)
 

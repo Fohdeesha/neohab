@@ -46,7 +46,7 @@ export type SettingField = SettingCommon &
     | { key: string; type: 'number'; label: string; min?: number; max?: number; step?: number }
     | { key: string; type: 'boolean'; label: string }
     | { key: string; type: 'color'; label: string }
-    | { key: string; type: 'select'; label: string; options: { value: string; label: string; group?: string }[] }
+    | { key: string; type: 'select'; label: string; options: { value: string; label: string }[] }
     | {
         key: string
         type: 'multiselect'

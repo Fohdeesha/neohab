@@ -1,10 +1,12 @@
 // Text scaling and small-cell layout: widget text scales with the cell (--nh-textscale) down to a floor that
 // depends on the pointer: 0.8 under a finger.
-// SAFE with a live config: creates only dashboard:nh-e2e-scale (deleted afterwards, cleanup guarded), reads
-// the server's own dashboards strictly read-only (zero clicks).
+// SAFE with a live config: creates only dashboard:nh-e2e-scale and, off production, the managed item
+// nh_e2e_scale_roller (both deleted afterwards, cleanup guarded), reads the server's own dashboards strictly
+// read-only (zero clicks).
 import { launchChromium } from './lib/browser.mjs'
 import { bottomClipped, clipDetail, labelMetrics } from './lib/labelclip.mjs'
-import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { BASE, NS, TOKEN, AUTH, ITEMS, PRODUCTION } from './lib/target.mjs'
+import { skipOnProduction } from './lib/guard.mjs'
 
 const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
@@ -27,7 +29,8 @@ const DASH = {
       { id: 's-long', type: 'button', config: { item: ITEMS.switch, label: 'Guest Bedroom Accents', icon: 'oh:colorwheel', iconSize: 75, command: 'ON' }, layout: { lg: { x: 0, y: 0, w: 1, h: 1 } } },
       { id: 's-token', type: 'button', config: { item: ITEMS.switch, label: 'Laptop>Studio AVB', icon: 'oh:screen', iconSize: 70, command: 'ON' }, layout: { lg: { x: 1, y: 0, w: 1, h: 1 } } },
       { id: 's-desc', type: 'button', config: { item: ITEMS.switch, label: 'gggjjjyyy ppqq', command: 'ON' }, layout: { lg: { x: 2, y: 0, w: 1, h: 1 } } },
-      { id: 's-roll', type: 'rollershutter', config: { item: 'nh_e2e_no_such_roller', label: 'Garage Door' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
+      // bound at seed time to a Rollershutter the server really has: an unknown item draws a notice, not a roller
+      { id: 's-roll', type: 'rollershutter', config: { item: '', label: 'Garage Door' }, layout: { lg: { x: 3, y: 0, w: 2, h: 2 } } },
       {
         id: 's-tpl',
         type: 'template',
@@ -43,13 +46,38 @@ const DASH = {
   },
 }
 
-await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
-const seed = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(DASH) })
-ok('seed: suite dashboard created', seed.ok, 'status=' + seed.status)
+// a managed Rollershutter bound to nothing where this suite may create one; on production an existing
+// one, which this suite only draws and never presses
+const OWN_ROLLER = 'nh_e2e_scale_roller'
+let madeRoller = false
+let roller = null
 
 const browser = await launchBrowser()
 
 try {
+  if (!PRODUCTION) {
+    const r = await fetch(BASE + '/rest/items/' + OWN_ROLLER, {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Rollershutter', name: OWN_ROLLER, label: 'E2E Scale Roller' }),
+    })
+    if (r.ok) {
+      madeRoller = true
+      roller = OWN_ROLLER
+      await fetch(BASE + '/rest/items/' + OWN_ROLLER + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: '50' })
+    }
+  } else {
+    const found = await (await fetch(BASE + '/rest/items?type=Rollershutter&fields=name', { headers: AUTH })).json()
+    roller = Array.isArray(found) && found[0]?.name ? found[0].name : null
+  }
+  const rollerSkipped = roller === null && skipOnProduction(ok, 'the roller-overlap check: this server has no Rollershutter item, and one may not be created here')
+  ok('a Rollershutter item to bind the roller to', roller !== null || rollerSkipped, String(roller))
+  DASH.config.widgets.find((w) => w.id === 's-roll').config.item = roller ?? ''
+
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const seed = await fetch(NS, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(DASH) })
+  ok('seed: suite dashboard created', seed.ok, 'status=' + seed.status)
+
   for (const vp of [
     { name: 'phone-landscape', width: 915, height: 411, touch: true },
     { name: 'window-1190', width: 1190, height: 768 },
@@ -87,6 +115,7 @@ try {
         rowH: parseFloat(gs.gridAutoRows),
         cellFont: parseFloat(getComputedStyle(document.querySelector('.nh-gcell')).fontSize),
         docScrollX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        rollerBtns: document.querySelectorAll('.nh-roller__btn').length,
         overlaps,
       }
     })
@@ -105,7 +134,9 @@ try {
         ' ' +
         JSON.stringify(m.labels.map((l) => (l.vClipped ? `cap@${l.boxH}/${l.lineH.toFixed(1)}` : +l.inkBelow.toFixed(2))))
     )
-    ok(`${vp.name}: roller never overlaps its label`, m.overlaps === 0, 'overlaps=' + m.overlaps)
+    if (roller !== null) {
+      ok(`${vp.name}: roller never overlaps its label`, m.rollerBtns === 3 && m.overlaps === 0, `roller buttons=${m.rollerBtns} overlaps=${m.overlaps}`)
+    }
 
     if (vp.name === 'phone-landscape') {
       const longLabel = m.labels.find((l) => l.text === 'Guest Bedroom Accents')
@@ -224,8 +255,13 @@ try {
   await browser.close()
   const del = await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH })
   ok('cleanup: suite dashboard removed', del.ok || del.status === 404, 'status=' + del.status)
-  const left = (await (await fetch(NS)).json()).filter((c) => c.uid === UID)
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => c.uid === UID)
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
+  if (madeRoller) {
+    await fetch(BASE + '/rest/items/' + OWN_ROLLER, { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const gone = (await fetch(BASE + '/rest/items/' + OWN_ROLLER, { headers: AUTH })).status === 404
+    ok('cleanup: the roller item is off the server', gone, OWN_ROLLER)
+  }
 }
 
 let pass = 0

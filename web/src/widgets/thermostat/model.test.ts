@@ -28,10 +28,13 @@ import {
   onRing,
   parseStates,
   rampColor,
+  rangeIsKnown,
   readTemp,
   sameState,
   scaleOf,
   statusOf,
+  stepBlocked,
+  stepSetpoint,
   tempParts,
   ticksOf,
   toneOf,
@@ -353,5 +356,38 @@ describe('mode, fan, aux and status', () => {
     expect(statusOf('other', 'unknown', 'ECO')).toEqual({ kind: 'raw', text: 'ECO' })
     expect(statusOf('unknown', 'unknown', undefined)).toEqual({ kind: 'none' })
     expect(statusOf('unknown', 'unknown', 'NULL')).toEqual({ kind: 'none' })
+  })
+})
+
+describe('stepping the setpoint', () => {
+  const guessed = numericScale(10, 30, 0.5)
+
+  it('refuses both ways on an unknown setpoint, rather than sending the minimum', () => {
+    expect(stepBlocked(undefined, 1, guessed, false)).toBe(true)
+    expect(stepBlocked(undefined, -1, guessed, true)).toBe(true)
+    expect(stepBlocked(NaN, 1, guessed, true)).toBe(true)
+  })
+
+  it('moves one step from a setpoint outside a guessed range, never to its far end', () => {
+    expect(stepBlocked(70, -1, guessed, false)).toBe(false)
+    expect(stepBlocked(70, 1, guessed, false)).toBe(false)
+    expect(stepSetpoint(70, -1, guessed, false)).toBe(69.5)
+    expect(stepSetpoint(70, 1, guessed, false)).toBe(70.5)
+  })
+
+  it('keeps to a range somebody actually gave', () => {
+    expect(stepBlocked(35, 1, guessed, true)).toBe(true)
+    expect(stepSetpoint(35, -1, guessed, true)).toBe(30)
+    expect(stepSetpoint(21, 1, guessed, true)).toBe(21.5)
+    expect(stepSetpoint(30, 1, guessed, false)).toBe(30)
+  })
+
+  it('knows a given range from the widget or from the item, and a guess from neither', () => {
+    const item = (sd: Item['stateDescription']): Item => ({ name: 'sp', type: 'Number', state: '20', stateDescription: sd })
+    expect(rangeIsKnown({}, undefined)).toBe(false)
+    expect(rangeIsKnown({ min: 5, max: 25 }, undefined)).toBe(true)
+    expect(rangeIsKnown({}, item({ minimum: 5, maximum: 25 }))).toBe(true)
+    expect(rangeIsKnown({ min: 5 }, item({ maximum: 25 }))).toBe(true)
+    expect(rangeIsKnown({}, item({ minimum: 5 }))).toBe(false)
   })
 })

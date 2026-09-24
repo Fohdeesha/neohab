@@ -2,97 +2,25 @@
 // those afterwards; never wipes the namespace.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const JSON_HDR = { ...AUTH, 'Content-Type': 'application/json' }
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => await (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sendCmd = (item, cmd) =>
   fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
 
 const origSwitch = await getState(ITEMS.switch)
 const origLevel = await getState(ITEMS.dimmer)
-const origSettings = await getSettings()
+// whether JS widgets run is a SHARED setting; this browser sees it at its default, then off, and the
+// server's copy is never written
+const sb = await sharedSettings({ allowJsWidgets: undefined })
 
 const TEMP_UIDS = ['widgetdef:nh-e2e-tpl', 'widgetdef:nh-e2e-js', 'dashboard:nh-e2e-tpltest']
 const post = (body) => fetch(NS, { method: 'POST', headers: JSON_HDR, body: JSON.stringify(body) })
-
-await post({
-  uid: 'widgetdef:nh-e2e-tpl',
-  component: 'neohab:widgetdef',
-  config: {
-    version: 1,
-    id: 'nh-e2e-tpl',
-    name: 'E2E Template',
-    template: [
-      '<div class="tw">',
-      "  <span id=\"st\">{{itemState(config.item)}}</span>",
-      "  <span id=\"up\">{{itemState(config.item) | lowercase}}</span>",
-      '  <button id="go" ng-click="sendCmd(config.item, itemState(config.item) == \'ON\' ? \'OFF\' : \'ON\')">flip</button>',
-      '  <div id="cond" x-if="itemState(config.item) == \'ON\'">lit</div>',
-      '  <ul><li x-for="n in [1,2,3]">row{{n}}-{{$index}}</li></ul>',
-      '  <button id="tap" x-on:tap="sendCmd(config.item, \'ON\')">tap</button>',
-      '</div>',
-    ].join('\n'),
-    settings: [{ id: 'item', type: 'item', label: 'Item' }],
-  },
-})
-await post({
-  uid: 'widgetdef:nh-e2e-js',
-  component: 'neohab:widgetdef',
-  config: {
-    version: 1,
-    id: 'nh-e2e-js',
-    name: 'E2E JS',
-    kind: 'js',
-    script: [
-      'oh.onReady(function () {',
-      "  var el = document.createElement('div'); el.id = 'val'; el.textContent = 'boot'; document.body.appendChild(el)",
-      "  oh.onChange(oh.config.item, function (s) { el.textContent = 'level=' + s.state })",
-      "  oh.getItem(oh.config.item).then(function (s) { el.textContent = 'level=' + (s ? s.state : '?') })",
-      "  var b = document.createElement('button'); b.id = 'set'; b.textContent = 'set42'",
-      "  b.addEventListener('click', function () { oh.sendCommand(oh.config.item, '42') })",
-      '  document.body.appendChild(b)',
-      '})',
-    ].join('\n'),
-    settings: [{ id: 'item', type: 'item', label: 'Item' }],
-  },
-})
-await post({
-  uid: 'dashboard:nh-e2e-tpltest',
-  component: 'neohab:dashboard',
-  config: {
-    version: 1,
-    id: 'nh-e2e-tpltest',
-    name: 'nh-e2e-tpltest',
-    columns: 12,
-    rowHeight: 90,
-    gap: 8,
-    widgets: [
-      {
-        id: 'w1',
-        type: 'template',
-        config: { label: 'tpl', customwidget: 'nh-e2e-tpl', config: { item: ITEMS.switch } },
-        layout: { lg: { x: 0, y: 0, w: 5, h: 3 } },
-      },
-      {
-        id: 'w2',
-        type: 'template',
-        config: { label: 'js', customwidget: 'nh-e2e-js', config: { item: ITEMS.dimmer } },
-        layout: { lg: { x: 5, y: 0, w: 5, h: 3 } },
-      },
-      {
-        id: 'w3',
-        type: 'button',
-        config: { item: ITEMS.switch, label: 'plainbtn', command: 'ON' },
-        layout: { lg: { x: 10, y: 0, w: 2, h: 2 } },
-      },
-    ],
-  },
-})
 
 function launch() {
   for (const channel of ['chrome', 'msedge']) {
@@ -104,6 +32,7 @@ function launch() {
 }
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 } })
+await sb.install(page)
 const consoleErrors = []
 page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message))
@@ -114,6 +43,81 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 try {
+  for (const uid of TEMP_UIDS) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  await post({
+    uid: 'widgetdef:nh-e2e-tpl',
+    component: 'neohab:widgetdef',
+    config: {
+      version: 1,
+      id: 'nh-e2e-tpl',
+      name: 'E2E Template',
+      template: [
+        '<div class="tw">',
+        "  <span id=\"st\">{{itemState(config.item)}}</span>",
+        "  <span id=\"up\">{{itemState(config.item) | lowercase}}</span>",
+        '  <button id="go" ng-click="sendCmd(config.item, itemState(config.item) == \'ON\' ? \'OFF\' : \'ON\')">flip</button>',
+        '  <div id="cond" x-if="itemState(config.item) == \'ON\'">lit</div>',
+        '  <ul><li x-for="n in [1,2,3]">row{{n}}-{{$index}}</li></ul>',
+        '  <button id="tap" x-on:tap="sendCmd(config.item, \'ON\')">tap</button>',
+        '</div>',
+      ].join('\n'),
+      settings: [{ id: 'item', type: 'item', label: 'Item' }],
+    },
+  })
+  await post({
+    uid: 'widgetdef:nh-e2e-js',
+    component: 'neohab:widgetdef',
+    config: {
+      version: 1,
+      id: 'nh-e2e-js',
+      name: 'E2E JS',
+      kind: 'js',
+      script: [
+        'oh.onReady(function () {',
+        "  var el = document.createElement('div'); el.id = 'val'; el.textContent = 'boot'; document.body.appendChild(el)",
+        "  oh.onChange(oh.config.item, function (s) { el.textContent = 'level=' + s.state })",
+        "  oh.getItem(oh.config.item).then(function (s) { el.textContent = 'level=' + (s ? s.state : '?') })",
+        "  var b = document.createElement('button'); b.id = 'set'; b.textContent = 'set42'",
+        "  b.addEventListener('click', function () { oh.sendCommand(oh.config.item, '42') })",
+        '  document.body.appendChild(b)',
+        '})',
+      ].join('\n'),
+      settings: [{ id: 'item', type: 'item', label: 'Item' }],
+    },
+  })
+  await post({
+    uid: 'dashboard:nh-e2e-tpltest',
+    component: 'neohab:dashboard',
+    config: {
+      version: 1,
+      id: 'nh-e2e-tpltest',
+      name: 'nh-e2e-tpltest',
+      columns: 12,
+      rowHeight: 90,
+      gap: 8,
+      widgets: [
+        {
+          id: 'w1',
+          type: 'template',
+          config: { label: 'tpl', customwidget: 'nh-e2e-tpl', config: { item: ITEMS.switch } },
+          layout: { lg: { x: 0, y: 0, w: 5, h: 3 } },
+        },
+        {
+          id: 'w2',
+          type: 'template',
+          config: { label: 'js', customwidget: 'nh-e2e-js', config: { item: ITEMS.dimmer } },
+          layout: { lg: { x: 5, y: 0, w: 5, h: 3 } },
+        },
+        {
+          id: 'w3',
+          type: 'button',
+          config: { item: ITEMS.switch, label: 'plainbtn', command: 'ON' },
+          layout: { lg: { x: 10, y: 0, w: 2, h: 2 } },
+        },
+      ],
+    },
+  })
+
   await sendCmd(ITEMS.switch, 'OFF')
   await sleep(800)
 
@@ -147,13 +151,13 @@ try {
   ok('js widget runs by default (no notice)', (await page.locator('.nh-template__text:has-text("disabled")').count()) === 0)
   ok('sandbox iframe present by default', (await page.locator('iframe.nh-template__frame').count()) === 1)
 
-  await patchSettings(origSettings, { allowJsWidgets: false })
+  sb.present({ allowJsWidgets: false })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await sleep(1500)
   ok('turning them off shows the notice', await page.locator('.nh-template__text:has-text("disabled")').isVisible())
   ok('no sandbox iframe while off', (await page.locator('iframe.nh-template__frame').count()) === 0)
 
-  await restoreSettings(origSettings)
+  sb.present({ allowJsWidgets: undefined })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('iframe.nh-template__frame', { timeout: 15000 })
   const frame = page.frameLocator('iframe.nh-template__frame')
@@ -188,9 +192,9 @@ for (const uid of TEMP_UIDS) {
 await sendCmd(ITEMS.switch, origSwitch)
 await sendCmd(ITEMS.dimmer, origLevel)
 await sleep(1500)
-const settingsBack = await restoreSettings(origSettings)
-ok(`settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
-const left = (await (await fetch(NS)).json()).filter((c) => TEMP_UIDS.includes(c.uid))
+const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+ok('the shared settings on the server were never written', untouched.ok, untouched.detail)
+const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => TEMP_UIDS.includes(c.uid))
 ok('temp components removed', left.length === 0, `left=${left.map((c) => c.uid).join(',')}`)
 ok('item states restored', (await getState(ITEMS.switch)) === origSwitch && (await getState(ITEMS.dimmer)) === origLevel)
 

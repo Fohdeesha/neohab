@@ -49,7 +49,7 @@ try {
   await sleep(2000)
 
   await page.goto(APP + '#/d/nh-e2e-hue', { waitUntil: 'domcontentloaded', timeout: 20000 })
-  const hue = page.locator('input[aria-label="h"]')
+  const hue = page.locator('input.nh-color__h')
   const swatch = page.locator('.nh-color__swatch')
   await hue.waitFor({ state: 'visible', timeout: 10000 })
   await sleep(1500)
@@ -111,4 +111,5 @@ try {
   for (const r of results) console.log((r.pass ? ' PASS ' : ' FAIL ') + r.name + (r.detail ? '  [' + r.detail + ']' : ''))
   const failed = results.filter((r) => !r.pass).length
   console.log(failed ? `\n${failed} FAILED` : '\nALL PASS')
+  process.exitCode = failed ? 1 : 0
 }

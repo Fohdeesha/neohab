@@ -9,11 +9,22 @@ import {
   DEFAULT_HISTORY_WINDOW_MIN,
   MAX_HISTORY_LIMIT,
   MAX_HISTORY_WINDOW_MIN,
+  unnamedCount,
   type SnapshotMeta
 } from '../model/history'
 import { saveSettings, useConfigStore } from '../store/config'
-import { currentEntries, getSnapshot, loadHistory, renameSnapshot, restoreSnapshot, useHistoryStore } from '../store/history'
+import {
+  currentEntries,
+  deleteSnapshot,
+  getSnapshot,
+  loadHistory,
+  pruneHistory,
+  renameSnapshot,
+  restoreSnapshot,
+  useHistoryStore
+} from '../store/history'
 import { errorText } from '../api/errors'
+import { appLocale } from '../i18n'
 import type { NoticeFn } from '../store/notify'
 
 type CompareMode = 'step' | 'now'
@@ -36,6 +47,39 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
   const windowMin = clampWindow(historyWindow ?? DEFAULT_HISTORY_WINDOW_MIN)
   const snapshots = index?.snapshots ?? []
 
+  const commitLimit = async (value: number) => {
+    const next = clampLimit(value)
+    // the points that go are deleted now, so the person is told how many before anything happens
+    const going = Math.max(0, unnamedCount(snapshots) - next)
+    if (going > 0) {
+      const question =
+        next === 0
+          ? t('Turn the version history off? {{count}} restore points are deleted now. Named ones are kept until you delete them.', {
+              count: going
+            })
+          : t(
+              'Keep only the newest {{limit}} restore points? {{count}} older ones are deleted now. Named ones are kept until you delete them.',
+              {
+                limit: next,
+                count: going
+              }
+            )
+      if (!window.confirm(question)) return
+    }
+    const failed = await saveSettings({ historyLimit: next }, { record: false })
+    if (failed) {
+      onNotice(failed)
+      return
+    }
+    if (going > 0) {
+      try {
+        await pruneHistory()
+      } catch (err) {
+        onNotice(t('The history could not be read: {{error}}', { error: errorText(err) }))
+      }
+    }
+  }
+
   return (
     <section>
       <h2 className="nh-settings__h">{t('Version history')}</h2>
@@ -53,7 +97,7 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
           value={limit}
           min={0}
           max={MAX_HISTORY_LIMIT}
-          onCommit={(v) => void saveSettings({ historyLimit: clampLimit(v) })}
+          onCommit={(v) => void commitLimit(v)}
         />
         <NumberSetting
           id="nh-hist-window"
@@ -67,10 +111,11 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
       </div>
       <p className="nh-settings__text">
         {limit === 0
-          ? t('History is off. Existing points are removed at the next change.')
+          ? t('History is off, so changes are not recorded.')
           : t('Changes within {{minutes}} minutes of each other share one point, so an editing session leaves one entry.', {
               minutes: windowMin
-            })}
+            })}{' '}
+        {t('A restore point you name is kept until you delete it.')}
       </p>
 
       {error ? <p className="nh-settings__text">{t('The history could not be read: {{error}}', { error })}</p> : null}
@@ -111,7 +156,7 @@ export function HistorySection({ onNotice }: { onNotice: NoticeFn }) {
 function formatWhen(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(appLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -190,6 +235,17 @@ function HistoryDetail({
     }
   }
 
+  const remove = async () => {
+    const when = snapshot.label || formatWhen(snapshot.createdAt)
+    if (!window.confirm(t('Delete the restore point “{{when}}”? This cannot be undone.', { when }))) return
+    try {
+      await deleteSnapshot(snapshot.id)
+      onRestored()
+    } catch (err) {
+      onNotice(t('Deleting failed: {{error}}', { error: errorText(err) }))
+    }
+  }
+
   const restore = async () => {
     const when = snapshot.label || formatWhen(snapshot.createdAt)
     if (
@@ -248,6 +304,9 @@ function HistoryDetail({
         />
         <button type="button" className="nh-btn nh-btn--primary" disabled={busy} onClick={() => void restore()}>
           {busy ? t('Working…') : t('Restore everything to this point')}
+        </button>
+        <button type="button" className="nh-btn nh-btn--ghost" disabled={busy} onClick={() => void remove()}>
+          {t('Delete')}
         </button>
       </div>
 

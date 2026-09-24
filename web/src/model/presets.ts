@@ -47,6 +47,8 @@ export interface PresetSummary {
   managed: boolean
   statusItem?: string
   statusState?: StatusState
+  // the items the scene commands, readable without the full rule (which is admin-only)
+  lightItems?: string[]
 }
 
 export interface Preset extends PresetSummary {
@@ -64,10 +66,32 @@ export function isNeohabRule(rule: RuleSummary): boolean {
 // the status item rides in BOTH places of the rule, because 4.x drops `configuration` from the USER-role
 // summary
 const STATUS_TAG_PREFIX = 'neohab:status:'
+// and the scene's items ride in a tag too, so a signed-out wall panel can switch a preset off
+const LIGHTS_TAG_PREFIX = 'neohab:lights:'
+const ITEM_NAME = /^[A-Za-z0-9_]+$/
 
 export function statusTagFor(item: string, state: StatusState): string {
   return `${STATUS_TAG_PREFIX}${item}:${state}`
 }
+
+function lightsTagFor(lights: PresetLight[]): string | null {
+  const names = [...new Set(lights.map((l) => l.item).filter((n) => ITEM_NAME.test(n)))]
+  return names.length > 0 ? LIGHTS_TAG_PREFIX + names.join(',') : null
+}
+
+function lightItemsFromTags(tags: unknown): string[] | undefined {
+  if (!Array.isArray(tags)) return undefined
+  const tag = tags.find((t): t is string => typeof t === 'string' && t.startsWith(LIGHTS_TAG_PREFIX))
+  if (!tag) return undefined
+  const names = tag
+    .slice(LIGHTS_TAG_PREFIX.length)
+    .split(',')
+    .filter((n) => ITEM_NAME.test(n))
+  return names.length > 0 ? names : undefined
+}
+
+const isOwnTag = (t: unknown): boolean =>
+  t === SCENE_TAG || t === NEOHAB_TAG || (typeof t === 'string' && (t.startsWith(STATUS_TAG_PREFIX) || t.startsWith(LIGHTS_TAG_PREFIX)))
 
 function statusFromTags(tags: unknown): { statusItem: string; statusState: StatusState } | null {
   if (!Array.isArray(tags)) return null
@@ -87,7 +111,7 @@ export function presetSummaryFromRule(rule: RuleSummary): PresetSummary {
     const fromTag = statusFromTags(rule.tags)
     if (fromTag) ({ statusItem, statusState } = fromTag)
   }
-  return {
+  const summary: PresetSummary = {
     uid: rule.uid,
     name: typeof rule.name === 'string' && rule.name !== '' ? rule.name : rule.uid,
     editable: rule.editable === true,
@@ -95,6 +119,9 @@ export function presetSummaryFromRule(rule: RuleSummary): PresetSummary {
     statusItem,
     statusState
   }
+  const lightItems = lightItemsFromTags(rule.tags)
+  if (lightItems) summary.lightItems = lightItems
+  return summary
 }
 
 export function presetLightsFromRule(rule: SceneRule): PresetLight[] {
@@ -111,11 +138,29 @@ export function presetLightsFromRule(rule: SceneRule): PresetLight[] {
 }
 
 export function presetFromRule(rule: SceneRule): Preset {
-  return { ...presetSummaryFromRule(rule), lights: presetLightsFromRule(rule) }
+  const summary = presetSummaryFromRule(rule)
+  const preset: Preset = { ...summary, lights: presetLightsFromRule(rule) }
+  delete preset.lightItems
+  return preset
 }
 
-export function ruleFromPreset(preset: Preset): SceneRule {
-  const configuration: Record<string, unknown> = {}
+const COMMAND_ACTION = 'core.ItemCommandAction'
+
+const plainObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+const modulesOf = (list: unknown): RuleModule[] =>
+  Array.isArray(list) ? list.filter((m): m is RuleModule => plainObject(m) && typeof m.id === 'string' && typeof m.type === 'string') : []
+
+/**
+ * The rule a preset is stored as. `existing` is the rule already on the server, if there is one:
+ * whatever somebody added to it in Main UI (a trigger, a condition, a script action, a description)
+ * is kept, and only the item commands and neohab's own tags and settings are replaced. Pass it only
+ * when it came from the server - a rule read out of a file is never trusted this way.
+ */
+export function ruleFromPreset(preset: Preset, existing?: SceneRule): SceneRule {
+  const configuration: Record<string, unknown> = plainObject(existing?.configuration) ? { ...existing.configuration } : {}
+  delete configuration.statusItem
+  delete configuration.statusState
   const tags = [SCENE_TAG, NEOHAB_TAG]
   if (preset.statusItem) {
     const state: StatusState = preset.statusState === 'OFF' ? 'OFF' : 'ON'
@@ -123,19 +168,45 @@ export function ruleFromPreset(preset: Preset): SceneRule {
     configuration.statusState = state
     tags.push(statusTagFor(preset.statusItem, state))
   }
-  return {
+  const lightsTag = lightsTagFor(preset.lights)
+  if (lightsTag) tags.push(lightsTag)
+  if (Array.isArray(existing?.tags)) {
+    for (const t of existing.tags) if (typeof t === 'string' && !isOwnTag(t) && !tags.includes(t)) tags.push(t)
+  }
+
+  const triggers = modulesOf(existing?.triggers)
+  const conditions = modulesOf(existing?.conditions)
+  const previous = modulesOf(existing?.actions)
+  const others = previous.filter((a) => a.type !== COMMAND_ACTION)
+  // openHAB resolves module handlers by id across the whole rule, so a new id must not reuse one
+  const used = new Set([...triggers, ...conditions, ...others].map((m) => m.id))
+  let next = 1
+  const freshId = (): string => {
+    while (used.has(String(next))) next++
+    used.add(String(next))
+    return String(next)
+  }
+  const commands: RuleModule[] = preset.lights.map((l) => ({
+    id: freshId(),
+    type: COMMAND_ACTION,
+    configuration: { itemName: l.item, command: l.command }
+  }))
+  // the commands go back where they were, so a script action that ran after them still does
+  const at = previous.findIndex((a) => a.type === COMMAND_ACTION)
+  const before = at < 0 ? [] : previous.slice(0, at)
+  const after = at < 0 ? others : previous.slice(at).filter((a) => a.type !== COMMAND_ACTION)
+
+  const rule: SceneRule = {
     uid: preset.uid,
     name: preset.name,
     tags,
     configuration,
-    triggers: [],
-    conditions: [],
-    actions: preset.lights.map((l, i) => ({
-      id: String(i + 1),
-      type: 'core.ItemCommandAction',
-      configuration: { itemName: l.item, command: l.command }
-    }))
+    triggers,
+    conditions,
+    actions: [...before, ...commands, ...after]
   }
+  if (typeof existing?.description === 'string' && existing.description !== '') rule.description = existing.description
+  return rule
 }
 
 export function newSceneUid(name: string, takenRuleUids: Set<string>): string {
@@ -188,13 +259,41 @@ export function exportableRule(rule: SceneRule): SceneRule {
   return out
 }
 
+const OWN_RULE_UID = /^nh-(scene|bridge)-[A-Za-z0-9_-]+$/
+
 export function isImportableSceneRule(rule: unknown): rule is SceneRule {
   if (rule === null || typeof rule !== 'object') return false
   const r = rule as SceneRule
-  if (typeof r.uid !== 'string') return false
-  if (!r.uid.startsWith(SCENE_UID_PREFIX) && !r.uid.startsWith(BRIDGE_UID_PREFIX)) return false
+  if (typeof r.uid !== 'string' || !OWN_RULE_UID.test(r.uid)) return false
   return isNeohabRule(r)
 }
+
+/**
+ * What a backup's presets are allowed to write. A rule out of a file is never written as it stands:
+ * it is read as a preset and rebuilt, and a bridge is rebuilt from the scene it runs, so only the
+ * shapes neohab itself makes can reach the server. A cron trigger, a script action or a rule run in
+ * the file is dropped. `serverRules` are the rules already there, whose own additions are kept.
+ */
+export function rulesFromBackup(fileRules: unknown, serverRules: SceneRule[] = []): SceneRule[] {
+  if (!Array.isArray(fileRules)) return []
+  const server = new Map(rulesOf(serverRules).map((r) => [r.uid, r]))
+  const scenes = new Map<string, Preset>()
+  for (const r of fileRules) {
+    if (!isImportableSceneRule(r) || !r.uid.startsWith(SCENE_UID_PREFIX) || !isScene(r)) continue
+    scenes.set(r.uid, presetFromRule(r))
+  }
+  const out = [...scenes.values()].map((p) => ruleFromPreset(p, server.get(p.uid)))
+  for (const r of fileRules) {
+    if (!isImportableSceneRule(r) || !r.uid.startsWith(BRIDGE_UID_PREFIX)) continue
+    const scene = scenes.get(r.uid.slice(BRIDGE_UID_PREFIX.length))
+    const bridge = scene ? bridgeRuleFor(scene) : null
+    if (bridge) out.push(bridge)
+  }
+  return out
+}
+
+const rulesOf = (list: unknown): SceneRule[] =>
+  Array.isArray(list) ? list.filter((r): r is SceneRule => plainObject(r) && typeof r.uid === 'string') : []
 
 const looksHsb = (s: string) => {
   const parts = s.split(',')
@@ -218,16 +317,27 @@ export function presetActive(lights: PresetLight[], getState: (item: string) => 
   return lights.every((l) => commandMatchesState(l.command, getState(l.item)))
 }
 
-export function offCommandFor(command: string): string {
-  if (typeof command !== 'string') return 'OFF'
-  if (looksHsb(command)) return 'OFF'
-  const n = Number(command)
-  return Number.isFinite(n) && command.trim() !== '' ? '0' : 'OFF'
+const SWITCHABLE = new Set(['Switch', 'Dimmer', 'Color'])
+
+// "turn the lights off" reaches lights and nothing else: a blind in the same scene would read 0 as
+// fully open, and a player or a number has no off at all. Switch, Dimmer and Color all take OFF.
+export function switchesOff(type: string | undefined, groupType?: string): boolean {
+  const base = (type ?? '').split(':')[0]
+  if (base === 'Group') return SWITCHABLE.has((groupType ?? '').split(':')[0])
+  return SWITCHABLE.has(base)
 }
 
-export function presetOffCommands(lights: PresetLight[]): PresetLight[] {
-  if (!Array.isArray(lights)) return []
-  return lights.map((l) => ({ item: l.item, command: offCommandFor(l.command) }))
+export function presetOffCommands(
+  items: string[],
+  typeOf: (item: string) => { type?: string; groupType?: string } | undefined
+): PresetLight[] {
+  if (!Array.isArray(items)) return []
+  return [...new Set(items)]
+    .filter((item) => {
+      const t = typeOf(item)
+      return t !== undefined && switchesOff(t.type, t.groupType)
+    })
+    .map((item) => ({ item, command: 'OFF' }))
 }
 
 export type CommandKind = 'color' | 'level' | 'onoff' | 'text'

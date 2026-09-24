@@ -1,9 +1,10 @@
 // Per-theme custom CSS + Swiss Sheet themes e2e.
-// SAFE with a live config: creates only dashboard:nh-e2e-swiss and one theme:custom-* (found by uid diff,
-// deleted in cleanup).
+// SAFE with a live config: creates only dashboard:nh-e2e-swiss and the one theme:custom-* the app saves
+// (recorded as it is created, deleted in cleanup). The theme picks write the SHARED settings, which stay in
+// this browser (lib/sandbox.mjs).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
-import { getSettings as readSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID = 'dashboard:nh-e2e-swiss'
 
@@ -14,7 +15,8 @@ const ok = (name, cond, detail = '') => {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const getSettings = async () => (await readSettings())?.config ?? null
+// what the app has saved as the shared settings, as this browser sees them
+const getSettings = async () => (await sb.current())?.config ?? null
 const listUids = async () => (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
 
 function launch() {
@@ -33,11 +35,12 @@ const near = (color, want, tol = 2) => {
   return ch.length >= 3 && want.every((w, i) => Math.abs(ch[i] - w) <= tol)
 }
 
-const settingsBefore = await readSettings()
+const sb = await sharedSettings()
 const themeUidsBefore = (await listUids()).filter((u) => u.startsWith('theme:'))
 
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
+await sb.install(page)
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
 page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
@@ -48,6 +51,7 @@ await page.addInitScript((t) => {
 
 try {
   const presetState = (await (await fetch(BASE + `/rest/items/${ITEMS.switch}/state`, { headers: AUTH })).text()).trim()
+  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -319,12 +323,12 @@ try {
 } finally {
   try {
     await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
-    const leftoverThemes = (await listUids()).filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
+    // only the themes the app created in this run: a diff of the namespace would take one somebody else saved meanwhile
+    const leftoverThemes = [...sb.created].filter((u) => u.startsWith('theme:') && !themeUidsBefore.includes(u))
     for (const u of leftoverThemes) await fetch(NS + '/' + encodeURIComponent(u), { method: 'DELETE', headers: AUTH })
-    const back = await restoreSettings(settingsBefore)
-    console.log(
-      `CLEANUP  dashboard deleted, ${leftoverThemes.length} theme(s) deleted, settings ${back.mode} (${back.detail})`,
-    )
+    const untouched = await sb.verify()
+    ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
+    console.log(`CLEANUP  dashboard deleted, ${leftoverThemes.length} theme(s) deleted`)
     const uids = await listUids()
     console.log('CLEANUP  leftovers: ' + uids.filter((u) => u.includes('nh-e2e') || u.includes('custom-')).join(', ') || 'none')
   } catch (e) {

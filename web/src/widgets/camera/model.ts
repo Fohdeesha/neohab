@@ -1,4 +1,5 @@
-import { isSameOrigin } from '../../model/url'
+import { intervalMs } from '../../model/interval'
+import { isSameOrigin, safeStreamUrl, safeUrl } from '../../model/url'
 
 export type CameraTransport = 'webrtc' | 'mse' | 'hls' | 'mp4' | 'mjpeg' | 'snapshot' | 'iframe'
 
@@ -85,9 +86,10 @@ export function transportUrl(config: CameraConfig, transport: CameraTransport): 
   const source = config.source ?? 'go2rtc'
 
   if (source === 'url') {
-    const url = (config.url ?? '').trim()
+    // stored config is untrusted: this lands in a frame's src and a video's, where javascript: runs in the app
+    const url = safeStreamUrl(config.url)
     if (!url) return null
-    if (transport === 'snapshot') return (config.posterUrl ?? '').trim() || url
+    if (transport === 'snapshot') return safeUrl(config.posterUrl) ?? url
     return url
   }
 
@@ -133,12 +135,21 @@ export function transportUrl(config: CameraConfig, transport: CameraTransport): 
 }
 
 export function posterUrl(config: CameraConfig): string | null {
-  const explicit = (config.posterUrl ?? '').trim()
+  const explicit = safeUrl(config.posterUrl)
   if (explicit) return explicit
+  // a direct URL is a still only when it IS one: an MJPEG address as the poster kept streaming after "stop"
+  if ((config.source ?? 'go2rtc') === 'url') {
+    const url = safeStreamUrl(config.url)
+    return url && guessTransport(url) === 'snapshot' ? url : null
+  }
   return transportUrl(config, 'snapshot')
 }
 
+export function snapshotPeriodMs(config: CameraConfig): number {
+  return intervalMs(config.snapshotInterval, { unit: 's', min: 1, max: 3600, fallback: 5 })
+}
+
 export function isConfigured(config: CameraConfig): boolean {
-  if ((config.source ?? 'go2rtc') === 'url') return !!(config.url ?? '').trim()
+  if ((config.source ?? 'go2rtc') === 'url') return safeStreamUrl(config.url) !== null
   return !!normalizeServer(config.server) && !!(config.stream ?? '').trim()
 }

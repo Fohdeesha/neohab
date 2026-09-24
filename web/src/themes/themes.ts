@@ -67,7 +67,9 @@ export const BUILTIN_THEMES: Theme[] = [
       'text-dim': '#5d6874',
       primary: '#0b78c2',
       brand: '#d94e20',
-      radius: '12px'
+      radius: '12px',
+      good: '#17692c',
+      bad: '#b3261e'
     }
   },
   {
@@ -102,7 +104,7 @@ export const BUILTIN_THEMES: Theme[] = [
       radius: '0px',
       shadow: 'none',
       good: '#f2f2f2',
-      bad: '#e2382a',
+      bad: '#ec4a3c',
       'chart-1': '#f2f2f2',
       'chart-2': '#e2382a',
       'chart-3': '#9aa1ab'
@@ -260,7 +262,9 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#ff3333',
       brand: '#ff3333',
       radius: '0px',
-      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)'
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
+      good: '#17692c',
+      bad: '#b3261e'
     }
   },
   {
@@ -277,7 +281,9 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#0db9f0',
       brand: '#0db9f0',
       radius: '2px',
-      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)'
+      shadow: '0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14)',
+      good: '#57d364',
+      bad: '#ff9a94'
     }
   },
   {
@@ -328,7 +334,9 @@ export const BUILTIN_THEMES: Theme[] = [
       primary: '#d96b00',
       brand: '#d96b00',
       radius: '3px',
-      shadow: '0 1px 8px rgba(0, 0, 0, 0.5)'
+      shadow: '0 1px 8px rgba(0, 0, 0, 0.5)',
+      good: '#17692c',
+      bad: '#b3261e'
     }
   },
   {
@@ -376,8 +384,7 @@ function injectCss(css: string | undefined): void {
   if (el.textContent !== css) el.textContent = css
 }
 
-export function applyTheme(theme: Theme): void {
-  const gen = ++applyGeneration
+function commitTheme(theme: Theme, css: string | undefined): void {
   const root = document.documentElement
 
   for (const key of THEME_TOKENS) {
@@ -392,18 +399,24 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty('--nh-brand-ink', readableInk(theme.tokens.brand ?? BASE_BRAND) ?? '#ffffff')
 
   root.style.colorScheme = theme.scheme
+  injectCss(css)
+}
 
+// a theme with a stylesheet of its own changes over in one go once its chunk is in: removing the old sheet
+// first drew the page with the new colours and no sheet at all for as long as the chunk took
+export function applyTheme(theme: Theme): void {
+  const gen = ++applyGeneration
   if (typeof theme.css === 'string' || !theme.cssModule) {
-    injectCss(theme.css)
+    commitTheme(theme, theme.css)
     return
   }
-  injectCss(undefined)
   void themeCss(theme)
     .then((css) => {
-      if (gen === applyGeneration) injectCss(css)
+      if (gen === applyGeneration) commitTheme(theme, css)
     })
     .catch(() => {
-      // the chunk is gone: after an upgrade this tab holds the old index
+      // the chunk is gone: after an upgrade this tab holds the old index, and the colours are still worth having
+      if (gen === applyGeneration) commitTheme(theme, undefined)
     })
 }
 

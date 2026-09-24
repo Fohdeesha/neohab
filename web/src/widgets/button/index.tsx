@@ -89,12 +89,14 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
           <span className="nh-switch__track">
             <span className="nh-switch__thumb" />
           </span>
-          <span className="nh-switch__state">{active ? 'ON' : 'OFF'}</span>
+          <span className="nh-switch__state">{active ? i18n.t('ON') : i18n.t('OFF')}</span>
         </button>
       </WidgetFrame>
     )
   }
 
+  // a face showing an item's state is a toggle to a screen reader; one that only navigates is not
+  const pressed = config.action !== 'navigate' && config.item ? active : undefined
   const showLabel = !config.hideLabel && config.label
   const media = safeUrl(config.imageUrl)
   const art = media ? <img className="nh-button__media" src={media} alt="" /> : iconEl
@@ -112,6 +114,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
           type="button"
           className={className}
           aria-label={config.label}
+          aria-pressed={pressed}
           title={asked === undefined ? undefined : unconfirmedHint(asked)}
           onClick={press}>
           {art ? <span className="nh-button__chip">{art}</span> : null}
@@ -131,6 +134,7 @@ function ButtonWidget({ config, ctx }: WidgetProps<ButtonConfig>) {
         type="button"
         className={className}
         aria-label={config.label}
+        aria-pressed={pressed}
         title={asked === undefined ? undefined : unconfirmedHint(asked)}
         onClick={press}>
         {art}
@@ -242,7 +246,7 @@ export const buttonWidget: WidgetDefinition<ButtonConfig> = {
   controlFor: (c, item) => {
     if (c.action === 'navigate' || item !== c.item) return undefined
     const { on, off } = toggleCommands(c)
-    if (off) return { kind: 'onoff', on, off }
+    if (off) return { kind: 'onoff', on, off, nonZeroIsOn: c.nonZeroIsOn === true }
     return on ? { kind: 'choices', choices: [{ command: on, label: on }] } : undefined
   },
   Component: ButtonWidget

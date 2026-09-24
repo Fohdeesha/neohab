@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BUILTIN_THEME_IDS, BUILTIN_THEMES, listThemes, resolveTheme, themeCss, type Theme } from './themes'
 import { checkThemeCss, describeIssue, parseRules, type RuleId } from './cssRules'
 import { TOKEN_SPECS, isUsableTokenValue } from './tokens'
+import { contrastOf } from './contrast'
 import { THEME_MAP } from '../importer/habpanel'
 
 async function styledThemes(): Promise<{ theme: Theme; css: string }[]> {
@@ -86,6 +87,41 @@ describe('the stylesheet checker', () => {
 
   it('treats an at-rule holding declarations as no rule at all', () => {
     expect(parseRules("@font-face { font-family: 'X'; src: url('fonts/x.woff2') }")).toHaveLength(0)
+  })
+
+  it('keeps its place past everything that used to switch the checks off', () => {
+    const after = (prefix: string) => parseRules(prefix + ' .nh-button--plain { color: red }').map((r) => r.selector)
+    expect(after('@import url(fonts/a.css);')).toEqual(['.nh-button--plain'])
+    expect(after('@charset "utf-8"; @layer base, theme;')).toEqual(['.nh-button--plain'])
+    expect(after('} }')).toEqual(['.nh-button--plain'])
+    expect(after('.a { content: "}" }')).toEqual(['.a', '.nh-button--plain'])
+    expect(after(".a { content: '{' }")).toEqual(['.a', '.nh-button--plain'])
+    expect(after('.a { background: url(data:image/svg+xml,<svg><style>a{fill:red}</style></svg>) }')).toEqual(['.a', '.nh-button--plain'])
+    // and so the rule after them is still enforced
+    expect(check('@import url(fonts/a.css); } .nh-button--plain { color: red }')).toEqual(['activeState'])
+  })
+
+  it('catches a base rule that cancels the listening icon button or a chip state, and nothing harmless', () => {
+    expect(check('.nh-iconbtn { color: red }')).toEqual(['activeState'])
+    expect(check('.nh-iconbtn { color: red } .nh-iconbtn--live { color: blue }')).toEqual([])
+    expect(check('.nh-iconbtn { border-radius: 0 }')).toEqual([])
+    expect(check('.nh-chip { background: red } .nh-chip--on { background: blue }')).toEqual([])
+    expect(check('.nh-chip { border: 1px solid } .nh-chip--on { background: blue }')).toEqual(['activeState'])
+    expect(check('.nh-chip { border-radius: 0 }')).toEqual([])
+    // each state on its own: a fill cancels the on chip, a border style cancels the dashed action chip
+    expect(check('.nh-chip { background: red }')).toEqual(['activeState'])
+    expect(check('.nh-chip { border-style: solid } .nh-chip--on { color: red }')).toEqual(['activeState'])
+  })
+
+  it('catches a sheet that gives every widget a card and never takes it off the bare ones', () => {
+    expect(check('.nh-widget { border-color: red }')).toEqual(['bareWidget'])
+    expect(check('.nh-widget { border-color: red } .nh-widget--bare { border-color: transparent }')).toEqual([])
+    expect(check('.nh-widget { color: red }')).toEqual([])
+  })
+
+  it('counts an @import of a bare string as the outside fetch it is', () => {
+    expect(check('@import "https://example.com/x.css";')).toEqual(['externalAsset'])
+    expect(check("@import 'fonts/local.css';")).toEqual([])
   })
 
   it('catches paint on an attribute-painted element, and allows anything else on it', () => {
@@ -279,5 +315,24 @@ describe('themeCss', () => {
       expect(typeof css).not.toBe('object')
       expect(css).toBeUndefined()
     }
+  })
+})
+
+describe('the built-in status colours', () => {
+  // form errors, history rows, trend arrows and a battery running low all draw in these, on the page and on
+  // widgets; the defaults were chosen for dark surfaces and read at 2:1 on the light ones
+  it('read at 4.5:1 or better on every theme’s page and widget surface', () => {
+    const fallback = (key: string) => TOKEN_SPECS.find((s) => s.key === key)!.fallback
+    const low: string[] = []
+    for (const theme of BUILTIN_THEMES) {
+      for (const key of ['good', 'bad']) {
+        const color = theme.tokens[key] ?? fallback(key)
+        for (const where of ['bg', 'surface']) {
+          const ratio = contrastOf(color, theme.tokens[where], theme.tokens.bg)
+          if (ratio === null || ratio < 4.5) low.push(`${theme.id} ${key} on ${where}: ${ratio?.toFixed(2)}`)
+        }
+      }
+    }
+    expect(low).toEqual([])
   })
 })

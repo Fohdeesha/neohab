@@ -14,83 +14,9 @@ interface JsWidgetProps {
   bare?: boolean
 }
 
-const SDK_SOURCE = `
-(function () {
-  'use strict'
-  var pending = new Map()
-  var seq = 0
-  var subs = new Map()
-  var readyCbs = []
-  var ready = false
-  var oh = {
-    config: {},
-    theme: {},
-    getItem: function (name) {
-      return new Promise(function (resolve) {
-        var id = ++seq
-        pending.set(id, resolve)
-        parent.postMessage({ neohab: true, type: 'getItem', id: id, name: String(name) }, '*')
-      })
-    },
-    sendCommand: function (name, command) {
-      parent.postMessage({ neohab: true, type: 'sendCommand', name: String(name), command: String(command) }, '*')
-    },
-    onChange: function (name, cb) {
-      name = String(name)
-      if (!subs.has(name)) {
-        subs.set(name, [])
-        parent.postMessage({ neohab: true, type: 'subscribe', names: [name] }, '*')
-      }
-      subs.get(name).push(cb)
-    },
-    onReady: function (cb) {
-      if (ready) cb()
-      else readyCbs.push(cb)
-    },
-  }
-  window.oh = oh
-  window.addEventListener('message', function (e) {
-    var m = e.data
-    if (!m || m.neohab !== true) return
-    if (m.type === 'result' && pending.has(m.id)) {
-      pending.get(m.id)(m.value)
-      pending.delete(m.id)
-    } else if (m.type === 'item') {
-      var cbs = subs.get(m.name) || []
-      for (var i = 0; i < cbs.length; i++) cbs[i](m.state)
-    } else if (m.type === 'init' || m.type === 'theme') {
-      if (m.config) oh.config = m.config
-      if (m.theme) {
-        oh.theme = m.theme
-        for (var k in m.theme) document.documentElement.style.setProperty('--nh-' + k, m.theme[k])
-      }
-      if (m.type === 'init' && !ready) {
-        ready = true
-        for (var j = 0; j < readyCbs.length; j++) readyCbs[j]()
-      }
-    }
-  })
-  parent.postMessage({ neohab: true, type: 'ready' }, '*')
-})()
-`
-
-function buildSrcdoc(script: string): string {
-  const safe = script.replace(/<\/script/gi, '<\\/script')
-  return `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  html, body { margin: 0; height: 100%; background: transparent; color: var(--nh-text, inherit); font-family: system-ui, sans-serif; }
-  * { box-sizing: border-box; }
-</style>
-<script>${SDK_SOURCE}</script>
-</head>
-<body>
-<script>${safe}</script>
-</body>
-</html>`
-}
+// a page of its own in the jar rather than a srcdoc: a srcdoc frame inherits the app's content policy,
+// which refuses inline script, and this is the one place a person's own script is meant to run
+const SANDBOX_PAGE = 'jswidget.html'
 
 interface BridgeMessage {
   neohab?: boolean
@@ -125,7 +51,13 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
       if (!m || m.neohab !== true) return
       switch (m.type) {
         case 'ready':
-          post({ type: 'init', config: JSON.parse(valuesKey) as Record<string, unknown>, theme: themeTokens(), label })
+          post({
+            type: 'init',
+            script: def.script ?? '',
+            config: JSON.parse(valuesKey) as Record<string, unknown>,
+            theme: themeTokens(),
+            label
+          })
           break
         case 'getItem':
           if (typeof m.name === 'string') {
@@ -177,7 +109,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
     return (
       <div className={'nh-widget' + (bare ? ' nh-widget--bare' : '')}>
         <div className="nh-template">
-          <span className="nh-template__badge">javascript</span>
+          <span className="nh-template__badge">{i18n.t('JavaScript')}</span>
           <span className="nh-template__text">
             {i18n.t('“{{name}}” is a JavaScript widget. An administrator has disabled these in Settings.', {
               name: def.name
@@ -196,7 +128,7 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
         className="nh-template__frame"
         title={label || def.name}
         sandbox="allow-scripts"
-        srcDoc={buildSrcdoc(def.script ?? '')}
+        src={SANDBOX_PAGE}
       />
     </div>
   )

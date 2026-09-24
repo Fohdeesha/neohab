@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SETTLE_MS, settledDisplay } from './settling'
+import { DISPLAY_SETTLE_MS, settledDisplay } from './settling'
 
 const NOW = 1_000_000
 
@@ -18,24 +18,24 @@ describe('settledDisplay', () => {
 
   it('keeps the commanded numbers once the device confirms them, past the window', () => {
     const pending = { command: '288,55,40', at: NOW }
-    expect(settledDisplay(pending, '287.368,55.88300,40', NOW + SETTLE_MS + 1)).toBe('288,55,40')
-    expect(settledDisplay({ command: '42', at: NOW }, '42.4', NOW + SETTLE_MS + 1)).toBe('42')
+    expect(settledDisplay(pending, '287.368,55.88300,40', NOW + DISPLAY_SETTLE_MS + 1)).toBe('288,55,40')
+    expect(settledDisplay({ command: '42', at: NOW }, '42.4', NOW + DISPLAY_SETTLE_MS + 1)).toBe('42')
   })
 
   it('gives way to a live state that still disagrees once the window has closed', () => {
     const pending = { command: '288,55,40', at: NOW }
-    expect(settledDisplay(pending, '20,90,100', NOW + SETTLE_MS + 1)).toBe('20,90,100')
-    expect(settledDisplay({ command: '42', at: NOW }, '80', NOW + SETTLE_MS + 1)).toBe('80')
+    expect(settledDisplay(pending, '20,90,100', NOW + DISPLAY_SETTLE_MS + 1)).toBe('20,90,100')
+    expect(settledDisplay({ command: '42', at: NOW }, '80', NOW + DISPLAY_SETTLE_MS + 1)).toBe('80')
   })
 
   it('holds for the whole window and no longer', () => {
     const pending = { command: 'ON', at: NOW }
-    expect(settledDisplay(pending, 'OFF', NOW + SETTLE_MS - 1)).toBe('ON')
-    expect(settledDisplay(pending, 'OFF', NOW + SETTLE_MS)).toBe('OFF')
+    expect(settledDisplay(pending, 'OFF', NOW + DISPLAY_SETTLE_MS - 1)).toBe('ON')
+    expect(settledDisplay(pending, 'OFF', NOW + DISPLAY_SETTLE_MS)).toBe('OFF')
   })
 
   it('does not invent a state the device never reported', () => {
-    expect(settledDisplay({ command: '42', at: NOW }, undefined, NOW + SETTLE_MS + 1)).toBeUndefined()
-    expect(settledDisplay({ command: '42', at: NOW }, 'NULL', NOW + SETTLE_MS + 1)).toBe('NULL')
+    expect(settledDisplay({ command: '42', at: NOW }, undefined, NOW + DISPLAY_SETTLE_MS + 1)).toBeUndefined()
+    expect(settledDisplay({ command: '42', at: NOW }, 'NULL', NOW + DISPLAY_SETTLE_MS + 1)).toBe('NULL')
   })
 })

@@ -63,6 +63,7 @@ const bumpedCount = () => page.locator('.nh-cell--bumped').count()
 const invalidCount = () => page.locator('.nh-drop--invalid').count()
 
 try {
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -112,6 +113,25 @@ try {
     await page.click('.nh-sheet--side .nh-sheet__close')
     await sleep(200)
     ok('panel closes again', (await page.locator('.nh-sheet--side').count()) === 0)
+  }
+
+  // a sheet takes the focus, keeps Tab inside itself, and gives the focus back to what opened it
+  {
+    await page.locator('.nh-dash__bar [aria-label="Add widget"]').focus()
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.nh-sheet[role="dialog"]', { timeout: 5000 }).catch(() => {})
+    const inside = () => page.evaluate(() => !!document.activeElement?.closest('.nh-sheet[role="dialog"]'))
+    ok('an opened sheet takes the focus', await inside())
+    // backwards from its first control is where focus walked out onto the page behind
+    await page.keyboard.press('Shift+Tab')
+    ok('Shift+Tab from its first control stays inside the sheet', await inside())
+    await page.keyboard.press('Escape')
+    await sleep(250)
+    const back = await page.evaluate(() => ({
+      open: !!document.querySelector('.nh-sheet[role="dialog"]'),
+      focused: document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName
+    }))
+    ok('Escape closes it and the focus goes back to the button that opened it', !back.open && back.focused === 'Add widget', JSON.stringify(back))
   }
 
   ok('every cell has a delete button', (await page.locator('.nh-cell__delete').count()) === 7, String(await page.locator('.nh-cell__delete').count()))

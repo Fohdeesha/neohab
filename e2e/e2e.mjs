@@ -1,14 +1,8 @@
 import { launchChromium } from './lib/browser.mjs'
+import { requireEmptyNamespaces } from './lib/guard.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 
-
-{
-  const pre = await (await fetch(NS)).json()
-  if (pre.length > 0) {
-    console.log('ABORT: namespace holds ' + pre.length + ' components - wipe-cycle suite needs an empty namespace (snapshot + wipe first).')
-    process.exit(2)
-  }
-}
+await requireEmptyNamespaces()
 
 
 const DASH_UID = 'dashboard:nh-e2e-demo'
@@ -34,7 +28,7 @@ const demoDashboard = {
   ],
 }
 
-const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function launch() {

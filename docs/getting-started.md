@@ -54,9 +54,9 @@ its history and a control that matches what the widget does.
 
 ## 4. Check it on a phone
 
-Open the same address on your phone, or just narrow the browser window. Below 840px the grid
-stops being a grid: tiles stack into one column, in the order they read across the desktop
-layout, sized to fit the screen - small devices / displays never cut off your widgets.
+Open the same address on your phone, or just narrow the browser window. Below 840px (the
+default) the grid stops being a grid: tiles stack into one column, in the order they read across
+the desktop layout, sized to fit the screen - small devices / displays never cut off your widgets.
 
 That automatic behavior is usually right, but when it's not:
 
@@ -64,9 +64,12 @@ That automatic behavior is usually right, but when it's not:
   Phone layout › Reset stack order** puts it back to following the regular full size page layout.
 - **Hide on**, in a widget's **Tile** group, leaves that widget out on the sizes you choose. A
   wall-panel chart nobody wants on a phone for example.
-- Between 840px and 1200px a tablet gets the desktop layout unless you make it a separate one.
-  The **Desktop layout** button in the edit bar switches to **Tablet layout**; move things about
-  there and that arrangement is what tablets get
+- Between 840px and 1200px (again the defaults) a tablet gets the desktop layout unless you make
+  it a separate one. The **Desktop layout** button in the edit bar switches to **Tablet layout**;
+  move things about there and that arrangement is what tablets get
+- Both widths are settings: **Stack widgets below** and **Use the tablet layout below**, in
+  **Settings › Appearance**. They are measured across the dashboard area, so an open sidebar
+  counts against them.
 
 ## 5. Back it up
 

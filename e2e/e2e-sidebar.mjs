@@ -2,7 +2,7 @@
 // until deliberately dismissed (click/tap outside.
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const launchBrowser = async () => { for (const c of ['chrome', 'msedge']) { try { return await launchChromium({ channel: c, headless: true }) } catch {} } return launchChromium({ headless: true }) }
 
@@ -21,7 +21,9 @@ const put = async (comp) => {
   return r.ok
 }
 
-const settingsBefore = await getSettings()
+// the sidebar switch is a SHARED setting; the browser sees it at its default, and later off, without the
+// server's copy ever being written
+const sb = await sharedSettings({ sidebar: undefined })
 
 const widget = (id) => ({
   id,
@@ -51,16 +53,11 @@ const dash = (id, name, extra = {}) => ({
   config: { version: 1, id, name, columns: 12, rowHeight: 'match', gap: 5, widgets: [widget(id + '-w')], ...extra },
 })
 
-await put(
-  dash('nh-e2e-sb-a', 'ZZE2E Alpha', { icon: 'mdi:sofa', widgets: [widget('sb-a-w'), probeButton, probeButtonRight] })
-)
-await put(dash('nh-e2e-sb-b', 'ZZE2E Beta'))
-await put(dash('nh-e2e-sb-h', 'ZZE2E Hidden', { hideInSidebar: true }))
-
 const browser = await launchBrowser()
 
 const openCtx = async (width, height, opts = {}) => {
   const ctx = await browser.newContext({ viewport: { width, height }, ...opts })
+  await sb.install(ctx)
   await ctx.addInitScript((t) => {
     try {
       localStorage.setItem('neohab:apiToken', t)
@@ -74,6 +71,12 @@ const inset = (page) =>
 const sideOpen = (page) => page.evaluate(() => !!document.querySelector('.nh-side.nh-side--open'))
 
 try {
+  await put(
+    dash('nh-e2e-sb-a', 'ZZE2E Alpha', { icon: 'mdi:sofa', widgets: [widget('sb-a-w'), probeButton, probeButtonRight] })
+  )
+  await put(dash('nh-e2e-sb-b', 'ZZE2E Beta'))
+  await put(dash('nh-e2e-sb-h', 'ZZE2E Hidden', { hideInSidebar: true }))
+
   {
     const ctx = await openCtx(1400, 900)
     const page = await ctx.newPage()
@@ -415,8 +418,7 @@ try {
   }
 
   {
-    const r = await patchSettings(settingsBefore, { sidebar: false })
-    ok('setting sidebar:false persisted', r.ok, 'status=' + r.status)
+    sb.present({ sidebar: false })
 
     const ctx = await openCtx(1400, 900)
     const page = await ctx.newPage()
@@ -437,8 +439,8 @@ try {
     await page.locator('#nh-set-sidebar').check()
     await page.waitForTimeout(600)
     ok('ticking it brings the ☰ back immediately', (await page.locator('.nh-side__trigger').count()) === 1)
-    const stored = await getSettings()
-    ok('…and persists it', stored?.config?.sidebar === true, JSON.stringify(stored?.config))
+    const stored = await sb.current()
+    ok('…and saves it', stored?.config?.sidebar === true, JSON.stringify(stored?.config))
     await ctx.close()
   }
 } catch (err) {
@@ -446,15 +448,15 @@ try {
 } finally {
   await browser.close()
 
-  const settingsBack = await restoreSettings(settingsBefore)
-  ok(`cleanup: settings ${settingsBack.mode}`, settingsBack.ok, settingsBack.detail)
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
 
   for (const uid of created) {
     const r = await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH })
     ok('cleanup: ' + uid + ' removed', r.ok || r.status === 404, 'status=' + r.status)
   }
   const mine = new Set(created)
-  const left = (await (await fetch(NS)).json()).filter((c) => mine.has(c.uid))
+  const left = (await (await fetch(NS, { headers: AUTH })).json()).filter((c) => mine.has(c.uid))
   ok('cleanup: no suite leftovers', left.length === 0, JSON.stringify(left.map((c) => c.uid)))
 }
 

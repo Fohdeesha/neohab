@@ -1,8 +1,9 @@
 // Dashboard generator e2e: the four sources, the review step and what actually lands on the server.
-// SAFE with a live config: records the namespace before each creation and deletes exactly what appeared, so
-// nothing else is touched.
+// SAFE with a live config: records each component the app creates (lib/sandbox.mjs) and deletes exactly
+// those, so nothing else is touched.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH } from './lib/target.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
@@ -18,7 +19,9 @@ const getComp = async (uid) => {
 }
 const del = (uid) => fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH })
 
-const freshUids = async (before) => [...(await listUids())].filter((u) => !before.has(u))
+// exactly what the app created, as the sandbox saw it go past; a diff of the whole namespace would also
+// catch whatever anybody else saved in the meantime, and cleanup would delete it
+const freshUids = (before) => [...sb.created].filter((u) => !before.has(u))
 
 const overlapping = (widgets) => {
   const r = widgets.map((w) => w.layout.lg)
@@ -48,11 +51,13 @@ function launch() {
   }
   return launchChromium({ headless: true })
 }
+const sb = await sharedSettings()
 const browser = await launch()
 const errs = []
 
 async function openPage({ model = false, viewport = { width: 1500, height: 1000 } } = {}) {
   const page = await browser.newPage({ viewport })
+  await sb.install(page)
   page.on('pageerror', (e) => errs.push(String(e.message)))
   page.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
   page.on('dialog', (d) => d.accept())
@@ -81,6 +86,8 @@ async function openWizard(page) {
 const created = []
 
 try {
+  // a killed earlier run's copies would make the generator name these -2
+  for (const id of ['nh-e2e-gen-one', 'nh-e2e-gen-pick', 'nh-e2e-gen-model']) await del('dashboard:' + id).catch(() => {})
   {
     const page = await openPage()
     await openWizard(page)
@@ -179,7 +186,7 @@ try {
     ok('an unused alternative type exists to override with', overrideAt >= 0, JSON.stringify(included.map((r) => r.type)))
     if (overrideAt >= 0) await page.locator('.nh-gen__cluster .nh-gen__row').nth(overrideAt).locator('select').selectOption(alt)
 
-    const before = await listUids()
+    const before = new Set(sb.created)
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-dash__bar', { timeout: 15000 })
     created.push(...(await freshUids(before)))
@@ -241,7 +248,7 @@ try {
     await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
     ok('review shows the picked items', (await page.$$eval('.nh-gen__cluster .nh-gen__row', (e) => e.length)) === 3)
 
-    const before = await listUids()
+    const before = new Set(sb.created)
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-dash__bar', { timeout: 15000 })
     created.push(...(await freshUids(before)))
@@ -279,7 +286,7 @@ try {
     ok('equipment with its own state is included', row('Ceiling Light')?.type === 'button', JSON.stringify(row('Ceiling Light')))
     ok('items outside the model are left out', !rows.some((r) => r.label === 'Nowhere'), JSON.stringify(rows.map((r) => r.label)))
 
-    const before = await listUids()
+    const before = new Set(sb.created)
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-dash__bar', { timeout: 15000 })
     created.push(...(await freshUids(before)))
@@ -305,7 +312,7 @@ try {
     await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
 
     await page.locator('.nh-gen__clusterhead').nth(1).locator('input').uncheck()
-    const before = await listUids()
+    const before = new Set(sb.created)
     await page.click('.nh-gen__footer button.nh-btn--primary')
     await page.waitForSelector('.nh-dash__bar, .nh-tiles', { timeout: 15000 })
     await sleep(600)
@@ -317,6 +324,40 @@ try {
     ok('its id is slugified from the name', fresh[0] === 'dashboard:kitchen' || /^dashboard:kitchen(-\d+)?$/.test(fresh[0]), fresh[0] ?? '')
     ok('the location suggests a tile icon', typeof cfg?.icon === 'string' && cfg.icon.startsWith('mdi:'), String(cfg?.icon))
     ok('per-location dashboards carry no cluster heading', !(cfg?.widgets ?? []).some((w) => w.type === 'label' && w.config.text === 'Kitchen'))
+    await page.close()
+  }
+
+  // all or nothing: a server that refuses part of a set leaves none of it behind, so Try again cannot make the
+  // first dashboard a second time
+  {
+    const page = await openPage({ model: true })
+    await openWizard(page)
+    await page.click('[data-source="semantic"]')
+    await page.waitForSelector('.nh-gen__list', { timeout: 5000 })
+    await page.locator('.nh-gen__mode input').nth(0).check()
+    await page.click('.nh-gen__footer button.nh-btn--primary')
+    await page.waitForSelector('.nh-gen__cluster', { timeout: 5000 })
+    const WRITES = /neohab(:|%3A)config/
+    let writes = 0
+    await page.route(WRITES, (route) => {
+      const m = route.request().method()
+      if (m !== 'POST' && m !== 'PUT') return route.fallback()
+      writes++
+      if (writes === 1) return route.fallback()
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":{"message":"Storage is full"}}' })
+    })
+    const before = new Set(sb.created)
+    await page.click('.nh-gen__footer button.nh-btn--primary')
+    await page.waitForSelector('.nh-form__error', { timeout: 15000 }).catch(() => {})
+    const said = (await page.textContent('.nh-form__error').catch(() => '')) ?? ''
+    await sleep(800)
+    await page.unroute(WRITES)
+    const made = await freshUids(before)
+    created.push(...made)
+    const left = []
+    for (const u of made) if (await getComp(u)) left.push(u)
+    ok('a refused create says why', /Storage is full/.test(said), said.slice(0, 100))
+    ok('and takes back what it had already made', made.length >= 1 && left.length === 0, `made=${made.join(',') || 'none'} left=${left.join(',') || 'none'}`)
     await page.close()
   }
 
@@ -370,7 +411,9 @@ try {
     await page.close()
   }
 
-  ok('no console errors anywhere', errs.length === 0, errs.slice(0, 4).join(' | '))
+  // the refused create above answers 500 on purpose, and the browser logs each one
+  const realErrs = errs.filter((e) => !/status of 500/.test(e))
+  ok('no console errors anywhere', realErrs.length === 0, realErrs.slice(0, 4).join(' | '))
 } catch (err) {
   ok('suite ran to completion', false, String(err && err.message ? err.message : err))
 } finally {

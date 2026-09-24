@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { UIComponent } from '../api/types'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
-import { convertHabpanel, panelConfigFromComponent, parseHabpanelFile, PERIOD_MAP, THEME_MAP, type HPPanelConfig } from './habpanel'
+import type { CustomWidgetDef } from '../model/widgetdef'
+import {
+  convertHabpanel,
+  panelConfigFromComponent,
+  parseHabpanelFile,
+  PERIOD_MAP,
+  planWidgetDefs,
+  THEME_MAP,
+  withRenamedCustomWidgets,
+  type HPPanelConfig
+} from './habpanel'
 import fixture from './fixtures/habpanel-config.json'
 
 const loadFixture = (): HPPanelConfig => parseHabpanelFile(JSON.parse(JSON.stringify(fixture)))
@@ -704,5 +714,64 @@ describe('the import report', () => {
     const before = JSON.stringify(cfg)
     convertHabpanel(cfg, ['ground-floor'])
     expect(JSON.stringify(cfg)).toBe(before)
+  })
+})
+
+describe('importing HABPanel again', () => {
+  const incoming = (id: string, template = '<b>hp</b>'): UIComponent => ({
+    uid: 'widgetdef:' + id,
+    component: 'neohab:widgetdef',
+    config: { version: 1, id, name: id, source: 'habpanel', habpanel: { id, template } } as unknown as Record<string, unknown>
+  })
+  const stored = (id: string, extra: Partial<CustomWidgetDef> = {}): CustomWidgetDef => ({
+    version: 1,
+    id,
+    name: id,
+    source: 'habpanel',
+    habpanel: { template: '<b>old</b>' },
+    ...extra
+  })
+
+  it('writes a widget nothing else has claimed', () => {
+    const plan = planWidgetDefs([incoming('gauge')], [])
+    expect(plan.write.map((d) => d.id)).toEqual(['gauge'])
+    expect(plan.created).toEqual(['gauge'])
+    expect(plan.renames.size).toBe(0)
+  })
+
+  it('refreshes one imported before and never touched here', () => {
+    const plan = planWidgetDefs([incoming('gauge')], [stored('gauge')])
+    expect(plan.write.map((d) => d.id)).toEqual(['gauge'])
+    expect(plan.created).toEqual([])
+  })
+
+  it('keeps one edited since, and brings the new one in beside it', () => {
+    for (const edited of [
+      stored('gauge', { template: '<b>mine</b>' }),
+      stored('gauge', { settings: [] }),
+      stored('gauge', { source: undefined })
+    ]) {
+      const plan = planWidgetDefs([incoming('gauge'), incoming('gauge-2')], [edited])
+      expect(plan.write.map((d) => d.id)).toEqual(['gauge-3', 'gauge-2'])
+      expect(plan.renames.get('gauge')).toBe('gauge-3')
+      expect(plan.created).toEqual(['gauge-3', 'gauge-2'])
+    }
+  })
+
+  it('points the imported dashboards at the copy', () => {
+    const d = {
+      version: 3,
+      id: 'd',
+      name: 'D',
+      columns: 12,
+      rowHeight: 'match',
+      widgets: [
+        { id: 'a', type: 'template', config: { customwidget: 'gauge' }, layout: {} },
+        { id: 'b', type: 'template', config: { customwidget: 'other' }, layout: {} }
+      ]
+    } as Dashboard
+    const out = withRenamedCustomWidgets(d, new Map([['gauge', 'gauge-2']]))
+    expect(out.widgets.map((w) => (w.config as { customwidget: string }).customwidget)).toEqual(['gauge-2', 'other'])
+    expect(withRenamedCustomWidgets(d, new Map())).toBe(d)
   })
 })

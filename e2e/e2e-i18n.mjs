@@ -96,6 +96,10 @@ try {
 
     await page.goto(APP + '#/d/nh-e2e-i18n-c')
     await page.waitForSelector('.nh-widget', { timeout: 20000 })
+    // the selection says it is loading until the item's own options have arrived, then that it has none
+    await page
+      .waitForFunction(() => (document.querySelector('.nh-selection__empty')?.textContent ?? '').includes('Auswahl'), undefined, { timeout: 15000 })
+      .catch(() => {})
     const emptyStates = await page.evaluate(() => ({
       selection: document.querySelector('.nh-selection__empty')?.textContent ?? '',
       placeholders: [...document.querySelectorAll('.nh-image__placeholder')].map((e) => e.textContent ?? ''),

@@ -8,6 +8,7 @@ import {
   DEFAULT_GAP,
   editZoom,
   findFreeSpot,
+  fitToColumns,
   gapOf,
   groupFrames,
   hiddenAfterRemoval,
@@ -15,6 +16,8 @@ import {
   hiddenSurfaces,
   iconScale,
   layoutForNewWidget,
+  MAX_CELLS,
+  MAX_COLUMNS,
   MD_BELOW,
   planBump,
   planRemoval,
@@ -349,6 +352,84 @@ describe('findFreeSpot', () => {
 
   it('narrows a widget too wide for the grid rather than overflowing it', () => {
     expect(findFreeSpot(dash([], { columns: 3 }), 10, 1).w).toBe(3)
+  })
+
+  it('answers at once beside a widget a billion rows tall, where walking every row never finished', () => {
+    const d = dash([w('tall', { x: 0, y: 0, w: 12, h: 1e9 })])
+    const started = performance.now()
+    expect(findFreeSpot(d, 2, 2)).toEqual({ x: 0, y: MAX_CELLS, w: 2, h: 2 })
+    expect(performance.now() - started).toBeLessThan(100)
+  })
+
+  it('gives exactly the answer walking every cell gives, on random boards', () => {
+    const walk = (d: Dashboard, width: number, height: number): Rect => {
+      const cols = columnsOf(d)
+      const ww = Math.min(width, cols)
+      const taken = widgetsOf(d).map(rectOf)
+      const maxY = taken.reduce((m, r) => Math.max(m, r.y + r.h), 0)
+      for (let y = 0; y <= maxY; y++) {
+        for (let x = 0; x <= cols - ww; x++) {
+          const rect = { x, y, w: ww, h: height }
+          if (!taken.some((r) => collides(rect, r))) return rect
+        }
+      }
+      return { x: 0, y: maxY, w: ww, h: height }
+    }
+    let seed = 7
+    const rand = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed % n
+    }
+    for (let round = 0; round < 400; round++) {
+      const cols = 1 + rand(12)
+      const widgets = Array.from({ length: rand(15) }, (_, i) => {
+        const ww = 1 + rand(cols)
+        return w('w' + i, { x: rand(cols - ww + 1), y: rand(12), w: ww, h: 1 + rand(4) })
+      })
+      const d = dash(widgets, { columns: cols })
+      const width = 1 + rand(cols + 2)
+      const height = 1 + rand(4)
+      expect(findFreeSpot(d, width, height)).toEqual(walk(d, width, height))
+    }
+  })
+})
+
+describe('bounds on stored geometry', () => {
+  it('caps a rect and a column count nobody could have drawn', () => {
+    expect(rectOf(w('a', { x: 1e9, y: 1e9, w: 1e9, h: 1e9 }))).toEqual({ x: MAX_CELLS, y: MAX_CELLS, w: MAX_CELLS, h: MAX_CELLS })
+    expect(columnsOf(dash([], { columns: 1e9 }))).toBe(MAX_COLUMNS)
+    expect(clampRect({ x: 0, y: 0, w: 4, h: 1e9 }, 12).h).toBe(MAX_CELLS)
+  })
+})
+
+describe('fitToColumns', () => {
+  const fit = (rects: Record<string, Rect>, columns: number) => Object.fromEntries(fitToColumns(new Map(Object.entries(rects)), columns))
+
+  it('pushes a widget down past the one a narrower grid would put it on, instead of stacking them', () => {
+    const out = fit({ a: { x: 0, y: 0, w: 4, h: 2 }, b: { x: 8, y: 0, w: 4, h: 2 } }, 8)
+    expect(out.a).toEqual({ x: 0, y: 0, w: 4, h: 2 })
+    expect(out.b).toEqual({ x: 4, y: 0, w: 4, h: 2 })
+    const tighter = fit({ a: { x: 0, y: 0, w: 4, h: 2 }, b: { x: 8, y: 0, w: 4, h: 2 }, c: { x: 4, y: 2, w: 2, h: 1 } }, 4)
+    expect(tighter.a).toEqual({ x: 0, y: 0, w: 4, h: 2 })
+    expect(tighter.b).toEqual({ x: 0, y: 2, w: 4, h: 2 })
+    expect(tighter.c).toEqual({ x: 2, y: 4, w: 2, h: 1 })
+  })
+
+  it('leaves a layout that already fits exactly where it was', () => {
+    const rects = { a: { x: 0, y: 0, w: 2, h: 2 }, b: { x: 2, y: 0, w: 2, h: 1 }, c: { x: 0, y: 2, w: 4, h: 1 } }
+    expect(fit(rects, 12)).toEqual(rects)
+  })
+
+  it('never leaves two widgets overlapping, whatever the grid shrinks to', () => {
+    const rects: Record<string, Rect> = {}
+    for (let i = 0; i < 30; i++) rects['w' + i] = { x: (i * 5) % 12, y: Math.floor(i / 3) * 2, w: 1 + (i % 4), h: 1 + (i % 3) }
+    for (const columns of [1, 2, 3, 5, 8]) {
+      const out = Object.values(fit(rects, columns))
+      for (let i = 0; i < out.length; i++) {
+        expect(out[i].x + out[i].w).toBeLessThanOrEqual(columns)
+        for (let j = i + 1; j < out.length; j++) expect(collides(out[i], out[j])).toBe(false)
+      }
+    }
   })
 })
 

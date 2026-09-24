@@ -30,6 +30,7 @@ await page.addInitScript((t) => { try { localStorage.setItem('neohab:apiToken', 
 const box = (sel) => page.locator(sel).first().boundingBox()
 
 try {
+  await fetch(NS + '/' + UID, { method: 'DELETE', headers: AUTH }).catch(() => {})
   const r = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },

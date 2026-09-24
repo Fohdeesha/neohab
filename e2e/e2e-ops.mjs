@@ -288,7 +288,7 @@ try {
     const arrowOf = (name) => {
       const c = cell(name)
       const a = q(c, '.nh-stat__arrow')
-      return a ? { cls: a.getAttribute('class'), fill: getComputedStyle(a).fill, label: a.getAttribute('aria-label') } : null
+      return a ? { cls: a.getAttribute('class'), fill: getComputedStyle(a).fill, label: a.getAttribute('data-direction') } : null
     }
     const token = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim()
     return {

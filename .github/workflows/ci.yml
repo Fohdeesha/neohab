@@ -7,11 +7,17 @@ on:
   # a dropped push webhook leaves no run to re-run; this makes a missing one replayable by hand
   workflow_dispatch:
 
+# `npm ci` runs every dependency's install script, so the token this job holds can only read
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v5
         with:

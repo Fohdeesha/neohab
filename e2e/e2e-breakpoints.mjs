@@ -1,10 +1,10 @@
 // Tablet layout + per-surface visibility e2e.
 // SAFE with a live config: creates only dashboard:nh-e2e-bp, deletes exactly that, and commands NOTHING
-// (clock/label/value widgets only). It does patch the SHARED settings component for the breakpoint
-// section - snapshotted first and put back in the finally, deleted again if the server had none.
+// (clock/label/value widgets only). The breakpoint section needs other values in the SHARED settings; those
+// are shown to this browser only (lib/sandbox.mjs), so every wall panel on the server keeps its own layout.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
-import { getSettings, patchSettings, restoreSettings } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -46,12 +46,11 @@ const seed = async (widgets, extra = {}) => {
 }
 const W = (id, x, y, w, h, config = {}) => ({ id, type: 'clock', config, layout: { lg: { x, y, w, h } } })
 
-// declared out here so the finally can put them back whatever fails in between
-let settingsSnapshot = null
-let settingsTouched = false
+const sb = await sharedSettings()
 
 const browser = await launch()
 const ctx = await browser.newContext({ viewport: DESKTOP })
+await sb.install(ctx)
 const page = await ctx.newPage()
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -141,6 +140,28 @@ try {
   await sleep(300)
   const movedTablet = await rendered()
   ok('the widget moved on the tablet layout', movedTablet.cells.some((c) => c.col === '9' && c.row === '3'), JSON.stringify(movedTablet.cells))
+
+  // the docked panel narrows the surface below the phone threshold here, and the frame after it closes used to
+  // be measured narrow: a stack, which also put the editor back on the desktop layout
+  const beforeClose = await page.evaluate(() => {
+    window.__nhStackSeen = false
+    new MutationObserver(() => {
+      if (document.querySelector('.nh-grid--stackedit')) window.__nhStackSeen = true
+    }).observe(document.body, { childList: true, subtree: true })
+    return { panel: Boolean(document.querySelector('.nh-sheet--side')), surface: document.querySelector('.nh-dash__surface')?.clientWidth ?? 0 }
+  })
+  await page.click('.nh-sheet--side .nh-sheet__close').catch(() => {})
+  await page.waitForFunction(() => !document.querySelector('.nh-sheet--side'), { timeout: 5000 }).catch(() => {})
+  await sleep(300)
+  const afterClose = await page.evaluate(() => ({ md: Boolean(document.querySelector('.nh-bpswitch--md')), stackSeen: window.__nhStackSeen }))
+  const closeCase = beforeClose.panel && beforeClose.surface > 0 && beforeClose.surface < 840
+  ok('closing the docked panel keeps the tablet layout', closeCase && afterClose.md, JSON.stringify({ ...beforeClose, ...afterClose }))
+  ok('and never draws the stack on the way', closeCase && !afterClose.stackSeen, JSON.stringify({ ...beforeClose, ...afterClose }))
+  if (!afterClose.md) {
+    await page.click('.nh-bpswitch')
+    await page.waitForSelector('.nh-bpswitch--md', { timeout: 10000 }).catch(() => {})
+  }
+
   await page.click('.nh-bpswitch')
   await page.waitForFunction(() => !document.querySelector('.nh-bpswitch--md'), { timeout: 10000 })
   const desktopAfter = await rendered()
@@ -430,19 +451,20 @@ try {
     body: JSON.stringify(withMd),
   })
 
-  settingsSnapshot = await getSettings()
-  settingsTouched = true
+  // the server's own thresholds could be anything, so this starts from the defaults
+  const DEFAULTS = { tabletBelow: undefined, phoneBelow: undefined }
+  sb.present(DEFAULTS)
   await page.setViewportSize(TABLET)
   await open()
   ok('a 1000px window is a tablet by default', (await rendered()).columns === 6, String((await rendered()).columns))
 
-  ok('narrowing the tablet threshold saves', (await patchSettings(settingsSnapshot, { tabletBelow: 900 })).ok)
+  sb.present({ ...DEFAULTS, tabletBelow: 900 })
   await open()
   ok('the same window is now a desktop', (await rendered()).columns === 12, String((await rendered()).columns))
 
   // 1500px of window is a 1476px dashboard area once the surface padding is off it, so the
   // threshold has to clear THAT, not the window
-  ok('widening it again saves', (await patchSettings(settingsSnapshot, { tabletBelow: 1600 })).ok)
+  sb.present({ ...DEFAULTS, tabletBelow: 1600 })
   await page.setViewportSize(DESKTOP)
   await open()
   const wide = await rendered()
@@ -450,7 +472,7 @@ try {
 
   // the stacking threshold is the same setting group, and the editor has to agree with run mode or
   // it would draw a stack of a board that renders as a grid
-  ok('raising the stacking threshold saves', (await patchSettings(settingsSnapshot, { phoneBelow: 1600, tabletBelow: 1700 })).ok)
+  sb.present({ phoneBelow: 1600, tabletBelow: 1700 })
   await open()
   ok('a 1500px window now stacks', (await rendered()).stacked === true)
   await enterEdit()
@@ -460,7 +482,7 @@ try {
 
   // a hand-edited settings component can hold a tablet threshold BELOW the phone one, which read
   // literally would put every width in two bands at once
-  ok('a contradictory pair saves', (await patchSettings(settingsSnapshot, { phoneBelow: 900, tabletBelow: 500 })).ok)
+  sb.present({ phoneBelow: 900, tabletBelow: 500 })
   await page.setViewportSize(DESKTOP)
   await open()
   ok('a wide window is still a desktop', (await rendered()).columns === 12, JSON.stringify(await rendered()))
@@ -481,9 +503,7 @@ try {
   await sleep(800)
   ok('and raising the stacking one pushes the tablet one up', (await page.inputValue('#nh-set-tabletbelow')) === '1101', `${await page.inputValue('#nh-set-phonebelow')} / ${await page.inputValue('#nh-set-tabletbelow')}`)
 
-  const restored = await restoreSettings(settingsSnapshot)
-  settingsTouched = !restored.ok
-  ok('the shared settings went back exactly as they were', restored.ok, restored.mode + ' ' + restored.detail)
+  sb.present(DEFAULTS)
   await open()
   ok('and a 1500px window is a desktop again', (await rendered()).columns === 12, String((await rendered()).columns))
   await page.setViewportSize(DESKTOP)
@@ -534,6 +554,36 @@ try {
   )
   await page.setViewportSize(DESKTOP)
 
+  // the editor asks the same question of the same width as run mode: at 844px, a phone turned sideways, run
+  // mode is 24px of padding narrower than the window and stacks, and the editor measured the window and drew
+  // the desktop grid instead
+  ok('seed for a phone on its side', await seed([W('w-a', 0, 0, 2, 2), W('w-b', 4, 0, 2, 2)]))
+  await page.setViewportSize({ width: 844, height: 390 })
+  await open()
+  const sidewaysRun = await rendered()
+  await enterEdit()
+  const sidewaysEdit = await rendered()
+  ok('at 844px run mode stacks', sidewaysRun.stacked === true, JSON.stringify({ stacked: sidewaysRun.stacked, columns: sidewaysRun.columns }))
+  ok('and the editor draws the same stack', sidewaysEdit.stacked === true, JSON.stringify({ stacked: sidewaysEdit.stacked, columns: sidewaysEdit.columns }))
+  await page.keyboard.press('Escape')
+
+  // turned to portrait with the tablet layout selected, the phone editor shows the stack of the desktop layout,
+  // so that is the one it has to change: it had gone on deleting from and adding to the tablet one
+  await page.setViewportSize(TABLET)
+  await open()
+  await enterEdit()
+  await page.click('.nh-bpswitch')
+  await page.waitForSelector('.nh-bpswitch--md', { timeout: 10000 }).catch(() => {})
+  const beforeTurn = (await page.textContent('.nh-bpswitch').catch(() => '')) ?? ''
+  await page.setViewportSize(PHONE)
+  await sleep(400)
+  await page.setViewportSize(TABLET)
+  await page.waitForSelector('.nh-bpswitch', { timeout: 10000 }).catch(() => {})
+  const afterTurn = (await page.textContent('.nh-bpswitch').catch(() => '')) ?? ''
+  ok('turning a tablet to portrait moves the editor onto the desktop layout the stack shows', beforeTurn.includes('Tablet') && afterTurn.includes('Desktop'), `${beforeTurn} -> ${afterTurn}`)
+  await page.keyboard.press('Escape')
+  await page.setViewportSize(DESKTOP)
+
   ok('seed all-hidden', await seed([W('w-x', 0, 0, 2, 2, { hideOn: ['phone', 'tablet', 'desktop'] })]))
   await open()
   const allHidden = await rendered()
@@ -545,11 +595,9 @@ try {
   ok('suite ran to completion', false, String(err).slice(0, 200))
 } finally {
   await del(UID)
-  // the shared settings belong to whoever runs this server, so they go back whatever happened above
-  if (settingsTouched) {
-    const put = await restoreSettings(settingsSnapshot)
-    ok('cleanup: the shared settings are back as they were', put.ok, put.mode + ' ' + put.detail)
-  }
+  // the shared settings belong to whoever runs this server
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
   ok('cleanup: no leftovers', !uids.includes(UID), uids.filter((u) => u.includes('nh-e2e')).join(','))
   await browser.close()

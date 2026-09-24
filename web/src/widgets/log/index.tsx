@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../../i18n'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { SignInSheet } from '../../editor/SignInSheet'
@@ -20,7 +21,7 @@ export interface LogConfig extends Record<string, unknown> {
 }
 
 function LogWidget({ config }: WidgetProps<LogConfig>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   useEffect(() => subscribeLogs(), [])
   const live = useLogsStore((s) => s.entries)
   const status = useLogsStore((s) => s.status)
@@ -74,7 +75,7 @@ function LogWidget({ config }: WidgetProps<LogConfig>) {
             </button>
           </div>
         ) : (
-          <LogLines entries={shown} wrap={wrapOf(config.wrap)} empty={empty} lang={i18n.language} />
+          <LogLines entries={shown} wrap={wrapOf(config.wrap)} empty={empty} lang={appLocale()} />
         )}
         {unsupported && serverVersion ? (
           <div className="nh-log__status">{t('This server is openHAB {{version}}.', { version: serverVersion })}</div>

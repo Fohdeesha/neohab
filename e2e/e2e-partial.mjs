@@ -85,8 +85,12 @@ const brokenComponent = {
 
 const MINE = /^(dashboard:nh-e2e-pd|widgetdef:nh-e2e-p|icon:nh-e2e-p|background:nh-e2e-p|theme:nh-e2e-p)/
 
-const historyBefore = await list(HISTORY_NS)
-const historyDataBefore = await list(HISTORY_DATA_NS)
+// importing through the app takes a restore point, which lib/browser.mjs keeps in the browser, so the
+// server's version history is only ever read here, and must come out exactly as it went in
+const historyIndex = async () => JSON.stringify((await list(HISTORY_NS)).map((c) => [c.uid, c.config]))
+const historyData = async () => (await list(HISTORY_DATA_NS)).map((c) => c.uid).sort()
+const historyBefore = await historyIndex()
+const historyDataBefore = await historyData()
 
 const browser = await launch()
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 }, acceptDownloads: true })
@@ -329,7 +333,31 @@ try {
   ok('a whole-configuration backup offers no copy', (await page.locator('button:has-text("Import as a copy")').count()) === 0)
   await page.click('.nh-settings__importchoice button:has-text("Cancel")')
 
-  const realErrs = errs.filter((e) => !/ERR_NAME_NOT_RESOLVED/.test(e))
+  // an import the server refuses: the reason in the server's own words, nothing on the server, and a screen
+  // showing what the server holds rather than what the file said
+  {
+    const CONFIG_WRITE = /neohab(:|%3A)config/
+    let refused = 0
+    await page.route(CONFIG_WRITE, (route) => {
+      const m = route.request().method()
+      if (m !== 'POST' && m !== 'PUT') return route.fallback()
+      refused++
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":{"message":"Storage is full"}}' })
+    })
+    await importFile({ manifest: { app: 'neohab', formatVersion: 1, exportedAt: 'x' }, components: [dashComponent('nh-e2e-pdfail', 'E2E Partial Refused')] }, 'neohab-config.json')
+    await page.waitForSelector('button:has-text("Merge into current")', { timeout: 15000 })
+    await page.click('button:has-text("Merge into current")')
+    await page.waitForSelector('.nh-toast__text:has-text("Storage is full")', { timeout: 20000 }).catch(() => {})
+    const said = (await page.locator('.nh-toast__text').allTextContents().catch(() => [])).join(' | ')
+    await page.unroute(CONFIG_WRITE)
+    ok('a refused import says why, in the server’s words', refused > 0 && /Storage is full/.test(said), `refused=${refused}: ${said.slice(0, 120)}`)
+    ok('and nothing of it is on the server', (await get(uid('dashboard', 'nh-e2e-pdfail'))) === null)
+    await page.goto(APP + '#/', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.nh-tile, .nh-welcome', { timeout: 15000 }).catch(() => {})
+    ok('and the app shows what the server holds, not the file', (await page.locator('text=E2E Partial Refused').count()) === 0)
+  }
+
+  const realErrs = errs.filter((e) => !/ERR_NAME_NOT_RESOLVED|status of 500/.test(e))
   ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } catch (err) {
   ok('suite ran to completion', false, String(err).slice(0, 200))
@@ -340,14 +368,13 @@ try {
   const left = (await list()).map((c) => c.uid).filter((u) => MINE.test(u))
   ok('cleanup: no leftovers', left.length === 0, left.join(','))
 
-  for (const [ns, before] of [[HISTORY_NS, historyBefore], [HISTORY_DATA_NS, historyDataBefore]]) {
-    for (const c of await list(ns)) await del(c.uid, ns)
-    for (const c of before) {
-      await fetch(ns, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify(c) }).catch(() => {})
-    }
-  }
-  const histAfter = (await list(HISTORY_NS)).length + (await list(HISTORY_DATA_NS)).length
-  ok('cleanup: version history restored', histAfter === historyBefore.length + historyDataBefore.length, String(histAfter))
+  const historyAfter = await historyIndex()
+  const historyDataAfter = await historyData()
+  ok(
+    'cleanup: the server\'s version history was not touched',
+    historyAfter === historyBefore && historyDataAfter.join(',') === historyDataBefore.join(','),
+    `index ${historyAfter === historyBefore ? 'unchanged' : 'CHANGED'}, snapshots and blobs ${historyDataBefore.length} -> ${historyDataAfter.length}`
+  )
 
   await browser.close()
   const fails = results.filter((r) => !r.pass)

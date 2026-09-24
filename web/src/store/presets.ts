@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { createOrUpdateRule, createRule, deleteRule, listRuleSummaries, listRulesFull, runRule, upsertRule } from '../api/rules'
+import { createOrUpdateRule, createRule, deleteRule, getRule, listRuleSummaries, listRulesFull, runRule, upsertRule } from '../api/rules'
+import { getItem } from '../api/items'
 import { ApiError } from '../api/client'
 import { notify } from './notify'
 import i18n from '../i18n'
@@ -15,11 +16,14 @@ import {
   ruleFromPreset,
   SCENE_TAG,
   type Preset,
+  type PresetLight,
   type PresetSummary,
   type StatusState
 } from '../model/presets'
 import { commandItem } from '../widgets/common/command'
 import { useAuthStore } from './auth'
+import { useCatalogStore } from './catalog'
+import { useItemsStore } from './items'
 import { clearSettling, markSettling } from './settling'
 import { emptyMap, mergeMap } from '../model/lookup'
 import { errorText } from '../api/errors'
@@ -95,7 +99,14 @@ export function freeSceneUid(name: string): string {
 }
 
 export async function savePreset(preset: Preset, opts?: { bridge?: boolean; create?: boolean }): Promise<void> {
-  const rule = ruleFromPreset(preset)
+  // read back first: a trigger or a script action somebody added in Main UI survives the save
+  const existing = opts?.create
+    ? undefined
+    : await getRule(preset.uid).catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 404) return undefined
+        throw err
+      })
+  const rule = ruleFromPreset(preset, existing)
   if (opts?.create) await createRule(rule)
   else await upsertRule(rule)
   const hasBridge = usePresetsStore.getState().bridged.includes(preset.uid)
@@ -110,14 +121,54 @@ export async function savePreset(preset: Preset, opts?: { bridge?: boolean; crea
   await reloadPresets()
 }
 
+type ItemKind = { type?: string; groupType?: string }
+
+async function itemKinds(names: string[]): Promise<Map<string, ItemKind>> {
+  const out = new Map<string, ItemKind>()
+  const catalog = useCatalogStore.getState()
+  const unknown: string[] = []
+  for (const n of names) {
+    const found = catalog.loaded ? catalog.items.find((i) => i.name === n) : undefined
+    if (found) out.set(n, found)
+    else unknown.push(n)
+  }
+  // an item the server cannot describe is left alone rather than guessed at
+  await Promise.all(
+    unknown.map((n) =>
+      getItem(n).then(
+        (it) => void out.set(n, it),
+        () => undefined
+      )
+    )
+  )
+  return out
+}
+
+const opposite = (s: StatusState | undefined): StatusState => (s === 'OFF' ? 'ON' : 'OFF')
+
+/**
+ * Switches a preset's lights off. False when this device cannot tell which items the preset
+ * commands (a signed-out viewer, and a preset saved before its items were tagged), so the caller
+ * can fall back to running it.
+ */
 export async function deactivatePreset(preset: PresetSummary): Promise<boolean> {
-  const offs = presetOffCommands(usePresetsStore.getState().full[preset.uid]?.lights ?? [])
-  if (offs.length === 0) return false
-  markSettling(offs)
-  const accepted = await Promise.all(offs.map((o) => commandItem(o.item, o.command)))
-  const refused = offs.filter((_, i) => !accepted[i]).map((o) => o.item)
+  const items = usePresetsStore.getState().full[preset.uid]?.lights.map((l) => l.item) ?? preset.lightItems ?? []
+  if (items.length === 0) return false
+  const kinds = await itemKinds(items)
+  const offs = presetOffCommands(items, (item) => kinds.get(item))
+  // a wall switch left at its "on" state would keep the chip lit and make the next tap a no-op
+  const bridged = preset.statusItem && usePresetsStore.getState().bridged.includes(preset.uid)
+  const sends: PresetLight[] =
+    bridged && preset.statusItem ? [...offs, { item: preset.statusItem, command: opposite(preset.statusState) }] : offs
+  if (sends.length === 0) {
+    notify(i18n.t('Nothing in “{{name}}” can be switched off', { name: preset.name }))
+    return true
+  }
+  markSettling(sends)
+  const accepted = await Promise.all(sends.map((o) => commandItem(o.item, o.command)))
+  const refused = sends.filter((_, i) => !accepted[i]).map((o) => o.item)
   if (refused.length > 0) clearSettling(refused)
-  return accepted.some(Boolean)
+  return true
 }
 
 export async function deletePreset(uid: string): Promise<void> {
@@ -142,8 +193,11 @@ async function deleteBridgeRule(sceneUid: string): Promise<void> {
 
 export async function activatePreset(preset: PresetSummary): Promise<boolean> {
   const { bridged, full } = usePresetsStore.getState()
-  if (preset.statusItem && bridged.includes(preset.uid)) {
-    const command: StatusState = preset.statusState === 'OFF' ? 'OFF' : 'ON'
+  const command: StatusState = preset.statusState === 'OFF' ? 'OFF' : 'ON'
+  // the bridge fires on a CHANGE, so a switch already at that state would take the command and run
+  // nothing - then the scene is run directly instead
+  const already = preset.statusItem !== undefined && useItemsStore.getState().states[preset.statusItem]?.state === command
+  if (preset.statusItem && bridged.includes(preset.uid) && !already) {
     markSettling([{ item: preset.statusItem, command }])
     const accepted = await commandItem(preset.statusItem, command)
     if (!accepted) clearSettling([preset.statusItem])
@@ -156,12 +210,7 @@ export async function activatePreset(preset: PresetSummary): Promise<boolean> {
     return true
   } catch (err) {
     clearSettling(lights.map((l) => l.item))
-    notify(
-      i18n.t('“{{name}}” could not be activated ({{error}})', {
-        name: preset.name,
-        error: err instanceof ApiError ? err.status : String(err)
-      })
-    )
+    notify(i18n.t('“{{name}}” could not be activated: {{error}}', { name: preset.name, error: errorText(err) }))
     return false
   }
 }

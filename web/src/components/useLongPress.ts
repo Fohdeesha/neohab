@@ -33,13 +33,37 @@ function setHoldGuard(on: boolean): void {
   document.documentElement.classList.toggle('nh-holding', on)
 }
 
+// a hold that changes the route hands the rest of the press to the page it opens: the release and, on
+// touch, the click land on whatever is under the finger there. Such an opening waits for the press to end.
+let pressLive = false
+let afterPress: (() => void)[] = []
+
+export function whenPressEnds(fn: () => void): void {
+  if (!pressLive) fn()
+  else afterPress.push(fn)
+}
+
+// the click a release produces comes before a zero timeout, which is also what lets the cell swallow it
+function endLivePress(): void {
+  pressLive = false
+  if (afterPress.length === 0) return
+  const queued = afterPress
+  afterPress = []
+  window.setTimeout(() => {
+    for (const fn of queued) fn()
+  }, 0)
+}
+
 // window-level backstop: one missed release would leave the whole app unselectable until a reload
 let listening = false
 
 function armGuardRelease(): void {
   if (listening) return
   listening = true
-  const release = () => setHoldGuard(false)
+  const release = () => {
+    setHoldGuard(false)
+    endLivePress()
+  }
   window.addEventListener('pointerup', release, true)
   window.addEventListener('pointercancel', release, true)
 }
@@ -86,10 +110,9 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
     cancel()
     origin.current = { x: e.clientX, y: e.clientY }
     activeCancel = cancel
-    if (e.pointerType !== 'mouse') {
-      armGuardRelease()
-      setHoldGuard(true)
-    }
+    armGuardRelease()
+    pressLive = true
+    if (e.pointerType !== 'mouse') setHoldGuard(true)
     const touch = e.pointerType === 'touch'
     timer.current = window.setTimeout(() => {
       timer.current = null

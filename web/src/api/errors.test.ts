@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { NetworkError } from './base'
 import { ApiError } from './client'
 import { errorText } from './errors'
 
@@ -31,8 +32,17 @@ describe('errorText', () => {
   })
 
   it('turns a failed fetch into something about the server, not about fetch', () => {
-    expect(errorText(new TypeError('Failed to fetch'))).toMatch(/openHAB/)
-    expect(errorText(new TypeError('Failed to fetch'))).not.toContain('fetch')
+    for (const message of ['Failed to fetch', 'NetworkError when attempting to fetch resource.', 'Load failed']) {
+      expect(errorText(new TypeError(message))).toMatch(/openHAB/)
+      expect(errorText(new TypeError(message))).not.toContain('fetch')
+    }
+    expect(errorText(new NetworkError(false))).toMatch(/could not be reached/)
+    expect(errorText(new NetworkError(true))).toMatch(/in time/)
+  })
+
+  it('does not report a programming error as an unreachable server', () => {
+    const bug = new TypeError("Cannot read properties of undefined (reading 'map')")
+    expect(errorText(bug)).toBe(bug.message)
   })
 
   it('passes an ordinary Error through, and stringifies anything else', () => {

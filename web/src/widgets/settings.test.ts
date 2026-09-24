@@ -26,7 +26,8 @@ const {
   instanceMinHeight,
   instanceNeedsItem,
   itemsForInstance,
-  listWidgetDefinitions
+  listWidgetDefinitions,
+  primaryItemOf
 } = await import('./registry')
 
 registerBuiltinWidgets()
@@ -269,7 +270,7 @@ describe('every widget settings schema', () => {
     for (const style of ['button', 'switch']) {
       const bound = { item: 'x', style, command: 'OPEN', commandAlt: 'CLOSE' }
       expect(instanceCommands('button', bound), style).toBe(true)
-      expect(instanceControl('button', bound, 'x'), style).toEqual({ kind: 'onoff', on: 'OPEN', off: 'CLOSE' })
+      expect(instanceControl('button', bound, 'x'), style).toEqual({ kind: 'onoff', on: 'OPEN', off: 'CLOSE', nonZeroIsOn: false })
       expect(instanceCommands('button', { ...bound, action: 'navigate' }), style).toBe(false)
       expect(instanceControl('button', { ...bound, action: 'navigate' }, 'x'), style).toBeUndefined()
       expect(itemsForInstance('button', bound), style).toEqual(['x'])
@@ -366,14 +367,24 @@ describe('every widget settings schema', () => {
       ]
     })
     expect(instanceControl('selection', { item: 'x' }, 'x')).toEqual({ kind: 'auto' })
-    expect(instanceControl('button', { item: 'x', style: 'switch' }, 'x')).toEqual({ kind: 'onoff', on: 'ON', off: 'OFF' })
+    expect(instanceControl('button', { item: 'x', style: 'switch' }, 'x')).toEqual({
+      kind: 'onoff',
+      on: 'ON',
+      off: 'OFF',
+      nonZeroIsOn: false
+    })
     // emptied on purpose: it offers nothing rather than inventing a command the author removed
     expect(instanceControl('button', { item: 'x', command: '', commandAlt: '' }, 'x')).toBeUndefined()
     // two commands make an on/off pair; one command is the single thing it sends
     expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0' }, 'x')).toEqual({
       kind: 'onoff',
       on: '55',
-      off: '0'
+      off: '0',
+      nonZeroIsOn: false
+    })
+    // the sheet reads on and off by the tile's own rule, so it has to be told that rule
+    expect(instanceControl('button', { item: 'x', command: '100', commandAlt: '0', nonZeroIsOn: true }, 'x')).toMatchObject({
+      nonZeroIsOn: true
     })
     expect(instanceControl('button', { item: 'x', command: '55', commandAlt: '0', toggle: false }, 'x')).toEqual({
       kind: 'choices',
@@ -662,6 +673,39 @@ describe('every widget settings schema', () => {
       expect(instanceNeedsItem('label', {})).toBe(false)
       expect(instanceNeedsItem('chart', {})).toBe(false)
       expect(instanceNeedsItem('nosuchwidget', {})).toBe(false)
+    })
+  })
+
+  // the item whose absence replaces a widget's content; one renamed lamp used to blank a whole floor plan
+  describe('the item a widget is about', () => {
+    it('is the first item field in use, not a second reading or an inner ring', () => {
+      expect(primaryItemOf('dial', { item: 'Main', item2: 'Inner', style: 'ring' })).toBe('Main')
+      expect(primaryItemOf('value', { item: 'Main', subItem: 'Sub', trend: 'item', trendItem: 'T' })).toBe('Main')
+      expect(primaryItemOf('battery', { item: 'Charge', chargingItem: 'Plug' })).toBe('Charge')
+      expect(primaryItemOf('thermostat', { currentItem: 'Room', setpointItem: 'Set', fanItem: 'Fan' })).toBe('Room')
+    })
+
+    it('falls to the next field when the first is empty', () => {
+      expect(primaryItemOf('thermostat', { currentItem: '', setpointItem: 'Set' })).toBe('Set')
+    })
+
+    it('is nothing for a widget whose items are a list, or an extra', () => {
+      expect(primaryItemOf('floorplan', { lights: [{ item: 'Lamp', x: 0.5, y: 0.5 }] })).toBeUndefined()
+      expect(primaryItemOf('chart', { series: [{ item: 'T' }] })).toBeUndefined()
+      expect(primaryItemOf('camera', { tapAction: 'command', tapItem: 'Door' })).toBeUndefined()
+      expect(primaryItemOf('button', { action: 'navigate', item: 'Lamp' })).toBeUndefined()
+      expect(primaryItemOf('button', { action: 'command', item: 'Lamp' })).toBe('Lamp')
+    })
+
+    it('is always one of the items the widget subscribes to', () => {
+      const wrong: string[] = []
+      for (const def of widgets) {
+        const config: Record<string, unknown> = { ...def.defaultConfig() }
+        for (const f of def.settings ?? []) if (f.type === 'item') config[f.key] = 'nh_' + f.key
+        const primary = primaryItemOf(def.type, config)
+        if (primary !== undefined && !itemsForInstance(def.type, config).includes(primary)) wrong.push(`${def.type}: ${primary}`)
+      }
+      expect(wrong).toEqual([])
     })
   })
 

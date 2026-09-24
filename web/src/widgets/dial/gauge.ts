@@ -180,28 +180,6 @@ export function gaugeTicks(
   return ticks
 }
 
-export function angleToValue(
-  svgAngle: number,
-  min: number,
-  max: number,
-  start: number,
-  sweep: number,
-  step: number,
-  decimals: number
-): number {
-  let rel = (svgAngle + 90 - start) % 360
-  if (rel < 0) rel += 360
-  let frac: number
-  if (rel <= sweep) {
-    frac = rel / sweep
-  } else {
-    frac = rel - sweep < 360 - rel ? 1 : 0
-  }
-  const raw = min + frac * (max - min)
-  const snapped = Number((Math.round(raw / step) * step).toFixed(decimals))
-  return Math.min(max, Math.max(min, snapped))
-}
-
 export const HISTORY_PERIODS: Record<string, number> = {
   '1h': 3600_000,
   '6h': 6 * 3600_000,

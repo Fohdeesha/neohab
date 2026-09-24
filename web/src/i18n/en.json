@@ -61,6 +61,8 @@
   "HABPanel configuration “{{uid}}” found on this server - {{count}} dashboards_other": "HABPanel configuration “{{uid}}” found on this server - {{count}} dashboards",
   "Imported {{count}} items._one": "Imported {{count}} item.",
   "Imported {{count}} items._other": "Imported {{count}} items.",
+  "Keep only the newest {{limit}} restore points? {{count}} older ones are deleted now. Named ones are kept until you delete them._one": "Keep only the newest {{limit}} restore points? {{count}} older one is deleted now. Named ones are kept until you delete them.",
+  "Keep only the newest {{limit}} restore points? {{count}} older ones are deleted now. Named ones are kept until you delete them._other": "Keep only the newest {{limit}} restore points? {{count}} older ones are deleted now. Named ones are kept until you delete them.",
   "Overwrite {{count}} existing items with this file? The version history keeps a restore point._one": "Overwrite {{count}} existing item with this file? The version history keeps a restore point.",
   "Overwrite {{count}} existing items with this file? The version history keeps a restore point._other": "Overwrite {{count}} existing items with this file? The version history keeps a restore point.",
   "Restored {{count}} components from {{when}}._one": "Restored {{count}} component from {{when}}.",
@@ -69,6 +71,8 @@
   "Review {{count}} items_other": "Review {{count}} items",
   "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._one": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} item.",
   "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._other": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items.",
+  "Turn the version history off? {{count}} restore points are deleted now. Named ones are kept until you delete them._one": "Turn the version history off? {{count}} restore point is deleted now. Named ones are kept until you delete them.",
+  "Turn the version history off? {{count}} restore points are deleted now. Named ones are kept until you delete them._other": "Turn the version history off? {{count}} restore points are deleted now. Named ones are kept until you delete them.",
   "Using {{kb}} KB across {{count}} icons._one": "Using {{kb}} KB across {{count}} icon.",
   "Using {{kb}} KB across {{count}} icons._other": "Using {{kb}} KB across {{count}} icons."
 }

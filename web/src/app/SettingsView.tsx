@@ -5,6 +5,7 @@ import { dismissNotice, notify, type NoticeFn } from '../store/notify'
 import { useRoute } from './router'
 import { NavButton } from './Sidebar'
 import { IncompatibleNotice } from '../components/IncompatibleNotice'
+import { SectionBoundary } from '../components/SectionBoundary'
 import { AppearanceSection } from '../settings/AppearanceSection'
 import { ControlsSection } from '../settings/ControlsSection'
 import { KioskSection } from '../settings/KioskSection'
@@ -36,7 +37,11 @@ const SECTIONS: { id: string; label: string; admin?: boolean }[] = [
 // module scope on purpose - declared inside SettingsView this is a new component type every render, so every
 // section remounts
 function Anchor({ id, children }: { id: string; children: ReactNode }) {
-  return <div id={'nh-sec-' + id}>{children}</div>
+  return (
+    <div id={'nh-sec-' + id}>
+      <SectionBoundary name={id}>{children}</SectionBoundary>
+    </div>
+  )
 }
 
 export function SettingsView() {

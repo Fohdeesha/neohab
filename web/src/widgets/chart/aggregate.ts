@@ -117,14 +117,17 @@ function walk(
   endSec: number,
   groupBy: GroupBy,
   onPiece: (key: number, value: number, seconds: number, atSec: number) => void,
-  onSample: (key: number, value: number, atSec: number) => void
+  onSample: (key: number, value: number, atSec: number) => void,
+  leadingBoundary = false
 ): void {
   for (let i = 0; i < xs.length; i++) {
     const v = ys[i]
     if (v === null || !Number.isFinite(v)) continue
     const from = xs[i]
-    const until = Math.max(from, i + 1 < xs.length ? xs[i + 1] : endSec)
-    onSample(bucketFor(groupBy, from).key, v, from)
+    if (from >= endSec) continue
+    const until = Math.max(from, Math.min(endSec, i + 1 < xs.length ? xs[i + 1] : endSec))
+    // the value carried in from before the window held time in it, but it is not a stored row in it
+    if (!(leadingBoundary && i === 0)) onSample(bucketFor(groupBy, from).key, v, from)
     let cur = from
     if (until === cur) {
       onPiece(bucketFor(groupBy, cur).key, v, 0, cur)
@@ -144,7 +147,8 @@ export function aggregateSeries(
   ys: (number | null)[],
   endSec: number,
   groupBy: GroupBy,
-  fn: AggregateFunction
+  fn: AggregateFunction,
+  leadingBoundary = false
 ): [number[], (number | null)[]] {
   if (groupBy === 'none') return [xs, ys]
   const buckets = new Map<number, Acc>()
@@ -180,7 +184,8 @@ export function aggregateSeries(
       const acc = at(key)
       acc.sum += value
       acc.count++
-    }
+    },
+    leadingBoundary
   )
   const keys = [...buckets.keys()].sort((a, b) => a - b)
   const outX: number[] = []
@@ -203,7 +208,13 @@ export interface HeatmapData {
   max: number
 }
 
-export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: number, fn: AggregateFunction): HeatmapData {
+export function heatmapMatrix(
+  xs: number[],
+  ys: (number | null)[],
+  endSec: number,
+  fn: AggregateFunction,
+  leadingBoundary = false
+): HeatmapData {
   const accs = new Map<number, Acc>()
   const at = (key: number): Acc => {
     let acc = accs.get(key)
@@ -241,7 +252,8 @@ export function heatmapMatrix(xs: number[], ys: (number | null)[], endSec: numbe
       const acc = at(cellKey(atSec))
       acc.sum += value
       acc.count++
-    }
+    },
+    leadingBoundary
   )
   const cells: (number | null)[][] = []
   let min = Infinity

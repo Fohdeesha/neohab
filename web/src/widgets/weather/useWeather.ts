@@ -51,6 +51,12 @@ export function useWeather(config: Record<string, unknown>): WeatherSource {
 
   const [data, setData] = useState<WeatherData | null>(null)
   const [failed, setFailed] = useState(false)
+  // the view is built against the clock, so an offline panel still has to be redrawn as time passes
+  const [, setClock] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setClock((n) => n + 1), 5 * 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const lat = loc?.lat
   const lon = loc?.lon

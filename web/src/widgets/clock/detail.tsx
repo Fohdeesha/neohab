@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { appLocale } from '../../i18n'
 import type { WidgetProps } from '../types'
 import { clockDifference, displayNow, formatDuration } from '../../model/servertime'
 import { acquireServerTime, syncServerTime, useServerTimeStore } from '../../store/servertime'
@@ -37,7 +38,7 @@ function ZoneRow({
 }
 
 export function ClockDetail({ config }: WidgetProps<Record<string, unknown>>) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [tick, setTick] = useState(() => Date.now())
   const source = clockSource(config)
   const offsetMs = useServerTimeStore((s) => s.offsetMs)
@@ -55,7 +56,7 @@ export function ClockDetail({ config }: WidgetProps<Record<string, unknown>>) {
     return release
   }, [])
 
-  const lang = i18n.language || 'en'
+  const lang = appLocale()
   const now = new Date(displayNow(tick, offsetMs, source))
   const zone = resolveZone(config.timeZone)
   const hour12 = config.hour12 === true ? true : config.hour12 === false ? false : undefined

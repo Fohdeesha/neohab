@@ -1,10 +1,11 @@
 // Admin-role gating e2e. The model under test (like openHAB's own UIs): only administrator devices see any
 // editing affordance.
-// SAFE with a live config: creates only dashboard:nh-e2e-lock (clock/label, nothing commandable), snapshots
-// the `settings` component first and restores it VERBATIM, and.
+// SAFE with a live config: creates only dashboard:nh-e2e-lock (clock/label, nothing commandable). The lock
+// settings it needs are shown to its own browser contexts only (lib/sandbox.mjs); the shared `settings`
+// component on the server is never written.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, NS, TOKEN, AUTH } from './lib/target.mjs'
-import { getSettings, putComponent, restoreSettings, settingsWithoutKeys } from './lib/components.mjs'
+import { sharedSettings } from './lib/sandbox.mjs'
 
 const UID = 'dashboard:nh-e2e-lock'
 
@@ -24,6 +25,7 @@ function launch() {
 
 async function makePage(browser, token) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } })
+  await sb.install(ctx)
   const page = await ctx.newPage()
   const track = { probes: [], itemPosts: [], errs: [] }
   page.on('pageerror', (e) => track.errs.push(String(e.message)))
@@ -43,19 +45,15 @@ async function makePage(browser, token) {
   return { ctx, page, track }
 }
 
-const settingsBefore = await getSettings()
-const baseSettings = settingsWithoutKeys(settingsBefore, ['lockEditing', 'allowAnonymousEditing'])
-const putSettingsComp = async (comp) => {
-  const res = await putComponent(NS, comp)
-  if (!res.ok) throw new Error('settings write failed: ' + res.status)
-}
+// the server's own lock keys could be anything, so they are taken out of what the browser sees
+const BASE_PATCH = { lockEditing: undefined, allowAnonymousEditing: undefined }
+const sb = await sharedSettings(BASE_PATCH)
 
 const browser = await launch()
 const pages = []
 
 try {
-  await putSettingsComp(baseSettings)
-
+  await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -144,10 +142,7 @@ try {
   await user.page.waitForSelector('.nh-widget', { timeout: 20000 })
   ok('user-level: no pencil', (await user.page.locator('[aria-label="Edit dashboard"]').count()) === 0)
 
-  await putSettingsComp({
-    ...baseSettings,
-    config: { ...baseSettings.config, lockEditing: false, allowAnonymousEditing: true },
-  })
+  sb.present({ lockEditing: false, allowAnonymousEditing: true })
   await anon.page.goto(APP + '#/d/nh-e2e-lock')
   await anon.page.reload({ waitUntil: 'domcontentloaded' })
   await anon.page.waitForSelector('.nh-widget', { timeout: 20000 })
@@ -159,7 +154,7 @@ try {
   await anon.page.waitForSelector('#nh-set-devicetheme', { timeout: 20000 })
   ok('retired keys: Backup still hidden', (await anon.page.locator('section:has(h2:text-is("Backup"))').count()) === 0)
   ok('retired keys: shared theme cards still hidden', (await anon.page.locator('.nh-theme__pick').count()) === 0)
-  await putSettingsComp(baseSettings)
+  sb.present(BASE_PATCH)
 
   const wall = await makePage(browser, null)
   pages.push(wall)
@@ -187,17 +182,14 @@ try {
     ok(`${name}: console clean`, errs.length === 0, errs.slice(0, 3).join(' | '))
   }
 } finally {
-  const settingsBack = await restoreSettings(settingsBefore).catch((e) => ({ mode: 'restore FAILED', detail: String(e) }))
-  console.log(`cleanup: settings ${settingsBack.mode} (${settingsBack.detail})`)
   try {
     const res = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
     console.log('cleanup: seed deleted', res.status)
   } catch (e) {
     console.log('cleanup: seed delete FAILED', e)
   }
-  const after = await getSettings()
-  const norm = (o) => (o ? JSON.stringify({ ...o, timestamp: undefined }) : '(no settings component)')
-  ok('cleanup: settings content identical', norm(after) === norm(settingsBefore), norm(after))
+  const untouched = await sb.verify().catch((e) => ({ ok: false, detail: String(e) }))
+  ok('cleanup: the shared settings on the server were never written', untouched.ok, untouched.detail)
   const uids = (await (await fetch(NS, { headers: AUTH })).json()).map((c) => c.uid)
   ok('cleanup: no leftovers', !uids.includes(UID))
 

@@ -36,8 +36,13 @@ const FX = {
   precipThisHour: forecast.current.precipitation_probability + '%',
 }
 
+// the fixture is a forecast fetched at this moment, and the widget reads a forecast against the clock at its
+// location, dropping what is already past; so each page's clock is pinned to when this one was fetched
+const CAPTURED = Date.parse(forecast.current.time + ':00Z') - (forecast.utc_offset_seconds ?? 0) * 1000
+
 const browser = await launch()
 const page = await browser.newPage({ viewport: { width: 1500, height: 1100 } })
+await page.clock.setFixedTime(CAPTURED)
 page.on('dialog', (d) => d.accept()) // Exit with a dirty draft confirms; the draft is meant to be discarded
 const errs = []
 page.on('pageerror', (e) => errs.push(String(e.message)))
@@ -456,6 +461,7 @@ try {
   ]
   for (const shape of shapes) {
     const p2 = await browser.newPage({ viewport: { width: shape.w, height: shape.h } })
+    await p2.clock.setFixedTime(CAPTURED)
     await p2.addInitScript((cfg) => {
       try {
         localStorage.setItem('neohab:apiToken', cfg.token)

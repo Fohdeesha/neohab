@@ -14,7 +14,7 @@ export interface StartOptions {
   audio: boolean
   fit: 'contain' | 'cover'
   poster: string | null
-  snapshotInterval: number
+  snapshotMs: number
   onStatus: (status: PlayerStatus) => void
 }
 
@@ -28,6 +28,8 @@ const CONNECT_TIMEOUT_MS = 8000
 const STALL_TIMEOUT_MS = 15000
 const RETRY_DELAY_MS = 3000
 const STABLE_PLAYBACK_MS = 5000
+// a camera server or openHAB restarting takes a minute or two: keep asking, a little less often each time
+const RECOVER_DELAYS_MS = [10_000, 20_000, 40_000, 60_000]
 
 const MSE_CODECS = [
   'avc1.640029', // H.264 high 4.1
@@ -46,6 +48,7 @@ export function startCamera(opts: StartOptions): PlayerHandle {
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let playingIndex = -1
   let playingSince = 0
+  let recoveries = 0
   const failed: CameraTransport[] = []
 
   const clear = () => {
@@ -102,6 +105,7 @@ export function startCamera(opts: StartOptions): PlayerHandle {
         cleanup = done
         playingIndex = i
         playingSince = Date.now()
+        recoveries = 0
         opts.onStatus({ phase: 'playing', transport, failed: [...failed] })
         return
       } catch (err) {
@@ -110,9 +114,15 @@ export function startCamera(opts: StartOptions): PlayerHandle {
         opts.onStatus({ phase: 'connecting', transport, failed: [...failed], error: message(err) })
       }
     }
-    if (!disposed) {
-      opts.onStatus({ phase: 'failed', transport: null, failed: [...failed] })
-    }
+    if (disposed) return
+    opts.onStatus({ phase: 'failed', transport: null, failed: [...failed] })
+    const delay = RECOVER_DELAYS_MS[Math.min(recoveries, RECOVER_DELAYS_MS.length - 1)]
+    recoveries++
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      failed.length = 0
+      void run(0)
+    }, delay)
   }
 
   void run()
@@ -588,7 +598,7 @@ async function attemptMJPEG(url: string, opts: StartOptions, onDrop: () => void)
 async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup> {
   const img = makeImage(opts)
   opts.host.appendChild(img)
-  const period = Math.max(1, opts.snapshotInterval || 5) * 1000
+  const period = opts.snapshotMs
   let timer: ReturnType<typeof setInterval> | null = null
 
   const bust = () => url + (url.includes('?') ? '&' : '?') + '_=' + Date.now()
@@ -619,7 +629,22 @@ async function attemptSnapshot(url: string, opts: StartOptions): Promise<Cleanup
   return done
 }
 
+// a frame fires `load` for the browser's own "refused to connect" page as well, and its contents cannot be
+// read across origins, so whether anything answers is asked first. An opaque answer is still an answer.
+async function reachable(url: string): Promise<void> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), CONNECT_TIMEOUT_MS)
+  try {
+    await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: controller.signal })
+  } catch {
+    throw new Error('unreachable')
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function attemptIframe(url: string, opts: StartOptions): Promise<Cleanup> {
+  await reachable(url)
   const frame = document.createElement('iframe')
   frame.className = 'nh-camera__media nh-camera__frame'
   frame.setAttribute('frameborder', '0')

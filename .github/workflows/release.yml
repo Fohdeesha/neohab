@@ -1,10 +1,14 @@
 name: Release
 
-# Push a tag whose version matches pom.xml and this builds the jar and attaches it to a release:
+# Push a tag whose version matches pom.xml and web/package.json and this builds the jar and
+# attaches it to a release:
 #   git tag -a v1.1.0 -m "neohab 1.1.0" && git push origin v1.1.0
 #
 # A tag-triggered run uses the workflow file FROM THE TAGGED COMMIT, so the tag has to sit on a
 # commit that has this file. Running it by hand against an existing tag redoes a failed release.
+#
+# Two jobs, so the token that can write releases never shares a machine with `npm ci`: any
+# dependency's install script runs in the build job, which can only read.
 
 on:
   push:
@@ -16,21 +20,27 @@ on:
         description: 'Existing tag to build the release from (e.g. v1.0.0)'
         required: true
 
-permissions:
-  contents: write # create the release, upload the jar
+permissions: {}
 
 concurrency:
   group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      notes: ${{ steps.notes.outputs.from }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
-          fetch-depth: 0 # release notes are generated from the history since the last tag
+          persist-credentials: false
 
       - uses: actions/setup-java@v5
         with:
@@ -44,27 +54,30 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      # the maven build runs `npm install`, which never lints, never runs the unit suite, and
-      # tolerates a lockfile that has drifted out of step with package.json - so a release could
-      # publish a jar from a tree CI would have refused
-      - name: Check the frontend
-        working-directory: web
-        run: |
-          npm ci
-          npm run check
-
-      - name: Check the tag matches the version in pom.xml
+      # the About screen shows web/package.json's version and the jar is named from pom.xml's, so
+      # the tag has to match both
+      - name: Check the tag matches the version in pom.xml and web/package.json
         id: version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          tag='${{ inputs.tag || github.ref_name }}'
-          version="${tag#v}"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::$TAG does not look like a release tag (v1.2.3 or v1.2.3-rc1)"
+            exit 1
+          fi
+          version="${TAG#v}"
           pom="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' pom.xml | head -1)"
+          web="$(node -p "require('./web/package.json').version")"
           if [ "$version" != "$pom" ]; then
-            echo "::error::tag $tag means version $version, but pom.xml says $pom - one of them needs updating"
+            echo "::error::tag $TAG means version $version, but pom.xml says $pom - one of them needs updating"
+            exit 1
+          fi
+          if [ "$version" != "$web" ]; then
+            echo "::error::tag $TAG means version $version, but web/package.json says $web - one of them needs updating"
             exit 1
           fi
           {
-            echo "tag=$tag"
+            echo "tag=$TAG"
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
           # A version with a suffix (1.1.0-rc1, 1.1.0-beta) ships as a pre-release.
@@ -74,60 +87,98 @@ jobs:
             echo 'prerelease=false' >> "$GITHUB_OUTPUT"
           fi
 
+      # the maven build runs `npm install`, which never lints, never runs the unit suite, and
+      # tolerates a lockfile that has drifted out of step with package.json - so a release could
+      # publish a jar from a tree CI would have refused
+      - name: Check the frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run check
+
       - name: Build add-on
         run: ./mvnw -B -ntp clean install
 
       - name: Check the jar is complete
-        id: jar
         run: |
           jar="$(ls target/org.openhab.ui.neohab-*.jar)"
           bash tools/check-jar.sh "$jar"
+          mkdir release
+          cp "$jar" release/
           # a truncated download installs happily and then behaves like a broken add-on
-          ( cd "$(dirname "$jar")" && sha256sum "$(basename "$jar")" > "$(basename "$jar").sha256" )
-          echo "path=$jar" >> "$GITHUB_OUTPUT"
+          ( cd release && sha256sum "$(basename "$jar")" > "$(basename "$jar").sha256" )
           {
-            echo "Publishing $(basename "$jar") ($(du -h "$jar" | cut -f1))"
+            echo "Built $(basename "$jar") ($(du -h "$jar" | cut -f1))"
             echo ''
             echo '```'
-            cat "$jar.sha256"
+            cat release/*.sha256
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       # this version's CHANGELOG.md section as the release body, falling back to generated notes
       - name: Take the release notes from the changelog
         id: notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          version='${{ steps.version.outputs.version }}'
-          if [ -f CHANGELOG.md ] && awk -v v="## $version" '$0 == v {found=1} END {exit !found}' CHANGELOG.md; then
-            awk -v v="## $version" '
+          if [ -f CHANGELOG.md ] && awk -v v="## $VERSION" '$0 == v {found=1} END {exit !found}' CHANGELOG.md; then
+            awk -v v="## $VERSION" '
               $0 == v { inside = 1; next }
               inside && /^## / { exit }
               inside { print }
-            ' CHANGELOG.md > release-notes.md
+            ' CHANGELOG.md > release/release-notes.md
             echo 'from=changelog' >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::CHANGELOG.md has no '## $version' section - falling back to generated notes"
+            echo "::warning::CHANGELOG.md has no '## $VERSION' section - falling back to generated notes"
             echo 'from=generated' >> "$GITHUB_OUTPUT"
           fi
 
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release
+          path: release/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release, upload the jar
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: release
+          path: release
+
       - name: Publish the release
+        working-directory: release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          NOTES: ${{ needs.build.outputs.notes }}
         run: |
-          tag='${{ steps.version.outputs.tag }}'
-          jar='${{ steps.jar.outputs.path }}'
-          if [ '${{ steps.notes.outputs.from }}' = 'changelog' ]; then
+          jar="$(ls org.openhab.ui.neohab-*.jar)"
+          # the jar the build job checked is the one about to go out
+          sha256sum -c "$jar.sha256"
+          if [ "$NOTES" = 'changelog' ]; then
             notes=(--notes-file release-notes.md)
           else
             notes=(--generate-notes)
           fi
-          if gh release view "$tag" >/dev/null 2>&1; then
-            # Re-run against a tag that already has a release: replace the assets, keep the notes.
-            gh release upload "$tag" "$jar" "$jar.sha256" --clobber
-          else
-            gh release create "$tag" "$jar" "$jar.sha256" \
-              --title 'neohab ${{ steps.version.outputs.version }}' \
-              "${notes[@]}" \
-              ${{ steps.version.outputs.prerelease == 'true' && '--prerelease' || '' }}
+          pre=()
+          if [ "$PRERELEASE" = 'true' ]; then
+            pre=(--prerelease)
           fi
-          gh release view "$tag" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run against a tag that already has a release: replace the assets, keep the notes.
+            gh release upload "$TAG" "$jar" "$jar.sha256" --clobber
+          else
+            gh release create "$TAG" "$jar" "$jar.sha256" \
+              --title "neohab $VERSION" \
+              "${notes[@]}" \
+              "${pre[@]}"
+          fi
+          gh release view "$TAG" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"

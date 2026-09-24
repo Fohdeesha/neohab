@@ -4,6 +4,7 @@
 // deletes exactly those in cleanup (guarded, runs even if a section throws).
 import { launchChromium } from './lib/browser.mjs'
 import { BASE, APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { pickItem } from './lib/ui.mjs'
 
 const UID = 'dashboard:nh-e2e-charts'
 const FIT = 'dashboard:nh-e2e-chartfit'
@@ -11,9 +12,9 @@ const FIT = 'dashboard:nh-e2e-chartfit'
 const results = []
 const ok = (name, cond, detail = '') => results.push({ name, pass: !!cond, detail })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`)).text()
+const getState = async (item) => (await fetch(`${BASE}/rest/items/${item}/state`, { headers: AUTH })).text()
 const sendCmd = (item, cmd) =>
-  fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: cmd })
+  fetch(`${BASE}/rest/items/${item}`, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: cmd })
 
 const initialLevel = await getState(ITEMS.dimmer)
 
@@ -132,6 +133,8 @@ const sampleCanvas = (sel) =>
 const canvasHash = (sel) => page.$eval(sel + ' canvas', (c) => c.toDataURL().length + ':' + c.toDataURL().slice(-80))
 
 try {
+  // a killed earlier run can have left either behind, and the POST would then fail onto the stale one
+  for (const uid of [UID, FIT]) await fetch(NS + '/' + uid, { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
     method: 'POST',
     headers: { ...AUTH, 'Content-Type': 'application/json' },
@@ -259,6 +262,35 @@ try {
     deskLabels.drawn > 20 && deskLabels.bad.length === 0,
     `${deskLabels.drawn} drawn, off the edge: ${JSON.stringify(deskLabels.bad.slice(0, 3))}`
   )
+
+  // whether a tick sits by the right edge depends on the time of day, so pin the clock just after the last
+  // noon or midnight: every tick step up to 12h has a tick there, 90 seconds short of the window's end
+  const pin = new Date()
+  pin.setHours(pin.getHours() >= 12 ? 12 : 0, 0, 0, 0)
+  const edgePage = await browser.newPage({ viewport: { width: 1500, height: 1000 } })
+  edgePage.on('pageerror', (e) => errs.push(String(e.message)))
+  await edgePage.addInitScript(
+    ({ t, capture }) => {
+      try { localStorage.setItem('neohab:apiToken', t); localStorage.setItem('neohab:themeOverride', 'dark') } catch {}
+      new Function('return ' + capture)()()
+    },
+    { t: TOKEN, capture: CAPTURE_LABELS.toString() }
+  )
+  await edgePage.clock.setFixedTime(pin.getTime() + 90_000)
+  await edgePage.goto(APP + '#/d/nh-e2e-charts', { waitUntil: 'domcontentloaded' })
+  await edgePage.waitForSelector(chartSel(CELL.multi) + ' canvas', { timeout: 20000 }).catch(() => {})
+  await edgePage.waitForSelector(chartSel(CELL.tt) + ' canvas', { timeout: 20000 }).catch(() => {})
+  await sleep(1200)
+  const edgeLabels = await labelsOutside(edgePage)
+  const atEdge = await edgePage.evaluate(() =>
+    (window.__labels ?? []).filter((l) => l.align === 'center' && l.x + l.w / 2 > l.cw - 24).map((l) => l.t)
+  )
+  ok(
+    'an x label on the right edge of the window stays inside its canvas',
+    atEdge.length > 0 && edgeLabels.bad.length === 0,
+    `pinned ${pin.toLocaleTimeString()} + 90s, at the edge: ${JSON.stringify([...new Set(atEdge)].slice(0, 3))}, off it: ${JSON.stringify(edgeLabels.bad.slice(0, 3))}`
+  )
+  await edgePage.close()
 
   const keys = page.locator(cellSel(CELL.multi) + ' .nh-chart__key')
   ok('legend shows 3 series', (await keys.count()) === 3, String(await keys.count()))
@@ -494,11 +526,9 @@ try {
   await sleep(300)
   await page.click('.nh-sheet--side button:has-text("Add series")')
   const picker = page.locator('.nh-sheet--side .nh-chartcard').nth(1).locator('.nh-picker input[role="combobox"]')
-  await picker.click()
-  await picker.fill(ITEMS.temperature)
-  await page.waitForSelector('.nh-picker__option')
-  await page.click(`.nh-picker__option:has(.nh-picker__name:text-is("${ITEMS.temperature}"))`)
-  await sleep(700)
+  const pickedSeries = await pickItem(page, picker, ITEMS.temperature)
+  await sleep(400)
+  ok('clicking the option binds the new series to that item', pickedSeries === ITEMS.temperature, 'value=' + pickedSeries)
   ok(
     'adding a second series shows the legend in preview',
     (await page.locator(`.nh-cell:nth-child(${CELL.nothresh + 1}) .nh-chart__legend`).count()) === 1

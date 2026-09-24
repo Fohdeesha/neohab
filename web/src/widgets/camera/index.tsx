@@ -11,6 +11,7 @@ import {
   isOwnOrigin,
   normalizeServer,
   posterUrl,
+  snapshotPeriodMs,
   transportChain,
   transportUrl,
   type CameraConfig,
@@ -99,7 +100,7 @@ function CameraWidget({ config, ctx }: WidgetProps<CameraConfig>) {
         audio: config.audio === true,
         fit: config.fit === 'cover' ? 'cover' : 'contain',
         poster,
-        snapshotInterval: Number(config.snapshotInterval) || 5,
+        snapshotMs: snapshotPeriodMs(config),
         onStatus: (s) => {
           if (!disposed) setStatus(s)
         }

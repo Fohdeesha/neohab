@@ -3,16 +3,20 @@ import { newWidgetId, type Dashboard, type WidgetInstance } from '../model/dashb
 import {
   clampRect,
   collides,
+  columnsFrom,
   findFreeSpot,
+  fitToColumns,
   hiddenAfterRemoval,
   hiddenAfterShowing,
   hiddenSurfaces,
   layoutForNewWidget,
+  mdColumnsOf,
   planRemoval,
   projectDashboard,
   rectOf,
   surfacesOf,
   tabletRects,
+  widgetsOf,
   type BumpPlan,
   type Surface
 } from '../model/layout'
@@ -235,18 +239,25 @@ export function updateDashboardMeta(
   >,
   coalesceKey: string | null = null
 ): void {
+  // a column field commits as it is typed, so "12" passes through 1 on the way; fitting each step from the
+  // layout as it was before the typing began keeps that 1 from squeezing every widget to one column for good
+  const s = useEditorStore.getState()
+  const origin = coalesceKey !== null && coalesceKey === s.lastCoalesceKey ? (s.undoStack[s.undoStack.length - 1] ?? s.draft) : s.draft
   applyChange((draft) => {
     Object.assign(draft, patch)
+    if (!origin) return
     if (patch.columns !== undefined) {
+      const fitted = fitToColumns(new Map(widgetsOf(origin).map((w) => [w.id, rectOf(w)])), columnsFrom(draft.columns))
       for (const w of draft.widgets) {
-        w.layout = { ...w.layout, lg: clampRect(rectOf(w), draft.columns) }
+        const rect = fitted.get(w.id)
+        if (rect) w.layout = { ...w.layout, lg: rect }
       }
     }
     if (patch.mdColumns !== undefined) {
-      const rects = tabletRects(draft)
-      const columns = projectDashboard(draft, 'md').columns
+      const fitted = fitToColumns(tabletRects(origin), mdColumnsOf(draft))
       for (const w of draft.widgets) {
-        w.layout = { ...w.layout, md: clampRect(rects.get(w.id) ?? rectOf(w), columns) }
+        const rect = fitted.get(w.id)
+        if (rect) w.layout = { ...w.layout, md: rect }
       }
     }
   }, coalesceKey)
@@ -456,6 +467,65 @@ export function clearTabletLayout(): void {
   })
   useEditorStore.setState({ bp: 'lg' })
   if (restored > 0) notify(i18n.t('{{count}} widgets that were only on the tablet layout are showing again.', { count: restored }))
+}
+
+const SIGNIN_DRAFT = 'neohab:signinDraft'
+// long enough for a sign-in, short enough that a reload much later does not bring back an old edit
+const SIGNIN_DRAFT_MS = 15 * 60_000
+let leavingForSignIn = false
+
+/** the openHAB login page is another page, so the draft goes through it in this tab's session storage */
+export function keepDraftThroughSignIn(): boolean {
+  const draft = useEditorStore.getState().draft
+  if (!draft) return false
+  try {
+    sessionStorage.setItem(SIGNIN_DRAFT, JSON.stringify({ at: Date.now(), draft }))
+  } catch {
+    return false
+  }
+  leavingForSignIn = true
+  return true
+}
+
+// the draft is safe, so the unsaved-changes guard has nothing to protect on the way to the login page
+export function isLeavingForSignIn(): boolean {
+  return leavingForSignIn
+}
+
+// the redirect never happened, so the draft is still here and the guard is needed again
+export function dropDraftKeptThroughSignIn(): void {
+  leavingForSignIn = false
+  try {
+    sessionStorage.removeItem(SIGNIN_DRAFT)
+  } catch {
+    // nothing kept, nothing to drop
+  }
+}
+
+/** the draft kept for this dashboard, handed out once; one kept for another dashboard waits for that one */
+export function takeDraftKeptThroughSignIn(id: string): Dashboard | null {
+  try {
+    const raw = sessionStorage.getItem(SIGNIN_DRAFT)
+    if (!raw) return null
+    let kept: { at?: unknown; draft?: Dashboard } | null = null
+    try {
+      kept = JSON.parse(raw) as { at?: unknown; draft?: Dashboard }
+    } catch {
+      kept = null
+    }
+    const usable =
+      kept !== null && typeof kept.at === 'number' && Date.now() - kept.at <= SIGNIN_DRAFT_MS && Array.isArray(kept.draft?.widgets)
+    if (usable && kept!.draft!.id !== id) return null
+    sessionStorage.removeItem(SIGNIN_DRAFT)
+    return usable ? kept!.draft! : null
+  } catch {
+    return null
+  }
+}
+
+export function resumeDraft(saved: Dashboard, draft: Dashboard): void {
+  startEditing(saved)
+  useEditorStore.setState({ draft: clone(draft), dirty: true })
 }
 
 let saveInFlight = false

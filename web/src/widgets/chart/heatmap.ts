@@ -1,3 +1,4 @@
+import { parseColor } from '../../themes/contrast'
 import { HEATMAP_COLS, HEATMAP_ROWS, type HeatmapData } from './aggregate'
 
 export interface HeatmapParams {
@@ -18,17 +19,8 @@ function cssVar(name: string, fallback: string): string {
 }
 
 function rgb(color: string): [number, number, number] {
-  const hex = color.trim()
-  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(hex)
-  if (short) return [parseInt(short[1] + short[1], 16), parseInt(short[2] + short[2], 16), parseInt(short[3] + short[3], 16)]
-  const long = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
-  if (long) return [parseInt(long[1], 16), parseInt(long[2], 16), parseInt(long[3], 16)]
-  const fn = /^rgba?\(([^)]+)\)$/i.exec(hex)
-  if (fn) {
-    const parts = fn[1].split(/[,\s/]+/).map(Number)
-    if (parts.length >= 3 && parts.every((n) => Number.isFinite(n))) return [parts[0], parts[1], parts[2]]
-  }
-  return [128, 128, 128]
+  const c = parseColor(color)
+  return c ? [c.r, c.g, c.b] : [128, 128, 128]
 }
 
 const mix = (a: [number, number, number], b: [number, number, number], t: number): string =>
@@ -65,12 +57,16 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
     const text = cssVar('--nh-text-dim', '#888')
     const empty = rgb(cssVar('--nh-surface-2', '#333'))
     const hot = rgb(cssVar('--nh-primary', '#e35a2b'))
-    const font = '10px system-ui, sans-serif'
-    ctx.font = font
+    // the tile's own size, as the line chart's axes are; a fixed 10px was unreadable on a wall panel, and every
+    // band below is measured from it so the grid gives up exactly the room the labels take
+    const size = Math.max(11, parseFloat(getComputedStyle(p.host).fontSize) || 14)
+    ctx.font = `${size}px system-ui, sans-serif`
 
-    const labelW = Math.min(38, Math.max(...p.weekdays.map((w) => ctx.measureText(w).width)) + 8)
-    const axisH = 14
-    const scaleH = 16
+    const labelW = Math.min(size * 3.8, Math.max(...p.weekdays.map((w) => ctx.measureText(w).width)) + 8)
+    const axisH = Math.ceil(size * 1.4)
+    const scaleH = Math.ceil(size * 1.6)
+    const swatchH = Math.max(8, Math.round(size * 0.6))
+    const hourW = ctx.measureText('23').width + 6
     const left = labelW
     const top = 2
     const gridW = Math.max(1, cssW - left - 4)
@@ -101,11 +97,11 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
     ctx.textBaseline = 'middle'
     ctx.textAlign = 'right'
     for (let row = 0; row < HEATMAP_ROWS; row++) {
-      if (cellH >= 10) ctx.fillText(p.weekdays[row] ?? '', left - 4, top + row * cellH + cellH / 2)
+      if (cellH >= size * 0.9) ctx.fillText(p.weekdays[row] ?? '', left - 4, top + row * cellH + cellH / 2)
     }
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-    const step = cellW >= 18 ? 1 : cellW >= 9 ? 3 : 6
+    const step = cellW >= hourW ? 1 : cellW * 3 >= hourW ? 3 : 6
     for (let col = 0; col < HEATMAP_COLS; col += step) {
       ctx.fillText(String(col), left + col * cellW + cellW / 2, top + gridH + 2)
     }
@@ -114,7 +110,7 @@ export function createHeatmap(p: HeatmapParams): HeatmapHandle {
     const scaleW = Math.min(120, gridW / 2)
     for (let i = 0; i < scaleW; i++) {
       ctx.fillStyle = mix(empty, hot, i / Math.max(1, scaleW - 1))
-      ctx.fillRect(left + i, scaleY, 1, 8)
+      ctx.fillRect(left + i, scaleY, 1, swatchH)
     }
     ctx.fillStyle = text
     ctx.textAlign = 'left'

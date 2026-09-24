@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDragging, markDragging, unmarkDragging, useDraggingStore } from './dragging'
+import { markDragging, unmarkDragging, useDraggingStore } from './dragging'
 
 // openHAB accepts constructor, toString, valueOf, hasOwnProperty and __proto__ as item names, and a
 // map built from {} answers four of the five with a function. ColorControl reads this one as
@@ -17,7 +17,7 @@ describe('the dragging store', () => {
   it('stays prototype-free after a drag ends, whatever the item is called', () => {
     for (const name of HOSTILE) {
       markDragging(name)
-      expect(isDragging(name)).toBe(true)
+      expect(useDraggingStore.getState().items.has(name)).toBe(true)
       unmarkDragging(name)
     }
     const { endedAt, items } = useDraggingStore.getState()
