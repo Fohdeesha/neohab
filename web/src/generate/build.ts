@@ -35,7 +35,7 @@ export interface PlanCluster {
 
 export interface PlanSkip {
   item: string
-  reason: 'container' | 'image'
+  reason: 'container'
 }
 
 export interface GeneratePlan {
@@ -60,7 +60,7 @@ export function buildPlan(clusters: Cluster[], items: Item[], index: TagIndex, s
         const label = prettyLabel(item, prefix)
         const suggestion = suggestWidget(item, sem, label, section.equipmentTag)
         if (!suggestion) {
-          skipped.push({ item: name, reason: item.type === 'Image' ? 'image' : 'container' })
+          skipped.push({ item: name, reason: 'container' })
           continue
         }
         widgets.push({

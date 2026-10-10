@@ -207,20 +207,22 @@ const TOKEN_TIMEOUT_MS = 15_000
 async function postToken(body: Record<string, string>, proxy: BasicCredentials | null = basicCredentials): Promise<TokenResponse> {
   const headers = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
   if (proxy) headers.set('Authorization', 'Basic ' + basicToken(proxy.id, proxy.password))
-  const res = await boundedFetch(
+  return boundedFetch(
     ohUrl('/rest/auth/token'),
     { method: 'POST', headers, body: new URLSearchParams(body).toString() },
-    TOKEN_TIMEOUT_MS
+    TOKEN_TIMEOUT_MS,
+    async (res) => {
+      if (!res.ok) {
+        const code = await res
+          .json()
+          .then((j: { error?: unknown }) => j?.error)
+          .catch(() => undefined)
+        if (res.status === 400 && code === 'invalid_grant') throw new GrantRefused()
+        throw new ApiError(res.status, `POST /rest/auth/token -> ${res.status}`)
+      }
+      return (await res.json()) as TokenResponse
+    }
   )
-  if (!res.ok) {
-    const code = await res
-      .json()
-      .then((j: { error?: unknown }) => j?.error)
-      .catch(() => undefined)
-    if (res.status === 400 && code === 'invalid_grant') throw new GrantRefused()
-    throw new ApiError(res.status, `POST /rest/auth/token -> ${res.status}`)
-  }
-  return (await res.json()) as TokenResponse
 }
 
 async function requestToken(body: Record<string, string>): Promise<void> {

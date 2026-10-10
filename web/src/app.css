@@ -1588,6 +1588,10 @@ button {
   display: block;
 }
 
+.nh-image--contain {
+  object-fit: contain;
+}
+
 .nh-image__placeholder {
   color: var(--nh-text-dim);
   font-size: 0.85em;

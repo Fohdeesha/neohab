@@ -36,6 +36,12 @@ export function getItem(name: string, signal?: AbortSignal): Promise<Item> {
   return api.get<Item>('/rest/items/' + encodeURIComponent(name), { signal })
 }
 
+// the state in full: an Image item's picture as a data: address, which the state stream never carries.
+// Text, not the picture's own type: 3.1 has no binary form of this endpoint and answers that with 406.
+export function getItemStateText(name: string, signal?: AbortSignal): Promise<string> {
+  return api.get<string>('/rest/items/' + encodeURIComponent(name) + '/state', { signal, accept: 'text/plain' })
+}
+
 /**
  * Will this server serve a read with no account? An EventSource carries the proxy's credentials
  * and no openHAB token, so this sends exactly what the item-state stream sends - which is the

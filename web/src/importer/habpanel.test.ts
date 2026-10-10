@@ -345,14 +345,85 @@ describe('widget conversion', () => {
     expect(w.config.choices).toBe('')
   })
 
-  it('warns that an item-sourced image URL did not come across', () => {
+  it('brings a static image across with the whole picture showing on its background', () => {
     const { dashboards, notes } = importFixture()
     expect(widget(dashboards[1], 'image').config).toEqual({
+      source: 'url',
       url: 'http://cam.example/porch.jpg',
       label: 'Porch',
-      refresh: 10
+      refresh: 10,
+      fit: 'contain',
+      background: 'rgb(0, 0, 0)'
     })
-    expect(notes.find((n) => n.message.includes('Item-sourced images'))?.level).toBe('warn')
+    expect(notes.filter((n) => /item-sourced|faster than once a second/i.test(n.message))).toEqual([])
+  })
+
+  it('binds both of HABPanel’s item sources to the item, since the state says which it is', () => {
+    for (const image_source of ['item-string', 'item-image']) {
+      const { widget: w, notes } = convertOne({ type: 'image', name: 'Cam', image_source, item: 'Cam_Snapshot', url: 'http://old/x.jpg' })
+      expect(w.config).toEqual({
+        source: 'item',
+        url: 'http://old/x.jpg',
+        item: 'Cam_Snapshot',
+        label: 'Cam',
+        refresh: 0,
+        fit: 'contain',
+        background: 'rgb(0, 0, 0)'
+      })
+      expect(notes).toEqual([])
+    }
+  })
+
+  it('reads any source starting with item as an item, as HABPanel itself does, and anything else as the address', () => {
+    expect(convertOne({ type: 'image', image_source: 'item', item: 'Cam' }).widget.config.source).toBe('item')
+    for (const image_source of [undefined, 'static', 'Item-string', 'constructor', 42]) {
+      const { widget: w } = convertOne({ type: 'image', image_source, url: 'http://cam/x.jpg', item: 'Cam' })
+      expect(w.config.source).toBe('url')
+      expect(w.config.item).toBeUndefined()
+    }
+  })
+
+  it('keeps a String item’s refresh, and drops an Image item’s, whose picture arrives as it changes', () => {
+    expect(convertOne({ type: 'image', image_source: 'item-string', item: 'U', refresh: 10 }).widget.config.refresh).toBe(10)
+    const held = convertOne({
+      type: 'image',
+      image_source: 'item-image',
+      item: 'P',
+      refresh: 250,
+      intervaltype: 'milliseconds',
+      nosuffix: true
+    })
+    expect(held.widget.config.refresh).toBe(0)
+    expect(held.widget.config.cacheBust).toBeUndefined()
+    expect(held.notes).toEqual([])
+  })
+
+  it('reads a refresh in milliseconds as whole seconds, and says so when it had to slow one down', () => {
+    expect(convertOne({ type: 'image', url: 'u', refresh: 2500, intervaltype: 'milliseconds' }).widget.config.refresh).toBe(3)
+    expect(convertOne({ type: 'image', url: 'u', refresh: 2400, intervaltype: 'milliseconds' }).widget.config.refresh).toBe(2)
+    expect(convertOne({ type: 'image', url: 'u', refresh: '15', intervaltype: 'seconds' }).widget.config.refresh).toBe(15)
+    expect(convertOne({ type: 'image', url: 'u', refresh: 7.6 }).widget.config.refresh).toBe(8)
+    const fast = convertOne({ type: 'image', url: 'u', refresh: 250, intervaltype: 'milliseconds' })
+    expect(fast.widget.config.refresh).toBe(1)
+    expect(fast.notes.map((n) => [n.level, n.message])).toEqual([
+      ['info', 'An image refreshed faster than once a second now refreshes once a second']
+    ])
+    for (const refresh of [0, -5, 'abc', null]) {
+      expect(convertOne({ type: 'image', url: 'u', refresh, intervaltype: 'milliseconds' }).widget.config.refresh).toBe(0)
+    }
+  })
+
+  it('keeps the address as written when HABPanel was told not to add a suffix, but only where it refreshes', () => {
+    expect(convertOne({ type: 'image', url: 'u', refresh: 5, nosuffix: true }).widget.config.cacheBust).toBe(false)
+    expect(convertOne({ type: 'image', url: 'u', refresh: 0, nosuffix: true }).widget.config.cacheBust).toBeUndefined()
+    expect(convertOne({ type: 'image', url: 'u', refresh: 5, nosuffix: 'yes' }).widget.config.cacheBust).toBeUndefined()
+  })
+
+  it('carries the background, and HABPanel’s black where none was stored', () => {
+    expect(convertOne({ type: 'image', url: 'u', background: '#123456' }).widget.config.background).toBe('#123456')
+    for (const background of [undefined, '', 12, {}]) {
+      expect(convertOne({ type: 'image', url: 'u', background }).widget.config.background).toBe('rgb(0, 0, 0)')
+    }
   })
 
   it('reads a frame URL from frameUrl and honours hidelabel', () => {

@@ -44,6 +44,7 @@ export const SAFE_SUITES = [
   'e2e-chartagg',
   'e2e-gauge',
   'e2e-camera',
+  'e2e-image',
   'e2e-resizefix',
   'e2e-responsive',
   'e2e-portrait',

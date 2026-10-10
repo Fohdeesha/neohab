@@ -6,6 +6,13 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.39.0
+
+- The image widget can show an openHAB Image item, or the picture at an address held in a String item.
+- Image tiles can show the whole picture on a background color, and refresh without a timestamp on the address.
+- HABPanel image widgets bound to an item import with it, and a refresh in milliseconds imports as seconds.
+- The dashboard generator places Image items as image tiles instead of leaving them out.
+
 ## 1.38.0
 
 - Restoring a backup only rebuilds neohab's own preset rules, never any other openHAB rule.

@@ -46,25 +46,73 @@ export class NetworkError extends Error {
  * fetch with a bound, reporting a request that got no answer as a NetworkError - so a programming error
  * (also a TypeError) is not mistaken for an unreachable server. A request with no bound does not fail,
  * it pends, and everything queued behind it waits too. A caller's own abort stays an abort.
+ *
+ * fetch resolves on the headers, so a caller that reads the body passes `read`, and the bound and the abort
+ * then last until the body is in. Past the headers the bound is on silence, not on the whole download:
+ * `read` calls `alive()` as data arrives, so a slow body still finishes and a stalled one fails.
  */
-export async function boundedFetch(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+export async function boundedFetch(url: string, init: RequestInit, timeoutMs: number): Promise<Response>
+export async function boundedFetch<T>(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  read: (res: Response, alive: () => void) => Promise<T>
+): Promise<T>
+export async function boundedFetch<T>(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  read?: (res: Response, alive: () => void) => Promise<T>
+): Promise<T | Response> {
   const controller = new AbortController()
   const outer = init.signal
   const forward = () => controller.abort()
   if (outer?.aborted) controller.abort()
   else outer?.addEventListener('abort', forward, { once: true })
   let timedOut = false
-  const timer = setTimeout(() => {
+  const expire = () => {
     timedOut = true
     controller.abort()
-  }, timeoutMs)
+  }
+  let timer = setTimeout(expire, timeoutMs)
+  const alive = () => {
+    clearTimeout(timer)
+    timer = setTimeout(expire, timeoutMs)
+  }
   try {
-    return await fetch(url, { ...init, signal: controller.signal })
-  } catch (err) {
-    if (outer?.aborted) throw err
-    throw new NetworkError(timedOut)
+    let res: Response
+    try {
+      res = await fetch(url, { ...init, signal: controller.signal })
+    } catch (err) {
+      if (outer?.aborted) throw err
+      throw new NetworkError(timedOut)
+    }
+    if (!read) return res
+    alive()
+    try {
+      return await read(res, alive)
+    } catch (err) {
+      if (outer?.aborted) throw err
+      // a body cut off by the bound, or by the connection dropping, is a request that got no answer
+      if (!(err instanceof ApiError) && (timedOut || err instanceof TypeError)) throw new NetworkError(timedOut)
+      throw err
+    }
   } finally {
     clearTimeout(timer)
     outer?.removeEventListener('abort', forward)
+  }
+}
+
+// the body as text, telling the bound each time some of it arrives
+export async function bodyText(res: Response, alive: () => void): Promise<string> {
+  if (!res.body) return res.text()
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) return text + decoder.decode()
+    alive()
+    text += decoder.decode(value, { stream: true })
   }
 }

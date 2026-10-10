@@ -135,7 +135,9 @@
           "sizeX": 4,
           "sizeY": 3,
           "refresh": 10,
-          "image_source": "item"
+          "image_source": "static",
+          "intervaltype": "seconds",
+          "background": "rgb(0, 0, 0)"
         },
         {
           "type": "frame",

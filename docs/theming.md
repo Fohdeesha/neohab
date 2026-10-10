@@ -167,7 +167,7 @@ Readings and instruments:
 | `.nh-weather`, `.nh-weather__temp`, `.nh-weather__cond`, `.nh-weather__details` | The weather panel. `--hero`, `--compact` and `--striplook` say which layout is drawn, `__strip` and `__col` are the forecast columns |
 | `.nh-log`, `.nh-log__line`, `.nh-log__level` | The log console. The root carries `--lg-warn` and `--lg-error` (error follows `bad` unless you set it); `__line--warn` and `--error` mark the lines, `__time`, `__logger` and `__msg` are the columns, `__jump` the pill back to the newest line |
 | `.nh-fplan__img`, `.nh-fplan__glow`, `.nh-fplan__marker`, `.nh-fplan__bar` | The floor plan: the plan image (`__img--blueprint` or `--ink`), a light's pool of colour, its dot, the preset bar. `--nh-glow-blend` on the root is the blend mode the plan style picked, and it is the only reason a lit room shows at all, so leave it be |
-| `.nh-camera`, `.nh-image`, `.nh-frame`, `.nh-template` | The camera, image, iframe and template hosts. Each has its own status or placeholder child |
+| `.nh-camera`, `.nh-image`, `.nh-frame`, `.nh-template` | The camera, image, iframe and template hosts. Each has its own status or placeholder child. `.nh-image--contain` is an image set to show the whole picture rather than fill the tile |
 
 When a widget cannot show anything:
 

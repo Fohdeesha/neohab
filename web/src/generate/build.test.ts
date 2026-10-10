@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Item } from '../api/types'
 import { MODEL_VERSION, type Rect } from '../model/dashboard'
-import { buildDashboards, buildPlan, countPlanned, GENERATED_COLUMNS } from './build'
+import { buildDashboards, buildPlan, configForPlanWidget, countPlanned, GENERATED_COLUMNS } from './build'
 import { buildTagIndex } from './semantics'
 import { groupClusters, pickedCluster, prefixClusters, semanticClusters, surveySources } from './sources'
 
@@ -92,19 +92,18 @@ describe('the reviewable plan', () => {
   it('reports an item that cannot become a widget instead of dropping it', () => {
     const items = [item('a'), item('grp', { type: 'Group' }), item('pic', { type: 'Image' })]
     const p = plan(items, [pickedCluster(['a', 'grp', 'pic'], 'Picks')], 'pick')
-    expect(p.skipped).toEqual(
-      expect.arrayContaining([
-        { item: 'grp', reason: 'container' },
-        { item: 'pic', reason: 'image' }
-      ])
-    )
-    expect(p.clusters[0].sections[0].widgets.map((w) => w.item.name)).toEqual(['a'])
+    expect(p.skipped).toEqual([{ item: 'grp', reason: 'container' }])
+    expect(p.clusters[0].sections[0].widgets.map((w) => w.item.name)).toEqual(['a', 'pic'])
   })
 
-  it('never offers a container or an image as a widget from any source', () => {
+  it('never offers a container as a widget from any source, and shows an Image item as its picture', () => {
     const items = [item('room_a'), item('room_b'), item('room_grp', { type: 'Group' }), item('room_pic', { type: 'Image' })]
-    const names = plan(items).clusters.flatMap((c) => c.sections.flatMap((s) => s.widgets.map((w) => w.item.name)))
-    expect(names).toEqual(['room_a', 'room_b'])
+    const widgets = plan(items).clusters.flatMap((c) => c.sections.flatMap((s) => s.widgets))
+    expect(widgets.map((w) => w.item.name)).toEqual(['room_a', 'room_b', 'room_pic'])
+    const pic = widgets.find((w) => w.item.name === 'room_pic')
+    expect(pic?.type).toBe('image')
+    expect(pic?.choices).toEqual(['image'])
+    expect(pic && configForPlanWidget(pic)).toEqual({ label: 'Pic', source: 'item', item: 'room_pic' })
   })
 
   it('strips the cluster prefix from labels only for the prefix source', () => {
@@ -136,7 +135,7 @@ describe('the reviewable plan', () => {
   })
 
   it('drops a cluster whose items all turned out unplaceable', () => {
-    const items = [item('room_x', { type: 'Group' }), item('room_y', { type: 'Image' })]
+    const items = [item('room_x', { type: 'Group' }), item('room_y', { type: 'Group' })]
     expect(plan(items).clusters).toEqual([])
   })
 })

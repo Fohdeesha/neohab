@@ -22,6 +22,7 @@ export const GENERATED_SIZES: Record<string, { w: number; h: number }> = {
   player: { w: 3, h: 1 },
   chart: { w: 6, h: 3 },
   timeline: { w: 6, h: 2 },
+  image: { w: 3, h: 3 },
   label: { w: 12, h: 1 }
 }
 
@@ -205,7 +206,8 @@ export function widgetChoices(item: Item, suggested: string): string[] {
     Player: ['player', 'value'],
     Contact: ['value', 'timeline'],
     DateTime: ['value'],
-    Location: ['value']
+    Location: ['value'],
+    Image: ['image']
   }
   const list = lookup(byType, type) ?? ['value']
   return [suggested, ...list.filter((t) => t !== suggested)]
@@ -252,6 +254,8 @@ export function configFor(
       return { ...base, series: [{ item: item.name }], period: '24h', picker: true }
     case 'value':
       return { ...base, item: item.name, ...(icon ? { icon } : {}) }
+    case 'image':
+      return { ...base, source: 'item', item: item.name }
     default:
       return { ...base, item: item.name }
   }
@@ -260,7 +264,6 @@ export function configFor(
 export function suggestWidget(item: Item, sem: Semantics, label: string, equipmentTag?: string): Suggestion | null {
   const type = baseType(item)
   if (item.type === 'Group' && !item.groupType) return null
-  if (type === 'Image') return null
 
   const icon = pointIcon(sem, equipmentTag)
   const readOnly = isReadOnlyPoint(item, sem)
@@ -272,6 +275,8 @@ export function suggestWidget(item: Item, sem: Semantics, label: string, equipme
   const control = (widget: string): Suggestion => (readOnly ? make('value', 'readonly') : make(widget))
 
   switch (type) {
+    case 'Image':
+      return make('image')
     case 'Switch':
       return control('button')
     case 'Color':

@@ -27,7 +27,7 @@ const cluster = (id: string, name: string, sections: ClusterSection[], icon?: st
 })
 
 function isPlaceable(item: Item): boolean {
-  return !(item.type === 'Group' && !item.groupType) && item.type !== 'Image'
+  return !(item.type === 'Group' && !item.groupType)
 }
 
 export function semanticClusters(items: Item[], index: TagIndex): Cluster[] {

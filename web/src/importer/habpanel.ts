@@ -341,13 +341,34 @@ const CONVERTERS: Record<string, Converter> = {
     }
   },
 
+  // HABPanel writes item-string or item-image, and both are one item field here: the state decides which.
+  // Its own test is the prefix, so that is the test here too.
   image: (w, report) => {
-    if (str(w.image_source) === 'item') {
-      report.add('warn', 'Item-sourced images are not supported yet; set the image URL manually')
+    const source = str(w.image_source) ?? 'static'
+    const fromItem = source.startsWith('item')
+    const every = num(w.refresh) ?? 0
+    const seconds = every > 0 ? (w.intervaltype === 'milliseconds' ? every / 1000 : every) : 0
+    // an Image item's picture arrives as it changes, so a timer would only fetch the same one again
+    let refresh = source === 'item-image' ? 0 : seconds
+    if (refresh > 0 && refresh < 1) {
+      report.add('info', 'An image refreshed faster than once a second now refreshes once a second')
+      refresh = 1
     }
+    // the refresh field takes whole seconds
+    refresh = Math.round(refresh)
     return {
       type: 'image',
-      config: { url: str(w.url) ?? '', label: str(w.name), refresh: num(w.refresh) ?? 0 }
+      config: {
+        source: fromItem ? 'item' : 'url',
+        url: str(w.url) ?? '',
+        ...(fromItem ? { item: str(w.item) ?? '' } : {}),
+        label: str(w.name),
+        refresh,
+        ...(w.nosuffix === true && refresh > 0 ? { cacheBust: false } : {}),
+        // HABPanel scales a picture to the tile's width and never crops its sides, on black unless told otherwise
+        fit: 'contain',
+        background: str(w.background) ?? 'rgb(0, 0, 0)'
+      }
     }
   },
 

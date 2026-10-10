@@ -105,9 +105,17 @@ describe('suggesting a widget', () => {
     expect(suggestWidget(opts(3), point('Status'), 'I')?.type).toBe('value')
   })
 
-  it('places nothing for a container group or an image, rather than an empty widget', () => {
+  it('places nothing for a container group, rather than an empty widget', () => {
     expect(suggestWidget(item({ name: 'g', type: 'Group' }), NO_SEM, 'G')).toBeNull()
-    expect(suggestWidget(item({ name: 'p', type: 'Image' }), NO_SEM, 'P')).toBeNull()
+  })
+
+  it('shows an Image item as the picture it holds, read-only or not', () => {
+    for (const sem of [NO_SEM, point('Status'), point('Control')]) {
+      const s = suggestWidget(item({ name: 'cam', type: 'Image' }), sem, 'Cam')
+      expect(s?.type).toBe('image')
+      expect(s?.config).toEqual({ label: 'Cam', source: 'item', item: 'cam' })
+    }
+    expect(sizeFor('image')).toEqual({ w: 3, h: 3 })
   })
 
   it('still places a typed group, which does have a value of its own', () => {

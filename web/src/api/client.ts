@@ -1,5 +1,5 @@
 import { applyAuthHeader, applyProxyAuth, getAccessToken } from './auth'
-import { ApiError, boundedFetch, ohUrl } from './base'
+import { ApiError, bodyText, boundedFetch, ohUrl } from './base'
 
 export { ApiError }
 
@@ -10,6 +10,7 @@ interface RequestOptions {
   method?: string
   body?: unknown
   text?: boolean
+  accept?: string
   signal?: AbortSignal
 }
 
@@ -23,6 +24,8 @@ async function errorDetail(res: Response): Promise<string> {
     return ''
   }
 }
+
+const RETRY_WITHOUT_TOKEN: unique symbol = Symbol('retry without token')
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers = new Headers()
@@ -38,30 +41,35 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     }
   }
 
+  if (opts.accept) headers.set('Accept', opts.accept)
   applyProxyAuth(headers)
   const token = await getAccessToken()
   if (token) applyAuthHeader(headers, token)
 
   const url = ohUrl(path)
-  const init = { method: opts.method ?? 'GET', headers, body, signal: opts.signal }
-  let res = await boundedFetch(url, init, REQUEST_TIMEOUT_MS)
-  if (res.status === 401 && token) {
-    // a stale token must not break what anonymous access allows, so retry once without it - the proxy's own
-    // credentials stay
-    headers.delete('Authorization')
-    headers.delete('X-OPENHAB-TOKEN')
-    applyProxyAuth(headers)
-    res = await boundedFetch(url, init, REQUEST_TIMEOUT_MS)
-  }
+  const method = opts.method ?? 'GET'
+  const init = { method, headers, body, signal: opts.signal }
+  const first = await boundedFetch<T | typeof RETRY_WITHOUT_TOKEN>(url, init, REQUEST_TIMEOUT_MS, (res, alive) =>
+    res.status === 401 && token ? Promise.resolve(RETRY_WITHOUT_TOKEN) : readAnswer<T>(res, alive, method, path)
+  )
+  if (first !== RETRY_WITHOUT_TOKEN) return first
+  // a stale token must not break what anonymous access allows, so retry once without it - the proxy's own
+  // credentials stay
+  headers.delete('Authorization')
+  headers.delete('X-OPENHAB-TOKEN')
+  applyProxyAuth(headers)
+  return boundedFetch(url, init, REQUEST_TIMEOUT_MS, (res, alive) => readAnswer<T>(res, alive, method, path))
+}
+
+async function readAnswer<T>(res: Response, alive: () => void, method: string, path: string): Promise<T> {
   if (!res.ok) {
     const detail = await errorDetail(res)
-    throw new ApiError(res.status, `${opts.method ?? 'GET'} ${path} -> ${res.status}${detail ? ': ' + detail : ''}`, detail)
+    throw new ApiError(res.status, `${method} ${path} -> ${res.status}${detail ? ': ' + detail : ''}`, detail)
   }
-
   if (res.status === 204) return undefined as T
   const contentType = res.headers.get('Content-Type') ?? ''
-  if (contentType.includes('application/json')) return (await res.json()) as T
-  return (await res.text()) as unknown as T
+  const text = await bodyText(res, alive)
+  return (contentType.includes('application/json') ? JSON.parse(text) : text) as T
 }
 
 export const api = {

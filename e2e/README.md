@@ -187,7 +187,7 @@ leaving the key out counts, so a typo errs on the safe side). Against such a tar
   (`e2e-battery`, `e2e-button`, `e2e-colorpower`, `e2e-fade`, `e2e-livedrag`, `e2e-log`,
   `e2e-slider`, `e2e-stepper`, `e2e-thermostat`, `e2e-value`) exits with code 3 and a
   `SKIP (production target)` line, and the battery summary shows it as `SKIP`. A suite where only
-  some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-launch`, `e2e-textscale`) skips those
+  some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-image`, `e2e-launch`, `e2e-textscale`) skips those
   sections and prints the same line for each, so a skip is never silent. Those checks are covered
   on a test server, not on production.
 
@@ -311,6 +311,16 @@ the charging bolt and the shapes where a caption or a number runs out of room - 
 managed items it creates itself (`nh_e2e_batt`, `nh_e2e_battchg`, `nh_e2e_battmv`,
 `nh_e2e_battnull`, bound to nothing). Every state is set over REST and the widget commands
 nothing, which is one of its checks. The dashboard and the items are deleted by name in cleanup.
+
+`e2e-image.mjs` drives the image widget from an address, from a String item holding one and from an
+Image item holding the picture itself, with refresh, the timestamp switch, scaling and background,
+and every state it cannot show (no state, a missing item, an address that could run script,
+something that is not a picture, an `http://` address over HTTPS). Its pictures are 2x2 PNGs of
+exactly the same size, so the item-state stream sends two different ones as the same text, which is
+the case it has to prove. It enters edit mode once to inspect the settings panel and leaves without
+saving. Its eight managed items (`nh_e2e_img` and seven siblings, bound to nothing) and the
+dashboard are deleted by name in cleanup. On a production target it creates no item: it runs the
+address sections and reads one Image item of the server's own, if there is one.
 
 `e2e-slider.mjs` drives the slider widget - five styles, both orientations - against one managed
 Dimmer it creates itself (`nh_e2e_slide`, bound to nothing), so its commands are real and reach no
