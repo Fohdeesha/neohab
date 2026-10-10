@@ -12,6 +12,7 @@ Anything not listed here yet is on `main` and ships with the next release.
 - Image tiles can show the whole picture on a background color, and refresh without a timestamp on the address.
 - HABPanel image widgets bound to an item import with it, and a refresh in milliseconds imports as seconds.
 - The dashboard generator places Image items as image tiles instead of leaving them out.
+- A response that stops arriving now times out, so a stalled download can no longer freeze a tile.
 
 ## 1.38.0
 
