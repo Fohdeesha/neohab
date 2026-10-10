@@ -187,7 +187,7 @@ leaving the key out counts, so a typo errs on the safe side). Against such a tar
   (`e2e-battery`, `e2e-button`, `e2e-colorpower`, `e2e-fade`, `e2e-livedrag`, `e2e-log`,
   `e2e-slider`, `e2e-stepper`, `e2e-thermostat`, `e2e-value`) exits with code 3 and a
   `SKIP (production target)` line, and the battery summary shows it as `SKIP`. A suite where only
-  some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-image`, `e2e-launch`, `e2e-textscale`) skips those
+  some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-frame`, `e2e-image`, `e2e-launch`, `e2e-textscale`) skips those
   sections and prints the same line for each, so a skip is never silent. Those checks are covered
   on a test server, not on production.
 
@@ -321,6 +321,19 @@ the case it has to prove. It enters edit mode once to inspect the settings panel
 saving. Its eight managed items (`nh_e2e_img` and seven siblings, bound to nothing) and the
 dashboard are deleted by name in cleanup. On a production target it creates no item: it runs the
 address sections and reads one Image item of the server's own, if there is one.
+
+`e2e-frame.mjs` drives the frame widget from an address and from a String item holding one, with
+reload, the timestamp switch, a `#fragment`, background, and every state it cannot show. Its main
+subject is the sandbox: openHAB sends an Image item's bytes as whatever type they claim, to anyone,
+so the suite stores a small HTML page in an Image item and points a String item at it. The frame
+bound to that item must load it sandboxed and unable to read the session, while a control frame
+with the same address typed in and the sandbox off must be able to, which proves the check can
+fail. It also points the item at another origin that redirects there and, on a plain-http target,
+at a page that sends its own frame there, served from a throwaway server on `127.0.0.1`: the
+sandbox is decided when the frame is made, so it has to cover those as well. It also checks that no reload or new address adds a step to the browser's Back, against a
+control that does. It enters edit mode once and leaves without saving. Its seven managed items
+(`nh_e2e_frameurl` and six siblings, bound to nothing) and the dashboard are deleted by name in
+cleanup. On a production target it creates no item and runs the address sections only.
 
 `e2e-slider.mjs` drives the slider widget - five styles, both orientations - against one managed
 Dimmer it creates itself (`nh_e2e_slide`, bound to nothing), so its commands are real and reach no

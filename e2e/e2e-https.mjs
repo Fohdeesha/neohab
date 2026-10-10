@@ -130,7 +130,7 @@ try {
         frame: textOf(cell(1)),
         image: textOf(cell(2)),
         camera: textOf(cell(3)),
-        frames: document.querySelectorAll('.nh-frame iframe').length,
+        frames: document.querySelectorAll('iframe.nh-frame').length,
         okImg: (() => {
           const i = cell(4)?.querySelector('img')
           return i ? { present: true, w: i.naturalWidth } : { present: false, w: 0 }

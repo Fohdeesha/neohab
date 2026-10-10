@@ -428,7 +428,51 @@ describe('widget conversion', () => {
 
   it('reads a frame URL from frameUrl and honours hidelabel', () => {
     const { dashboards } = importFixture()
-    expect(widget(dashboards[1], 'frame').config).toEqual({ url: 'http://weather.example/embed', refresh: 60 })
+    expect(widget(dashboards[1], 'frame').config).toEqual({ source: 'url', url: 'http://weather.example/embed', refresh: 60 })
+  })
+
+  // what HABPanel's frame dialog saves for an item source: frameUrl is deleted
+  it('binds a frame whose address comes from a String item to that item, with no warning', () => {
+    const { widget: w, notes } = convertOne({
+      type: 'frame',
+      name: 'Page',
+      url_source: 'item',
+      item: 'Page_Url',
+      refresh: 30,
+      hidelabel: false
+    })
+    expect(w.config).toEqual({ source: 'item', url: '', item: 'Page_Url', label: 'Page', refresh: 30 })
+    expect(notes).toEqual([])
+  })
+
+  it('reads only HABPanel’s exact item value as an item source', () => {
+    for (const url_source of [undefined, 'static', 'Item', 'item-string', 'constructor', 42]) {
+      const { widget: w } = convertOne({ type: 'frame', url_source, frameUrl: 'http://x/', item: 'Page_Url' })
+      expect(w.config.source).toBe('url')
+      expect(w.config.url).toBe('http://x/')
+      expect(w.config.item).toBeUndefined()
+    }
+  })
+
+  it('turns a frame’s no-cache-busting into the timestamp switch, where there is a reload', () => {
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 5, nosuffix: true }).widget.config.cacheBust).toBe(false)
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 0, nosuffix: true }).widget.config.cacheBust).toBeUndefined()
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 5, nosuffix: 'yes' }).widget.config.cacheBust).toBeUndefined()
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 5 }).widget.config.cacheBust).toBeUndefined()
+  })
+
+  it('reloads a frame in whole seconds the field can show', () => {
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 7.6 }).widget.config.refresh).toBe(8)
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: 0.2 }).widget.config.refresh).toBe(1)
+    expect(convertOne({ type: 'frame', frameUrl: 'u', refresh: '20' }).widget.config.refresh).toBe(20)
+    for (const refresh of [undefined, 0, -5, 'abc', {}])
+      expect(convertOne({ type: 'frame', frameUrl: 'u', refresh }).widget.config.refresh).toBe(0)
+  })
+
+  it('carries a frame’s background colour, and leaves the default where none was set', () => {
+    expect(convertOne({ type: 'frame', frameUrl: 'u', background: '#202020' }).widget.config.background).toBe('#202020')
+    for (const background of [undefined, '', 12, {}])
+      expect(convertOne({ type: 'frame', frameUrl: 'u', background }).widget.config.background).toBeUndefined()
   })
 
   it('recognises HABPanel’s capitalised Analog mode', () => {

@@ -257,10 +257,13 @@ try {
 
   await phone.click('[aria-label="Edit dashboard"]')
   await phone.waitForSelector('.nh-grid--stackedit', { timeout: 10000 })
+  // the surface can be there a moment before its cells are
+  await phone.locator('.nh-grid--stackedit .nh-cell', { hasText: 'Centered' }).first().waitFor({ timeout: 10000 }).catch(() => {})
   g = await labelGeo(phone, '.nh-grid--stackedit .nh-cell', 'Centered')
-  ok('stacked edit surface: center applies', g.found && near((g.txt.l + g.txt.r) / 2, (g.main.l + g.main.r) / 2))
+  ok('stacked edit surface: center applies', g.found && near((g.txt.l + g.txt.r) / 2, (g.main.l + g.main.r) / 2),
+    g.found ? `txtC=${g.txt && (g.txt.l + g.txt.r) / 2} mainC=${g.main && (g.main.l + g.main.r) / 2}` : 'not found')
   g = await labelGeo(phone, '.nh-grid--stackedit .nh-cell', 'Bottom Name')
-  ok('stacked edit surface: bottom applies', g.found && g.row.t > g.body.t)
+  ok('stacked edit surface: bottom applies', g.found && g.row.t > g.body.t, g.found ? `rowT=${g.row?.t} bodyT=${g.body?.t}` : 'not found')
   await phone.click('button:has-text("Exit")')
   await phone.close()
 

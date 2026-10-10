@@ -42,10 +42,14 @@ export function pictureOf(st: ItemState | undefined): ItemPicture | undefined {
   return url === '' ? { kind: 'none' } : { kind: 'address', url }
 }
 
-// a data: or blob: address is the picture itself, and a query string breaks it
+// a data: or blob: address is the picture itself, and a query string breaks it. The stamp goes before any
+// #fragment, where a change of fragment alone would load nothing
 export function withCacheBust(url: string, stamp: number): string {
   if (stamp <= 0 || /^(?:data|blob):/i.test(url)) return url
-  return url + (url.includes('?') ? '&' : '?') + '_=' + encodeURIComponent(String(stamp))
+  const hash = url.indexOf('#')
+  const base = hash < 0 ? url : url.slice(0, hash)
+  const fragment = hash < 0 ? '' : url.slice(hash)
+  return base + (base.includes('?') ? '&' : '?') + '_=' + encodeURIComponent(String(stamp)) + fragment
 }
 
 export interface LatestReader {

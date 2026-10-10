@@ -6,7 +6,7 @@
 # neohab
 
 A modern UI for [openHAB](https://www.openhab.org/).
-Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.39.0**. A community project, not an official openHAB UI.
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.40.0**. A community project, not an official openHAB UI.
 
 <p float="center">
   <img src="imgs/1.png" width="400" />
@@ -93,7 +93,7 @@ to show for it. Open tabs offer to reload themselves
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="imgs/widget-camera.png" width="100%"><br><b>Camera</b><br>go2rtc, Frigate or a plain URL feed, over WebRTC, MSE, HLS, MJPEG or snapshots. Works down the list until one connects, and drops the stream when the tile is off screen so no burning CPU</td>
-<td width="50%" valign="top"><img src="imgs/widget-image.png" width="100%"><br><b>Image</b><br>Any image by URL, refreshed on a timer: camera snapshots, radar maps, plans, graphs etc</td>
+<td width="50%" valign="top"><img src="imgs/widget-image.png" width="100%"><br><b>Image</b><br>Any image by URL, or the picture an openHAB Image or String item holds, refreshed on a timer or as the item changes: camera snapshots, radar maps, plans, graphs etc</td>
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="imgs/widget-frame.png" width="100%"><br><b>Frame</b><br>Any web page, with a refresh timer and a sandbox switch for pages you don't fully trust</td>

@@ -6,6 +6,15 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.40.0
+
+- The frame widget can load the page address held in a String item, like HABPanel's.
+- A page whose address comes from an item always loads sandboxed, since anyone who can change the item can pick it.
+- Frame reloads add a timestamp to the address, so a cached page really reloads, and a frame can have a background color.
+- HABPanel frames bound to an item import with it, along with their background and no-cache-busting setting.
+- A refreshed image or frame keeps the #fragment at the end of its address.
+- A frame whose stored address is not text shows a message instead of breaking.
+
 ## 1.39.0
 
 - The image widget can show an openHAB Image item, or the picture at an address held in a String item.

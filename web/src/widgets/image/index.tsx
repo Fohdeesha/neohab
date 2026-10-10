@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
+import { useRefreshStamp } from '../common/useRefreshStamp'
 import { errorText } from '../../api/errors'
 import { getItemStateText } from '../../api/items'
 import { refreshMs } from '../../model/interval'
@@ -17,16 +18,6 @@ import {
   type ImageConfig,
   type LatestReader
 } from './model'
-
-function useRefreshStamp(period: number | null): number {
-  const [stamp, setStamp] = useState(0)
-  useEffect(() => {
-    if (period === null) return
-    const id = setInterval(() => setStamp(Date.now()), period)
-    return () => clearInterval(id)
-  }, [period])
-  return stamp
-}
 
 interface Held {
   name: string

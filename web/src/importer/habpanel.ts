@@ -372,16 +372,23 @@ const CONVERTERS: Record<string, Converter> = {
     }
   },
 
-  frame: (w, report) => {
-    if (str(w.url_source) === 'item') {
-      report.add('warn', 'Item-sourced frame URLs are not supported yet; set the URL manually')
-    }
+  // HABPanel writes url_source 'static' or 'item' (and nothing at all before it had the choice)
+  frame: (w) => {
+    const fromItem = str(w.url_source) === 'item'
+    const every = num(w.refresh) ?? 0
+    // the reload field takes whole seconds
+    const refresh = every > 0 ? Math.max(1, Math.round(every)) : 0
+    const background = str(w.background)
     return {
       type: 'frame',
       config: {
+        source: fromItem ? 'item' : 'url',
         url: str(w.frameUrl) ?? '',
+        ...(fromItem ? { item: str(w.item) ?? '' } : {}),
         label: w.hidelabel ? undefined : str(w.name),
-        refresh: num(w.refresh) ?? 0
+        refresh,
+        ...(w.nosuffix === true && refresh > 0 ? { cacheBust: false } : {}),
+        ...(background ? { background } : {})
       }
     }
   },

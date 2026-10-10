@@ -45,6 +45,16 @@ describe('withCacheBust', () => {
     expect(withCacheBust('http://cam/snap.cgi?ch=1', 5)).toBe('http://cam/snap.cgi?ch=1&_=5')
   })
 
+  it('puts the stamp before a #fragment, which a page keeps its own route in', () => {
+    expect(withCacheBust('http://oh/habpanel/index.html#/view/Home', 5)).toBe('http://oh/habpanel/index.html?_=5#/view/Home')
+    expect(withCacheBust('http://g/d/x?orgId=1#panel', 5)).toBe('http://g/d/x?orgId=1&_=5#panel')
+    // a ? that only the fragment has is not a query string
+    expect(withCacheBust('http://oh/page#/route?tab=2', 5)).toBe('http://oh/page?_=5#/route?tab=2')
+    expect(withCacheBust('http://oh/page#', 5)).toBe('http://oh/page?_=5#')
+    // the fragment starts at the first #, and anything after it is the page's own
+    expect(withCacheBust('http://oh/page#/a#b', 5)).toBe('http://oh/page?_=5#/a#b')
+  })
+
   it('leaves the address alone before the first refresh', () => {
     expect(withCacheBust('http://cam/snap.jpg', 0)).toBe('http://cam/snap.jpg')
   })
