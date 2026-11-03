@@ -91,7 +91,9 @@ try {
   })
   ok('suite dashboard created', seed.ok, String(seed.status))
 
-  await page.goto(APP + '#/d/nh-e2e-editfix', { waitUntil: 'domcontentloaded', timeout: 20000 })
+  // in through Home, so the held save below has a page for browser Back to go to
+  await page.goto(APP + '#/', { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.evaluate(() => { location.hash = '#/d/nh-e2e-editfix' })
   await page.waitForSelector('.nh-grid', { timeout: 15000 })
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit', { timeout: 5000 })
@@ -197,8 +199,66 @@ try {
   await page.click('[aria-label="Redo"]')
   await sleep(200)
 
-  await page.click('button:has-text("Save")')
-  await sleep(1500)
+  // the save's PUT is held at the route, so the checks below run while it is in flight
+  {
+    let release
+    const gate = new Promise((r) => (release = r))
+    let held = 0
+    const isDash = (url) => url.pathname.endsWith('nh-e2e-editfix')
+    await page.route(isDash, async (route) => {
+      if (route.request().method() === 'PUT') {
+        held++
+        await gate
+      }
+      await route.continue()
+    })
+    let dialogs = 0
+    const countDialog = () => dialogs++
+    page.on('dialog', countDialog)
+    await page.click('button:has-text("Save")')
+    for (let i = 0; i < 40 && held === 0; i++) await sleep(100)
+    const exitDisabled = await page.locator('.nh-dash__bar button:has-text("Exit")').isDisabled().catch(() => null)
+    // twice, because the first Escape may only clear a selection
+    await page.keyboard.press('Escape')
+    await sleep(150)
+    await page.keyboard.press('Escape')
+    await sleep(300)
+    const stillEditing = (await page.locator('.nh-grid--edit').count()) === 1
+    const escDialogs = dialogs
+    const DASH_HASH = '#/d/nh-e2e-editfix'
+    const afterLeaving = async (leave) => {
+      const before = dialogs
+      await page.evaluate(leave)
+      await sleep(400)
+      return {
+        hash: await page.evaluate(() => location.hash),
+        editing: (await page.locator('.nh-grid--edit').count()) === 1,
+        dialogs: dialogs - before
+      }
+    }
+    const back = await afterLeaving(() => history.back())
+    const home = await afterLeaving(() => { location.hash = '#/' })
+    const landed = page
+      .waitForResponse((r) => isDash(new URL(r.url())) && r.request().method() === 'PUT', { timeout: 15000 })
+      .then((r) => r.status(), () => null)
+    release()
+    const status = await landed
+    // a build that let the page go has to be brought back for the rest of the suite
+    if ((await page.evaluate(() => location.hash)) !== DASH_HASH) await page.evaluate((h) => { location.hash = h }, DASH_HASH)
+    await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 }).catch(() => {})
+    await page.unroute(isDash)
+    page.off('dialog', countDialog)
+    ok('the save was held in flight', held === 1, `${held} PUTs held`)
+    ok('Exit is greyed out while a save is in flight', exitDisabled === true, String(exitDisabled))
+    ok('Escape does not leave edit mode while a save is in flight', stillEditing && escDialogs === 0, `editing=${stillEditing} dialogs=${escDialogs}`)
+    ok('browser Back waits for the save and asks nothing', back.hash === DASH_HASH && back.editing && back.dialogs === 0, JSON.stringify(back))
+    ok('leaving for another page waits for the save too', home.hash === DASH_HASH && home.editing && home.dialogs === 0, JSON.stringify(home))
+    ok(
+      'the held save then lands and leaves edit mode',
+      status >= 200 && status < 300 && (await page.locator('[aria-label="Edit dashboard"]').count()) === 1,
+      `PUT ${status}`
+    )
+  }
   const saved = await getComp()
   const byId = Object.fromEntries((saved?.config?.widgets ?? []).map((w) => [w.id, w.layout.lg]))
   ok('saved: bumped layout persisted (A)', byId['w-a']?.x === 0 && byId['w-a']?.y === 4, JSON.stringify(byId['w-a']))

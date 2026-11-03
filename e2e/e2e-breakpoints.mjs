@@ -69,7 +69,7 @@ const enterEdit = async () => {
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 15000 })
 }
 // Save stays disabled on a build where the reset did nothing, so Exit is the way out there. Only once the
-// save is done though: Exit works mid-save, and leaving then lets a read or a reload beat the write
+// save is done though, or on an older build Exit leaves mid-save and a read or a reload beats the write
 const saveOrExit = async () => {
   const saved = await page.click('button:has-text("Save")', { timeout: 5000 }).then(() => true, () => false)
   if (saved) await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 }).catch(() => {})

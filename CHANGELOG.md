@@ -6,6 +6,10 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.41.1
+
+- Exit is greyed out while a save is still going through
+
 ## 1.41.0
 
 - A dashboard can now just be a web page, pick it when you make a new one

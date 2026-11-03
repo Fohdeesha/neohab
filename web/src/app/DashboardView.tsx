@@ -104,7 +104,8 @@ export function DashboardView({ id }: { id: string }) {
       }
       setTimeout(() => {
         if (!useEditorStore.getState().editing) return
-        if (window.confirm(i18n.t('Discard all unsaved changes?'))) stopEditing()
+        // leaving waits for a save in flight, as Exit does
+        if (!useEditorStore.getState().saving && window.confirm(i18n.t('Discard all unsaved changes?'))) stopEditing()
         else navigate({ name: 'dashboard', id })
       }, 0)
     }
@@ -177,6 +178,8 @@ export function DashboardView({ id }: { id: string }) {
         const s = useEditorStore.getState()
         e.preventDefault()
         if (s.selectedIds.length > 0) clearSelection()
+        // a save in flight lands whatever the answer, so there is nothing to discard yet
+        else if (s.saving) return
         else if (!s.dirty || window.confirm(t('Discard all unsaved changes?'))) stopEditing()
       }
     }
@@ -273,6 +276,7 @@ export function DashboardView({ id }: { id: string }) {
   }
 
   const cancel = () => {
+    if (editor.saving) return
     if (editor.dirty && !window.confirm(t('Discard all unsaved changes?'))) return
     stopEditing()
   }
@@ -343,7 +347,11 @@ export function DashboardView({ id }: { id: string }) {
                 title={t('Redo (Ctrl+Shift+Z)')}>
                 ↪
               </button>
-              <button className="nh-btn nh-btn--ghost" onClick={cancel} title={t('Exit edit mode, Esc (unsaved changes are discarded)')}>
+              <button
+                className="nh-btn nh-btn--ghost"
+                onClick={cancel}
+                disabled={editor.saving}
+                title={t('Exit edit mode, Esc (unsaved changes are discarded)')}>
                 {t('Exit')}
               </button>
               <button
