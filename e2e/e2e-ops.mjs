@@ -450,8 +450,9 @@ try {
       leftAlign: getComputedStyle(chip('Left')).alignSelf,
       rightAlign: getComputedStyle(chip('Right')).alignSelf,
       selTag: sel?.tagName,
-      selOptions: sel ? [...sel.options].map((o) => o.text) : [],
-      selValue: sel?.value,
+      selPopup: sel?.getAttribute('aria-haspopup'),
+      selOptions: sel ? [...sel.querySelectorAll('.nh-selection__sizer')].map((o) => o.textContent) : [],
+      selShown: sel?.querySelector('.nh-selection__current')?.textContent,
       selBorderBottom: sel ? getComputedStyle(sel).borderBottomWidth : null,
       selBorderTop: sel ? getComputedStyle(sel).borderTopWidth : null,
       clockTime: !!clock?.querySelector('.nh-clock__time'),
@@ -467,10 +468,13 @@ try {
     near(rgb(bits.boxBg), [63, 127, 224]), `${bits.boxRadius} ${bits.boxBg}`)
   ok('label: alignment moves the text within its tile', bits.leftAlign === 'flex-start' && bits.rightAlign === 'flex-end',
     `${bits.leftAlign}/${bits.rightAlign}`)
-  ok('selection: the dropdown renders as a select with its choices', bits.selTag === 'SELECT' &&
-    (bits.selOptions ?? []).includes('Running') && (bits.selOptions ?? []).includes('Stopped'), JSON.stringify(bits.selOptions))
-  ok('selection: it shows the live state as the current choice', bits.selValue === (await itemState(ITEMS.switch)),
-    bits.selValue)
+  ok('selection: the dropdown is a button that opens its own list of the choices', bits.selTag === 'BUTTON' &&
+    bits.selPopup === 'listbox' && (bits.selOptions ?? []).includes('Running') && (bits.selOptions ?? []).includes('Stopped'),
+    JSON.stringify(bits.selOptions))
+  const switchState = await itemState(ITEMS.switch)
+  ok('selection: it shows the live state as the current choice',
+    bits.selShown === (switchState === 'ON' ? 'Running' : switchState === 'OFF' ? 'Stopped' : /^(NULL|UNDEF)$/.test(switchState) ? '-' : switchState),
+    `${bits.selShown} for ${switchState}`)
   ok('selection: the theme sets it as an underlined field', bits.selBorderTop === '0px' &&
     bits.selBorderBottom === '1px', `top=${bits.selBorderTop} bottom=${bits.selBorderBottom}`)
   ok('clock: date-only hides the time', !bits.clockTime && bits.clockDateOnly)

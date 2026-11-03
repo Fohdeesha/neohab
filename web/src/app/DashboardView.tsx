@@ -32,14 +32,17 @@ import {
 } from '../store/clipboard'
 import { editingAllowed, useEditingAllowed } from '../store/auth'
 import { useKioskMode } from '../store/kiosk'
+import { useDeviceTypeStore } from '../store/deviceType'
 import { Grid } from '../components/Grid'
 import { EditableGrid } from '../components/EditableGrid'
+import { PageFrame } from '../components/PageFrame'
+import { pageOf } from '../model/dashboard'
 import { anyDialogOpen } from '../components/dialog'
 import { useCoarsePointer } from '../components/useCoarsePointer'
 import { useGridEditSurface, useSidePanelDocked } from '../components/useEditSurface'
 import { useContainerWidth } from '../components/useContainerWidth'
 import { useSurfaceBounds } from '../components/useSurfaceBounds'
-import { widgetsOf, editZoom, SIDE_PANEL_WIDTH, SURFACE_PADDING } from '../model/layout'
+import { breakpointFor, surfaceFor, widgetsOf, editZoom, SIDE_PANEL_WIDTH, SURFACE_PADDING } from '../model/layout'
 import { navigate } from './router'
 import i18n from '../i18n'
 import { useBackgroundStyle } from '../components/useBackground'
@@ -71,6 +74,7 @@ export function DashboardView({ id }: { id: string }) {
   const runWidth = dashWidth > 0 ? dashWidth - 2 * SURFACE_PADDING : 0
   const panelDocked = useSidePanelDocked()
   const bounds = useSurfaceBounds()
+  const forcedType = useDeviceTypeStore((s) => s.type)
   const kiosk = useKioskMode()
   const canEdit = useEditingAllowed()
   const [signInOpen, setSignInOpen] = useState(false)
@@ -207,7 +211,8 @@ export function DashboardView({ id }: { id: string }) {
       removeWidgets(useEditorStore.getState().selectedIds, { everywhere: true })
     }
     const onPaste = (e: ClipboardEvent) => {
-      if (isTyping()) return
+      // a web page dashboard has no grid to paste into, and widgets added to it would never be drawn
+      if (isTyping() || pageOf(useEditorStore.getState().draft)) return
       const text = e.clipboardData?.getData('text/plain') ?? ''
       const items = parseClipboard(text) ?? getClipboard()
       if (items.length === 0) return
@@ -254,8 +259,16 @@ export function DashboardView({ id }: { id: string }) {
     )
   }
 
+  // the editor opens on the layout this screen was drawing, which is what Grid works out from the same width
+  const runBreakpoint = breakpointFor(dashboard, surfaceFor(runWidth, bounds, forcedType))
+  const page = pageOf(dashboard) !== null
+  // a web page dashboard has nothing to arrange, so editing it is its settings
+  const beginEditing = () => {
+    startEditing(dashboard, runBreakpoint)
+    if (page) setDashSettingsOpen(true)
+  }
   const enterEdit = () => {
-    if (editingAllowed()) startEditing(dashboard)
+    if (editingAllowed()) beginEditing()
     else setSignInOpen(true)
   }
 
@@ -276,12 +289,13 @@ export function DashboardView({ id }: { id: string }) {
   }
   const deleteSelected = () => removeWidgets(useEditorStore.getState().selectedIds)
   const pasteClipboard = () => {
+    if (page) return
     const items = getClipboard()
     if (items.length > 0) pasteWidgets(items)
   }
 
   return (
-    <div ref={dashRef} className="nh-dash" style={backgroundStyle}>
+    <div ref={dashRef} className={'nh-dash' + (page ? ' nh-dash--page' : '')} style={page ? undefined : backgroundStyle}>
       {/* Kiosk mode is a full-screen dashboard: no header at all (edit mode cannot start while
           it is on, but a draft in progress keeps its toolbar if kiosk flips mid-edit). */}
       {!hasBar ? null : (
@@ -290,7 +304,7 @@ export function DashboardView({ id }: { id: string }) {
             <>
               <span className="nh-dash__title">{t('Editing - {{name}}', { name: dashboard.name })}</span>
               <span className="nh-dash__spacer" />
-              {gridSurface ? (
+              {gridSurface && !page ? (
                 <button
                   className={'nh-btn nh-btn--ghost nh-bpswitch' + (editor.bp === 'md' ? ' nh-bpswitch--md' : '')}
                   onClick={() => setEditBreakpoint(editor.bp === 'lg' ? 'md' : 'lg')}
@@ -308,9 +322,11 @@ export function DashboardView({ id }: { id: string }) {
                 title={t('Dashboard settings')}>
                 ⚙
               </button>
-              <button className="nh-iconbtn" onClick={() => setPaletteOpen(true)} aria-label={t('Add widget')} title={t('Add widget')}>
-                +
-              </button>
+              {page ? null : (
+                <button className="nh-iconbtn" onClick={() => setPaletteOpen(true)} aria-label={t('Add widget')} title={t('Add widget')}>
+                  +
+                </button>
+              )}
               <button
                 className="nh-iconbtn"
                 onClick={undo}
@@ -355,7 +371,7 @@ export function DashboardView({ id }: { id: string }) {
       )}
 
       {/* Contextual selection/clipboard actions (also the touch path - no Ctrl keys there). */}
-      {editing && (selectedIds.length > 0 || clipboardCount > 0) ? (
+      {editing && !page && (selectedIds.length > 0 || clipboardCount > 0) ? (
         <div className="nh-selbar" role="toolbar" aria-label={t('Selection actions')}>
           {selectedIds.length > 0 ? (
             <>
@@ -403,7 +419,9 @@ export function DashboardView({ id }: { id: string }) {
       ) : null}
 
       <div className={'nh-dash__surface' + (panelOpen ? ' nh-dash__surface--panel' : '')}>
-        {editing ? (
+        {page ? (
+          <PageFrame dashboard={dashboard} />
+        ) : editing ? (
           <div className="nh-editzoom" style={{ '--nh-editzoom': zoom } as React.CSSProperties}>
             <EditableGrid dashboard={dashboard} gridSurface={gridSurface} />
           </div>
@@ -413,12 +431,12 @@ export function DashboardView({ id }: { id: string }) {
         {/* The hint describes the gestures this device actually has. A dashboard with nothing on
             it yet has a different first step from one being rearranged, and telling a phone about
             Ctrl+C was the palette hint's mistake one line further down. */}
-        {editing ? (
+        {editing && !page ? (
           <p className="nh-dash__edithint">
             {widgetsOf(dashboard).length === 0
               ? t('Nothing here yet - press + in the bar above to add your first widget.')
               : coarse
-                ? t('Drag by the handle · tap to configure · long-press to select several')
+                ? t('Hold a widget, then drag it · tap to configure · hold and let go to select several')
                 : t(
                     'Drag by the handle · tap to configure · Ctrl/Cmd- or Shift-click, drag a box, or long-press to select several · Ctrl+C / Ctrl+V to copy and paste'
                   )}
@@ -428,7 +446,7 @@ export function DashboardView({ id }: { id: string }) {
 
       {editing && selected ? <SettingsPanel key={selected.id} widget={selected} /> : null}
       {editing && !selected && editor.dashSettingsOpen ? <DashboardSettingsPanel dashboard={dashboard} /> : null}
-      {editing && editor.paletteOpen ? <PaletteSheet canDrag={gridSurface} /> : null}
+      {editing && !page && editor.paletteOpen ? <PaletteSheet canDrag={gridSurface} /> : null}
       {signInOpen ? (
         <SignInSheet
           keepDraft={retryAfterSignIn ? DRAFT_THROUGH_SIGNIN : undefined}
@@ -441,7 +459,7 @@ export function DashboardView({ id }: { id: string }) {
             if (retryAfterSignIn) {
               setRetryAfterSignIn(false)
               void saveDraft()
-            } else startEditing(dashboard)
+            } else beginEditing()
           }}
         />
       ) : null}

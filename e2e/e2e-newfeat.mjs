@@ -144,8 +144,8 @@ try {
   await phone.click('[aria-label="Edit dashboard"]')
   await phone.waitForSelector('.nh-grid--stackedit', { timeout: 10000 })
   await phone.click('[aria-label="Dashboard settings"]')
-  await phone.waitForSelector('button:has-text("Reset stack order")', { timeout: 5000 })
-  await phone.click('button:has-text("Reset stack order")')
+  await phone.waitForSelector('button:has-text("Reset the phone layout")', { timeout: 5000 })
+  await phone.click('button:has-text("Reset the phone layout")')
   await sleep(300)
   const afterReset = await phone.$$eval('.nh-grid--stackedit .nh-cell .nh-widget__body', (els) =>
     els.map((e) => e.textContent?.trim())
@@ -199,8 +199,8 @@ try {
   ok('switch renders mdi icon', (await swIcon.count()) === 1)
   const tintOff = await swIcon.evaluate((el) => getComputedStyle(el).backgroundColor)
 
-  const selIcon = page.locator('.nh-widget__label .nh-icon--oh')
-  ok('selection renders oh header icon', (await selIcon.count()) === 1)
+  const selIcon = page.locator('.nh-selection__icon .nh-icon--oh')
+  ok('selection renders its oh icon above the choices', (await selIcon.count()) === 1)
   const selSrc = await selIcon.getAttribute('src')
   ok('selection icon uses server icon URL', /\/icon\/switch/.test(selSrc ?? ''), selSrc ?? '')
   const offActive = await page

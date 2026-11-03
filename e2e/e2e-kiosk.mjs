@@ -381,6 +381,18 @@ try {
     await page.waitForSelector('#kiosk-mode', { timeout: 15000 })
     ok('kiosk: mode checkbox reflects URL override', await page.isChecked('#kiosk-mode'))
     ok('kiosk: follow-control defaults to on in kiosk mode', await page.isChecked('#kiosk-follow'))
+    // the browser decides installability from the scheme, so assert for whichever this target serves
+    const install = await page.evaluate(() => ({
+      secure: window.isSecureContext,
+      note: document.querySelector('.nh-kiosk__insecure')?.textContent ?? null
+    }))
+    ok(
+      install.secure
+        ? 'kiosk: in a secure context there is no note about shortcuts'
+        : 'kiosk: on a plain-http page it says why a tablet only gets a shortcut, and what fixes it',
+      install.secure ? install.note === null : /shortcut/.test(install.note ?? '') && /HTTPS/.test(install.note ?? ''),
+      JSON.stringify(install).slice(0, 160)
+    )
 
     await page.goto(APP + '?kiosk=on#/d/nh-e2e-kiosk', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.nh-grid', { timeout: 15000 })

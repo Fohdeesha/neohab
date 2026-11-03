@@ -13,6 +13,7 @@ import { PHONE_BELOW_RANGE, surfaceBounds, TABLET_BELOW_RANGE } from '../model/l
 import { exportComponent } from '../editor/exportComponent'
 import { ThemeEditor } from './ThemeEditor'
 import { DeviceThemeField } from './DeviceThemeField'
+import { DeviceTypeField } from './DeviceTypeField'
 import { LanguageField } from './LanguageField'
 import type { NoticeFn } from '../store/notify'
 
@@ -139,6 +140,7 @@ export function AppearanceSection({ onNotice }: { onNotice: NoticeFn }) {
         ) : null}
 
         <DeviceThemeField />
+        <DeviceTypeField />
 
         {canEdit ? (
           <div className="nh-field">

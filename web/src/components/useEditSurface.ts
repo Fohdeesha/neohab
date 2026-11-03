@@ -1,4 +1,5 @@
 import { SIDE_PANEL_MIN } from '../model/layout'
+import { useDeviceTypeStore } from '../store/deviceType'
 import { useSidebarLayout } from '../store/sidebar'
 import { useSurfaceBounds } from './useSurfaceBounds'
 import { useViewportWidth } from './useViewportWidth'
@@ -14,6 +15,8 @@ export function useGridEditSurface(runWidth: number): boolean {
   const viewportWidth = useViewportWidth()
   const sidebarInset = useSidebarLayout().inset
   const { phoneBelow } = useSurfaceBounds()
+  const forced = useDeviceTypeStore((s) => s.type)
+  if (forced) return forced !== 'phone'
   return (runWidth > 0 ? runWidth : viewportWidth - sidebarInset) >= phoneBelow
 }
 

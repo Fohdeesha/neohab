@@ -4,6 +4,7 @@ import type { Dashboard, Rect } from '../model/dashboard'
 import {
   cellMetrics,
   clampRect,
+  collides,
   columnsOf,
   groupFrames,
   hasTabletLayout,
@@ -11,8 +12,10 @@ import {
   iconScale,
   overlapsAny,
   planBump,
+  planGroupBump,
   projectDashboard,
   rectOf,
+  shiftGroup,
   surfacesOf,
   textScale,
   widgetAccent,
@@ -32,6 +35,7 @@ import {
   selectWidget,
   setSelection,
   setWidgetRect,
+  setWidgetRects,
   toggleWidgetSelection,
   useEditorStore
 } from '../store/editor'
@@ -41,19 +45,26 @@ import { WidgetHost } from './WidgetHost'
 import { StackedEditGrid } from './StackedEditGrid'
 import { useCoarsePointer } from './useCoarsePointer'
 import { useContainerWidth } from './useContainerWidth'
-import { LONG_PRESS_MS } from './useLongPress'
+import { LIFT_SLOP_PX, LONG_PRESS_MS } from './useLongPress'
+import { createEdgeScroll } from './edgeScroll'
 
 const BUMP_DWELL_MS = 400
 
 interface DragState {
+  /** the widget under the pointer */
   id: string
   mode: 'move' | 'resize'
-  startRect: Rect
+  /** where everything being moved started: that widget, and the rest of the selection when it is part of one */
+  starts: Map<string, Rect>
   startX: number
   startY: number
+  /** window.scrollY when the drag began; the page can scroll under a still finger */
+  startScroll: number
+  /** picked up by a touch hold or by the widget's body rather than the handle, so letting go never counts as a tap */
+  lifted: boolean
   dx: number
   dy: number
-  target: Rect
+  targets: Map<string, Rect>
   valid: boolean
   bump: BumpPlan | null
 }
@@ -71,6 +82,8 @@ interface PendingMarquee {
   clientY: number
   additive: boolean
   fromWidget: boolean
+  /** pressed on a widget that is part of a multi-selection: moving drags the selection instead of drawing a box */
+  moveId?: string
 }
 
 const MARQUEE_THRESHOLD_PX = 5
@@ -116,6 +129,19 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
   const longPressRef = useRef<number | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClickRef = useRef(false)
+  // a touch held still: the widget is up and follows the finger once it moves
+  const liftRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const [lifted, setLifted] = useState<string | null>(null)
+  const dragRef = useRef<DragState | null>(null)
+  dragRef.current = drag
+  const lastPointer = useRef<{ x: number; y: number } | null>(null)
+  const moveRef = useRef<(clientX: number, clientY: number) => void>(() => {})
+  const edgeScroll = useRef(
+    createEdgeScroll(() => {
+      const p = lastPointer.current
+      if (p) moveRef.current(p.x, p.y)
+    })
+  )
   // declared up here with the other hooks: the stacked-surface early return below skips later code
   const pendingRef = useRef<PendingMarquee | null>(null)
   // the dwell fires 400ms later, so plan against the current draft rather than the one that was on screen
@@ -136,13 +162,32 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
     }
     longPressStart.current = null
   }
+  const endLift = () => {
+    liftRef.current = null
+    setLifted(null)
+  }
   useEffect(
     () => () => {
       clearDwell()
       clearLongPress()
+      edgeScroll.current.stop()
     },
     []
   )
+
+  // the overlay leaves touch-action alone so a quick swipe still scrolls the page; once a widget is held up,
+  // the rest of that touch is the drag's. Only a listener registered before the touch began can still
+  // cancel its moves, and React's own touch listeners are passive.
+  const measured = containerWidth > 0
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onTouchMove = (e: TouchEvent) => {
+      if (liftRef.current || dragRef.current) e.preventDefault()
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [gridSurface, measured])
 
   useEffect(() => {
     if (!placing) {
@@ -167,8 +212,17 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
       )
       return { rect, valid: !overlapsAny(dashRef.current, rect) }
     }
-    const onMove = (e: PointerEvent) => setPlaceTarget(targetFor(e.clientX, e.clientY))
+    let last: { x: number; y: number } | null = null
+    const edge = createEdgeScroll(() => {
+      if (last) setPlaceTarget(targetFor(last.x, last.y))
+    })
+    const onMove = (e: PointerEvent) => {
+      last = { x: e.clientX, y: e.clientY }
+      setPlaceTarget(targetFor(e.clientX, e.clientY))
+      edge.track(e.clientY)
+    }
     const onUp = (e: PointerEvent) => {
+      edge.stop()
       const hit = targetFor(e.clientX, e.clientY)
       if (hit?.valid) addWidgetAt(hit.rect)
       else cancelPlacing()
@@ -177,6 +231,7 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', cancelPlacing)
     return () => {
+      edge.stop()
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', cancelPlacing)
@@ -204,34 +259,46 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
     return { w: m.colWidth, h: m.rowHeight }
   }
 
+  // a widget that is part of a multi-selection moves the whole selection; a resize is always the one widget
+  const dragFrom = (id: string, mode: 'move' | 'resize', x: number, y: number, lifted: boolean): DragState | null => {
+    const all = widgetsOf(dashboard)
+    const widget = all.find((w) => w.id === id)
+    if (!widget) return null
+    const sel = useEditorStore.getState().selectedIds
+    const group = mode === 'move' && sel.length > 1 && sel.includes(id) ? all.filter((w) => sel.includes(w.id)) : [widget]
+    const starts = new Map(group.map((w) => [w.id, rectOf(w)]))
+    return {
+      id,
+      mode,
+      starts,
+      startX: x,
+      startY: y,
+      startScroll: window.scrollY,
+      lifted,
+      dx: 0,
+      dy: 0,
+      targets: starts,
+      valid: true,
+      bump: null
+    }
+  }
+
   const beginDrag = (id: string, mode: 'move' | 'resize') => (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return
-    const widget = widgetsOf(dashboard).find((w) => w.id === id)
-    if (!widget) return
+    // selection waits for the drop: opening the panel changes the zoom the drag is measured against
+    const next = dragFrom(id, mode, e.clientX, e.clientY, false)
+    if (!next) return
     e.preventDefault()
     e.stopPropagation()
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    // selection waits for the drop: opening the panel changes the zoom the drag is measured against
-    const startRect = rectOf(widget)
-    setDrag({
-      id,
-      mode,
-      startRect,
-      startX: e.clientX,
-      startY: e.clientY,
-      dx: 0,
-      dy: 0,
-      target: startRect,
-      valid: true,
-      bump: null
-    })
+    setDrag(next)
   }
 
   const armBump = () => {
     dwellRef.current = null
     setDrag((d) => {
       if (!d || d.mode !== 'move') return d
-      const plan = planBump(dashRef.current, d.id, d.target)
+      const plan = d.targets.size === 1 ? planBump(dashRef.current, d.id, d.targets.get(d.id)!) : planGroupBump(dashRef.current, d.targets)
       if (!plan || plan.size === 0) return d
       return { ...d, bump: plan, valid: true }
     })
@@ -252,28 +319,86 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
     suppressClickRef.current = false // clear any stale flag from a press whose click never fired
     if (e.pointerType === 'mouse') {
       if (e.button === 0) {
+        const additive = e.shiftKey || e.ctrlKey || e.metaKey
+        const sel = useEditorStore.getState().selectedIds
         pendingRef.current = {
           clientX: e.clientX,
           clientY: e.clientY,
-          additive: e.shiftKey || e.ctrlKey || e.metaKey,
-          fromWidget: true
+          additive,
+          fromWidget: true,
+          moveId: !additive && sel.length > 1 && sel.includes(id) ? id : undefined
         }
       }
       return
     }
     clearLongPress()
-    longPressStart.current = { x: e.clientX, y: e.clientY }
+    endLift()
+    const start = { x: e.clientX, y: e.clientY }
+    const overlay = e.currentTarget as HTMLElement
+    const pointerId = e.pointerId
+    longPressStart.current = start
     longPressRef.current = window.setTimeout(() => {
-      suppressClickRef.current = true
-      toggleWidgetSelection(id)
-      navigator.vibrate?.(10)
+      longPressRef.current = null
+      liftWidget(id, start, overlay, pointerId)
     }, LONG_PRESS_MS)
   }
 
+  // held still for LONG_PRESS_MS: the widget comes up. Moving now drags it; letting go selects it for a
+  // multi-selection, which is what a long press did before it could drag.
+  const liftWidget = (id: string, at: { x: number; y: number }, overlay: HTMLElement, pointerId: number | null) => {
+    suppressClickRef.current = true
+    liftRef.current = { id, ...at }
+    if (pointerId !== null) {
+      try {
+        overlay.setPointerCapture(pointerId)
+      } catch {
+        // the press already ended
+      }
+    }
+    setLifted(id)
+    navigator.vibrate?.(10)
+  }
+
   const onWidgetPointerMove = (e: React.PointerEvent) => {
+    const lift = liftRef.current
+    if (lift) {
+      if (dragRef.current) return
+      if (Math.abs(e.clientX - lift.x) <= LIFT_SLOP_PX && Math.abs(e.clientY - lift.y) <= LIFT_SLOP_PX) return
+      // from where the finger first came down, so the widget stays under it exactly as it was picked up
+      const next = dragFrom(lift.id, 'move', lift.x, lift.y, true)
+      if (next) setDrag(next)
+      return
+    }
     const start = longPressStart.current
     if (!start) return
     if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) clearLongPress()
+  }
+
+  const onWidgetPointerUp = () => {
+    const lift = liftRef.current
+    clearLongPress()
+    if (!lift) return
+    endLift()
+    // held and let go without moving; a drag that did start is dropped by the grid's handler after this one
+    if (!dragRef.current) toggleWidgetSelection(lift.id)
+  }
+
+  const onWidgetPointerCancel = () => {
+    clearLongPress()
+    endLift()
+  }
+
+  // Android raises contextmenu for its own long press, which can come before the timer above. It means the
+  // same thing, and left alone it can select text or open a menu under the finger.
+  const onWidgetContextMenu = (id: string) => (e: React.MouseEvent) => {
+    const start = longPressStart.current
+    if (!start && !liftRef.current) return
+    e.preventDefault()
+    if (start && !liftRef.current) {
+      clearLongPress()
+      longPressStart.current = start
+      liftWidget(id, start, e.currentTarget as HTMLElement, null)
+    }
   }
 
   const onCellKeyDown = (id: string) => (e: React.KeyboardEvent) => {
@@ -337,6 +462,14 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
       if (Math.abs(e.clientX - pend.clientX) > MARQUEE_THRESHOLD_PX || Math.abs(e.clientY - pend.clientY) > MARQUEE_THRESHOLD_PX) {
         pendingRef.current = null
         containerRef.current?.setPointerCapture(e.pointerId)
+        const group = pend.moveId ? dragFrom(pend.moveId, 'move', pend.clientX, pend.clientY, true) : null
+        if (group) {
+          dragRef.current = group
+          setDrag(group)
+          lastPointer.current = { x: e.clientX, y: e.clientY }
+          moveDrag(e.clientX, e.clientY)
+          return
+        }
         const s = toLocal(pend.clientX, pend.clientY)
         const c = toLocal(e.clientX, e.clientY)
         setMarquee({ startX: s.x, startY: s.y, curX: c.x, curY: c.y, additive: pend.additive })
@@ -349,31 +482,43 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
       return
     }
     if (!drag) return
+    lastPointer.current = { x: e.clientX, y: e.clientY }
+    moveDrag(e.clientX, e.clientY)
+    edgeScroll.current.track(e.clientY)
+  }
+
+  // also run by the edge scroll with the last pointer position, after the page has moved under it
+  const moveDrag = (clientX: number, clientY: number) => {
+    const drag = dragRef.current
+    if (!drag) return
     const { w: cw, h: ch } = cellSize()
     const k = pointerScale()
-    const dx = (e.clientX - drag.startX) / k
-    const dy = (e.clientY - drag.startY) / k
+    const dx = (clientX - drag.startX) / k
+    const dy = (clientY - drag.startY + window.scrollY - drag.startScroll) / k
     const cellsX = Math.round(dx / (cw + gap))
     const cellsY = Math.round(dy / (ch + gap))
 
-    const target = clampRect(
+    const start = drag.starts.get(drag.id)!
+    const targets =
       drag.mode === 'move'
-        ? { ...drag.startRect, x: drag.startRect.x + cellsX, y: drag.startRect.y + cellsY }
-        : { ...drag.startRect, w: drag.startRect.w + cellsX, h: drag.startRect.h + cellsY },
-      columnsOf(dashboard)
-    )
-    const overlaps = overlapsAny(dashboard, target, drag.id)
+        ? shiftGroup(drag.starts, cellsX, cellsY, columnsOf(dashboard))
+        : new Map([[drag.id, clampRect({ ...start, w: start.w + cellsX, h: start.h + cellsY }, columnsOf(dashboard))]])
+    const goals = [...targets.values()]
+    const overlaps = widgetsOf(dashboard).some((w) => !targets.has(w.id) && goals.some((g) => collides(g, rectOf(w))))
+    // the whole group moves by the same step, so the widget under the pointer says whether it moved
+    const target = targets.get(drag.id)!
 
-    if (!sameRect(target, drag.target)) {
+    if (!sameRect(target, drag.targets.get(drag.id)!)) {
       clearDwell()
       if (drag.mode === 'move' && overlaps) dwellRef.current = window.setTimeout(armBump, BUMP_DWELL_MS)
     }
     setDrag((d) => {
       if (!d) return d
-      const bump = sameRect(target, d.target) ? d.bump : null
-      return { ...d, dx, dy, target, valid: !overlaps || !!bump, bump }
+      const bump = sameRect(target, d.targets.get(d.id)!) ? d.bump : null
+      return { ...d, dx, dy, targets, valid: !overlaps || !!bump, bump }
     })
   }
+  moveRef.current = moveDrag
 
   const onPointerUp = (e: React.PointerEvent) => {
     const pend = pendingRef.current
@@ -391,21 +536,31 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
       return
     }
     clearDwell()
+    edgeScroll.current.stop()
     if (!drag) return
-    if (drag.valid) setWidgetRect(drag.id, drag.target, drag.bump ?? undefined)
-    const clickLike = Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX && Math.abs(e.clientY - drag.startY) <= MARQUEE_THRESHOLD_PX
+    if (drag.valid) setWidgetRects(drag.targets, drag.bump ?? undefined)
+    // a drag started on a widget's body is a press the overlay saw begin, so its click is not a tap either
+    if (drag.lifted && e.pointerType === 'mouse') {
+      suppressClickRef.current = true
+      window.setTimeout(() => {
+        suppressClickRef.current = false
+      }, 0)
+    }
+    // a press on the handle that never moved is a tap, and a tap opens the settings. A real drag leaves the
+    // selection and the panel as they were: opening the panel zooms the layout that was just being arranged.
+    const clickLike =
+      !drag.lifted &&
+      Math.abs(e.clientX - drag.startX) <= MARQUEE_THRESHOLD_PX &&
+      Math.abs(e.clientY - drag.startY + window.scrollY - drag.startScroll) <= MARQUEE_THRESHOLD_PX
     if (clickLike && (e.ctrlKey || e.metaKey)) toggleWidgetSelection(drag.id)
     else if (clickLike && e.shiftKey) addToSelection(drag.id)
     else if (clickLike) selectWidget(drag.id)
-    else {
-      const sel = useEditorStore.getState().selectedIds
-      if (!(sel.length > 1 && sel.includes(drag.id))) selectWidget(drag.id)
-    }
     setDrag(null)
   }
 
   const cancelPointer = () => {
     clearDwell()
+    edgeScroll.current.stop()
     pendingRef.current = null
     setDrag(null)
     setMarquee(null)
@@ -447,16 +602,19 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
         />
       ))}
 
-      {/* placeholder for the snapped drop target */}
-      {drag ? (
-        <div
-          className={'nh-drop' + (drag.valid ? '' : ' nh-drop--invalid')}
-          style={{
-            gridColumn: `${drag.target.x + 1} / span ${drag.target.w}`,
-            gridRow: `${drag.target.y + 1} / span ${drag.target.h}`
-          }}
-        />
-      ) : null}
+      {/* placeholders for the snapped drop target, one per widget being moved */}
+      {drag
+        ? [...drag.targets].map(([id, r]) => (
+            <div
+              key={'drop-' + id}
+              className={'nh-drop' + (drag.valid ? '' : ' nh-drop--invalid')}
+              style={{
+                gridColumn: `${r.x + 1} / span ${r.w}`,
+                gridRow: `${r.y + 1} / span ${r.h}`
+              }}
+            />
+          ))
+        : null}
 
       {/* palette drag-to-place preview: where the new widget would land */}
       {placeTarget ? (
@@ -486,7 +644,7 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
       {widgetsOf(dashboard).map((widget) => {
         const bumpedTo = drag?.bump?.get(widget.id)
         const r = bumpedTo ?? rectOf(widget)
-        const isDragging = drag?.id === widget.id
+        const isDragging = drag?.starts.has(widget.id) === true
         const isSelected = selectedIds.includes(widget.id)
         const hiddenOn = hiddenSurfaces(widget)
         const offHere = editedSurfaces.every((sfc) => hiddenOn.includes(sfc))
@@ -497,6 +655,7 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
               'nh-cell' +
               (isSelected ? ' nh-cell--selected' : '') +
               (isDragging ? ' nh-cell--dragging' : '') +
+              (lifted === widget.id && !isDragging ? ' nh-cell--lifted' : '') +
               (bumpedTo ? ' nh-cell--bumped' : '') +
               (hiddenOn.length > 0 ? ' nh-cell--hidden' : '') +
               (offHere ? ' nh-cell--offhere' : '') +
@@ -535,8 +694,9 @@ export function EditableGrid({ dashboard: draft, gridSurface }: { dashboard: Das
               onKeyDown={onCellKeyDown(widget.id)}
               onPointerDown={onWidgetPointerDown(widget.id)}
               onPointerMove={onWidgetPointerMove}
-              onPointerUp={clearLongPress}
-              onPointerCancel={clearLongPress}
+              onPointerUp={onWidgetPointerUp}
+              onPointerCancel={onWidgetPointerCancel}
+              onContextMenu={onWidgetContextMenu(widget.id)}
             />
             <CellHandle
               id={widget.id}

@@ -47,6 +47,8 @@ function FrameWidget({ config, ctx }: WidgetProps<FrameConfig>) {
         src={src}
         title={config.label || t('Embedded page')}
         sandbox={sandboxed ? 'allow-scripts' : undefined}
+        allow="fullscreen"
+        allowFullScreen
         style={background ? { backgroundColor: background } : undefined}
       />
     </WidgetFrame>

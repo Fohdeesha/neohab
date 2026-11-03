@@ -6,6 +6,23 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.41.0
+
+- A dashboard can now just be a web page, pick it when you make a new one
+- Embedded pages can go fullscreen, in web page dashboards and the frame widget
+- You can set a device to phone, tablet or desktop in Settings › Appearance, whatever its screen size
+- Edit mode opens on the tablet layout if that's what you were looking at
+- On touch screens, hold a widget to pick it up and drag it, a quick swipe still scrolls
+- Dropping a widget doesn't open its settings panel anymore
+- Dragging a widget near the top or bottom of the screen scrolls the page
+- Drag one widget in a multi-selection and the whole selection comes with it, phone stack too
+- Tablet and phone layouts can be reset from Dashboard settings
+- Selection widget redesign: icon and choices in one centred column, name in the title bar or above
+- New Segmented bar and List styles for the selection widget, plus a Finish setting
+- The selection dropdown opens a themed list instead of the browser's own picker
+- Pressing a dropdown inside a tile doesn't open the detail sheet anymore
+- Kiosk settings explain why plain http only gets you a shortcut, not an installed app
+
 ## 1.40.0
 
 - The frame widget can load the page address held in a String item, like HABPanel's.

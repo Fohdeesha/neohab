@@ -109,7 +109,7 @@ try {
     await sleep(250)
     ok('grabbing a widget does not resize the grid', held === wide, `${Math.round(wide)} -> ${Math.round(held)}`)
     ok('settings panel stays shut during the drag', !panelOpen)
-    ok('dropping selects the widget (panel opens after)', (await page.locator('.nh-sheet--side').count()) === 1)
+    ok('letting go without moving is a tap, and opens the panel after', (await page.locator('.nh-sheet--side').count()) === 1)
     await page.click('.nh-sheet--side .nh-sheet__close')
     await sleep(200)
     ok('panel closes again', (await page.locator('.nh-sheet--side').count()) === 0)

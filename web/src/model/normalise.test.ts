@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { normaliseConfig } from './normalise'
 import { hasTabletLayout, projectDashboard, stackedOrder, tabletRects } from './layout'
-import type { Dashboard } from './dashboard'
+import { pageOf, type Dashboard } from './dashboard'
 
 describe('names', () => {
   it('leaves a normal config as it is', () => {
@@ -64,6 +64,16 @@ describe('dashboards', () => {
     const d = load({ widgets: [null, 'x', { type: 'label' }, { id: 'a', type: 1 }, { id: 'a', type: 'label' }] })
     expect(d.widgets.map((w) => w.id)).toEqual(['w-2', 'a', 'a-2'])
     expect(d.widgets[1].type).toBe('')
+  })
+
+  it('a web page dashboard keeps its page, and a page that is not one is dropped', () => {
+    expect(load({ widgets: [], page: { url: 'http://x/', sandbox: true } }).page).toEqual({ url: 'http://x/', sandbox: true })
+    expect(load({ widgets: [], page: { url: 5, sandbox: 'yes' } }).page).toEqual({ url: '' })
+    expect(load({ widgets: [], page: 'http://x/' }).page).toBeUndefined()
+    expect(load({ widgets: [], page: ['http://x/'] }).page).toBeUndefined()
+    expect(pageOf(load({ widgets: [], page: null }))).toBeNull()
+    expect(pageOf(load({ widgets: [], page: { url: 'http://x/' } }))).toEqual({ url: 'http://x/', sandbox: false })
+    expect(pageOf({ page: 'x' } as unknown as Dashboard)).toBeNull()
   })
 
   it('widgets that are not a list become an empty one', () => {

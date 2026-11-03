@@ -68,6 +68,14 @@ const enterEdit = async () => {
   await page.waitForSelector('.nh-grid--edit, .nh-grid--stackedit', { timeout: 15000 })
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0, { timeout: 15000 })
 }
+// Save stays disabled on a build where the reset did nothing, so Exit is the way out there. Only once the
+// save is done though: Exit works mid-save, and leaving then lets a read or a reload beat the write
+const saveOrExit = async () => {
+  const saved = await page.click('button:has-text("Save")', { timeout: 5000 }).then(() => true, () => false)
+  if (saved) await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 }).catch(() => {})
+  await page.click('button:has-text("Exit")', { timeout: 2000 }).catch(() => {})
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
+}
 const rendered = () =>
   page.evaluate(() => {
     const grid = document.querySelector('.nh-grid, .nh-grid--edit')
@@ -141,6 +149,11 @@ try {
   const movedTablet = await rendered()
   ok('the widget moved on the tablet layout', movedTablet.cells.some((c) => c.col === '9' && c.row === '3'), JSON.stringify(movedTablet.cells))
 
+  // a drop leaves the panel shut, so open it the way a person does, with a tap on the widget that moved
+  const movedAt = await cellPoint(8, 2)
+  await page.mouse.click(movedAt.x, movedAt.y)
+  await page.waitForSelector('.nh-sheet--side', { timeout: 5000 }).catch(() => {})
+
   // the docked panel narrows the surface below the phone threshold here, and the frame after it closes used to
   // be measured narrow: a stack, which also put the editor back on the desktop layout
   const beforeClose = await page.evaluate(() => {
@@ -203,11 +216,10 @@ try {
   await enterEdit()
   await page.click('[aria-label="Dashboard settings"]')
   await page.waitForSelector('#nh-dash-mdcolumns', { timeout: 10000 })
-  await page.click('button:has-text("Remove the tablet layout")')
+  await page.click('button:has-text("Reset the tablet layout")', { timeout: 5000 }).catch(() => {})
   await sleep(300)
   ok('the tablet fields go away with the layout', (await page.locator('#nh-dash-mdcolumns').count()) === 0)
-  await page.click('button:has-text("Save")')
-  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
+  await saveOrExit()
   const cleared = await get(UID)
   ok('mdColumns was cleared', cleared?.config.mdColumns === undefined, String(cleared?.config.mdColumns))
   ok('tablet rects were cleared', cleared?.config.widgets.every((w) => w.layout.md === undefined), JSON.stringify(cleared?.config.widgets.map((w) => w.layout)))
@@ -231,12 +243,11 @@ try {
   await enterEdit()
   await page.click('[aria-label="Dashboard settings"]')
   await page.waitForSelector('#nh-dash-mdcolumns', { timeout: 10000 })
-  await page.click('button:has-text("Remove the tablet layout")')
+  await page.click('button:has-text("Reset the tablet layout")', { timeout: 5000 }).catch(() => {})
   await sleep(400)
   const rescue = await page.locator('.nh-toast__text').first().textContent().catch(() => null)
   ok('removing the layout says what it did to them', /showing again/i.test(rescue ?? ''), String(rescue))
-  await page.click('button:has-text("Save")')
-  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 })
+  await saveOrExit()
   const rescued = await get(UID)
   ok(
     'and no widget is left showing on no screen at all',
@@ -289,6 +300,78 @@ try {
   const hidSaved = await get(UID)
   const changed = hidSaved?.config.widgets.find((w) => w.id !== 'w-all' && Array.isArray(w.config.hideOn) && w.config.hideOn.includes('phone'))
   ok('the chip choice persisted', changed !== undefined, JSON.stringify(hidSaved?.config.widgets.map((w) => [w.id, w.config.hideOn])))
+
+  // --- Resetting the tablet and phone layouts -------------------------------------------------------
+  // Both buttons are always in Dashboard settings and greyed out until there is something to reset. A
+  // reset rebuilds that screen's layout from the desktop one: tablet rects and columns or the phone order
+  // go, and a widget hidden on that screen alone comes back. One hidden on the desktop too stays out.
+  const resetBtn = (which) => page.locator(`button:has-text("Reset the ${which} layout")`)
+  const openDashSettings = async () => {
+    await page.click('[aria-label="Dashboard settings"]')
+    await resetBtn('tablet').waitFor({ timeout: 10000 }).catch(() => {})
+  }
+  ok('seed a board nobody has customized', await seed([W('w-a', 0, 0, 2, 2), W('w-b', 4, 0, 2, 2, { hideOn: ['desktop'] })]))
+  await page.setViewportSize(DESKTOP)
+  await open()
+  await enterEdit()
+  await openDashSettings()
+  ok(
+    'both resets are there before anything has been customized',
+    (await resetBtn('tablet').count()) === 1 && (await resetBtn('phone').count()) === 1,
+    `tablet=${await resetBtn('tablet').count()} phone=${await resetBtn('phone').count()}`
+  )
+  ok('and greyed out, with nothing to reset', (await resetBtn('tablet').isDisabled().catch(() => false)) && (await resetBtn('phone').isDisabled().catch(() => false)))
+  await page.click('button:has-text("Exit")').catch(() => {})
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 10000 }).catch(() => {})
+
+  ok(
+    'seed a board with both layouts customized',
+    await seed(
+      [
+        { ...W('w-moved', 0, 0, 2, 2), layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { x: 4, y: 0, w: 2, h: 2 } } },
+        W('w-notablet', 4, 0, 2, 2, { hideOn: ['tablet'] }),
+        W('w-nophone', 8, 0, 2, 2, { hideOn: ['phone'] }),
+        W('w-tabletonly', 0, 4, 2, 2, { hideOn: ['desktop', 'phone'] }),
+        W('w-phoneonly', 4, 4, 2, 2, { hideOn: ['desktop', 'tablet'] })
+      ],
+      { mdColumns: 6, stackOrder: ['w-nophone', 'w-notablet', 'w-moved'] }
+    )
+  )
+  await open()
+  await enterEdit()
+  await openDashSettings()
+  ok('with a tablet layout and a phone order, both resets are offered', (await resetBtn('tablet').isEnabled().catch(() => false)) && (await resetBtn('phone').isEnabled().catch(() => false)))
+  await resetBtn('tablet').click({ timeout: 5000 }).catch(() => {})
+  await sleep(400)
+  const resetToast = await page.locator('.nh-toast__text').first().textContent().catch(() => null)
+  ok('resetting the tablet layout says what it brought back', /showing again/i.test(resetToast ?? ''), String(resetToast))
+  ok('its column field goes with it', (await page.locator('#nh-dash-mdcolumns').count()) === 0)
+  ok('and that reset is greyed out now', await resetBtn('tablet').isDisabled().catch(() => false))
+  ok('while the phone one is still offered', await resetBtn('phone').isEnabled().catch(() => false))
+  await resetBtn('phone').click({ timeout: 5000 }).catch(() => {})
+  await sleep(300)
+  ok('and greys out once used', await resetBtn('phone').isDisabled().catch(() => false))
+  await page.click('button:has-text("Save")', { timeout: 5000 }).catch(() => {})
+  await page.waitForSelector('[aria-label="Edit dashboard"]', { timeout: 15000 }).catch(() => {})
+  const reset = await get(UID)
+  const hideOf = (id) => JSON.stringify(reset?.config.widgets.find((w) => w.id === id)?.config?.hideOn ?? null)
+  ok('the tablet rects and columns are gone', reset?.config.mdColumns === undefined && reset?.config.widgets.every((w) => w.layout.md === undefined), JSON.stringify(reset?.config.widgets.map((w) => w.layout)))
+  ok('the phone order is gone', reset?.config.stackOrder === undefined, JSON.stringify(reset?.config.stackOrder))
+  ok('a widget hidden only on tablets is back', hideOf('w-notablet') === 'null', hideOf('w-notablet'))
+  ok('a widget hidden only on phones is back', hideOf('w-nophone') === 'null', hideOf('w-nophone'))
+  ok('a widget that was only on the tablet layout is back everywhere', hideOf('w-tabletonly') === 'null', hideOf('w-tabletonly'))
+  ok(
+    'one hidden on the desktop as well stays as it was',
+    reset?.config.stackOrder === undefined && hideOf('w-phoneonly') === JSON.stringify(['desktop', 'tablet']),
+    hideOf('w-phoneonly')
+  )
+  await page.setViewportSize(PHONE)
+  await open()
+  ok('a phone draws the desktop widgets again', (await page.locator('.nh-gcell').count()) === 5, String(await page.locator('.nh-gcell').count()))
+  await page.setViewportSize(TABLET)
+  await open()
+  const tabletAfter = await rendered()
+  ok('and a tablet draws the desktop layout', tabletAfter.columns === 12 && tabletAfter.cells.length === 4, JSON.stringify({ columns: tabletAfter.columns, cells: tabletAfter.cells.length }))
 
   // --- Delete is scoped to the layout being edited, once there is more than one -----------------
   //

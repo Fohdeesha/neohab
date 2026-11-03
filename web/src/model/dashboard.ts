@@ -22,6 +22,12 @@ export interface WidgetInstance<C = Record<string, unknown>> {
   layout: WidgetLayout
 }
 
+/** a dashboard that shows one web page under its bar instead of widgets */
+export interface DashboardPage {
+  url: string
+  sandbox?: boolean
+}
+
 export interface Dashboard {
   version: number
   id: string
@@ -35,6 +41,7 @@ export interface Dashboard {
   textSize?: number
   mdColumns?: number
   stackOrder?: string[]
+  page?: DashboardPage
   widgets: WidgetInstance[]
 }
 
@@ -42,8 +49,16 @@ export function newWidgetId(): string {
   return 'w-' + Math.random().toString(36).slice(2, 10)
 }
 
-export function createDashboard(id: string, name: string): Dashboard {
-  return { version: MODEL_VERSION, id, name, columns: 12, rowHeight: 'match', widgets: [] }
+export function createDashboard(id: string, name: string, page?: DashboardPage): Dashboard {
+  return { version: MODEL_VERSION, id, name, columns: 12, rowHeight: 'match', widgets: [], ...(page ? { page } : {}) }
+}
+
+// stored configuration is untrusted, so the shape is asked for here rather than assumed at every reader
+export function pageOf(dashboard: Dashboard | null | undefined): DashboardPage | null {
+  const page = dashboard?.page as unknown
+  if (page === null || typeof page !== 'object' || Array.isArray(page)) return null
+  const { url, sandbox } = page as Record<string, unknown>
+  return { url: typeof url === 'string' ? url : '', sandbox: sandbox === true }
 }
 
 export function slugifyDashboardId(name: string, existing: Set<string>): string {

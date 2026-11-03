@@ -248,6 +248,41 @@ button {
   padding: 12px;
 }
 
+/* A web page dashboard is exactly the window: the page scrolls inside its frame, never the dashboard around it.
+   The root's stable scrollbar gutter would otherwise leave an empty strip down the right of the frame. */
+html:has(.nh-dash--page) {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+.nh-dash--page {
+  height: calc(100dvh - env(safe-area-inset-bottom));
+  min-height: 0;
+}
+
+.nh-dash--page > .nh-dash__surface {
+  min-height: 0;
+  padding: 0;
+}
+
+.nh-pageframe {
+  flex: 1;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--nh-bg);
+}
+
+.nh-pageframe--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--nh-text-dim);
+  text-align: center;
+}
+
 .nh-selbar {
   position: sticky;
   top: var(--nh-dashbar-h, 0px);
@@ -1807,6 +1842,25 @@ button {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
 }
 
+/* held long enough to pick up: it comes off the board a little before the finger moves it */
+.nh-cell--lifted {
+  z-index: 30;
+}
+
+.nh-cell--lifted .nh-widget {
+  scale: 1.03;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  transition: scale 120ms ease, box-shadow 120ms ease;
+}
+
+/* a hold here picks a widget up, and the browser's own long press would select text or open a callout */
+.nh-grid--edit,
+.nh-grid--stackedit {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .nh-cell--selected .nh-widget {
   outline: 2px solid var(--nh-brand);
   outline-offset: -1px;
@@ -1937,7 +1991,6 @@ button {
 
 .nh-grid--stackedit {
   min-height: 240px;
-  user-select: none;
 }
 
 .nh-stackdrop {
@@ -2045,7 +2098,8 @@ button {
 }
 
 .nh-hideon,
-.nh-multisel {
+.nh-multisel,
+.nh-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -2669,22 +2723,76 @@ button {
   resize: vertical;
 }
 
+/* Selection: the name, the icon and the choices in one centred column. The icon takes whatever the other
+   two leave, up to its own size, and goes when that is too little to read. */
+.nh-selection__face {
+  --sl-accent: var(--nh-cellaccent, var(--nh-primary));
+  --sl-ink: var(--nh-accent-ink, #10161c);
+  --sl-hair: color-mix(in srgb, var(--nh-text) 13%, transparent);
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  text-align: center;
+}
+
+.nh-selection__name {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--nh-text-dim);
+}
+
+/* shrinks long before the choices do, so a tight tile gives up icon before it gives up buttons. A container, so
+   the icon can tell when what is left is too little to draw (below); --sl-icon is the icon's own size */
+.nh-selection__icon {
+  container: nh-selicon / size;
+  flex: 0 100 var(--sl-icon, 32px);
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.nh-selection__icon > .nh-icon {
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* a row of buttons where there is room for one, and never taller than the tile: past that it scrolls */
 .nh-selection {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  gap: 8px;
-  align-content: start;
-  height: 100%;
+  flex: 0 1 auto;
+  min-height: min(44px, 100%);
+  max-height: 100%;
+  width: 100%;
   overflow-y: auto;
 }
 
+.nh-selection--buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(5.5em, 100%), 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
 .nh-selection__btn {
+  min-width: 0;
   min-height: 44px;
   padding: 8px;
   font-size: 0.92em;
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
   border-radius: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nh-selection__btn--active {
@@ -2692,10 +2800,143 @@ button {
   border-color: var(--nh-primary);
 }
 
+/* one joined bar. Only the inner corners are squared, so the outer ones keep whatever the theme gives a
+   button, and a bar with more choices than room scrolls sideways rather than squeezing them unreadable */
+.nh-selection--segmented {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.nh-selection--segmented .nh-selection__btn {
+  flex: 1 0 auto;
+  min-width: 3em;
+  white-space: nowrap;
+}
+
+.nh-selection--segmented .nh-selection__btn:not(:first-child) {
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.nh-selection--segmented .nh-selection__btn:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* its border is drawn over the neighbour it shares an edge with */
+.nh-selection--segmented .nh-selection__btn--active {
+  position: relative;
+  z-index: 1;
+}
+
+.nh-selection--list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nh-selection--list .nh-selection__btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.45em 0.8em;
+  text-align: left;
+}
+
+.nh-selection--list .nh-selection__btnlabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-selection--list .nh-selection__btn::after {
+  content: '';
+  flex-shrink: 0;
+  width: 0.32em;
+  height: 0.64em;
+  margin: 0 0.15em 0.15em;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  visibility: hidden;
+}
+
+.nh-selection--list .nh-selection__btn--active::after {
+  visibility: visible;
+}
+
 .nh-selection__empty {
   margin: auto;
   color: var(--nh-text-dim);
   font-size: 0.85em;
+}
+
+/* Finishes other than plain keep their look in every theme, the way the button's do: plain is the one the
+   theme stylesheets restyle. Built from the tokens and the tile accent, so they still follow the palette. */
+.nh-selection__face--solid .nh-selection__btn,
+.nh-selection__face--solid .nh-selection__select {
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text);
+  box-shadow: none;
+}
+
+.nh-selection__face--solid .nh-selection__btn--active,
+.nh-selection__face--solid .nh-selection__select {
+  background: var(--sl-accent);
+  border-color: var(--sl-accent);
+  color: var(--sl-ink);
+}
+
+.nh-selection__face--solid .nh-selection__btn--active {
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--sl-accent) 45%, transparent);
+}
+
+.nh-selection__face--outline .nh-selection__btn,
+.nh-selection__face--outline .nh-selection__select {
+  background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--nh-text-dim) 34%, transparent);
+  color: var(--nh-text-dim);
+  box-shadow: none;
+}
+
+.nh-selection__face--outline .nh-selection__btn--active,
+.nh-selection__face--outline .nh-selection__select {
+  background: color-mix(in srgb, var(--sl-accent) 10%, transparent);
+  border-color: var(--sl-accent);
+  color: var(--nh-text);
+}
+
+.nh-selection__face--glass .nh-selection__btn,
+.nh-selection__face--glass .nh-selection__select {
+  background: linear-gradient(158deg, color-mix(in srgb, var(--nh-text) 9%, transparent), color-mix(in srgb, var(--nh-text) 3%, transparent));
+  border: 1px solid var(--sl-hair);
+  color: var(--nh-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.nh-selection__face--glass .nh-selection__btn--active {
+  background: linear-gradient(158deg, color-mix(in srgb, var(--sl-accent) 46%, transparent), color-mix(in srgb, var(--sl-accent) 15%, transparent));
+  border-color: color-mix(in srgb, var(--sl-accent) 64%, transparent);
+}
+
+.nh-selection__face--bare .nh-selection__btn,
+.nh-selection__face--bare .nh-selection__select {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--nh-text-dim);
+  box-shadow: none;
+}
+
+.nh-selection__face--bare .nh-selection__btn--active,
+.nh-selection__face--bare .nh-selection__select {
+  color: var(--nh-text);
+  font-weight: 700;
 }
 
 .nh-dial {
@@ -6652,15 +6893,278 @@ button {
   border-radius: var(--nh-radius);
 }
 
+/* the dropdown: as wide as its longest choice, centred, and never wider than the tile */
 .nh-selection__select {
-  width: 100%;
-  min-height: 40px;
-  padding: 6px 8px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  max-width: 100%;
+  min-width: min(100%, 7em);
+  height: 2.6em;
+  max-height: 100%;
+  padding: 0 0.8em 0 1em;
   background: var(--nh-surface-2);
   border: 1px solid var(--nh-border);
   border-radius: var(--nh-radius);
   color: var(--nh-text);
   font: inherit;
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.nh-selection__select:disabled {
+  cursor: default;
+}
+
+.nh-selection__value {
+  display: grid;
+  min-width: 0;
+}
+
+.nh-selection__value > span {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-selection__sizer {
+  visibility: hidden;
+}
+
+.nh-selection__chev {
+  flex-shrink: 0;
+  width: 0.4em;
+  height: 0.4em;
+  margin-top: -0.22em;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  opacity: 0.7;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.nh-selection__select--open .nh-selection__chev {
+  margin-top: 0.22em;
+  transform: rotate(225deg);
+}
+
+/* The list it opens is drawn in the body, outside the tile, because a theme's backdrop-filter on a tile
+   would clip anything fixed inside it. The backdrop takes the tap that closes it, so that tap cannot also
+   press whatever tile is underneath. */
+.nh-selection__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.nh-selection__menu {
+  position: fixed;
+  z-index: 1001;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--nh-surface);
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  color: var(--nh-text);
+  outline: none;
+}
+
+.nh-selection__opt {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  min-height: 2.75em;
+  padding: 0.35em 0.8em;
+  background: transparent;
+  border: none;
+  border-radius: max(0px, calc(var(--nh-radius) - 4px));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nh-selection__opt:hover,
+.nh-selection__opt:focus-visible {
+  background: color-mix(in srgb, var(--nh-text) 9%, transparent);
+  outline: none;
+}
+
+.nh-selection__opt--on,
+.nh-selection__opt--on:hover,
+.nh-selection__opt--on:focus-visible {
+  background: color-mix(in srgb, var(--nh-cellaccent, var(--nh-primary)) 20%, transparent);
+  font-weight: 600;
+}
+
+.nh-selection__optlabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-selection__tick {
+  flex-shrink: 0;
+  width: 0.32em;
+  height: 0.64em;
+  margin: 0 0.15em 0.15em;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  visibility: hidden;
+}
+
+.nh-selection__opt--on .nh-selection__tick {
+  visibility: visible;
+}
+
+/* Fitting the column into a short tile. Thresholds are in em because the question is whether text fits. A
+   dropdown needs 2.6em, a name 1.3em, each gap 0.4em and the icon 1.2em before it is worth drawing; a row of
+   buttons needs 44px; a title bar 1.0625em and 4px (measured). The icon goes first, then a dropdown or a bar
+   puts its name beside it, then the name goes.
+
+   The column is centred, so the body's top and bottom padding only shows when the column is full, and there
+   the short tile's is the right one at any size. Keeping it means nothing comes and goes as a tile grows past
+   104px, where every other widget's padding steps up. The title bar's still steps, to line up with its
+   neighbours, so a headed tile keeps the short one until the icon fits under the taller one. Under a title
+   bar the sums are exact (1.0625em + 0.4em + 1.2em, plus the dropdown's 2.6em or the row's 44px, the 2px of
+   border and the paddings): a rounded one leaves a band where the icon goes and comes back. */
+.nh-selw > .nh-widget__body {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+@container nh-cell (height > 104px) and (height <= calc(5.2625em + 22px)) {
+  .nh-selw--dropdown.nh-widget--headed > .nh-widget__label {
+    padding-top: 4px;
+  }
+
+  .nh-labelbottom .nh-selw--dropdown.nh-widget--headed > .nh-widget__label {
+    padding-top: 0;
+    padding-bottom: 4px;
+  }
+}
+
+@container nh-cell (height > 104px) and (height <= calc(2.6625em + 66px)) {
+  .nh-selw:not(.nh-selw--dropdown).nh-widget--headed > .nh-widget__label {
+    padding-top: 4px;
+  }
+
+  .nh-labelbottom .nh-selw:not(.nh-selw--dropdown).nh-widget--headed > .nh-widget__label {
+    padding-top: 0;
+    padding-bottom: 4px;
+  }
+}
+
+@container nh-cell (height <= calc(4.2em + 12px)) {
+  .nh-selection__face--dropdown > .nh-selection__icon {
+    display: none;
+  }
+}
+
+@container nh-cell (height <= calc(5.9em + 12px)) {
+  .nh-selection__face--named.nh-selection__face--dropdown > .nh-selection__icon {
+    display: none;
+  }
+}
+
+@container nh-cell (height < calc(5.2625em + 18px)) {
+  .nh-widget--headed .nh-selection__face--dropdown > .nh-selection__icon {
+    display: none;
+  }
+}
+
+@container nh-cell (height <= calc(1.6em + 56px)) {
+  .nh-selection__face:not(.nh-selection__face--dropdown) > .nh-selection__icon {
+    display: none;
+  }
+}
+
+@container nh-cell (height <= calc(3.3em + 56px)) {
+  .nh-selection__face--named:not(.nh-selection__face--dropdown) > .nh-selection__icon {
+    display: none;
+  }
+}
+
+@container nh-cell (height < calc(2.6625em + 62px)) {
+  .nh-widget--headed .nh-selection__face:not(.nh-selection__face--dropdown) > .nh-selection__icon {
+    display: none;
+  }
+}
+
+/* choices that wrap take more than the 44px above, and squeeze the icon below anything readable */
+@container nh-selicon (height < 1.2em) {
+  .nh-selection__icon > .nh-icon {
+    visibility: hidden;
+  }
+}
+
+/* a tile shorter than the name's own line has no room for it in any arrangement */
+@container nh-cell (height < calc(1.3em + 4px)) {
+  .nh-selection__name {
+    display: none;
+  }
+}
+
+@container nh-cell (height < calc(4.3em + 12px)) {
+  .nh-selection__face--named.nh-selection__face--dropdown {
+    flex-direction: row;
+    gap: 0.75em;
+  }
+
+  .nh-selection__face--named.nh-selection__face--dropdown > .nh-selection__name {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
+
+@container nh-cell (height < calc(1.7em + 56px)) {
+  .nh-selection__face--named.nh-selection__face--segmented {
+    flex-direction: row;
+    gap: 0.75em;
+  }
+
+  .nh-selection__face--named.nh-selection__face--segmented > .nh-selection__name {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .nh-selection__face--named.nh-selection__face--segmented > .nh-selection {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .nh-selection__face--buttons > .nh-selection__name,
+  .nh-selection__face--list > .nh-selection__name {
+    display: none;
+  }
+}
+
+/* beside a dropdown or a bar, a name squeezed under 4em is a fragment nobody can read */
+@container nh-cell (height < calc(4.3em + 12px)) and (width < calc(12em + 16px)) {
+  .nh-selection__face--dropdown > .nh-selection__name {
+    display: none;
+  }
+}
+
+@container nh-cell (height < calc(1.7em + 56px)) and (width < calc(16em + 16px)) {
+  .nh-selection__face--segmented > .nh-selection__name {
+    display: none;
+  }
 }
 
 .nh-clock__date--only {

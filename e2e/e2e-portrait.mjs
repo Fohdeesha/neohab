@@ -262,7 +262,7 @@ try {
   }
 
   const liveDash = (await (await fetch(NS, { headers: AUTH })).json())
-    .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-'))
+    .filter((c) => c.uid.startsWith('dashboard:') && !c.uid.startsWith('dashboard:nh-e2e-') && !c.config?.page)
     .sort((a, b) => (b.config.widgets?.length ?? 0) - (a.config.widgets?.length ?? 0))
     .slice(0, 8)
   const authoredScale = new Map(

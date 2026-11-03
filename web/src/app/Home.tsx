@@ -8,6 +8,7 @@ import { navigate } from './router'
 import { Wordmark } from './Wordmark'
 import { SidebarTrigger } from './Sidebar'
 import { Icon } from '../components/Icon'
+import { pageOf } from '../model/dashboard'
 import { IncompatibleNotice } from '../components/IncompatibleNotice'
 import { NewDashboardSheet } from '../editor/NewDashboardSheet'
 import { GenerateSheet } from '../editor/GenerateSheet'
@@ -132,7 +133,7 @@ export function Home({ ohVersion }: { ohVersion?: string }) {
             <button key={d.id} className="nh-tile" onClick={() => navigate({ name: 'dashboard', id: d.id })}>
               {d.icon ? <Icon icon={d.icon} size={28} className="nh-tile__icon" /> : null}
               <span className="nh-tile__name">{d.name}</span>
-              <span className="nh-tile__meta">{t('{{count}} widgets', { count: d.widgets.length })}</span>
+              <span className="nh-tile__meta">{pageOf(d) ? t('Web page') : t('{{count}} widgets', { count: d.widgets.length })}</span>
             </button>
           ))}
           {kiosk || !canEdit ? null : (

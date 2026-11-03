@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef } from 'react'
 
 export const LONG_PRESS_MS = 500
 const MOVE_TOLERANCE_PX = 10
+// in the editor a hold picks a widget up, and this far a finger travels before the widget follows it
+export const LIFT_SLOP_PX = 6
 
 // controls that stage on the press and send on the release ask this, since no click-swallow can reach a
 // pointerup
@@ -68,6 +70,12 @@ function armGuardRelease(): void {
   window.addEventListener('pointercancel', release, true)
 }
 
+// the browser's own picker takes the release, so the hold would fire under it on every press. Read off the
+// composed path, because a template widget's markup is in a shadow root and the target is its host.
+function startsOnSelect(e: React.PointerEvent): boolean {
+  return e.nativeEvent.composedPath().some((n) => n instanceof HTMLSelectElement)
+}
+
 export interface LongPressHandlers {
   onPointerDown: (e: React.PointerEvent) => void
   onPointerMove: (e: React.PointerEvent) => void
@@ -106,6 +114,7 @@ export function useLongPress(onOpen: () => void, enabled = true): LongPressHandl
     suppressed = false
     if (!enabled) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (startsOnSelect(e)) return
     fired.current = false
     cancel()
     origin.current = { x: e.clientX, y: e.clientY }

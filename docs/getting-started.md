@@ -30,12 +30,15 @@ The welcome screen offers four methods:
 Once you have a dashboard one way or another, click the ✎ button in the top bar. That's edit mode,
 and it's where everything else in this page happens
 
+A dashboard can also just be a web page, pick **A web page** when you make it
+
 ## 3. Put something on it
 
 In edit mode:
 
 1. Press **+** to open the palette and pick a widget, or type in its search box
-2. It lands on the grid. Drag it about, drag a corner to resize, etc
+2. It lands on the grid. Drag it about, drag a corner to resize, etc. On a touch screen, hold it
+   till it lifts, then drag
 3. Tap it to open its settings
 
 The first field is the **openHAB Item**. Start typing part of an item's name and pick it from the list.
@@ -61,15 +64,17 @@ the desktop layout, sized to fit the screen - small devices / displays never cut
 That automatic behavior is usually right, but when it's not:
 
 - Drag tiles in edit mode on the narrow screen to set your own order/layout for that screen size. **Dashboard settings ›
-  Phone layout › Reset stack order** puts it back to following the regular full size page layout.
+  Phone layout › Reset the phone layout** puts it back to following the regular full size page layout.
 - **Hide on**, in a widget's **Tile** group, leaves that widget out on the sizes you choose. A
   wall-panel chart nobody wants on a phone for example.
 - Between 840px and 1200px (again the defaults) a tablet gets the desktop layout unless you make
   it a separate one. The **Desktop layout** button in the edit bar switches to **Tablet layout**;
-  move things about there and that arrangement is what tablets get
+  move things about there and that arrangement is what tablets get. **Reset the tablet layout** in
+  Dashboard settings starts it over
 - Both widths are settings: **Stack widgets below** and **Use the tablet layout below**, in
   **Settings › Appearance**. They are measured across the dashboard area, so an open sidebar
   counts against them.
+- Tablet still getting the desktop layout? Set **Device type** in **Settings › Appearance** on it
 
 ## 5. Back it up
 
@@ -95,6 +100,6 @@ the whole configuration back.
 - **Settings › Migrate from HABPanel** brings HABPanel dashboards across and reports anything it
   could not map exactly.
 - **Settings › Kiosk & wall panel** is for a screen on a wall: no chrome, no menu, and the screen
-  kept awake.
+  kept awake. Installing it as an app needs HTTPS, plain http only gets you a shortcut
 - **Settings › Custom widgets** is where you write your own tile out of HTML when no built-in one
   fits. Five examples ship with it, and starting from one is usually quicker than a blank page.

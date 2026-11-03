@@ -26,6 +26,7 @@ const TILE = BASE + '/neohab/tile.png'
 // an item can publish on the server's own origin
 const ATTACK = BASE + '/rest/items/' + HTML + '/state'
 const ELSEWHERE = UNREACHABLE + 'neohab-e2e.invalid/page'
+const OTHER = UNREACHABLE + 'nh-e2e-fullscreen.test/page'
 const CLEAR = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>')
 // an address on another origin that redirects to the page above, answered by a route
 const REDIRECT = UNREACHABLE + 'neohab-e2e-hop.invalid/redirect'
@@ -63,6 +64,8 @@ const WIDGETS = [
   // a page with nothing painted on it, so whatever is behind it is what shows
   frame('Coloured', { source: 'url', url: CLEAR, background: '#ff00ff' }, 9, 4),
   frame('Script url', { source: 'url', url: 'data:text/html,<script>parent.nhOwned=1</script>' }, 0, 8),
+  // another origin, which is the case the fullscreen permission is for: a same-origin page has it anyway
+  frame('Other origin', { source: 'url', url: OTHER }, 0, 20),
 ]
 if (!PRODUCTION) {
   WIDGETS.push(
@@ -98,6 +101,9 @@ page.on('dialog', (d) => d.accept().catch(() => {}))
 page.on('request', (r) => {
   if (r.isNavigationRequest() && r.frame() !== page.mainFrame()) frameLoads.push(r.url())
 })
+await page.route('**/nh-e2e-fullscreen.test/**', (r) =>
+  r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>other</title><p>a page on another origin</p>' })
+)
 await page.route('**/neohab-e2e-hop.invalid/**', (r) => r.fulfill({ status: 302, headers: { Location: ATTACK }, body: '' }))
 // and a page on another origin that sends its own frame there. It has to be a real server: Chrome will not
 // let a page with no address (a route) navigate into a local network, and an http page cannot be framed over
@@ -140,6 +146,8 @@ const look = (label) =>
       return {
         src: el?.getAttribute('src') ?? null,
         sandbox: el?.getAttribute('sandbox') ?? null,
+        allow: el?.getAttribute('allow') ?? null,
+        allowFull: el ? el.hasAttribute('allowfullscreen') : null,
         bg: el ? getComputedStyle(el).backgroundColor : null,
         mark: el?.dataset.mark ?? null,
         text: (w.querySelector('.nh-image__placeholder, .nh-widget__unset, .nh-widget__errtitle')?.textContent ?? '').trim(),
@@ -260,6 +268,22 @@ try {
   // ---- addresses: everything here needs no item, so it runs on every target
   const stat = await look('Static')
   ok('a typed address loads exactly as written, and its author decides about the sandbox', stat && stat.src === TILE && stat.sandbox === null && stat.bg === 'rgb(255, 255, 255)', brief(stat))
+  ok('a framed page may go fullscreen', stat && /\bfullscreen\b/.test(stat.allow ?? '') && stat.allowFull === true, brief(stat))
+  await waitLook('Other origin', (l) => l.src !== null)
+  const otherFrame = await (
+    await page.evaluateHandle(() =>
+      [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === 'Other origin')?.querySelector('iframe.nh-frame')
+    )
+  )
+    .asElement()
+    ?.contentFrame()
+  await otherFrame?.waitForLoadState('domcontentloaded').catch(() => {})
+  const otherFs = otherFrame ? await otherFrame.evaluate(() => ({ origin: location.origin, fs: document.fullscreenEnabled })).catch(() => null) : null
+  ok(
+    'a page on another origin is told it can go fullscreen',
+    otherFs?.fs === true && otherFs.origin !== new URL(BASE).origin,
+    JSON.stringify(otherFs)
+  )
   const legacy = await look('Legacy')
   ok('a frame stored before sources existed still loads its address, the way it always did', legacy && legacy.src === TILE && legacy.sandbox === null, brief(legacy))
   const hostile = await look('Hostile cfg')

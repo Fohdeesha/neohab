@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Dashboard, Rect, WidgetInstance } from './dashboard'
 import {
+  breakpointFor,
   cellMetrics,
   clampRect,
   collides,
   columnsOf,
+  DEFAULT_BOUNDS,
   DEFAULT_GAP,
   editZoom,
   findFreeSpot,
@@ -12,20 +14,24 @@ import {
   gapOf,
   groupFrames,
   hiddenAfterRemoval,
+  hiddenAfterReset,
   hiddenAfterShowing,
   hiddenSurfaces,
   iconScale,
+  layoutCustomized,
   layoutForNewWidget,
   MAX_CELLS,
   MAX_COLUMNS,
   MD_BELOW,
   planBump,
+  planGroupBump,
   planRemoval,
   POINTER_FLOOR_ROW,
   POINTER_FULL_ROW,
   POINTER_TEXT_FLOOR,
   projectDashboard,
   rectOf,
+  shiftGroup,
   SIDE_PANEL_WIDTH,
   STACK_BELOW,
   stackedCellHeight,
@@ -465,11 +471,144 @@ describe('planBump', () => {
   })
 })
 
+describe('moving a selection together', () => {
+  const starts = (rects: Record<string, Rect>) => new Map(Object.entries(rects))
+
+  it('moves every member by the same step', () => {
+    const out = shiftGroup(starts({ a: { x: 2, y: 1, w: 2, h: 1 }, b: { x: 4, y: 3, w: 1, h: 2 } }), 3, 2, 12)
+    expect(out.get('a')).toEqual({ x: 5, y: 3, w: 2, h: 1 })
+    expect(out.get('b')).toEqual({ x: 7, y: 5, w: 1, h: 2 })
+  })
+
+  it('stops the whole group at the edge rather than squashing it against it', () => {
+    const g = starts({ a: { x: 2, y: 1, w: 2, h: 1 }, b: { x: 6, y: 0, w: 3, h: 1 } })
+    const right = shiftGroup(g, 10, 0, 12)
+    expect(right.get('b')).toEqual({ x: 9, y: 0, w: 3, h: 1 })
+    expect(right.get('a')).toEqual({ x: 5, y: 1, w: 2, h: 1 })
+    const up = shiftGroup(g, -10, -10, 12)
+    expect(up.get('a')).toEqual({ x: 0, y: 1, w: 2, h: 1 })
+    expect(up.get('b')).toEqual({ x: 4, y: 0, w: 3, h: 1 })
+  })
+
+  it('pushes whatever is under any member below that member', () => {
+    const d = dash([
+      w('a', { x: 0, y: 0, w: 2, h: 1 }),
+      w('b', { x: 0, y: 1, w: 2, h: 1 }),
+      w('c', { x: 4, y: 0, w: 2, h: 1 }),
+      w('d', { x: 6, y: 0, w: 2, h: 1 })
+    ])
+    const targets = new Map([
+      ['a', { x: 4, y: 0, w: 2, h: 1 }],
+      ['b', { x: 6, y: 0, w: 2, h: 1 }]
+    ])
+    const plan = planGroupBump(d, targets)!
+    expect(plan.get('c')).toEqual({ x: 4, y: 1, w: 2, h: 1 })
+    expect(plan.get('d')).toEqual({ x: 6, y: 1, w: 2, h: 1 })
+  })
+
+  it('pushes a widget past a second member it would land on', () => {
+    // a column of two moved onto c: below the first member is the second, so c goes below both
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 1 }), w('b', { x: 0, y: 1, w: 2, h: 1 }), w('c', { x: 4, y: 0, w: 2, h: 1 })])
+    const targets = new Map([
+      ['a', { x: 4, y: 0, w: 2, h: 1 }],
+      ['b', { x: 4, y: 1, w: 2, h: 1 }]
+    ])
+    expect(planGroupBump(d, targets)!.get('c')).toEqual({ x: 4, y: 2, w: 2, h: 1 })
+  })
+
+  it('never trades places, and never leaves an overlap', () => {
+    const d = dash([
+      w('a', { x: 0, y: 0, w: 2, h: 2 }),
+      w('b', { x: 2, y: 0, w: 2, h: 2 }),
+      w('c', { x: 4, y: 0, w: 2, h: 2 }),
+      w('e', { x: 4, y: 2, w: 4, h: 1 })
+    ])
+    const targets = new Map([
+      ['a', { x: 4, y: 0, w: 2, h: 2 }],
+      ['b', { x: 6, y: 0, w: 2, h: 2 }]
+    ])
+    const plan = planGroupBump(d, targets)!
+    const at = (id: string) => plan.get(id) ?? rectOf(d.widgets.find((x) => x.id === id)!)
+    expect(plan.get('c')!.y).toBeGreaterThanOrEqual(2)
+    const all = [...targets.values(), at('c'), at('e')]
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) expect(collides(all[i], all[j])).toBe(false)
+  })
+
+  it('reports an empty plan when the group lands on free cells, and none for a widget that is not there', () => {
+    const d = dash([w('a', { x: 0, y: 0, w: 2, h: 1 }), w('b', { x: 2, y: 0, w: 2, h: 1 })])
+    expect(
+      planGroupBump(
+        d,
+        new Map([
+          ['a', { x: 0, y: 3, w: 2, h: 1 }],
+          ['b', { x: 2, y: 3, w: 2, h: 1 }]
+        ])
+      )!.size
+    ).toBe(0)
+    expect(planGroupBump(d, new Map([['nope', { x: 0, y: 3, w: 2, h: 1 }]]))).toBeNull()
+  })
+
+  it('gives the single-widget bump the same answers it always had', () => {
+    const d = dash([w('a', { x: 0, y: 0, w: 4, h: 1 }), w('b', { x: 0, y: 2, w: 2, h: 1 }), w('c', { x: 0, y: 3, w: 2, h: 1 })])
+    const target = { x: 0, y: 2, w: 4, h: 1 }
+    expect(planBump(d, 'a', target)).toEqual(planGroupBump(d, new Map([['a', target]])))
+  })
+})
+
+describe('resetting the tablet or phone layout', () => {
+  const hid = (hideOn: string[]) => w('x', { x: 0, y: 0, w: 1, h: 1 }, { hideOn })
+
+  it('brings back a widget hidden on that screen alone', () => {
+    expect(hiddenAfterReset(hid(['tablet']), 'tablet')).toEqual([])
+    expect(hiddenAfterReset(hid(['phone']), 'phone')).toEqual([])
+    expect(hiddenAfterReset(hid(['phone', 'tablet']), 'phone')).toEqual(['tablet'])
+  })
+
+  it('keeps a widget out that is not on the desktop layout either', () => {
+    expect(hiddenAfterReset(hid(['desktop', 'phone']), 'phone')).toEqual(['phone', 'desktop'])
+    expect(hiddenAfterReset(hid(['desktop', 'tablet']), 'tablet')).toEqual(['tablet', 'desktop'])
+  })
+
+  it('never hides anything that was showing', () => {
+    expect(hiddenAfterReset(hid(['desktop']), 'phone')).toEqual(['desktop'])
+    expect(hiddenAfterReset(hid(['desktop']), 'tablet')).toEqual(['desktop'])
+  })
+
+  it('brings a widget kept only for the tablet layout back everywhere', () => {
+    expect(hiddenAfterReset(hid(['desktop', 'phone']), 'tablet')).toEqual([])
+    expect(hiddenAfterReset(hid(['desktop', 'phone', 'tablet']), 'tablet')).toEqual([])
+  })
+
+  it('offers a reset exactly when one would change something', () => {
+    const plain = dash([w('a', { x: 0, y: 0, w: 2, h: 1 }), w('b', { x: 2, y: 0, w: 2, h: 1 }, { hideOn: ['desktop'] })])
+    expect(layoutCustomized(plain, 'tablet')).toBe(false)
+    expect(layoutCustomized(plain, 'phone')).toBe(false)
+    expect(layoutCustomized({ ...plain, mdColumns: 6 }, 'tablet')).toBe(true)
+    expect(layoutCustomized({ ...plain, stackOrder: ['b', 'a'] }, 'phone')).toBe(true)
+    expect(layoutCustomized({ ...plain, stackOrder: [] }, 'phone')).toBe(false)
+    const hiddenOnPhones = dash([w('a', { x: 0, y: 0, w: 2, h: 1 }, { hideOn: ['phone'] })])
+    expect(layoutCustomized(hiddenOnPhones, 'phone')).toBe(true)
+    expect(layoutCustomized(hiddenOnPhones, 'tablet')).toBe(false)
+    const tabletRect = dash([
+      { ...w('a', { x: 0, y: 0, w: 2, h: 1 }), layout: { lg: { x: 0, y: 0, w: 2, h: 1 }, md: { x: 1, y: 0, w: 2, h: 1 } } }
+    ])
+    expect(layoutCustomized(tabletRect, 'tablet')).toBe(true)
+    expect(layoutCustomized(tabletRect, 'phone')).toBe(false)
+  })
+})
+
 describe('surfaces', () => {
   it('picks the surface from the container width', () => {
     expect(surfaceFor(390)).toBe('phone')
     expect(surfaceFor(1000)).toBe('tablet')
     expect(surfaceFor(1600)).toBe('desktop')
+  })
+
+  it('lets a device that says what it is win over its width', () => {
+    expect(surfaceFor(1600, DEFAULT_BOUNDS, 'tablet')).toBe('tablet')
+    expect(surfaceFor(1600, DEFAULT_BOUNDS, 'phone')).toBe('phone')
+    expect(surfaceFor(390, DEFAULT_BOUNDS, 'desktop')).toBe('desktop')
+    expect(surfaceFor(1600, DEFAULT_BOUNDS, null)).toBe('desktop')
   })
 
   it('follows the configured thresholds', () => {
@@ -631,6 +770,18 @@ describe('placing a new widget', () => {
 })
 
 describe('the tablet layout', () => {
+  it('is drawn on a tablet only once the dashboard has one', () => {
+    const plain = dash([w('a', { x: 0, y: 0, w: 2, h: 2 })])
+    const withTablet = dash([
+      { ...w('a', { x: 0, y: 0, w: 2, h: 2 }), layout: { lg: { x: 0, y: 0, w: 2, h: 2 }, md: { x: 1, y: 0, w: 2, h: 2 } } }
+    ])
+    expect(breakpointFor(plain, 'tablet')).toBe('lg')
+    expect(breakpointFor(withTablet, 'tablet')).toBe('md')
+    expect(breakpointFor(dash([], { mdColumns: 6 }), 'tablet')).toBe('md')
+    expect(breakpointFor(withTablet, 'desktop')).toBe('lg')
+    expect(breakpointFor(withTablet, 'phone')).toBe('lg')
+  })
+
   it('copies the desktop rects when the grids are the same width', () => {
     const d = dash([w('a', { x: 3, y: 1, w: 2, h: 2 })], { columns: 12, mdColumns: 12 })
     expect(tabletRects(d).get('a')).toEqual({ x: 3, y: 1, w: 2, h: 2 })

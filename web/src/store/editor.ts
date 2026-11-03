@@ -7,8 +7,10 @@ import {
   findFreeSpot,
   fitToColumns,
   hiddenAfterRemoval,
+  hiddenAfterReset,
   hiddenAfterShowing,
   hiddenSurfaces,
+  isHiddenOn,
   layoutForNewWidget,
   mdColumnsOf,
   planRemoval,
@@ -79,10 +81,22 @@ export const useEditorStore = create<EditorState>(() => ({
 
 const clone = <T>(value: T): T => structuredClone(value)
 
-export function startEditing(dashboard: Dashboard): void {
+// a widget with no tablet rect is fitted around the ones that have one, so a move on the tablet layout would
+// reflow it; editing that layout pins every rect first
+function pinTabletRects(draft: Dashboard): void {
+  if (widgetsOf(draft).every((w) => w.layout.md)) return
+  const rects = tabletRects(draft)
+  for (const w of widgetsOf(draft)) w.layout = { ...w.layout, md: rects.get(w.id) ?? rectOf(w) }
+}
+
+/** `bp` is the layout run mode was drawing, so the editor opens on the one that was on screen */
+export function startEditing(dashboard: Dashboard, bp: 'lg' | 'md' = 'lg'): void {
+  const draft = clone(dashboard)
+  // pinned where run mode drew them, which is not a change anybody made, so the draft is not dirty
+  if (bp === 'md') pinTabletRects(draft)
   useEditorStore.setState({
     editing: true,
-    draft: clone(dashboard),
+    draft,
     original: dashboard,
     undoStack: [],
     redoStack: [],
@@ -95,7 +109,7 @@ export function startEditing(dashboard: Dashboard): void {
     panelOpen: false,
     paletteOpen: false,
     dashSettingsOpen: false,
-    bp: 'lg',
+    bp,
     placing: null
   })
 }
@@ -234,7 +248,7 @@ export function updateDashboardMeta(
   patch: Partial<
     Pick<
       Dashboard,
-      'name' | 'icon' | 'hideInSidebar' | 'background' | 'columns' | 'mdColumns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder'
+      'name' | 'icon' | 'hideInSidebar' | 'background' | 'columns' | 'mdColumns' | 'rowHeight' | 'gap' | 'textSize' | 'stackOrder' | 'page'
     >
   >,
   coalesceKey: string | null = null
@@ -407,26 +421,29 @@ export function updateWidgetConfigs(id: string, patch: Record<string, unknown>):
 }
 
 export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boolean {
+  return setWidgetRects(new Map([[id, rect]]), displaced)
+}
+
+/** one or more widgets placed at once, as one undo step: a group dragged together lands together */
+export function setWidgetRects(rects: Map<string, Rect>, displaced?: BumpPlan): boolean {
   const s = useEditorStore.getState()
-  if (!s.draft) return false
+  if (!s.draft || rects.size === 0) return false
   const bp = s.bp
   const view = projectDashboard(s.draft, bp)
-  const clamped = clampRect(rect, view.columns)
+  const clamped = new Map([...rects].map(([id, r]) => [id, clampRect(r, view.columns)]))
   const plannedRect = (w: WidgetInstance): Rect => displaced?.get(w.id) ?? rectOf(w)
-  if (view.widgets.some((w) => w.id !== id && collides(clamped, plannedRect(w)))) return false
-  const current = view.widgets.find((w) => w.id === id)
-  if (!current) return false
-  const cur = rectOf(current)
-  if (!displaced?.size && cur.x === clamped.x && cur.y === clamped.y && cur.w === clamped.w && cur.h === clamped.h) {
-    return true // no-op move; don't create an undo entry
-  }
+  const goals = [...clamped.values()]
+  if (view.widgets.some((w) => !clamped.has(w.id) && goals.some((g) => collides(g, plannedRect(w))))) return false
+  const current = new Map(view.widgets.map((w) => [w.id, rectOf(w)]))
+  if ([...clamped.keys()].some((id) => !current.has(id))) return false
+  const unchanged = [...clamped].every(([id, r]) => {
+    const cur = current.get(id)!
+    return cur.x === r.x && cur.y === r.y && cur.w === r.w && cur.h === r.h
+  })
+  if (!displaced?.size && unchanged) return true // no-op move; don't create an undo entry
   applyChange((draft) => {
     for (const widget of draft.widgets) {
-      if (widget.id === id) {
-        widget.layout = { ...widget.layout, [bp]: clamped }
-        continue
-      }
-      const to = displaced?.get(widget.id)
+      const to = clamped.get(widget.id) ?? displaced?.get(widget.id)
       if (to) widget.layout = { ...widget.layout, [bp]: to }
     }
   })
@@ -436,16 +453,19 @@ export function setWidgetRect(id: string, rect: Rect, displaced?: BumpPlan): boo
 export function setEditBreakpoint(bp: 'lg' | 'md'): void {
   const s = useEditorStore.getState()
   if (s.bp === bp) return
-  if (bp === 'md' && s.draft && !s.draft.widgets.every((w) => w.layout.md)) {
-    const rects = tabletRects(s.draft)
-    applyChange((draft) => {
-      for (const w of draft.widgets) w.layout = { ...w.layout, md: rects.get(w.id) ?? rectOf(w) }
-    })
-  }
+  if (bp === 'md' && s.draft && !widgetsOf(s.draft).every((w) => w.layout.md)) applyChange(pinTabletRects)
   useEditorStore.setState({ bp, selectedIds: [], panelOpen: false, placing: null })
 }
 
-export function clearTabletLayout(): void {
+// a widget's hides after a reset, stored as absent when there are none left
+function applyReset(w: WidgetInstance, surface: 'tablet' | 'phone'): void {
+  const after = hiddenAfterReset(w, surface)
+  if (after.length === hiddenSurfaces(w).length) return
+  w.config = { ...w.config, hideOn: after.length > 0 ? after : undefined }
+}
+
+/** tablets go back to the desktop layout, as they are before anyone gives them one of their own */
+export function resetTabletLayout(): void {
   // A widget taken off the desktop layout is hidden on the desktop and the phone and kept for the
   // tablet one. Take the tablet layout away and it has nowhere left to draw: it still exists, still
   // has to be found in the editor, and renders on no screen. Same rule as the scoped delete, reached
@@ -458,15 +478,20 @@ export function clearTabletLayout(): void {
         const { md: _md, ...rest } = w.layout
         w.layout = rest
       }
-      const hidden = hiddenSurfaces(w)
-      if (surfacesOf('lg').every((sfc) => hidden.includes(sfc))) {
-        restored++
-        w.config = { ...w.config, hideOn: undefined }
-      }
+      if (surfacesOf('lg').every((sfc) => isHiddenOn(w, sfc))) restored++
+      applyReset(w, 'tablet')
     }
   })
   useEditorStore.setState({ bp: 'lg' })
   if (restored > 0) notify(i18n.t('{{count}} widgets that were only on the tablet layout are showing again.', { count: restored }))
+}
+
+/** phones go back to the desktop layout stacked in reading order */
+export function resetPhoneLayout(): void {
+  applyChange((draft) => {
+    draft.stackOrder = undefined
+    for (const w of draft.widgets) applyReset(w, 'phone')
+  })
 }
 
 const SIGNIN_DRAFT = 'neohab:signinDraft'

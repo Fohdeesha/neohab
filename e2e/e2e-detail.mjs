@@ -560,7 +560,8 @@ try {
   const cellNamed = (p, name) =>
     p
       .locator('.nh-gcell')
-      .filter({ has: p.locator('.nh-widget__labeltext', { hasText: new RegExp('^' + name + '$') }) })
+      // a selection draws its name in its own column rather than a title bar
+      .filter({ has: p.locator('.nh-widget__labeltext, .nh-selection__name', { hasText: new RegExp('^' + name + '$') }) })
       .first()
 
   async function sheetOf(name) {

@@ -210,8 +210,8 @@ Two things every panel on a server shares are kept out of the server altogether,
   subject is the history, is the one suite that turns this off.
 - **The `settings` component**, which every real wall panel obeys the moment it changes: a theme,
   a control item the panels follow, a speech item they read aloud. A suite that needs a setting
-  (`e2e-kiosk`, `e2e-voiceaudio`, `e2e-breakpoints`, `e2e-lock`, `e2e-sidebar`, `e2e-templates`,
-  `e2e-livedrag`) or that makes the app save one (`e2e-corners`, `e2e-themecss`, `e2e-ember`,
+  (`e2e-kiosk`, `e2e-voiceaudio`, `e2e-breakpoints`, `e2e-touchedit`, `e2e-groupdrag`, `e2e-lock`,
+  `e2e-sidebar`, `e2e-templates`, `e2e-livedrag`) or that makes the app save one (`e2e-corners`, `e2e-themecss`, `e2e-ember`,
   `e2e-backgrounds`, `e2e-timeclock`) gets it from `sharedSettings()`: the browser is shown the
   server's settings with the suite's patch on top, whatever the app saves is kept in the browser,
   and cleanup checks the server's copy is exactly what it was.

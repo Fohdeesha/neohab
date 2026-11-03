@@ -70,6 +70,12 @@ function normaliseDashboard(config: Obj): void {
   stringOrDrop(config, 'icon')
   stringOrDrop(config, 'background')
   booleanOrDrop(config, 'hideInSidebar')
+  if (config.page !== undefined) {
+    if (plain(config.page)) {
+      if (typeof config.page.url !== 'string') config.page.url = ''
+      booleanOrDrop(config.page, 'sandbox')
+    } else delete config.page
+  }
 }
 
 function normaliseTheme(config: Obj): void {

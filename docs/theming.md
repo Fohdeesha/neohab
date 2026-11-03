@@ -132,6 +132,7 @@ Chrome:
 |---|---|
 | `.nh-tile` | A Home-screen dashboard tile. `.nh-tile--new` is the "+ New dashboard" one |
 | `.nh-dash__bar` | The top bar |
+| `.nh-pageframe` | A web page dashboard's page, `.nh-dash--page` is the dashboard around it |
 | `.nh-side` | The dashboard sidebar |
 | `.nh-sheet`, `.nh-detail` | A settings sheet, and the panel a long press opens on a tile |
 | `.nh-group` | The frame around a panel group |
@@ -147,7 +148,8 @@ Controls:
 | `.nh-slider`, `.nh-slider__input`, `.nh-slider__value` | The plain range control, and the one to restyle: the slider widget's plain style, and what a long press or a floor-plan light puts in front of you |
 | `.nh-fader__*` | The slider's four other styles (gradient, wedge, inset rail, bubble), which keep their own look. `__read` is the reading, `__bound` the ends of an inset scale, `__track` and `__fill` the two painted layers |
 | `.nh-step--plain .nh-step__box`, `.nh-step__ctl`, `.nh-step__split` | The stepper's plain finish, and the one to restyle; its four others (glass, glow, solid, sheen) keep their own look. Square it with `--st-radius` on `.nh-step`, since the `radius` token does not reach inside |
-| `.nh-selection__btn`, `.nh-roller__btn`, `.nh-player__btn` | Selection, rollershutter and player buttons, each with an `--active` modifier |
+| `.nh-selection__btn`, `.nh-selection__select` | Selection buttons and dropdown, plain finish only (the other finishes keep their look). `--active` is the current choice, `__menu` and `__opt` the list the dropdown opens |
+| `.nh-roller__btn`, `.nh-player__btn` | Rollershutter and player buttons, each with an `--active` modifier |
 | `.nh-color__swatch`, `.nh-color__track`, `.nh-color__pbtn` | The colour picker: the swatch, its three channel sliders, and the on/off pair drawn on the swatch |
 | `.nh-thermo`, `.nh-thermo__btn`, `.nh-thermo__mbtn` | The thermostat. Its root carries `--th-heat`, `--th-cool` and `--th-mid`, the colours its face and temperature ramp draw in; `.nh-thermo--heat`, `--cool` and `--neutral` say which is in force |
 

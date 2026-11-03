@@ -2,11 +2,11 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Dashboard, WidgetInstance } from '../model/dashboard'
 import {
+  breakpointFor,
   cellMetrics,
   columnsOf,
   gapOf,
   groupFrames,
-  hasTabletLayout,
   iconScale,
   isHiddenOn,
   projectDashboard,
@@ -35,6 +35,7 @@ import { useLongPress, whenPressEnds } from './useLongPress'
 import { WidgetDetail } from './WidgetDetail'
 import { instanceDetailRoute, instanceHasDetail } from '../widgets'
 import { navigate } from '../app/router'
+import { useDeviceTypeStore } from '../store/deviceType'
 
 function Cell({
   className,
@@ -64,6 +65,7 @@ export function Grid(props: { dashboard: Dashboard }) {
   const coarse = useCoarsePointer()
   const canEdit = useEditingAllowed()
   const bounds = useSurfaceBounds()
+  const forced = useDeviceTypeStore((s) => s.type)
   // declared with the other hooks - the early returns below skip later code
   const [detail, setDetail] = useState<WidgetInstance | null>(null)
   const openDetail = (w: WidgetInstance) => {
@@ -88,10 +90,10 @@ export function Grid(props: { dashboard: Dashboard }) {
     )
   }
 
-  const surface = surfaceFor(width, bounds)
+  const surface = surfaceFor(width, bounds, forced)
   // always through the projection, so a stored rect past the column count is clamped rather than
   // placed into an implicit grid track that collapses to nothing
-  const dashboard = projectDashboard(props.dashboard, surface === 'tablet' && hasTabletLayout(props.dashboard) ? 'md' : 'lg')
+  const dashboard = projectDashboard(props.dashboard, breakpointFor(props.dashboard, surface))
   const shown = widgetsOf(dashboard).filter((w) => !isHiddenOn(w, surface))
   if (shown.length === 0) {
     return (

@@ -77,7 +77,9 @@ export function surfaceBounds(settings: { phoneBelow?: unknown; tabletBelow?: un
   return { phoneBelow, tabletBelow: Math.max(tabletBelow, phoneBelow + 1) }
 }
 
-export function surfaceFor(containerWidth: number, bounds: SurfaceBounds = DEFAULT_BOUNDS): Surface {
+/** `forced` is a device that says what it is (Settings > Appearance), which wins over its width */
+export function surfaceFor(containerWidth: number, bounds: SurfaceBounds = DEFAULT_BOUNDS, forced: Surface | null = null): Surface {
+  if (forced) return forced
   if (containerWidth < bounds.phoneBelow) return 'phone'
   return containerWidth < bounds.tabletBelow ? 'tablet' : 'desktop'
 }
@@ -93,6 +95,11 @@ export function surfacesOf(bp: Breakpoint): Surface[] {
 
 export function hasTabletLayout(dashboard: Dashboard): boolean {
   return dashboard.mdColumns !== undefined || widgetsOf(dashboard).some((w) => w.layout.md !== undefined)
+}
+
+/** the layout a surface draws: the tablet one only on a tablet, and only once the dashboard has one */
+export function breakpointFor(dashboard: Dashboard, surface: Surface): Breakpoint {
+  return surface === 'tablet' && hasTabletLayout(dashboard) ? 'md' : 'lg'
 }
 
 // a stored `columns: 0` divided the cell width to Infinity and took the whole grid with it
@@ -438,38 +445,56 @@ export type BumpPlan = Map<string, Rect>
 
 const MAX_BUMP_DEPTH = 200
 
+function bumpIsLegal(others: WidgetInstance[], goals: Rect[], plan: BumpPlan): boolean {
+  const at = (w: WidgetInstance): Rect => plan.get(w.id) ?? rectOf(w)
+  if (others.some((w) => goals.some((g) => collides(g, at(w))))) return false
+  return others.every((w) => !plan.has(w.id) || others.every((o) => o.id === w.id || !collides(at(w), at(o))))
+}
+
 export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPlan | null {
   const moving = widgetsOf(dashboard).find((w) => w.id === id)
   if (!moving) return null
   const from = rectOf(moving)
   const others = widgetsOf(dashboard).filter((w) => w.id !== id)
   const occupants = others.filter((w) => collides(target, rectOf(w)))
-  if (occupants.length === 0) return new Map()
-
-  const isLegal = (plan: BumpPlan): boolean => {
-    const at = (w: WidgetInstance): Rect => plan.get(w.id) ?? rectOf(w)
-    if (others.some((w) => collides(target, at(w)))) return false
-    return others.every((w) => !plan.has(w.id) || others.every((o) => o.id === w.id || !collides(at(w), at(o))))
-  }
-
   if (occupants.length === 1) {
     const other = rectOf(occupants[0])
     if (other.w === from.w && other.h === from.h) {
       const swap: BumpPlan = new Map([[occupants[0].id, { ...from }]])
-      if (isLegal(swap)) return swap
+      if (bumpIsLegal(others, [target], swap)) return swap
     }
   }
+  return planGroupBump(dashboard, new Map([[id, target]]))
+}
+
+/** several widgets moved together; a group has no one place to trade, so it only ever pushes down */
+export function planGroupBump(dashboard: Dashboard, targets: Map<string, Rect>): BumpPlan | null {
+  const all = widgetsOf(dashboard)
+  if ([...targets.keys()].some((id) => !all.some((w) => w.id === id))) return null
+  const goals = [...targets.values()]
+  const others = all.filter((w) => !targets.has(w.id))
+  const occupants = others.filter((w) => goals.some((g) => collides(g, rectOf(w))))
+  if (occupants.length === 0) return new Map()
 
   const placed = new Map<string, Rect>()
   for (const w of others) placed.set(w.id, rectOf(w))
   const moved: BumpPlan = new Map()
 
+  // pushed below one member of the group, a widget can land on another one further down
+  const clearOfGoals = (rect: Rect): Rect => {
+    let next = rect
+    for (let hit = goals.find((g) => collides(g, next)); hit; hit = goals.find((g) => collides(g, next))) {
+      next = { ...next, y: hit.y + hit.h }
+    }
+    return next
+  }
+
   const pushBelow = (widgetId: string, minY: number, depth: number): boolean => {
     if (depth > MAX_BUMP_DEPTH) return false
     const rect = placed.get(widgetId)
     if (!rect) return false
-    if (rect.y >= minY) return true // already clear
-    const next = { ...rect, y: minY }
+    if (rect.y >= minY && !goals.some((g) => collides(g, rect))) return true // already clear
+    const next = clearOfGoals({ ...rect, y: Math.max(rect.y, minY) })
     placed.set(widgetId, next)
     moved.set(widgetId, next)
     for (const [otherId, otherRect] of placed) {
@@ -482,9 +507,49 @@ export function planBump(dashboard: Dashboard, id: string, target: Rect): BumpPl
   // bottom-up, so a displaced cluster keeps its stacking order
   const lowestFirst = [...occupants].sort((a, b) => rectOf(b).y - rectOf(a).y)
   for (const occupant of lowestFirst) {
-    if (!pushBelow(occupant.id, target.y + target.h, 0)) return null
+    const r = rectOf(occupant)
+    const below = Math.max(...goals.filter((g) => collides(g, r)).map((g) => g.y + g.h))
+    if (!pushBelow(occupant.id, below, 0)) return null
   }
-  return isLegal(moved) ? moved : null
+  return bumpIsLegal(others, goals, moved) ? moved : null
+}
+
+/**
+ * Where several widgets moved together by the same number of cells actually land: the step is clamped so the
+ * whole group stays on the grid and keeps its shape, rather than each member being clamped on its own.
+ */
+export function shiftGroup(starts: Map<string, Rect>, dx: number, dy: number, columns: number): Map<string, Rect> {
+  const rects = [...starts.values()]
+  const cols = columnsFrom(columns)
+  const left = Math.min(...rects.map((r) => r.x))
+  const right = Math.max(...rects.map((r) => r.x + r.w))
+  const top = Math.min(...rects.map((r) => r.y))
+  const sx = Math.max(-left, Math.min(dx, cols - right))
+  const sy = Math.max(-top, dy)
+  const out = new Map<string, Rect>()
+  for (const [id, r] of starts) out.set(id, { ...r, x: r.x + sx, y: r.y + sy })
+  return out
+}
+
+/**
+ * What resetting the tablet or phone layout leaves a widget hidden on. A hide that belongs to that screen alone
+ * goes; one shared with the desktop stays, because that widget is not on the layout being rebuilt from. The
+ * tablet reset also brings back a widget kept only for the tablet layout, which would otherwise be left on a
+ * screen that no longer has a layout of its own.
+ */
+export function hiddenAfterReset(widget: WidgetInstance, surface: 'tablet' | 'phone'): Surface[] {
+  const hidden = new Set(hiddenSurfaces(widget))
+  if (!hidden.has('desktop')) hidden.delete(surface)
+  if (surface === 'tablet' && surfacesOf('lg').every((s) => hidden.has(s))) return []
+  return ALL_SURFACES.filter((s) => hidden.has(s))
+}
+
+/** whether resetting that screen's layout would change anything, which is when its button is worth offering */
+export function layoutCustomized(dashboard: Dashboard, surface: 'tablet' | 'phone'): boolean {
+  if (surface === 'tablet' && hasTabletLayout(dashboard)) return true
+  if (surface === 'phone' && Array.isArray(dashboard.stackOrder) && dashboard.stackOrder.length > 0) return true
+  // a reset only ever takes surfaces away, so a different count is a different set
+  return widgetsOf(dashboard).some((w) => hiddenAfterReset(w, surface).length !== ALL_SURFACES.filter((s) => isHiddenOn(w, s)).length)
 }
 
 export function findFreeSpot(dashboard: Dashboard, w: number, h: number): Rect {

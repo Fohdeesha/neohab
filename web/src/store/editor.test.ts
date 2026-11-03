@@ -22,6 +22,11 @@ const {
   dropDraftKeptThroughSignIn,
   isLeavingForSignIn,
   keepDraftThroughSignIn,
+  resetPhoneLayout,
+  resetTabletLayout,
+  setEditBreakpoint,
+  setWidgetRect,
+  setWidgetRects,
   startEditing,
   takeDraftKeptThroughSignIn,
   undo,
@@ -66,6 +71,163 @@ describe('changing the column count', () => {
     undo()
     expect(rects()).toEqual(before)
     expect(useEditorStore.getState().draft!.columns).toBe(12)
+  })
+})
+
+describe('opening the editor on the layout run mode was showing', () => {
+  // a moved widget and one added later on the desktop layout, which has no tablet rect of its own
+  const tablet = (): Dashboard => ({
+    ...board(),
+    mdColumns: 6,
+    widgets: [
+      { id: 'a', type: 'label', config: {}, layout: { lg: { x: 0, y: 0, w: 4, h: 2 }, md: { x: 2, y: 0, w: 4, h: 2 } } },
+      { id: 'b', type: 'label', config: {}, layout: { lg: { x: 4, y: 0, w: 4, h: 2 } } }
+    ]
+  })
+
+  it('opens on the tablet layout when that is what was on screen', () => {
+    startEditing(tablet(), 'md')
+    expect(useEditorStore.getState().bp).toBe('md')
+  })
+
+  it('pins the fitted widgets where run mode drew them, without calling that a change', () => {
+    startEditing(tablet(), 'md')
+    const s = useEditorStore.getState()
+    expect(s.draft!.widgets.every((w) => w.layout.md)).toBe(true)
+    expect(s.draft!.widgets.find((w) => w.id === 'a')!.layout.md).toEqual({ x: 2, y: 0, w: 4, h: 2 })
+    expect(s.dirty).toBe(false)
+    expect(s.undoStack).toHaveLength(0)
+  })
+
+  it('so a move on the tablet layout leaves the other widget where it was', () => {
+    startEditing(tablet(), 'md')
+    const before = useEditorStore.getState().draft!.widgets.find((w) => w.id === 'b')!.layout.md
+    expect(setWidgetRect('a', { x: 0, y: 4, w: 4, h: 2 })).toBe(true)
+    expect(useEditorStore.getState().draft!.widgets.find((w) => w.id === 'b')!.layout.md).toEqual(before)
+  })
+
+  it('leaves the saved dashboard alone', () => {
+    const saved = tablet()
+    startEditing(saved, 'md')
+    expect(saved.widgets.find((w) => w.id === 'b')!.layout.md).toBeUndefined()
+  })
+
+  it('still opens on the desktop layout by default', () => {
+    startEditing(tablet())
+    const s = useEditorStore.getState()
+    expect(s.bp).toBe('lg')
+    expect(s.draft!.widgets.find((w) => w.id === 'b')!.layout.md).toBeUndefined()
+  })
+
+  it('switching to the tablet layout by hand is still one undoable change', () => {
+    startEditing(tablet())
+    setEditBreakpoint('md')
+    const s = useEditorStore.getState()
+    expect(s.dirty).toBe(true)
+    expect(s.undoStack).toHaveLength(1)
+    expect(s.draft!.widgets.every((w) => w.layout.md)).toBe(true)
+  })
+})
+
+describe('dropping a selection that was dragged together', () => {
+  beforeEach(() => startEditing(board()))
+
+  it('moves every member in one undo step', () => {
+    const before = rects()
+    const moved = new Map([
+      ['a', { x: 0, y: 3, w: 4, h: 2 }],
+      ['b', { x: 4, y: 3, w: 4, h: 2 }]
+    ])
+    expect(setWidgetRects(moved)).toBe(true)
+    expect(rects()).toEqual({ ...before, a: moved.get('a'), b: moved.get('b') })
+    expect(useEditorStore.getState().undoStack).toHaveLength(1)
+    undo()
+    expect(rects()).toEqual(before)
+  })
+
+  it('refuses a drop onto a widget outside the group, and moves nothing', () => {
+    const before = rects()
+    expect(setWidgetRects(new Map([['a', { x: 4, y: 0, w: 4, h: 2 }]]))).toBe(false)
+    expect(
+      setWidgetRects(
+        new Map([
+          ['a', { x: 4, y: 1, w: 4, h: 2 }],
+          ['b', { x: 8, y: 1, w: 4, h: 2 }]
+        ])
+      )
+    ).toBe(false)
+    expect(rects()).toEqual(before)
+  })
+
+  it('lets members land where another member started', () => {
+    expect(
+      setWidgetRects(
+        new Map([
+          ['a', { x: 4, y: 0, w: 4, h: 2 }],
+          ['b', { x: 8, y: 0, w: 4, h: 2 }],
+          ['c', { x: 0, y: 0, w: 4, h: 2 }]
+        ])
+      )
+    ).toBe(true)
+    expect(rects().a).toEqual({ x: 4, y: 0, w: 4, h: 2 })
+  })
+
+  it('makes no undo step for a group put back where it was', () => {
+    expect(setWidgetRects(new Map(Object.entries(rects())))).toBe(true)
+    expect(useEditorStore.getState().undoStack).toHaveLength(0)
+  })
+})
+
+describe('resetting the tablet and phone layouts', () => {
+  const custom = (): Dashboard => ({
+    ...board(),
+    mdColumns: 6,
+    stackOrder: ['c', 'b', 'a'],
+    widgets: [
+      {
+        id: 'a',
+        type: 'label',
+        config: { hideOn: ['tablet'] },
+        layout: { lg: { x: 0, y: 0, w: 4, h: 2 }, md: { x: 2, y: 0, w: 4, h: 2 } }
+      },
+      { id: 'b', type: 'label', config: { hideOn: ['phone'] }, layout: { lg: { x: 4, y: 0, w: 4, h: 2 }, md: { x: 0, y: 2, w: 4, h: 2 } } },
+      {
+        id: 'c',
+        type: 'label',
+        config: { hideOn: ['desktop', 'phone'] },
+        layout: { lg: { x: 8, y: 0, w: 4, h: 2 }, md: { x: 0, y: 4, w: 4, h: 2 } }
+      }
+    ]
+  })
+  const hideOn = (id: string) => useEditorStore.getState().draft!.widgets.find((w) => w.id === id)!.config.hideOn
+
+  it('rebuilds the tablet layout from the desktop one, in one undo step', () => {
+    startEditing(custom(), 'md')
+    resetTabletLayout()
+    const s = useEditorStore.getState()
+    expect(s.bp).toBe('lg')
+    expect(s.draft!.mdColumns).toBeUndefined()
+    expect(s.draft!.widgets.every((w) => w.layout.md === undefined)).toBe(true)
+    expect(hideOn('a')).toBeUndefined()
+    expect(hideOn('b')).toEqual(['phone'])
+    expect(hideOn('c')).toBeUndefined()
+    expect(s.draft!.stackOrder).toEqual(['c', 'b', 'a'])
+    expect(s.undoStack).toHaveLength(1)
+  })
+
+  it('rebuilds the phone layout from the desktop one, leaving the tablet layout alone', () => {
+    startEditing(custom())
+    resetPhoneLayout()
+    const s = useEditorStore.getState()
+    expect(s.draft!.stackOrder).toBeUndefined()
+    expect(hideOn('a')).toEqual(['tablet'])
+    expect(hideOn('b')).toBeUndefined()
+    expect(hideOn('c')).toEqual(['desktop', 'phone'])
+    expect(s.draft!.mdColumns).toBe(6)
+    expect(s.draft!.widgets.every((w) => w.layout.md)).toBe(true)
+    expect(s.undoStack).toHaveLength(1)
+    undo()
+    expect(useEditorStore.getState().draft!.stackOrder).toEqual(['c', 'b', 'a'])
   })
 })
 

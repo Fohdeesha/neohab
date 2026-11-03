@@ -386,7 +386,8 @@ try {
       .map((c) => encodeURIComponent(c.uid.slice('dashboard:'.length)))
     for (const id of ids) {
       await page.goto(APP + '#/d/' + id, { waitUntil: 'domcontentloaded' })
-      await page.waitForSelector('.nh-widget, .nh-dash__empty', { timeout: 15000 })
+      // a web page dashboard draws its page, not widgets
+      await page.waitForSelector('.nh-widget, .nh-dash__empty, .nh-pageframe', { timeout: 15000 })
       await sleep(350)
     }
     if (ids.length === 0) ok('8. live dashboards (SKIPPED: this server has none of its own)', true)

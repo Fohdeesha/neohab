@@ -6,7 +6,7 @@
 # neohab
 
 A modern UI for [openHAB](https://www.openhab.org/).
-Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.40.0**. A community project, not an official openHAB UI.
+Modern web dashboards with mobile devices and tablets as first class citizens, built and configured entirely in the browser. **Status:** stable, latest release **1.41.0**. A community project, not an official openHAB UI.
 
 <p float="center">
   <img src="imgs/1.png" width="400" />
@@ -118,13 +118,15 @@ Add and arrange your widgets on a dash: drag to move or resize, drag in from the
 and paste between dashboards or on the same dashboard with ctrl+c ctrl+v, undo anything. What you see while editing is what a save produces.
 
 Phones and portrait tablets get a single-column stack you can reorder on its own without affecting landscape / full size displays, and there's an
-optional tablet layout with its own column count. Any widget can be left off any of the three.
+optional tablet layout with its own column count. Any widget can be left off any of the three. A device that keeps getting the wrong one can be set to phone, tablet or desktop in its own settings.
 Text and icons scale with the tile, and with per-dashboard, per-widget and per-device settings.
 
 A lot of effort was spent ensuring that regardless of the device / screen / orientation you open your dashboards on, the layout and sizing does what's needed to maintain layout and visibility - smart text, icon, and widget resizing, so nothing is ever cut off or clipped.  Settings to further optimize this also exist: per device scaling / text size overrides, per dashboard overrides, per widget overrides.
 
 You can optionally have neohab create dashboards for you, from your semantic model if you
 have one, otherwise by naming convention or group. Everything it picks and puts together is listed for review first.
+
+A dashboard can also just be a web page. Pick that when you make a new one and the page fills the screen under the top bar, handy for your own pages or other web tools.
 
 ## Theming
 
@@ -211,7 +213,7 @@ openHAB with no Java build. The browser end-to-end suites live in [`e2e/`](e2e/)
 ## Help
 
 Open an [issue](https://github.com/Fohdeesha/neohab/issues). In your neohab install, the Settings page ends with an **About** blurb
-that shows all the relevent info - please paste this in to any github issues. Security
+that shows all the relevant info - please paste this in to any github issues. Security
 issues should go **privately** instead: see [SECURITY.md](SECURITY.md).
 
 ## Old OpenHAB Limitations
@@ -220,7 +222,7 @@ openHAB **4.0** | Loses: the **log widget**. openHAB added the log feed it reads
 
 openHAB **3.1 - 3.x** | Loses: **Floor plan presets for signed-out viewers.** Signed in they work; a wall panel with nobody logged in will not list them. Also **Semantic tags you define yourself** in the dashboard generator. Built-in tags work everywhere, so generation still works  
 
-openHAB **3.0 and older** | Incompatible, Neohab will not start
+openHAB **3.0 and older** | Incompatible, neohab will not start
 
 ## License
 

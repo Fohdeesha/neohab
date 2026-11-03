@@ -123,6 +123,14 @@ export function KioskSection({ onNotice }: { onNotice: NoticeFn }) {
           {fullscreen ? t('Exit fullscreen') : t('Enter fullscreen')}
         </button>
       </div>
+      {/* the browser decides this from the address alone and never says why, so the page has to */}
+      {window.isSecureContext ? null : (
+        <p className="nh-settings__text nh-kiosk__insecure">
+          {t(
+            'This page is on plain http, so a browser can only add it to a home screen as a shortcut, and a shortcut opens in a normal browser tab. To install neohab as an app that opens full screen, open it from an HTTPS address with a trusted certificate, such as myopenhab.org or your own reverse proxy. The fullscreen button above works either way.'
+          )}
+        </p>
+      )}
 
       <label className="nh-field nh-field--row" htmlFor="kiosk-mode">
         <span className="nh-field__label">{t('Kiosk mode')}</span>
