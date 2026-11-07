@@ -49,6 +49,10 @@ one beside the new one, openHAB keeps whichever it read last and logs a
 warning, so you can end up still running the old version with nothing obvious
 to show for it. Open tabs offer to reload themselves
 
+**Installed it from Main UI's add-on store?** Uninstall it there and install it again, which pulls
+the newest release. Don't drop a jar into `addons/` on top of it or you'll end up with two copies.
+Your settings / dashboards are always retained & safe.
+
 **Removing it:** Just delete the jar. Dashboards stay in openHAB's JSON database under the three
 `neohab:*` namespaces, so putting the jar back brings everything with it.
 
