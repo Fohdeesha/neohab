@@ -109,7 +109,7 @@ try {
             goodDirection: expectUp ? 'up' : 'down',
             subItem: ITEMS.temperature,
             subCaption: 'Accounts',
-            severity: [{ value: 200, color: '#a3ce4a' }],
+            severity: [{ value: 0, color: '#a3ce4a' }],
             group: 'panel',
           }),
           w('s-bad', 'value', 4, 0, 4, 3, {

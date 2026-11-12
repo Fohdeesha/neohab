@@ -139,15 +139,18 @@ export function blockLit(i: number, count: number, valueFrac: number, zeroFrac: 
   return f >= lo - eps && f <= hi + eps
 }
 
-export function severityColor(value: number, stops: SeverityStop[] | undefined): string | undefined {
-  const usable = (Array.isArray(stops) ? stops : [])
+export function usableStops(stops: SeverityStop[] | undefined): { value: number; color: string }[] {
+  return (Array.isArray(stops) ? stops : [])
     .filter(
       (s): s is { value: number; color: string } => Number.isFinite(s?.value as number) && typeof s?.color === 'string' && s.color !== ''
     )
     .sort((a, b) => a.value - b.value)
-  if (usable.length === 0) return undefined
-  for (const s of usable) if (value <= s.value) return s.color
-  return usable[usable.length - 1].color
+}
+
+export function severityColor(value: number, stops: SeverityStop[] | undefined): string | undefined {
+  let hit: string | undefined
+  for (const s of usableStops(stops)) if (value >= s.value) hit = s.color
+  return hit
 }
 
 export interface GaugeTick {
@@ -244,8 +247,8 @@ export function sparkSegments(values: (number | null)[], x0: number, width: numb
   return out
 }
 
-export function inAlarm(c: DialConfig, value: number, min: number, max: number): boolean {
-  if (!c.alarm) return false
+export function inAlarm(c: DialConfig, value: number | undefined, min: number, max: number): boolean {
+  if (!c.alarm || value === undefined || !Number.isFinite(value)) return false
   const from = finite(c.alarmFrom, min)
   const to = finite(c.alarmTo, max)
   return value >= Math.min(from, to) && value <= Math.max(from, to)

@@ -19,6 +19,8 @@ import {
   severityColor,
   sparkSegments,
   type DialConfig,
+  type SeverityStop,
+  usableStops,
   zeroFractionOf
 } from './gauge'
 import { dialFraction, keyStep, valueAtFraction } from '../common/dialPointer'
@@ -73,6 +75,8 @@ describe('reading stored configuration', () => {
   it('treats a non-array of stops, markers or zones as none at all', () => {
     expect(severityColor(5, 42 as unknown as [])).toBeUndefined()
     expect(severityColor(5, undefined)).toBeUndefined()
+    expect(severityColor(5, {} as unknown as [])).toBeUndefined()
+    expect(severityColor(5, [null, 7, 'x'] as unknown as [])).toBeUndefined()
     expect(severityColor(5, [{ value: NaN, color: 'red' }])).toBeUndefined()
   })
 
@@ -140,30 +144,55 @@ describe('lighting', () => {
 })
 
 describe('severity colours', () => {
-  it('takes the first stop at or above the value, and holds the last one past the end', () => {
-    const stops = [
-      { value: 10, color: 'blue' },
-      { value: 20, color: 'green' },
-      { value: 30, color: 'red' }
-    ]
-    expect(severityColor(5, stops)).toBe('blue')
+  const stops = [
+    { value: 10, color: 'blue' },
+    { value: 20, color: 'green' },
+    { value: 30, color: 'red' }
+  ]
+
+  it('takes the highest stop the value has reached', () => {
     expect(severityColor(10, stops)).toBe('blue')
-    expect(severityColor(15, stops)).toBe('green')
+    expect(severityColor(15, stops)).toBe('blue')
+    expect(severityColor(20, stops)).toBe('green')
+    expect(severityColor(29.9, stops)).toBe('green')
+    expect(severityColor(30, stops)).toBe('red')
     expect(severityColor(999, stops)).toBe('red')
   })
 
-  it('sorts stops that were entered out of order', () => {
-    const stops = [
-      { value: 30, color: 'red' },
-      { value: 10, color: 'blue' }
-    ]
-    expect(severityColor(5, stops)).toBe('blue')
+  it('matches nothing below the lowest stop', () => {
+    expect(severityColor(9.9, stops)).toBeUndefined()
+    expect(severityColor(-50, stops)).toBeUndefined()
+    expect(severityColor(NaN, stops)).toBeUndefined()
   })
 
-  it('prefers a matching stop, then the ring colour, then the theme', () => {
-    expect(gaugeColor(5, [{ value: 10, color: 'blue' }], '#fff')).toBe('blue')
+  it('reads green from 60 and red from 80 as green at 71', () => {
+    const reported = [
+      { value: 60, color: 'green' },
+      { value: 80, color: 'red' }
+    ]
+    expect(severityColor(71, reported)).toBe('green')
+    expect(severityColor(80, reported)).toBe('red')
+    expect(severityColor(59, reported)).toBeUndefined()
+  })
+
+  it('sorts stops that were entered out of order', () => {
+    const shuffled = [stops[2], stops[0], stops[1]]
+    expect(severityColor(15, shuffled)).toBe('blue')
+    expect(severityColor(25, shuffled)).toBe('green')
+    expect(usableStops(shuffled).map((s) => s.value)).toEqual([10, 20, 30])
+  })
+
+  it('skips a stop that is only half filled in', () => {
+    const half: SeverityStop[] = [{ value: 10, color: 'blue' }, { color: 'green' }, { value: 20 }, { value: 30, color: '' }]
+    expect(usableStops(half)).toEqual([{ value: 10, color: 'blue' }])
+    expect(severityColor(50, half)).toBe('blue')
+  })
+
+  it('prefers a reached stop, then the base colour, then the theme', () => {
+    expect(gaugeColor(15, [{ value: 10, color: 'blue' }], '#fff')).toBe('blue')
+    expect(gaugeColor(5, [{ value: 10, color: 'blue' }], '#fff')).toBe('#fff')
+    expect(gaugeColor(5, [{ value: 10, color: 'blue' }], '')).toBeUndefined()
     expect(gaugeColor(5, [], '#fff')).toBe('#fff')
-    expect(gaugeColor(5, [], '')).toBeUndefined()
     expect(gaugeColor(5, undefined, undefined)).toBeUndefined()
   })
 })
@@ -264,6 +293,9 @@ describe('alarm', () => {
     expect(inAlarm(cfg({ alarm: true, alarmFrom: 0, alarmTo: 10 }), 5, 0, 100)).toBe(true)
     expect(inAlarm(cfg({ alarm: true, alarmFrom: 10, alarmTo: 0 }), 5, 0, 100)).toBe(true)
     expect(inAlarm(cfg({ alarm: true, alarmFrom: 0, alarmTo: 10 }), 50, 0, 100)).toBe(false)
+    expect(inAlarm(cfg({ alarm: true, alarmFrom: 0, alarmTo: 10 }), undefined, 0, 100)).toBe(false)
+    expect(inAlarm(cfg({ alarm: true }), Number.NaN, 0, 100)).toBe(false)
+    expect(inAlarm(cfg({ alarm: true }), 0, 0, 100)).toBe(true)
   })
 })
 

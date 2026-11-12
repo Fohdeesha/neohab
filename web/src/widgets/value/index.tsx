@@ -208,8 +208,13 @@ export const valueWidget: WidgetDefinition<ValueConfig> = {
       hint: 'The two ends of the bar. The reading is placed between them.'
     },
     { key: 'max', type: 'number', label: 'Input maximum', showIf: isBar },
-    { key: 'color', type: 'color', label: 'Value color' },
-    { key: 'severity', type: 'gaugeseverity', label: 'Color stops' },
+    {
+      key: 'color',
+      type: 'color',
+      label: 'Value color',
+      hint: 'Used below the lowest color stop; clear it to follow the theme.'
+    },
+    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', base: 'color' },
     { key: 'badge', type: 'text', label: 'Badge', showIf: hasBadge, hint: 'A short marker beside the reading, e.g. an exception code.' },
     {
       key: 'badgeColor',

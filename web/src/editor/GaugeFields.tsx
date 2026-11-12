@@ -3,12 +3,38 @@ import { ItemPicker } from '../components/ItemPicker'
 import type { WidgetInstance } from '../model/dashboard'
 import { updateWidgetConfig } from '../store/editor'
 import type { SettingField } from '../widgets/types'
-import type { GaugeMarker, GaugeZone, SeverityStop } from '../widgets/dial/gauge'
+import { usableStops, type GaugeMarker, type GaugeZone, type SeverityStop } from '../widgets/dial/gauge'
 
 const MARKER_ITEM_TYPES = ['Number', 'Dimmer']
 
+const NEW_STOP_COLORS = ['#ff9800', '#f44336']
+
+function StopStrip({ stops, base }: { stops: SeverityStop[]; base: unknown }) {
+  const usable = usableStops(stops)
+  if (usable.length === 0) return null
+  const baseColor = typeof base === 'string' && base !== '' ? base : undefined
+  return (
+    <div className="nh-stopstrip">
+      <span className="nh-stopstrip__seg">
+        <span
+          className={'nh-stopstrip__bar' + (baseColor ? '' : ' nh-stopstrip__bar--theme')}
+          style={baseColor ? { backgroundColor: baseColor } : undefined}
+        />
+        <span className="nh-stopstrip__label">{'< ' + usable[0].value}</span>
+      </span>
+      {usable.map((s, i) => (
+        <span className="nh-stopstrip__seg" key={i}>
+          <span className="nh-stopstrip__bar" style={{ backgroundColor: s.color }} />
+          <span className="nh-stopstrip__label">{'≥ ' + s.value}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; field: SettingField }) {
   const { t } = useTranslation()
+  const baseKey = field.type === 'gaugeseverity' ? field.base : undefined
   const rows = Array.isArray(widget.config[field.key]) ? (widget.config[field.key] as SeverityStop[]) : []
   const write = (next: SeverityStop[]) => updateWidgetConfig(widget.id, field.key, next)
   const patch = (i: number, p: Partial<SeverityStop>) => write(rows.map((r, j) => (j === i ? { ...r, ...p } : r)))
@@ -19,7 +45,7 @@ export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; 
       {rows.map((s, i) => (
         <div className="nh-chartcard" key={i}>
           <div className="nh-chartcard__head">
-            <span className="nh-chart__dot" style={{ background: s.color || '#4caf50' }} />
+            <span className="nh-chart__dot" style={{ backgroundColor: s.color || '#4caf50' }} />
             <span className="nh-chartcard__title">{t('Stop {{n}}', { n: i + 1 })}</span>
             <button
               type="button"
@@ -31,7 +57,7 @@ export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; 
           </div>
           <div className="nh-chartcard__row">
             <label className="nh-chartcard__cell">
-              <span>{t('Up to value')}</span>
+              <span>{t('From value')}</span>
               <input
                 type="number"
                 value={typeof s.value === 'number' ? s.value : ''}
@@ -49,11 +75,15 @@ export function GaugeSeverityField({ widget, field }: { widget: WidgetInstance; 
           </div>
         </div>
       ))}
-      <button type="button" className="nh-btn" onClick={() => write([...rows, { color: '#4caf50' }])}>
+      <button
+        type="button"
+        className="nh-btn"
+        onClick={() => write([...rows, { color: NEW_STOP_COLORS[Math.min(rows.length, NEW_STOP_COLORS.length - 1)] }])}>
         {t('Add color stop')}
       </button>
+      <StopStrip stops={rows} base={baseKey ? widget.config[baseKey] : undefined} />
       <span className="nh-field__hint">
-        {t('The LEDs and glow take the color of the first stop at or above the value; with no stops they follow the theme.')}
+        {t('A stop takes over once the value reaches it and holds until the next one. Below the lowest stop the normal color is used.')}
       </span>
     </div>
   )

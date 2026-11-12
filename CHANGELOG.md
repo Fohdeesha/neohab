@@ -6,6 +6,15 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.42.0
+
+- Color stops now start at their value, like Grafana: a stop at 60 colors everything from 60 up
+- Stops you already set are read the new way, so a color set the old way now starts where it used to end
+- The stops editor has a preview strip and the base color says what it's for
+- Alarm pulse flashes the whole tile red, and keeps flashing with reduced motion on
+- A dial whose item has no reading doesn't alarm
+- A panel following the dashboard-control item now follows every update, so a rule setting the same value again brings back a screen someone moved by hand
+
 ## 1.41.1
 
 - Exit is greyed out while a save is still going through

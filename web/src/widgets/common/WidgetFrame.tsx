@@ -11,15 +11,32 @@ interface WidgetFrameProps {
   center?: boolean
   bare?: boolean
   className?: string
+  alarm?: string
   children: ReactNode
 }
 
-export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside, center, bare, className, children }: WidgetFrameProps) {
+export function WidgetFrame({
+  label,
+  icon,
+  iconSize,
+  iconState,
+  iconColor,
+  aside,
+  center,
+  bare,
+  className,
+  alarm,
+  children
+}: WidgetFrameProps) {
   const headed = Boolean(label || icon || aside)
   return (
     <div
       className={
-        'nh-widget' + (bare ? ' nh-widget--bare' : '') + (headed ? ' nh-widget--headed' : '') + (className ? ' ' + className : '')
+        'nh-widget' +
+        (bare ? ' nh-widget--bare' : '') +
+        (headed ? ' nh-widget--headed' : '') +
+        (alarm ? ' nh-widget--alarm' : '') +
+        (className ? ' ' + className : '')
       }>
       {headed ? (
         <div className="nh-widget__label">
@@ -35,6 +52,7 @@ export function WidgetFrame({ label, icon, iconSize, iconState, iconColor, aside
         </div>
       ) : null}
       <div className={'nh-widget__body' + (center ? ' nh-widget__body--center' : '')}>{children}</div>
+      {alarm ? <span className="nh-widget__alarm" role="img" aria-label={alarm} /> : null}
     </div>
   )
 }

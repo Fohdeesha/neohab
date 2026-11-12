@@ -104,7 +104,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const color = gaugeColor(value, config.severity, config.color) ?? 'var(--nh-primary)'
   const color2 = gaugeColor(value2, config.severity2, config.color2) ?? 'var(--nh-primary)'
   const primaryIsInner = inner && config.centerShows === 'inner'
-  const alarmed = inAlarm(config, live, min, max)
+  const alarmed = inAlarm(config, numericValue(state) === undefined ? undefined : live, min, max)
   const bloomVisible = (config.bloom ?? kind === 'led') || alarmed
   const bloomColor = primaryIsInner ? color2 : color
 
@@ -511,6 +511,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
       iconSize={config.iconSize}
       iconState={state?.state}
       iconColor={config.iconColor}
+      alarm={alarmed ? t('Alarm') : undefined}
       center>
       <svg
         ref={svgRef}
@@ -591,7 +592,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
             />
           )
         ) : null}
-        {bloomVisible && (primaryIsInner ? frac2 : frac) > 0 ? (
+        {bloomVisible && (alarmed || (primaryIsInner ? frac2 : frac) > 0) ? (
           <circle
             className={'nh-gauge__bloom' + (alarmed ? ' nh-gauge__bloom--pulse' : '')}
             cx={50}

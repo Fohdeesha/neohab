@@ -370,6 +370,56 @@ html:has(.nh-dash--page) {
   box-shadow: none;
 }
 
+/* the cell is a size container, which doesn't contain an absolute child - the tile has to */
+.nh-widget.nh-widget--alarm {
+  position: relative;
+  border-color: var(--nh-bad);
+}
+
+.nh-widget__alarm {
+  position: absolute;
+  inset: -1px;
+  border: 5px solid var(--nh-bad);
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    color-mix(in srgb, var(--nh-bad) 45%, transparent) 100%
+  );
+  box-shadow: inset 0 0 2.2em color-mix(in srgb, var(--nh-bad) 85%, transparent);
+  pointer-events: none;
+  animation: nh-alarm 1s ease-in-out infinite;
+}
+
+@keyframes nh-alarm {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes nh-alarm-calm {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* an alarm keeps flashing when the OS asks for less motion - slower, and it never goes dark */
+@media (prefers-reduced-motion: reduce) {
+  .nh-widget__alarm {
+    animation-name: nh-alarm-calm;
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
 .nh-widget--notice {
   align-items: center;
   justify-content: center;
@@ -3443,6 +3493,39 @@ html:has(.nh-dash--page) {
 .nh-chartcard__cell--check input {
   width: auto;
   margin-top: 6px;
+}
+
+.nh-stopstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 2px;
+  margin: 6px 0 12px;
+}
+
+.nh-stopstrip__seg {
+  flex: 1 1 3.2em;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nh-stopstrip__bar {
+  height: 10px;
+  border-radius: 3px;
+}
+
+.nh-stopstrip__bar--theme {
+  border: 1px dashed var(--nh-text-dim);
+}
+
+.nh-stopstrip__label {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--nh-text-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .nh-frame {

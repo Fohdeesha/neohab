@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ReportStream } from '../api/reports'
 import { navigate } from '../app/router'
 import { useDialog } from '../components/dialog'
 import { useConfigStore } from '../store/config'
@@ -11,6 +12,16 @@ import { syncWakeLock } from './wakeLock'
 const CORNER_PX = 48
 const TAP_WINDOW_MS = 800
 const TAPS_TO_EXIT = 5
+
+function showDashboardNamed(state: string): void {
+  if (state === 'NULL' || state === 'UNDEF') return
+  const dashboards = useConfigStore.getState().dashboards
+  const target =
+    dashboards.find((d) => d.id === state) ?? dashboards.find((d) => String(d.name ?? '').toLowerCase() === state.toLowerCase())
+  if (!target) return
+  if (useEditorStore.getState().editing) return // never yank an open editor away
+  navigate({ name: 'dashboard', id: target.id })
+}
 
 function cornerOf(x: number, y: number): string | null {
   const side = x <= CORNER_PX ? 'l' : x >= window.innerWidth - CORNER_PX ? 'r' : null
@@ -50,6 +61,17 @@ export function KioskRuntime() {
     return subscribeItems([follow])
   }, [follow])
 
+  // the states tracker only hears changes, so a rule setting the value the item already holds,
+  // after someone moved this screen by hand, is only heard here
+  useEffect(() => {
+    if (!follow) return
+    const reports = new ReportStream((item, value) => {
+      if (item === follow) showDashboardNamed(value)
+    })
+    void reports.listen([follow])
+    return () => reports.close()
+  }, [follow])
+
   const state = useItemState(follow)?.state
   const lastState = useRef<string | undefined>(undefined)
   const primed = useRef(false)
@@ -67,13 +89,7 @@ export function KioskRuntime() {
     }
     if (state === lastState.current) return
     lastState.current = state
-    if (state === 'NULL' || state === 'UNDEF') return
-    const dashboards = useConfigStore.getState().dashboards
-    const target =
-      dashboards.find((d) => d.id === state) ?? dashboards.find((d) => String(d.name ?? '').toLowerCase() === state.toLowerCase())
-    if (!target) return
-    if (useEditorStore.getState().editing) return // never yank an open editor away
-    navigate({ name: 'dashboard', id: target.id })
+    showDashboardNamed(state)
   }, [follow, state])
 
   useEffect(() => {

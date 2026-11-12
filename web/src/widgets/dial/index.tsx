@@ -65,9 +65,9 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'color',
       label: 'Color',
       showIf: ring,
-      hint: 'Used when no color stop matches; clear it to follow the theme.'
+      hint: 'Used below the lowest color stop; clear it to follow the theme.'
     },
-    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', showIf: ring },
+    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', base: 'color', showIf: ring },
     {
       key: 'centerLabel',
       type: 'boolean',
@@ -122,7 +122,7 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       type: 'boolean',
       label: 'Alarm pulse',
       showIf: ring,
-      hint: 'The center glow pulses while the value is inside the alarm range.'
+      hint: 'The whole tile flashes red while the value is inside the alarm range.'
     },
     { key: 'alarmFrom', type: 'number', label: 'Alarm from', showIf: ringAlarm },
     { key: 'alarmTo', type: 'number', label: 'Alarm to', showIf: ringAlarm },
@@ -170,8 +170,14 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     { key: 'max2', type: 'number', label: 'Inner maximum', showIf: ringInner },
     { key: 'step2', type: 'number', label: 'Inner step', showIf: ringInner },
     { key: 'unit2', type: 'text', label: 'Inner unit suffix', showIf: ringInner },
-    { key: 'color2', type: 'color', label: 'Inner color', showIf: ringInner },
-    { key: 'severity2', type: 'gaugeseverity', label: 'Inner color stops', showIf: ringInner },
+    {
+      key: 'color2',
+      type: 'color',
+      label: 'Inner color',
+      showIf: ringInner,
+      hint: 'Used below the lowest color stop; clear it to follow the theme.'
+    },
+    { key: 'severity2', type: 'gaugeseverity', label: 'Inner color stops', base: 'color2', showIf: ringInner },
     { key: 'bidirectional2', type: 'boolean', label: 'Inner fill from zero (bidirectional)', showIf: ringInner },
     {
       key: 'centerShows',

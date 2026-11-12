@@ -1,6 +1,6 @@
 // Value widget e2e: one reading drawn eight ways, plus the stat widget's fold into it.
-// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-value and
-// dashboard:nh-e2e-valuemigrate (neohab:config), managed items nh_e2e_val, nh_e2e_valref,
+// SAFE with a live config. Creates and deletes exactly: dashboard:nh-e2e-value,
+// dashboard:nh-e2e-valuemigrate and dashboard:nh-e2e-valuenow (neohab:config), managed items nh_e2e_val, nh_e2e_valref,
 // nh_e2e_valnull. Commands nothing: every state is set over REST.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS, isAppResource } from './lib/target.mjs'
@@ -10,6 +10,7 @@ skipSuiteOnProduction('every check here drives managed items this suite creates'
 
 const UID = 'dashboard:nh-e2e-value'
 const MIG_UID = 'dashboard:nh-e2e-valuemigrate'
+const NOW_UID = 'dashboard:nh-e2e-valuenow'
 const NUM = 'nh_e2e_val'
 const REF = 'nh_e2e_valref'
 const NULLI = 'nh_e2e_valnull'
@@ -311,11 +312,55 @@ try {
             config: { item: NUM, label: 'Old value' },
             layout: { lg: { x: 8, y: 0, w: 4, h: 6 } },
           },
+          // stops stored before a stop started at its value: read as they stand
+          {
+            id: 'w-oldunder',
+            type: 'value',
+            config: { item: NUM, label: 'Old under', style: 'stat', color: '#0b78c2', severity: [{ value: 200, color: '#a3ce4a' }, { value: 500, color: '#e5484d' }] },
+            layout: { lg: { x: 0, y: 6, w: 4, h: 6 } },
+          },
+          {
+            id: 'w-oldbetween',
+            type: 'value',
+            config: { item: NUM, label: 'Old between', style: 'stat', color: '#0b78c2', severity: [{ value: 50, color: '#a3ce4a' }, { value: 500, color: '#e5484d' }] },
+            layout: { lg: { x: 4, y: 6, w: 4, h: 6 } },
+          },
         ],
       },
     }),
   })
   ok('seed a dashboard written before the merge', migSeed.status === 200, 'status=' + migSeed.status)
+
+  await fetch(NS + '/' + encodeURIComponent(NOW_UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const stopped = (id, label, x, config) => ({
+    id,
+    type: 'value',
+    config: { item: NUM, label, style: 'stat', ...config },
+    layout: { lg: { x, y: 0, w: 3, h: 6 } },
+  })
+  const nowSeed = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: NOW_UID,
+      component: 'neohab:dashboard',
+      config: {
+        version: 3,
+        id: 'nh-e2e-valuenow',
+        name: 'E2E Value Now',
+        columns: 12,
+        rowHeight: 28,
+        gap: 6,
+        widgets: [
+          stopped('w-from', 'From', 0, { severity: [{ value: 500, color: '#e5484d' }, { value: 50, color: '#a3ce4a' }] }),
+          stopped('w-top', 'Top', 3, { severity: [{ value: 50, color: '#a3ce4a' }, { value: 100, color: '#e5484d' }] }),
+          stopped('w-base', 'Base', 6, { color: '#0b78c2', severity: [{ value: 500, color: '#e5484d' }] }),
+          stopped('w-none', 'None', 9, { severity: [{ value: 500, color: '#e5484d' }] }),
+        ],
+      },
+    }),
+  })
+  ok('seed a dashboard at the current version', nowSeed.status === 200, 'status=' + nowSeed.status)
 
   await page.goto(APP + '#/d/nh-e2e-value')
   await page.waitForSelector('.nh-value, .nh-stat, .nh-read', { timeout: 20000 }).catch(() => {})
@@ -448,8 +493,8 @@ try {
   const sev = await reading('Severity')
   ok(
     'a severity stop colours the reading above the flat colour',
-    sev?.mainColor === 'rgb(229, 72, 77)',
-    `123 is above the 50 stop, so the 500 stop wins: ${sev?.mainColor}`
+    sev?.mainColor === 'rgb(163, 206, 74)',
+    `stops at 50 and 500, 123: ${sev?.mainColor}`
   )
   const pillFilled = await reading('Pill filled')
   const pillDark = await reading('Pill dark')
@@ -751,15 +796,51 @@ try {
     `stored version=${stored?.config?.version} type=${stored?.config?.widgets?.[0]?.type}`
   )
 
+  const oldUnder = await reading('Old under')
+  const oldBetween = await reading('Old between')
+  ok(
+    'stops on an older dashboard start at their value too: under the first one takes the value color',
+    oldUnder?.mainColor === 'rgb(11, 120, 194)',
+    `stops 200 and 500 over blue, 123: ${oldUnder?.mainColor}`
+  )
+  ok(
+    'and between two it takes the one below',
+    oldBetween?.mainColor === 'rgb(163, 206, 74)',
+    `stops 50 and 500 over blue, 123: ${oldBetween?.mainColor}`
+  )
+
+  // ---- stops as they are written now: each one colors the reading from its value up ----
+  await page.goto(APP + '#/d/nh-e2e-valuenow')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.nh-stat, .nh-value', { timeout: 8000 }).catch(() => {})
+  await waitReading('From', (r) => r.num === '123', 8000).catch(() => {})
+  await sleep(500)
+  const from = await reading('From')
+  const top = await reading('Top')
+  const base = await reading('Base')
+  const none = await reading('None')
+  ok(
+    'a reading between two stops takes the one below it, whatever order they were stored in',
+    from?.mainColor === 'rgb(163, 206, 74)',
+    `stops 500 then 50, 123: ${from?.mainColor}`
+  )
+  ok('a reading past every stop takes the highest', top?.mainColor === 'rgb(229, 72, 77)', `stops 50 and 100, 123: ${top?.mainColor}`)
+  ok('a reading below the lowest stop takes the value color', base?.mainColor === 'rgb(11, 120, 194)', `stop 500 over blue, 123: ${base?.mainColor}`)
+  ok(
+    'and with no value color it is not painted by a stop it has not reached',
+    !!none?.mainColor && none.mainColor !== 'rgb(229, 72, 77)',
+    `stop 500, 123: ${none?.mainColor}`
+  )
+
   ok('nothing was commanded', posts.length === 0, posts.slice(0, 3).join(' | '))
   ok('no page or console errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 } catch (e) {
   ok('suite ran without crashing', false, String(e && e.message))
 } finally {
   await browser.close().catch(() => {})
-  for (const uid of [UID, MIG_UID]) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  for (const uid of [UID, MIG_UID, NOW_UID]) await fetch(NS + '/' + encodeURIComponent(uid), { method: 'DELETE', headers: AUTH }).catch(() => {})
   for (const item of ITEMS_MADE) await fetch(itemUrl(item), { method: 'DELETE', headers: AUTH }).catch(() => {})
-  const mine = [UID, MIG_UID]
+  const mine = [UID, MIG_UID, NOW_UID]
   const left = await fetch(NS, { headers: AUTH })
     .then((r) => r.json())
     .then((cs) => cs.filter((c) => mine.includes(c.uid)).map((c) => c.uid))

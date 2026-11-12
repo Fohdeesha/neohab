@@ -6,7 +6,7 @@
 
   <groupId>org.openhab.ui.bundles</groupId>
   <artifactId>org.openhab.ui.neohab</artifactId>
-  <version>1.41.1</version>
+  <version>1.42.0</version>
   <packaging>jar</packaging>
 
   <name>neohab</name>

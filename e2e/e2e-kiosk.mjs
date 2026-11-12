@@ -526,6 +526,29 @@ try {
       (await page.evaluate(() => window.location.hash)) === expectHash,
       await page.evaluate(() => window.location.hash))
 
+    // someone moves this screen by hand, then a rule sets the value the item already holds: no change
+    // event exists for that, so only the update itself can bring the screen back
+    const update = (v) =>
+      fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: v })
+    for (const [how, send] of [['state update', update], ['command', command]]) {
+      // a real dimmer keeps reporting its fade for a second or so, and each report is an update the panel
+      // follows, so move by hand until the screen stays put
+      let before = ''
+      let moves = 0
+      while (moves < 6 && before !== '#/d/nh-e2e-kiosk') {
+        moves++
+        await page.evaluate(() => (window.location.hash = '#/d/nh-e2e-kiosk'))
+        await sleep(2000)
+        before = await page.evaluate(() => window.location.hash)
+      }
+      const held = (await (await fetch(BASE + '/rest/items/' + CONTROL_ITEM + '/state', { headers: AUTH })).text()).trim()
+      const res = await send(NAVIGATE)
+      await page.waitForFunction((h) => window.location.hash === h, expectHash, { timeout: 8000 }).catch(() => {})
+      ok(`the same value again as a ${how} brings a hand-moved screen back`,
+        before === '#/d/nh-e2e-kiosk' && held === NAVIGATE && res.ok && (await page.evaluate(() => window.location.hash)) === expectHash,
+        `before=${before} (moves=${moves}) item=${held} status=${res.status} after=${await page.evaluate(() => window.location.hash)}`)
+    }
+
     await command(neutral)
     await sleep(1500)
     await setKiosk(page, { kiosk: false, screensaver: 'off', screensaverMinutes: 10, wakeLock: false, followControl: false })

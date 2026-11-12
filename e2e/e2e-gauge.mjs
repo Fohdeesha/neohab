@@ -1,10 +1,16 @@
-// LED gauge e2e: the dial widget's 'led' style.
-// SAFE with a live config: creates only dashboard:nh-e2e-gauge and deletes exactly it.
+// LED gauge e2e: the dial widget's ring styles, their color stops and the alarm.
+// SAFE with a live config: creates only dashboard:nh-e2e-gauge and dashboard:nh-e2e-gaugestops and deletes
+// exactly those. Off production it also creates and deletes the managed item nh_e2e_gauge_null.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { pickItem } from './lib/ui.mjs'
+import { skipOnProduction } from './lib/guard.mjs'
 
 const UID = 'dashboard:nh-e2e-gauge'
+const UID_STOPS = 'dashboard:nh-e2e-gaugestops'
+const NULL_ITEM = 'nh_e2e_gauge_null'
+const RED = '#f44336'
+const GREEN = '#4caf50'
 const results = []
 const ok = (name, cond, detail = '') => {
   results.push({ name, pass: !!cond })
@@ -41,15 +47,16 @@ await page.addInitScript((t) => {
 }, TOKEN)
 
 const initialDimmer = await itemState(ITEMS.dimmer)
+let madeNull = false
 
 try {
   await sendItem(ITEMS.dimmer, 60)
   await sleep(800)
 
   const SEV = [
-    { value: 30, color: '#2196f3' },
-    { value: 70, color: '#ff9800' },
-    { value: 100, color: '#f44336' },
+    { value: 10, color: '#2196f3' },
+    { value: 30, color: '#ff9800' },
+    { value: 70, color: '#f44336' },
   ]
   await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH }).catch(() => {})
   const seed = await fetch(NS, {
@@ -164,6 +171,53 @@ try {
     }),
   })
   ok('seed dashboard created', seed.ok, String(seed.status))
+
+  // an item with no reading, which only a server that is ours to change can be given
+  if (!skipOnProduction(ok, 'the no-reading alarm check needs a managed item')) {
+    await fetch(itemUrl(NULL_ITEM), {
+      method: 'PUT',
+      headers: { ...AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'Number', name: NULL_ITEM, label: 'NH E2E Gauge Unknown' }),
+    })
+    madeNull = true
+    await fetch(itemUrl(NULL_ITEM) + '/state', { method: 'PUT', headers: { ...AUTH, 'Content-Type': 'text/plain' }, body: 'NULL' })
+  }
+
+  // every check on this one is taken with the dimmer at 90
+  const ring = (id, label, x, y, config) => ({
+    id,
+    type: 'dial',
+    config: { item: ITEMS.dimmer, label, readOnly: true, unit: '%', ...config },
+    layout: { lg: { x, y, w: 3, h: 3 } },
+  })
+  await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const seedStops = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID_STOPS,
+      component: 'neohab:dashboard',
+      config: {
+        version: 3,
+        id: 'nh-e2e-gaugestops',
+        name: 'E2E Gauge Stops',
+        columns: 12,
+        rowHeight: 'match',
+        gap: 6,
+        widgets: [
+          ring('g-top', 'Top stop', 0, 0, { style: 'arc', color: '#123456', severity: [{ value: 80, color: RED }, { value: 50, color: GREEN }] }),
+          ring('g-mid', 'Middle stop', 3, 0, { style: 'arc', color: '#123456', severity: [{ value: 95, color: RED }, { value: 50, color: GREEN }] }),
+          ring('g-below', 'Below', 6, 0, { style: 'arc', color: '#00ff88', severity: [{ value: 95, color: RED }] }),
+          ring('g-theme', 'Theme', 9, 0, { style: 'arc', severity: [{ value: 95, color: RED }] }),
+          ring('g-clay', 'Clay alarm', 0, 3, { style: '3d', alarm: true, alarmFrom: 0, alarmTo: 100 }),
+          ring('g-zero', 'Zero alarm', 3, 3, { style: 'led', min: 90, max: 100, alarm: true, alarmFrom: 90, alarmTo: 100 }),
+          ring('g-out', 'Out of range', 6, 3, { style: 'led', alarm: true, alarmFrom: 98, alarmTo: 100 }),
+          ...(madeNull ? [ring('g-null', 'No reading', 9, 3, { item: NULL_ITEM, style: 'led', alarm: true, alarmFrom: 0, alarmTo: 100 })] : []),
+        ],
+      },
+    }),
+  })
+  ok('stops dashboard created', seedStops.ok, String(seedStops.status))
 
   const posts = []
   await page.route('**/rest/items/**', (route) => {
@@ -289,6 +343,10 @@ try {
   ok('alarm gauge pulses', (await cell('Alarm on').locator('.nh-gauge__bloom--pulse').count()) === 1)
   ok('out-of-range alarm does not pulse', (await cell('Alarm off').locator('.nh-gauge__bloom--pulse').count()) === 0)
   ok('out-of-range alarm still blooms', (await cell('Alarm off').locator('.nh-gauge__bloom').count()) === 1)
+  ok('alarm puts the flashing frame on the tile', (await cell('Alarm on').locator('.nh-widget--alarm > .nh-widget__alarm').count()) === 1)
+  ok('out-of-range alarm has no frame', (await cell('Alarm off').locator('.nh-widget__alarm').count()) === 0)
+  const framed = await page.locator('.nh-widget__alarm').count()
+  ok('no other tile on the page is framed', framed === 1, String(framed))
 
   ok('hidden-unlit shows only lit beads', (await cell('Half').locator('.nh-gauge__led').count()) === 0)
   const halfLit = await cell('Half').locator('.nh-gauge__ledlit').count()
@@ -335,8 +393,30 @@ try {
   await page.click('[aria-label="Edit dashboard"]')
   await page.waitForSelector('.nh-grid--edit')
   await page.waitForFunction(() => document.querySelectorAll('.nh-cell').length > 0)
+  await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("LED")) .nh-cell__overlay').click()
+  await page.waitForSelector('.nh-sheet--side .nh-stopstrip', { timeout: 8000 }).catch(() => {})
+  const stripOf = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('.nh-sheet--side .nh-stopstrip__seg')].map((seg) => ({
+        label: seg.querySelector('.nh-stopstrip__label')?.textContent,
+        color: getComputedStyle(seg.querySelector('.nh-stopstrip__bar')).backgroundColor,
+        theme: seg.querySelector('.nh-stopstrip__bar').classList.contains('nh-stopstrip__bar--theme'),
+      }))
+    )
+  const bands = (strip) => JSON.stringify(strip.map((b) => b.label + ' ' + b.color))
+  const fromInputs = page.locator('.nh-sheet--side .nh-chartcard__cell:has(span:text-is("From value")) input')
+  const oldStops = await fromInputs.evaluateAll((els) => els.map((el) => el.value))
+  ok('a version 1 dashboard opens with its stops as stored', JSON.stringify(oldStops) === '["10","30","70"]', JSON.stringify(oldStops))
+  const oldStrip = await stripOf()
+  ok(
+    'and each one starts at its value: base below 10, blue from 10, orange from 30, red from 70',
+    bands(oldStrip) === JSON.stringify(['< 10 rgb(18, 52, 86)', '≥ 10 rgb(33, 150, 243)', '≥ 30 rgb(255, 152, 0)', '≥ 70 rgb(244, 67, 54)']),
+    bands(oldStrip)
+  )
+
   await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("Classic")) .nh-cell__overlay').click()
   await page.waitForSelector('.nh-sheet--side')
+  await sleep(300)
   const styleSel = page.locator('.nh-sheet--side .nh-field:has(.nh-field__label:text-is("Style")) select')
   ok('style select shows classic by default', (await styleSel.inputValue()) === 'classic')
   ok('no LED fields while classic', (await page.locator('.nh-sheet--side label:has-text("Segments")').count()) === 0)
@@ -368,6 +448,178 @@ try {
   const stored = await (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).json()
   const storedClassic = stored?.config?.widgets?.find((w) => w.id === 'w-classic')
   ok('exit discarded the style experiment', storedClassic && storedClassic.config.style === undefined, JSON.stringify(storedClassic?.config?.style))
+  const storedLed = stored?.config?.widgets?.find((w) => w.id === 'w-led')
+  ok(
+    'reading an old dashboard does not rewrite it on the server',
+    stored?.config?.version === 1 && storedLed?.config?.severity?.length === 3,
+    `version ${stored?.config?.version}, ${storedLed?.config?.severity?.length} stops`
+  )
+
+  // ---- stops and the alarm, dimmer still at 90 ----
+  // a build without the stops strip has nothing to find below, so nothing may wait long
+  page.setDefaultTimeout(5000)
+  await page.goto(APP + '#/d/nh-e2e-gaugestops', { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.nh-gcell:has(.nh-widget__labeltext:text-is("Top stop")) .nh-gauge__band', { timeout: 15000 }).catch(() => {})
+  await sleep(1500)
+  const now = Number.parseFloat(await itemState(ITEMS.dimmer))
+  const band = (label) =>
+    cell(label)
+      .evaluate((el) => el.querySelector('.nh-gauge__band')?.getAttribute('stroke') ?? 'absent')
+      .catch(() => 'no tile')
+  const count = (label, sel) => cell(label).locator(sel).count()
+
+  const top = await band('Top stop')
+  ok('a reading above every stop takes the highest one', now === 90 && top === RED, `dimmer ${now}, stops 50 and 80: ${top}`)
+  const mid = await band('Middle stop')
+  ok('a reading between two stops takes the one below it', mid === GREEN, `stops 50 and 95: ${mid}`)
+  const below = await band('Below')
+  ok('a reading below the lowest stop takes the base color', below === '#00ff88', `stop 95: ${below}`)
+  const themed = await band('Theme')
+  ok('and follows the theme when there is no base color', themed === 'var(--nh-primary)', `stop 95, no color: ${themed}`)
+
+  ok('the 3D dial gets the alarm frame', (await count('Clay alarm', '.nh-widget--alarm > .nh-widget__alarm')) === 1)
+  const zero = {
+    frame: await count('Zero alarm', '.nh-widget__alarm'),
+    pulse: await count('Zero alarm', '.nh-gauge__bloom--pulse'),
+    lit: await count('Zero alarm', '.nh-gauge__ledlit'),
+  }
+  ok('a reading at the bottom of its scale still alarms', zero.frame === 1 && zero.pulse === 1, JSON.stringify(zero))
+  const out = { tile: await count('Out of range', '.nh-dial--ring'), frame: await count('Out of range', '.nh-widget__alarm') }
+  ok('a reading outside the alarm range has no frame', out.tile === 1 && out.frame === 0, JSON.stringify(out))
+  if (madeNull) {
+    const none = {
+      tile: await count('No reading', '.nh-dial--ring'),
+      frame: await count('No reading', '.nh-widget__alarm'),
+      state: await itemState(NULL_ITEM),
+    }
+    ok('an item with no reading does not alarm', none.tile === 1 && none.frame === 0 && none.state === 'NULL', JSON.stringify(none))
+  }
+  const said = await cell('Clay alarm').locator('.nh-widget__alarm').getAttribute('aria-label').catch(() => null)
+  ok('the frame says what it is to a screen reader', typeof said === 'string' && said.length > 0, String(said))
+
+  // the frame has to cover its own tile and nothing else. a cell is a size container, which does not
+  // contain an absolute child, so the control takes the tile's position away and expects it to escape
+  const frameBox = () =>
+    cell('Clay alarm')
+      .evaluate((el) => {
+        const tile = el.querySelector('.nh-widget').getBoundingClientRect()
+        const frame = el.querySelector('.nh-widget__alarm').getBoundingClientRect()
+        const off = Math.max(
+          Math.abs(frame.left - tile.left),
+          Math.abs(frame.top - tile.top),
+          Math.abs(frame.right - tile.right),
+          Math.abs(frame.bottom - tile.bottom)
+        )
+        return { off, frame: Math.round(frame.width) + 'x' + Math.round(frame.height), tile: Math.round(tile.width) + 'x' + Math.round(tile.height) }
+      })
+      .catch(() => null)
+  const snug = await frameBox()
+  ok('the frame sits on its own tile, edge to edge', snug !== null && snug.off <= 1.5 && Number.parseInt(snug.tile) > 100, JSON.stringify(snug))
+  const unpin = await page.addStyleTag({ content: '.nh-widget.nh-widget--alarm { position: static !important; }' })
+  const loose = await frameBox()
+  ok('(control) without a positioned tile the frame leaves it - check has power', loose !== null && loose.off > 20, JSON.stringify(loose))
+  await unpin.evaluate((el) => el.remove())
+
+  const under = () =>
+    cell('Clay alarm')
+      .evaluate((el) => {
+        const r = el.querySelector('.nh-widget').getBoundingClientRect()
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return { frame: !!hit?.closest('.nh-widget__alarm'), inTile: el.contains(hit), tag: hit?.tagName }
+      })
+      .catch(() => null)
+  const press = await under()
+  ok('a press goes through the frame to the dial', press !== null && !press.frame && press.inTile, JSON.stringify(press))
+  const solid = await page.addStyleTag({ content: '.nh-widget__alarm { pointer-events: auto !important; }' })
+  const blocked = await under()
+  ok('(control) a frame that took the pointer would be on top - check has power', blocked?.frame === true, JSON.stringify(blocked))
+  await solid.evaluate((el) => el.remove())
+
+  const motion = () =>
+    page.evaluate(() => {
+      const read = (el) => {
+        if (!el) return null
+        const cs = getComputedStyle(el)
+        return {
+          name: cs.animationName,
+          time: cs.animationDuration,
+          count: cs.animationIterationCount,
+          running: el.getAnimations().filter((a) => a.playState === 'running').length,
+        }
+      }
+      return { frame: read(document.querySelector('.nh-widget__alarm')), pulse: read(document.querySelector('.nh-gauge__bloom--pulse')) }
+    })
+  const lively = await motion()
+  ok(
+    'the frame flashes once a second',
+    lively.frame?.name === 'nh-alarm' && lively.frame?.time === '1s' && lively.frame?.count === 'infinite' && lively.frame?.running === 1,
+    JSON.stringify(lively.frame)
+  )
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await sleep(300)
+  const calm = await motion()
+  ok(
+    'and keeps flashing when the device asks for less motion, slower',
+    calm.frame?.name === 'nh-alarm-calm' && calm.frame?.time === '2s' && calm.frame?.count === 'infinite' && calm.frame?.running === 1,
+    JSON.stringify(calm.frame)
+  )
+  ok('(control) every other animation is cut to one pass there - check has power', calm.pulse?.count === '1', JSON.stringify(calm.pulse))
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  // ---- the stops editor ----
+  await page.click('[aria-label="Edit dashboard"]').catch(() => {})
+  await page.waitForSelector('.nh-grid--edit').catch(() => {})
+  const pick = async (name) => {
+    await page
+      .locator(`.nh-cell:has(.nh-widget__labeltext:text-is("${name}")) .nh-cell__overlay`)
+      .click()
+      .catch(() => {})
+    await sleep(400)
+  }
+  ok('the alarm shows while editing too', (await page.locator('.nh-cell:has(.nh-widget__labeltext:text-is("Clay alarm")) .nh-widget__alarm').count()) === 1)
+  await pick('Top stop')
+  ok('each stop asks for the value it starts from', (await page.locator('.nh-sheet--side .nh-chartcard__cell span:text-is("From value")').count()) === 2)
+  ok('and nothing still says "up to"', (await page.locator('.nh-sheet--side').getByText('Up to value').count()) === 0)
+  const strip = await stripOf()
+  ok(
+    'the preview lists the bands low to high, base color first',
+    bands(strip) === JSON.stringify(['< 50 rgb(18, 52, 86)', '≥ 50 rgb(76, 175, 80)', '≥ 80 rgb(244, 67, 54)']),
+    bands(strip)
+  )
+  await pick('Theme')
+  const themeStrip = await stripOf()
+  ok("with no base color the first band is marked as the theme's", themeStrip.length === 2 && themeStrip[0].theme && !themeStrip[1].theme, JSON.stringify(themeStrip))
+
+  // typed, not filled: the field takes a keystroke at a time
+  await pick('Below')
+  const editBand = () =>
+    page
+      .locator('.nh-cell:has(.nh-widget__labeltext:text-is("Below")) .nh-gauge__band')
+      .getAttribute('stroke')
+      .catch(() => 'absent')
+  const before = await editBand()
+  await fromInputs.click().catch(() => {})
+  await page.keyboard.press('Control+A')
+  await page.keyboard.type('85')
+  await sleep(400)
+  const after = await editBand()
+  const typed = await stripOf()
+  const field = await fromInputs.inputValue().catch(() => 'absent')
+  ok(
+    'typing a lower stop recolors the dial and the preview as it is typed',
+    before === '#00ff88' && after === RED && typed[1]?.label === '≥ 85' && field === '85',
+    `${before} -> ${after}, field ${field}, preview ${typed.map((b) => b.label).join(' | ')}`
+  )
+  const side = await page.evaluate(() => {
+    const el = document.querySelector('.nh-sheet--side')
+    return el ? { scroll: el.scrollWidth, client: el.clientWidth } : null
+  })
+  ok('the stops field fits the settings panel', side !== null && side.scroll <= side.client, JSON.stringify(side))
+  await page.click('button:has-text("Exit")').catch(() => {})
+  await sleep(500)
+  const storedStops = await (await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { headers: AUTH })).json()
+  const storedBelow = storedStops?.config?.widgets?.find((w) => w.id === 'g-below')
+  ok('exit discarded the typed stop', storedBelow?.config?.severity?.[0]?.value === 95, JSON.stringify(storedBelow?.config?.severity))
 
   const realErrs = errs.filter((e) => !/ERR_INTERNET_DISCONNECTED/.test(e))
   ok('no console/page errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
@@ -378,6 +630,14 @@ try {
   const del = await fetch(NS + '/' + encodeURIComponent(UID), { method: 'DELETE', headers: AUTH })
   const gone = (await fetch(NS + '/' + encodeURIComponent(UID), { headers: AUTH })).status === 404
   ok('cleanup: ' + UID + ' deleted', gone, 'del=' + del.status)
+  const delStops = await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { method: 'DELETE', headers: AUTH })
+  const goneStops = (await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { headers: AUTH })).status === 404
+  ok('cleanup: ' + UID_STOPS + ' deleted', goneStops, 'del=' + delStops.status)
+  if (madeNull) {
+    await fetch(itemUrl(NULL_ITEM), { method: 'DELETE', headers: AUTH }).catch(() => {})
+    const itemGone = (await fetch(itemUrl(NULL_ITEM), { headers: AUTH })).status === 404
+    ok('cleanup: ' + NULL_ITEM + ' deleted', itemGone)
+  }
   await sendItem(ITEMS.dimmer, initialDimmer)
   await sleep(700)
   const restored = await itemState(ITEMS.dimmer)
