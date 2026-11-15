@@ -3,7 +3,7 @@ import { BACKGROUND_PREFIX, DASHBOARD_PREFIX, ICON_PREFIX, SETTINGS_UID, THEME_P
 export type ComponentKind = 'dashboard' | 'theme' | 'widgetdef' | 'icon' | 'background' | 'settings'
 
 export const SCHEMA_VERSIONS: Record<ComponentKind, number> = {
-  dashboard: 3,
+  dashboard: 4,
   theme: 1,
   widgetdef: 1,
   icon: 1,
@@ -82,8 +82,34 @@ const statToValueStyle: Migration = (config) => {
   return changed ? { ...config, widgets: migrated } : config
 }
 
+// 3 -> 4: a navigate button's item only ever lit the tile, which the status item now does for navigate and
+// rule buttons alike. It follows the status rule from here on, toggle or not: ON or any level above 0, or
+// the exact state when its command was something else.
+const navigateStatusItem: Migration = (config) => {
+  const widgets = config.widgets
+  if (!Array.isArray(widgets)) return config
+  let changed = false
+  const migrated = widgets.map((entry) => {
+    const widget = plainObject(entry)
+    if (widget.type !== 'button') return entry
+    const stored = plainObject(widget.config)
+    if (stored.action !== 'navigate' || typeof stored.item !== 'string' || stored.item === '') return entry
+    changed = true
+    const { item, ...rest } = stored
+    const command =
+      typeof stored.command === 'string'
+        ? stored.command.trim()
+        : typeof stored.command === 'number' && Number.isFinite(stored.command)
+          ? String(stored.command)
+          : ''
+    const exact = command !== '' && command !== 'ON' ? { statusState: command } : {}
+    return { ...widget, config: { ...rest, statusItem: item, ...exact } }
+  })
+  return changed ? { ...config, widgets: migrated } : config
+}
+
 export const MIGRATIONS: Record<ComponentKind, Migration[]> = {
-  dashboard: [switchToButtonStyle, statToValueStyle],
+  dashboard: [switchToButtonStyle, statToValueStyle, navigateStatusItem],
   theme: [],
   widgetdef: [],
   icon: [],

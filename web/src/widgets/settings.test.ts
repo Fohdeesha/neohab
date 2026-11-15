@@ -47,6 +47,7 @@ const RENDERABLE: Record<SettingField['type'], true> = {
   select: true,
   multiselect: true,
   dashboard: true,
+  rule: true,
   hideon: true,
   planimage: true,
   planlights: true,
@@ -196,6 +197,7 @@ describe('every widget settings schema', () => {
     expect(instanceCommands('dial', { item: 'x', readOnly: true })).toBe(false)
     expect(instanceCommands('button', { item: 'x', action: 'command' })).toBe(true)
     expect(instanceCommands('button', { item: 'x', action: 'navigate' })).toBe(false)
+    expect(instanceCommands('button', { item: 'x', action: 'rule', rule: 'r' })).toBe(false)
     for (const display of ['value', 'chart', 'timeline', 'compass', 'weather', 'battery']) {
       expect(instanceCommands(display, { item: 'x' }), display).toBe(false)
     }
@@ -203,6 +205,20 @@ describe('every widget settings schema', () => {
       expect(instanceCommands(control, { item: 'x' }), control).toBe(true)
     }
     expect(instanceCommands('thermostat', { currentItem: 'x', setpointItem: 'y' })).toBe(true)
+  })
+
+  // a rule or navigate button reads its status item and never commands it, and has no item it needs
+  it('reads a button status item without offering a control for it', () => {
+    for (const action of ['rule', 'navigate']) {
+      const c = { action, rule: 'r', item: 'Lamp', statusItem: 'gLights' }
+      expect(itemsForInstance('button', c), action).toEqual(['gLights'])
+      expect(instanceControl('button', c, 'gLights'), action).toBeUndefined()
+      expect(instanceControl('button', c, 'Lamp'), action).toBeUndefined()
+      expect(instanceNeedsItem('button', { action }), action).toBe(false)
+      expect(primaryItemOf('button', c), action).toBeUndefined()
+    }
+    expect(itemsForInstance('button', { action: 'rule', rule: 'r' })).toEqual([])
+    expect(instanceNeedsItem('button', { action: 'command' })).toBe(true)
   })
 
   it('says no for a widget type nobody registered', () => {

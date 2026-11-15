@@ -6,6 +6,17 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.43.0
+
+- Buttons can run a scene, script or rule, picked by name from a list that keeps the three apart
+- A rule button shows while openHAB is running it, and says so when the rule is disabled
+- Navigate and rule buttons can light up from a status item, and a lit rule button can run a second rule
+- A navigate button's item is now its status item, lit when it's ON or above 0
+- A Button's settings ask what it does first
+- Templates can run a rule with `runRule()`, JavaScript widgets with `oh.runRule()`
+- The LCD theme shows a Value widget's color and color stops instead of always drawing its own blue
+- The theme editor warns when a stylesheet would hide a Value widget's color
+
 ## 1.42.0
 
 - Color stops now start at their value, like Grafana: a stop at 60 colors everything from 60 up

@@ -41,10 +41,16 @@ In edit mode:
    till it lifts, then drag
 3. Tap it to open its settings
 
-The first field is the **openHAB Item**. Start typing part of an item's name and pick it from the list.
-For a Button, the two fields under it are **Action** and **Command**, which is everything a light
-switch needs. **Name** is what the tile says, and a widget that starts without one takes the item's
+Most widgets start with the **openHAB Item**. Start typing part of an item's name and pick it from
+the list. A Button asks what it does first: its **Action** sends a command, opens another dashboard,
+or runs a scene, script or rule. For a light switch that's **Send command**, then the item and its
+**Command**. **Name** is what the tile says, and a widget that starts without one takes the item's
 label when you bind it.
+
+To run a script from a tile, set the Button's Action to **Run a scene, script or rule** and pick it
+by name. Scenes and scripts are listed first; other rules sit behind one row until you ask for them
+or type. A **Status item** is optional: give it one and the tile lights up while that item is on,
+and can run a second script instead while it's lit.
 
 Anything about how the tile looks is in the **Appearance** group below, and anything that belongs
 to the tile rather than the widget (its accent, its text size, which screen sizes show it) is in
@@ -103,3 +109,5 @@ the whole configuration back.
   kept awake. Installing it as an app needs HTTPS, plain http only gets you a shortcut
 - **Settings › Custom widgets** is where you write your own tile out of HTML when no built-in one
   fits. Five examples ship with it, and starting from one is usually quicker than a blank page.
+  A template runs a scene, script or rule with `runRule('its-uid')`, and a JavaScript widget with
+  `oh.runRule('its-uid')`, which resolves to `true` once the rule has run.

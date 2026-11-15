@@ -94,6 +94,8 @@ const WIDGETS = [
   at(val('Bar mid', 'bar', { caption: 'Tank', min: 0, max: 200 }), 3, 37, 3, 4),
   at(val('Split mid', 'split', { caption: 'Room', icon: 'mdi:thermometer' }), 6, 37, 3, 4),
   at(val('Hero mid', 'hero', { caption: 'Wall' }), 9, 37, 3, 4),
+  // the plain look's reading is its own element, which a theme can colour apart from the row
+  at(val('Plain colored', 'plain', { color: '#ff7a00' }), 0, 41, 3, 4),
 
   // narrow: an em-sized part has no room here, and a caption is a single long token
   at(val('Narrow bar', 'bar', { caption: 'Tank', min: 0, max: 200 }), 0, 18, 1, 5),
@@ -758,6 +760,34 @@ try {
       pillInk.every((p) => p.opaque && p.ratio >= 4.5),
     `font=${lcdFont} ` + (pillInk ?? []).map((p) => `${p.label}:${p.ratio}:1 (${p.fg} on ${p.bg})`).join(' | ')
   )
+  // the colour has to reach the reading's own element, not just its row: LCD colours the reading
+  // directly, which once hid every Value color and color stop behind the theme's neon
+  const inks = await probe(
+    themed,
+    (labels) => {
+      const probeEl = document.createElement('span')
+      probeEl.style.color = 'var(--nh-primary)'
+      document.body.append(probeEl)
+      const primary = getComputedStyle(probeEl).color
+      probeEl.remove()
+      const of = (l) => {
+        const w = [...document.querySelectorAll('.nh-widget')].find((x) => x.querySelector('.nh-widget__labeltext')?.textContent === l)
+        const r = w?.querySelector('.nh-value__text, .nh-stat__value')
+        return r ? getComputedStyle(r).color : null
+      }
+      return { primary, ...Object.fromEntries(labels.map((l) => [l, of(l)])) }
+    },
+    ['Severity', 'Split filled', 'Plain colored', 'Stat band']
+  )
+  ok(
+    'in a theme that colours readings, a color stop and a Value color still reach the reading',
+    /DSEG/i.test(String(lcdFont)) &&
+      inks?.Severity === 'rgb(163, 206, 74)' &&
+      inks?.['Split filled'] === 'rgb(11, 120, 194)' &&
+      inks?.['Plain colored'] === 'rgb(255, 122, 0)',
+    JSON.stringify(inks)
+  )
+  ok("and a reading with no colour of its own keeps the theme's", !!inks?.primary && inks?.['Stat band'] === inks?.primary, JSON.stringify(inks))
   await themed.close()
 
   // ---- a dashboard stored before the merge ----

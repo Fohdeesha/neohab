@@ -25,6 +25,7 @@ export interface RuleSummary {
   configuration?: Record<string, unknown>
   status?: RuleStatus
   editable?: boolean
+  visibility?: string
 }
 
 export interface SceneRule extends RuleSummary {

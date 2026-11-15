@@ -371,3 +371,65 @@ describe('the table and the declared versions agree', () => {
     expect(Object.keys(MIGRATIONS).sort()).toEqual(Object.keys(SCHEMA_VERSIONS).sort())
   })
 })
+
+describe('moving a navigate button item to its status (dashboard 3 -> 4)', () => {
+  const run = (widgets: unknown[]): Record<string, unknown> => {
+    const result = migrateConfig('dashboard', { version: 3, id: 'hall', name: 'Hall', widgets })
+    expect(result.status).toBe('ok')
+    if (result.status !== 'ok') throw new Error('refused')
+    return result.config
+  }
+  const first = (widgets: unknown[]) => (run(widgets).widgets as Record<string, unknown>[])[0]
+  const btn = (config: Record<string, unknown>) => ({ id: 'w-1', type: 'button', config, layout: { lg: { x: 0, y: 0, w: 2, h: 2 } } })
+
+  it('makes the item the status item and follows the new rule: ON or any level above 0', () => {
+    const w = first([btn({ action: 'navigate', navigateDashboard: 'up', item: 'gUpstairs', command: 'ON', toggle: true, label: 'Up' })])
+    expect(w.config).toMatchObject({ action: 'navigate', navigateDashboard: 'up', statusItem: 'gUpstairs', label: 'Up' })
+    expect(w.config).not.toHaveProperty('item')
+    expect(w.config).not.toHaveProperty('statusState')
+  })
+
+  it('moves the item even where Toggle with state was off, so that tile starts lighting up', () => {
+    expect(first([btn({ action: 'navigate', item: 'gUpstairs', command: 'ON', toggle: false })]).config).toMatchObject({
+      statusItem: 'gUpstairs'
+    })
+  })
+
+  it('keeps a command other than ON as the exact state that lights it', () => {
+    expect(first([btn({ action: 'navigate', item: 'Player', command: 'PLAY', toggle: true })]).config).toMatchObject({
+      statusState: 'PLAY'
+    })
+    expect(first([btn({ action: 'navigate', item: 'Mode', command: 2, toggle: true })]).config).toMatchObject({ statusState: '2' })
+    expect(first([btn({ action: 'navigate', item: 'Mode', command: ' ON ' })]).config).not.toHaveProperty('statusState')
+  })
+
+  it('leaves command buttons, navigate buttons with no item and every other widget as they were', () => {
+    const command = btn({ action: 'command', item: 'Lamp', command: 'ON' })
+    const plain = btn({ item: 'Lamp' })
+    const bare = btn({ action: 'navigate', navigateDashboard: 'up', item: '' })
+    const slider = { id: 'w-9', type: 'slider', config: { item: 'Lamp', action: 'navigate' }, layout: {} }
+    const widgets = run([command, plain, bare, slider]).widgets as unknown[]
+    expect(widgets).toEqual([command, plain, bare, slider])
+  })
+
+  it('lands on the current version, and a v1 dashboard passes through every step', () => {
+    expect(run([]).version).toBe(SCHEMA_VERSIONS.dashboard)
+    const result = migrateConfig('dashboard', {
+      version: 1,
+      widgets: [{ id: 'w', type: 'button', config: { action: 'navigate', item: 'gHall', command: 'ON' }, layout: {} }]
+    })
+    if (result.status !== 'ok') throw new Error('refused')
+    expect((result.config.widgets as Record<string, unknown>[])[0].config).toMatchObject({ statusItem: 'gHall', toggle: false })
+  })
+
+  it('survives widgets no editor would write', () => {
+    const odd = run([
+      null,
+      'nope',
+      { type: 'button' },
+      { type: 'button', config: ['array'] },
+      { type: 'button', config: { action: 'navigate', item: 7 } }
+    ])
+    expect((odd.widgets as unknown[]).slice(0, 2)).toEqual([null, 'nope'])
+  })
+})

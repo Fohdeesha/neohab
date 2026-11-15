@@ -5,7 +5,7 @@ import { CLASSIC_ICONS } from './classicIcons'
 import { saveCustomIcon, useConfigStore } from '../store/config'
 import { slugifyIconId } from '../model/customIcon'
 import { DEFAULT_MAX_ICON_KB, processIconFile } from './iconUpload'
-import { scrollMoves } from './popover'
+import { useAnchoredList } from './popover'
 import { errorText } from '../api/errors'
 
 interface IconPickerProps {
@@ -108,30 +108,33 @@ const packEntries = (packs: [file: string, prefix: string][], sorted: boolean): 
 }
 
 const MAX_RESULTS = 120
-const MARGIN = 8
-
-interface ListPos {
-  left: number
-  width: number
-  top?: number
-  bottom?: number
-  maxHeight: number
-}
 
 export function IconPicker({ id, value, onChange }: IconPickerProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
   // every set at once, so typing a word finds it wherever it lives. The tabs narrow from here.
   const [tab, setTab] = useState<Tab>('all')
   const [query, setQuery] = useState('')
-  const [pos, setPos] = useState<ListPos | null>(null)
   const [loadTick, setLoadTick] = useState(0)
   const [retry, setRetry] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const popRef = useRef<HTMLDivElement>(null)
+  const {
+    rootRef,
+    boxRef,
+    listRef: popRef,
+    open,
+    pos,
+    openList,
+    close
+  } = useAnchoredList<HTMLDivElement>({
+    flipBelow: 300,
+    minHeight: 220,
+    minWidth: 300,
+    onClose: () => {
+      setQuery('')
+      setUploadError(null)
+    }
+  })
   const fileRef = useRef<HTMLInputElement>(null)
 
   const customIcons = useConfigStore((s) => s.customIcons)
@@ -148,59 +151,6 @@ export function IconPicker({ id, value, onChange }: IconPickerProps) {
       cancelled = true
     }
   }, [open, tab, retry])
-
-  const openedAt = useRef(0)
-  const placeList = () => {
-    const box = boxRef.current?.getBoundingClientRect()
-    if (box) {
-      const below = window.innerHeight - box.bottom - MARGIN
-      const above = box.top - MARGIN
-      const flip = below < 300 && above > below
-      const maxHeight = Math.max(220, flip ? above : below)
-      setPos(
-        flip
-          ? { left: box.left, width: Math.max(box.width, 300), bottom: window.innerHeight - box.top + 4, maxHeight }
-          : { left: box.left, width: Math.max(box.width, 300), top: box.bottom + 4, maxHeight }
-      )
-    }
-  }
-  const openList = () => {
-    placeList()
-    setOpen(true)
-    openedAt.current = Date.now()
-  }
-  const close = () => {
-    setOpen(false)
-    setQuery('')
-    setUploadError(null)
-  }
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Node
-      if (!rootRef.current?.contains(t) && !popRef.current?.contains(t)) close()
-    }
-    const onScroll = (e: Event) => {
-      if (popRef.current && e.target instanceof Node && popRef.current.contains(e.target)) return
-      if (!scrollMoves(e.target, rootRef.current)) return
-      // the focus-follow scroll of a just-tapped input is part of opening the popover, not the user scrolling away
-      if (Date.now() - openedAt.current < 300) {
-        placeList()
-        return
-      }
-      close()
-    }
-    const onResize = () => close()
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', onResize)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [open])
 
   const packs = TAB_PACKS[tab]
   const packsReady = !packs || packs.every(([file]) => loadedIndexes.has(file))

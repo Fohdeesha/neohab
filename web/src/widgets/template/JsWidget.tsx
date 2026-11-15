@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { useConfigStore } from '../../store/config'
 import { subscribeItems, useItemsStore } from '../../store/items'
 import { commandItem } from '../common/command'
+import { runRuleChecked } from '../common/rule'
+import { ensureRules } from '../../store/rules'
 import { getActiveTheme, useActiveTheme } from '../../themes/active'
 import i18n from '../../i18n'
 import type { CustomWidgetDef } from '../../model/widgetdef'
@@ -24,6 +26,7 @@ interface BridgeMessage {
   id?: number
   name?: string
   command?: string
+  uid?: string
   names?: string[]
 }
 
@@ -69,6 +72,13 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
             void commandItem(m.name, m.command)
           }
           break
+        case 'runRule':
+          if (editingRef.current || typeof m.uid !== 'string' || !m.uid) {
+            post({ type: 'result', id: m.id, value: false })
+          } else {
+            void runRuleChecked(m.uid).then((ran) => post({ type: 'result', id: m.id, value: ran }))
+          }
+          break
         case 'subscribe': {
           const names = (m.names ?? []).filter((n): n is string => typeof n === 'string' && !subscribed.has(n))
           for (const n of names) subscribed.add(n)
@@ -104,6 +114,10 @@ export function JsWidget({ def, values, label, editing, bare }: JsWidgetProps) {
     if (!allow) return
     iframeRef.current?.contentWindow?.postMessage({ neohab: true, type: 'theme', theme: activeTheme.tokens }, '*')
   }, [allow, activeTheme])
+
+  useEffect(() => {
+    if (allow && /runRule/.test(def.script ?? '')) ensureRules()
+  }, [allow, def.script])
 
   if (!allow) {
     return (

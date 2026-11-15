@@ -55,6 +55,8 @@ export type SettingField = SettingCommon &
         defaultValue?: string[]
       }
     | { key: string; type: 'dashboard'; label: string }
+    // an openHAB scene, script or rule, stored by uid
+    | { key: string; type: 'rule'; label: string }
     | { key: string; type: 'hideon'; label: string }
     | { key: string; type: 'planimage'; label: string }
     | { key: string; type: 'weatherlocation'; label: string }

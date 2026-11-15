@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { ItemState } from '../../api/types'
-import { buttonFloor, commandFor, drawsFace, finishOf, isActive, styleOf, toggleCommands } from './model'
+import {
+  actionOf,
+  boundItem,
+  buttonFloor,
+  commandFor,
+  drawsFace,
+  finishOf,
+  isActive,
+  ruleFor,
+  statusActive,
+  styleOf,
+  tileActive,
+  toggleCommands
+} from './model'
 
 const state = (s: string): ItemState => ({ state: s }) as ItemState
 
@@ -143,5 +156,71 @@ describe('counting any value above zero as on', () => {
     for (const junk of ['true', 1, 'yes', {}, null]) {
       expect(isActive({ command: 'ON', toggle: true, nonZeroIsOn: junk }, state('50')), JSON.stringify(junk)).toBe(false)
     }
+  })
+})
+
+describe('what a press does', () => {
+  it('sends a command unless the config says otherwise', () => {
+    expect(actionOf('navigate')).toBe('navigate')
+    expect(actionOf('rule')).toBe('rule')
+    expect(actionOf('command')).toBe('command')
+    for (const junk of [undefined, '', 'Rule', 'constructor', 0, null, {}]) expect(actionOf(junk), JSON.stringify(junk)).toBe('command')
+  })
+
+  it('reads the commanded item for a command and the status item for anything else', () => {
+    expect(boundItem({ action: 'command', item: 'Lamp', statusItem: 'gLights' })).toBe('Lamp')
+    expect(boundItem({ action: 'rule', item: 'Lamp', statusItem: 'gLights' })).toBe('gLights')
+    expect(boundItem({ action: 'navigate', item: 'Lamp', statusItem: 'gLights' })).toBe('gLights')
+    expect(boundItem({ action: 'rule', item: 'Lamp' })).toBeUndefined()
+    expect(boundItem({ action: 'rule', statusItem: '' })).toBeUndefined()
+    expect(boundItem({ action: 'rule', statusItem: 42 })).toBeUndefined()
+  })
+})
+
+describe('a status item lighting a rule or navigate tile', () => {
+  it('counts ON or any level above 0 as on when no state is typed', () => {
+    for (const on of ['ON', '50', '0.5', '120,50,40']) expect(statusActive({}, state(on)), on).toBe(true)
+    for (const off of ['OFF', '0', '120,50,0', 'NULL', 'UNDEF', 'PLAY', 'OPEN']) expect(statusActive({}, state(off)), off).toBe(false)
+    expect(statusActive({ statusState: '  ' }, state('ON'))).toBe(true)
+  })
+
+  it('matches a typed state exactly, numbers by value', () => {
+    expect(statusActive({ statusState: 'PLAY' }, state('PLAY'))).toBe(true)
+    expect(statusActive({ statusState: 'PLAY' }, state('PAUSE'))).toBe(false)
+    expect(statusActive({ statusState: 'OFF' }, state('OFF'))).toBe(true)
+    expect(statusActive({ statusState: 'OFF' }, state('ON'))).toBe(false)
+    expect(statusActive({ statusState: '1' }, state('1.0'))).toBe(true)
+  })
+
+  it('is never on without a state to read', () => {
+    expect(statusActive({}, undefined)).toBe(false)
+  })
+
+  it('lights only a tile that has a status item, and leaves the command rule to command tiles', () => {
+    expect(tileActive({ action: 'rule', statusItem: 'g' }, state('ON'))).toBe(true)
+    expect(tileActive({ action: 'rule' }, state('ON'))).toBe(false)
+    expect(tileActive({ action: 'navigate', statusItem: 'g' }, state('ON'))).toBe(true)
+    // a command tile still needs Toggle with state, as it always did
+    expect(tileActive({ action: 'command', item: 'x', command: 'ON', toggle: false }, state('ON'))).toBe(false)
+    expect(tileActive({ action: 'command', item: 'x', command: 'ON', toggle: true }, state('ON'))).toBe(true)
+  })
+})
+
+describe('which rule a press runs', () => {
+  it('runs the second rule only while a status item shows the tile as on', () => {
+    const c = { action: 'rule', rule: 'on-script', ruleAlt: 'off-script', statusItem: 'gLights' }
+    expect(ruleFor(c, false)).toBe('on-script')
+    expect(ruleFor(c, true)).toBe('off-script')
+  })
+
+  it('runs the same rule every time without a second one or without a status item', () => {
+    expect(ruleFor({ action: 'rule', rule: 'r', statusItem: 'g' }, true)).toBe('r')
+    expect(ruleFor({ action: 'rule', rule: 'r', ruleAlt: 'alt' }, true)).toBe('r')
+    expect(ruleFor({ action: 'rule', rule: 'r', ruleAlt: '', statusItem: 'g' }, true)).toBe('r')
+  })
+
+  it('runs nothing when no rule is picked', () => {
+    expect(ruleFor({ action: 'rule' }, false)).toBeUndefined()
+    expect(ruleFor({ action: 'rule', rule: '' }, false)).toBeUndefined()
   })
 })

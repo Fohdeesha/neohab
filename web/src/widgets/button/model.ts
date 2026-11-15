@@ -4,6 +4,7 @@ import { isOn } from '../common/format'
 import { stateMatches } from '../common/stateIcon'
 
 export type ButtonStyle = 'button' | 'card' | 'switch'
+export type ButtonAction = 'command' | 'navigate' | 'rule'
 export type ButtonFinish = 'plain' | 'solid' | 'glass' | 'glow' | 'edge' | 'outline' | 'sheen' | 'bare'
 
 export interface ButtonState {
@@ -14,9 +15,15 @@ export interface ButtonState {
   nonZeroIsOn?: unknown
   style?: unknown
   finish?: unknown
+  action?: unknown
+  statusItem?: unknown
+  statusState?: unknown
+  rule?: unknown
+  ruleAlt?: unknown
 }
 
 const STYLES: Record<string, ButtonStyle> = { button: 'button', card: 'card', switch: 'switch' }
+const ACTIONS: Record<string, ButtonAction> = { command: 'command', navigate: 'navigate', rule: 'rule' }
 const FINISHES: Record<string, ButtonFinish> = {
   plain: 'plain',
   solid: 'solid',
@@ -48,6 +55,11 @@ export function finishOf(v: unknown): ButtonFinish {
   return lookup(FINISHES, str(v)) ?? 'plain'
 }
 
+// what a press does. Only 'command' commands the item it binds; the other two read a status item at most.
+export function actionOf(v: unknown): ButtonAction {
+  return lookup(ACTIONS, str(v)) ?? 'command'
+}
+
 export function drawsFace(v: unknown): boolean {
   return styleOf(v) !== 'switch'
 }
@@ -72,6 +84,33 @@ export function isActive(config: ButtonState, state: ItemState | undefined): boo
   if (config.toggle !== true) return false
   const exact = stateMatches(commandText(config.command, ''), state?.state)
   return config.nonZeroIsOn === true ? isOn(state) || exact : exact
+}
+
+// A status item lights a navigate or rule button: left empty, "on" is ON or any level above 0, which is
+// what a switch, a dimmer, a color light and their groups all mean by it; a typed value must match exactly.
+export function statusActive(config: ButtonState, state: ItemState | undefined): boolean {
+  if (!state) return false
+  const want = str(config.statusState)?.trim() ?? ''
+  return want === '' ? isOn(state) : stateMatches(want, state.state)
+}
+
+// the tile's item, whichever role it plays: the one a command goes to, or the one a status is read from
+export function boundItem(config: ButtonState): string | undefined {
+  const item = actionOf(config.action) === 'command' ? config.item : config.statusItem
+  return typeof item === 'string' && item !== '' ? item : undefined
+}
+
+export function tileActive(config: ButtonState, state: ItemState | undefined): boolean {
+  return actionOf(config.action) === 'command' ? isActive(config, state) : boundItem(config) !== undefined && statusActive(config, state)
+}
+
+// with a status item, a lit tile runs the second rule when there is one, the way a toggle sends its
+// alternate command
+export function ruleFor(config: ButtonState, active: boolean): string | undefined {
+  const rule = str(config.rule)
+  const alt = str(config.ruleAlt)
+  if (active && boundItem(config) !== undefined && alt) return alt
+  return rule || undefined
 }
 
 export function commandFor(config: ButtonState, active: boolean): string {

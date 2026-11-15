@@ -52,7 +52,7 @@ ${tightCellInsets({ label: '8px 10px 0', labelBottom: '0 10px 8px', body: '6px 1
   font-family: 'DSEG7', 'DSEG14', monospace;
   text-transform: uppercase;
   line-height: 1;
-  color: var(--nh-cellaccent, var(--nh-primary));
+  color: var(--nh-valuecolor, var(--nh-cellaccent, var(--nh-primary)));
   text-shadow:
     0 0 0.05em currentColor,
     0 0 0.28em color-mix(in srgb, currentColor 45%, transparent);

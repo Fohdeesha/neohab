@@ -194,10 +194,10 @@ These live on each grid cell rather than on the root, and a theme can read all o
   `.nh-gcell, .nh-cell`; a widget that made its own choice still wins, because that arrives as an
   inline style.
 
-### Six rules that are not obvious
+### Seven rules that are not obvious
 
 Your stylesheet loads **after** neohab's, so a rule of equal specificity beats the base one. That
-is what makes theming work, and it is why these six exist. The editor checks all of them, and so
+is what makes theming work, and it is why these seven exist. The editor checks all of them, and so
 does the test suite for every built-in theme.
 
 **1. Gate your padding.** neohab sheds padding in short and narrow cells so text stays readable.
@@ -248,6 +248,14 @@ internet, which is most of them. What is in `fonts/`, each with its licence besi
 `montserrat.woff2`, which is variable and wants `format('woff2-variations')` over a `100 900`
 range; and `dseg7.woff2` and `dseg14.woff2`, the seven- and fourteen-segment LCD faces. Declaring a
 static file as `woff2-variations` gets you no font at all, so match the file.
+
+**7. Let a widget's own colour reach its reading.** A Value widget's Value color and color stops
+reach the figure by inheritance, and any rule on `.nh-value__text` or `.nh-stat__value` beats
+that. The widget also hands its colour over as `--nh-valuecolor`, so read that first:
+
+```css
+.nh-value__text, .nh-stat__value { color: var(--nh-valuecolor, var(--nh-primary)); }
+```
 
 ### Worked example
 
@@ -318,7 +326,7 @@ selectors using the tables above.
 | `web/src/themes/themes.ts` | Applying a theme, the built-ins, the local cache |
 | `web/src/themes/active.ts` | Which theme is in effect: the URL override, then this device's, then the shared one |
 | `web/src/themes/urlTheme.ts` | The `?theme=` escape hatch, read once at load |
-| `web/src/themes/cssRules.ts` | The six rules, checked in the editor and in the tests |
+| `web/src/themes/cssRules.ts` | The seven rules, checked in the editor and in the tests |
 | `web/src/themes/contrast.ts` | Contrast maths and the automatic ink choice |
 | `web/src/themes/css/shared.ts` | The recurring idioms above, as reusable pieces |
 | `web/src/themes/css/*.ts` | One stylesheet per built-in, loaded only when used |

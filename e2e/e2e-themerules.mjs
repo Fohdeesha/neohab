@@ -88,6 +88,7 @@ async function main() {
 
     const CASES = [
       ['.nh-gauge__rim { stroke: red; }', /paints itself/, 'paint the widget computes'],
+      ['.nh-value__text { color: #0f0; }', /--nh-valuecolor/, 'a colour on the reading that hides the one a widget was given'],
       ['.nh-widget__body { padding: 4px; }', /@container/, 'ungated padding'],
       ['.nh-button { background: red; }', /--active/, 'a control styled without its active state'],
       ["@font-face { font-family: 'X'; src: url('https://x/y.woff2'); }", /not bundled/, 'an asset that is not bundled'],

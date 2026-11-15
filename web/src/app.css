@@ -2085,6 +2085,80 @@ html:has(.nh-dash--page) {
   outline-offset: 2px;
 }
 
+/* openHAB answers runnow only once the rule has finished, so this lasts as long as the rule does */
+.nh-button--running,
+.nh-switch--running {
+  cursor: progress;
+  animation: nh-rule-running 1.1s ease-in-out infinite;
+}
+
+@keyframes nh-rule-running {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.nh-button--done,
+.nh-switch--done {
+  position: relative;
+}
+
+.nh-button__tick {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  line-height: 1;
+  color: var(--nh-accent-ink, #10161c);
+  background: var(--nh-cellaccent, var(--nh-primary));
+  pointer-events: none;
+  animation: nh-rule-done 1.5s ease-out forwards;
+}
+
+@keyframes nh-rule-done {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* the global reduced-motion rule would stop the pulse on its last frame and fade the tick out at once */
+@media (prefers-reduced-motion: reduce) {
+  .nh-button--running,
+  .nh-switch--running {
+    opacity: 0.7;
+  }
+
+  .nh-button__tick {
+    animation: none;
+  }
+}
+
+/* openHAB has the rule disabled or broken, so a press only explains; the caption says which, at full strength */
+.nh-button--blocked .nh-button__icon,
+.nh-button--blocked .nh-button__media,
+.nh-button--blocked .nh-button__chip,
+.nh-button--blocked .nh-button__label,
+.nh-switch--blocked .nh-switch__icon,
+.nh-switch--blocked .nh-switch__track,
+.nh-switch--blocked .nh-switch__state {
+  opacity: 0.45;
+}
+
 .nh-cell--hidden .nh-widget {
   opacity: 0.45;
 }
@@ -2520,6 +2594,46 @@ html:has(.nh-dash--page) {
   padding: 10px;
   color: var(--nh-text-dim);
   font-size: 0.85rem;
+}
+
+/* says which of the three the picked uid is, since the box shows a name rather than the uid */
+.nh-rulepicker__kind {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--nh-text-dim);
+  background: var(--nh-bg);
+  border-top: 1px solid var(--nh-border);
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.nh-rulepicker__group,
+.nh-rulepicker__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nh-rulepicker__head {
+  display: block;
+  padding: 8px 10px 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nh-text-dim);
+}
+
+.nh-rulepicker__flag {
+  margin-left: 8px;
+  color: var(--nh-bad);
+}
+
+.nh-rulepicker__more {
+  justify-content: center;
+  color: var(--nh-primary);
 }
 
 .nh-settings {

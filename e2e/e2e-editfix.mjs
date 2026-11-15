@@ -280,7 +280,11 @@ try {
   await page.locator('.nh-cell').nth(4).locator('.nh-cell__overlay').click()
   await page.waitForSelector('#f-w-e-action', { timeout: 5000 })
   const opts = await page.$eval('#f-w-e-action', (el) => [...el.options].map((o) => o.textContent))
-  ok('Action options read Send command / Navigate (neohab)', JSON.stringify(opts) === JSON.stringify(['Send command', 'Navigate (neohab)']), JSON.stringify(opts))
+  ok(
+    'Action options read Send command / Navigate (neohab) / Run a scene, script or rule',
+    JSON.stringify(opts) === JSON.stringify(['Send command', 'Navigate (neohab)', 'Run a scene, script or rule']),
+    JSON.stringify(opts)
+  )
   ok('a config without `action` still resolves to Send command', (await page.inputValue('#f-w-e-action')) === 'command', await page.inputValue('#f-w-e-action'))
 
   const shown = async (label) => (await page.locator(`.nh-sheet--side .nh-field__label:text-is("${label}")`).count()) > 0
@@ -293,9 +297,17 @@ try {
   ok('navigate mode shows "Go to dashboard"', await shown('Go to dashboard'))
   ok('navigate mode shows "Open URL"', await shown('Open URL'))
   ok('navigate mode hides "Alternate command"', !(await shown('Alternate command')))
-  ok('navigate mode keeps Item (drives the active icon)', await shown('openHAB Item'))
-  ok('navigate mode keeps Command', await shown('Command'))
-  ok('navigate mode keeps Toggle with state', await shown('Toggle with state'))
+  // a navigate button only ever read its item, so it offers a status item and none of the command fields
+  ok('navigate mode reads a Status item instead of an item it commands', (await shown('Status item')) && !(await shown('openHAB Item')))
+  ok('navigate mode drops Command and Toggle with state, which sent nothing', !(await shown('Command')) && !(await shown('Toggle with state')))
+
+  // a build without the option must fail these checks, not stall the rest of the suite on the select
+  await page.selectOption('#f-w-e-action', 'rule', { timeout: 3000 }).catch(() => {})
+  await sleep(200)
+  ok('rule mode shows "Scene, script or rule"', await shown('Scene, script or rule'))
+  ok('rule mode shows the Status item and no command fields', (await shown('Status item')) && !(await shown('openHAB Item')) && !(await shown('Command')))
+  ok('rule mode hides the navigate fields', !(await shown('Go to dashboard')) && !(await shown('Open URL')))
+  ok('rule mode offers the second rule only once a status item is set', (await shown('Scene, script or rule')) && !(await shown('When on, run instead')))
 
   await page.selectOption('#f-w-e-action', 'command')
   await sleep(200)

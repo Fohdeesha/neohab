@@ -5,6 +5,7 @@ import { useSidePanelDocked } from '../components/useEditSurface'
 import { groupFields } from './settingsGroups'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
+import { RulePicker } from '../components/RulePicker'
 import { ChartSeriesField, ChartThresholdsField } from './ChartFields'
 import { GaugeMarkersField, GaugeSeverityField, GaugeZonesField } from './GaugeFields'
 import { StateColorsField, StateIconsField, TimelineSeriesField } from './StateFields'
@@ -18,6 +19,10 @@ import type { WidgetInstance } from '../model/dashboard'
 import { hasTabletLayout, type Surface } from '../model/layout'
 import { removeWidget, selectWidget, updateWidgetConfig, updateWidgetConfigs, useEditorStore } from '../store/editor'
 import { useCatalogStore } from '../store/catalog'
+import { knownRule, useRulesStore } from '../store/rules'
+import type { RuleSummary } from '../model/presets'
+import { presetSummaryFromRule } from '../model/presets'
+import { ruleBlock, ruleKind, ruleName } from '../model/rules'
 import { useConfigStore } from '../store/config'
 import { defSettings, mergedSettingValues, settingChoices, settingKind, type WidgetDefSetting } from '../model/widgetdef'
 import { NumberSetting } from '../components/NumberSetting'
@@ -586,6 +591,8 @@ function FieldInput({ field, widget, value }: { field: SettingField; widget: Wid
       return <ItemPatternField field={field} widget={widget} value={value} />
     case 'dashboard':
       return <DashboardField field={field} widget={widget} value={value} />
+    case 'rule':
+      return <RuleField field={field} widget={widget} value={value} />
     case 'hideon':
       return <HideOnField field={field} widget={widget} value={value} />
     case 'multiselect':
@@ -623,6 +630,47 @@ function bindItem(widget: WidgetInstance, key: string, itemName: string): void {
     return
   }
   updateWidgetConfigs(widget.id, { [key]: itemName, label })
+}
+
+function RuleField({ field, widget, value }: { field: Extract<SettingField, { type: 'rule' }>; widget: WidgetInstance; value: unknown }) {
+  const { t } = useTranslation()
+  const id = `f-${widget.id}-${field.key}`
+  const current = typeof value === 'string' ? value : ''
+  const known = useRulesStore((s) => (current ? knownRule(s, current) : undefined))
+  const block = known && known !== 'missing' ? ruleBlock(known) : null
+  // the warning sits after the field, where Field puts a hint, so it takes the form's spacing
+  return (
+    <>
+      <div className="nh-field">
+        <label className="nh-field__label" htmlFor={id}>
+          {t(field.label)}
+        </label>
+        <RulePicker id={id} value={current} onChange={(uid, rule) => bindRule(widget, field.key, uid, rule)} />
+      </div>
+      {known === 'missing' ? (
+        <p className="nh-field__warn">{t('Not on this openHAB server. It may have been renamed or removed.')}</p>
+      ) : block === 'disabled' ? (
+        <p className="nh-field__warn">{t('Disabled in openHAB, so it will not run until it is enabled again.')}</p>
+      ) : block === 'broken' ? (
+        <p className="nh-field__warn">{t('openHAB reports it as not ready, so it will not run. Open it in Main UI to see why.')}</p>
+      ) : null}
+    </>
+  )
+}
+
+// picking the rule a button runs names the tile after it, and a floor plan preset brings the status item it
+// already has, the way picking an item names the tile after its label
+function bindRule(widget: WidgetInstance, key: string, uid: string, rule?: RuleSummary): void {
+  const patch: Record<string, unknown> = { [key]: uid }
+  if (key === 'rule' && rule) {
+    if (String((widget.config.label as string) ?? '').trim() === '') patch.label = ruleName(rule)
+    const preset = ruleKind(rule) === 'scene' ? presetSummaryFromRule(rule) : undefined
+    if (preset?.statusItem && String((widget.config.statusItem as string) ?? '') === '') {
+      patch.statusItem = preset.statusItem
+      if (preset.statusState === 'OFF') patch.statusState = 'OFF'
+    }
+  }
+  updateWidgetConfigs(widget.id, patch)
 }
 
 function DashboardField({

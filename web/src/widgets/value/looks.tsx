@@ -107,7 +107,10 @@ function Foot({ view }: { view: ValueView }) {
   )
 }
 
-const ink = (color: string | undefined): CSSProperties | undefined => (color ? { color } : undefined)
+// a theme rule on the reading beats an inherited colour, so the colour also goes out as a variable such a
+// rule can read first
+const ink = (color: string | undefined): CSSProperties | undefined =>
+  color ? ({ color, '--nh-valuecolor': color } as CSSProperties) : undefined
 
 // a colour somebody picked gets ink measured against it; one the parser cannot read keeps whatever
 // ink the stylesheet declares, rather than being handed a guess

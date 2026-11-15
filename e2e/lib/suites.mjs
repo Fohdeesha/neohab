@@ -8,6 +8,7 @@ export const WIPE_CYCLE = ['e2e-history', 'e2e', 'e2e-editor', 'e2e-widgets', 'e
 
 export const SAFE_SUITES = [
   'e2e-button',
+  'e2e-rulebutton',
   'e2e-corners',
   'e2e-launch',
   'e2e-https',

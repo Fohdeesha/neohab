@@ -29,7 +29,7 @@ const HOLD_MS = 800 // comfortably past the 500ms threshold
 // that quietly starts asserting the wrong number - SCHEMA_VERSIONS.dashboard in
 // web/src/model/schema.ts is the source of truth.
 const LEGACY_SCHEMA = 1
-const CURRENT_SCHEMA = 3
+const CURRENT_SCHEMA = 4
 
 const results = []
 const ok = (name, cond, detail = '') => {

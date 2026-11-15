@@ -30,6 +30,9 @@ const STATE_PROPERTIES = [
   { control: 'nh-chip', state: 'nh-chip--action', props: ['border', 'border-style'] }
 ] as const
 
+// the reading's own element, whichever look draws it; on a pill it is meant to take the plate's ink instead
+const READINGS = /\.nh-(value__text|stat__value)(?![\w-])/
+
 const BUNDLED_ASSET = /^(fonts|backgrounds|icons)\//
 
 export interface CssRule {
@@ -38,7 +41,15 @@ export interface CssRule {
   gates: string[]
 }
 
-export type RuleId = 'attributePaint' | 'ungatedPadding' | 'activeState' | 'borderImageRadius' | 'bareWidget' | 'newTile' | 'externalAsset'
+export type RuleId =
+  | 'attributePaint'
+  | 'readingColor'
+  | 'ungatedPadding'
+  | 'activeState'
+  | 'borderImageRadius'
+  | 'bareWidget'
+  | 'newTile'
+  | 'externalAsset'
 
 export interface ThemeCssIssue {
   rule: RuleId
@@ -117,6 +128,19 @@ export function checkThemeCss(css: string, { radius = '12px' }: { radius?: strin
     }
   }
 
+  // the value widget's colour reaches its reading by inheritance, which any rule on the reading itself beats
+  for (const { selector, body } of rules) {
+    const colors = [...body.matchAll(/(?:^|[;{\s])color\s*:([^;]*)/g)].map((m) => m[1].trim())
+    if (!colors.some((c) => !c.includes('--nh-valuecolor') && !/^(inherit|currentcolor)(\s*!important)?$/i.test(c))) continue
+    for (const part of selector.split(',')) {
+      const sel = part.trim()
+      const subject = sel.split(/[\s>+~]+/).pop() ?? ''
+      if (READINGS.test(subject) && !subject.includes('::') && !sel.includes('nh-read__pill')) {
+        issues.push({ rule: 'readingColor', params: { selector: sel } })
+      }
+    }
+  }
+
   for (const { selector, body, gates } of rules) {
     if (!/(^|[;{\s])padding(-\w+)?\s*:/.test(body)) continue
     if (!/nh-widget__(label|body)/.test(selector)) continue
@@ -168,6 +192,8 @@ export function describeIssue({ rule, params }: ThemeCssIssue): string {
   switch (rule) {
     case 'attributePaint':
       return `"${params.selector}" sets fill/stroke on .${params.cls}, which is painted by attribute`
+    case 'readingColor':
+      return `"${params.selector}" colors the reading without reading --nh-valuecolor`
     case 'ungatedPadding':
       return `"${params.selector}" sets padding outside a @container gate`
     case 'activeState':

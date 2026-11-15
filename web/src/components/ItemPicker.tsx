@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Item } from '../api/types'
 import { ensureCatalog, useCatalogStore } from '../store/catalog'
-import { scrollMoves } from './popover'
+import { useAnchoredList } from './popover'
 
 interface ItemPickerProps {
   id: string
@@ -12,14 +12,6 @@ interface ItemPickerProps {
   placeholder?: string
 }
 
-interface ListPos {
-  left: number
-  width: number
-  top?: number
-  bottom?: number
-  maxHeight: number
-}
-
 function typeMatches(item: Item, types?: string[]): boolean {
   if (!types || types.length === 0) return true
   const base = item.type === 'Group' ? item.groupType : item.type
@@ -27,80 +19,27 @@ function typeMatches(item: Item, types?: string[]): boolean {
 }
 
 const MAX_RESULTS = 200
-const MARGIN = 8
 
 export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: ItemPickerProps) {
   const { t } = useTranslation()
   const items = useCatalogStore((s) => s.items)
   const loaded = useCatalogStore((s) => s.loaded)
   const failed = useCatalogStore((s) => s.failed)
-  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
-  const [pos, setPos] = useState<ListPos | null>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
+  const list = useAnchoredList<HTMLUListElement>({ flipBelow: 260, minHeight: 180, onClose: () => setQuery(null) })
+  const { rootRef, boxRef, listRef, open, pos, close } = list
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
     ensureCatalog()
   }, [])
 
-  const close = () => {
-    setOpen(false)
-    setQuery(null)
-  }
-
-  const openedAt = useRef(0)
-  const placeList = () => {
-    const box = boxRef.current?.getBoundingClientRect()
-    if (box) {
-      const below = window.innerHeight - box.bottom - MARGIN
-      const above = box.top - MARGIN
-      const flip = below < 260 && above > below
-      const maxHeight = Math.max(180, flip ? above : below)
-      setPos(
-        flip
-          ? { left: box.left, width: box.width, bottom: window.innerHeight - box.top + 4, maxHeight }
-          : { left: box.left, width: box.width, top: box.bottom + 4, maxHeight }
-      )
-    }
-  }
   const openList = () => {
-    placeList()
-    setOpen(true)
+    list.openList()
     setHighlight(0)
-    openedAt.current = Date.now()
     ensureCatalog({ refresh: true })
   }
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Node
-      if (!rootRef.current?.contains(t) && !listRef.current?.contains(t)) close()
-    }
-    const onScroll = (e: Event) => {
-      if (listRef.current && e.target instanceof Node && listRef.current.contains(e.target)) return
-      if (!scrollMoves(e.target, rootRef.current)) return
-      // same: follow that scroll rather than closing on it
-      if (Date.now() - openedAt.current < 300) {
-        placeList()
-        return
-      }
-      close()
-    }
-    const onResize = () => close()
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', onResize)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [open])
 
   const { matches, truncated } = useMemo(() => {
     const q = (query ?? '').trim().toLowerCase()
@@ -180,8 +119,7 @@ export function ItemPicker({ id, value, onChange, itemTypes, placeholder }: Item
             onPointerDown={(e) => {
               e.preventDefault()
               onChange('')
-              setQuery(null)
-              setOpen(false)
+              close()
               restoringFocus.current = true
               inputRef.current?.focus()
               restoringFocus.current = false

@@ -57,6 +57,8 @@ describe('the built-in themes', () => {
 describe('the built-in stylesheets follow the rules', () => {
   it('never set fill or stroke on an attribute-painted element', () => expectNoneBreak('attributePaint'))
 
+  it('let the value colour a widget was given reach its reading', () => expectNoneBreak('readingColor'))
+
   it('gate every padding override on cell size', () => expectNoneBreak('ungatedPadding'))
 
   it('restyle the active state of any control they restyle', () => expectNoneBreak('activeState'))
@@ -130,6 +132,18 @@ describe('the stylesheet checker', () => {
     expect(check('.nh-gauge__rim { stroke-width: 3; opacity: 0.5 }')).toEqual([])
   })
 
+  it('catches a colour on the reading that would hide the one a widget was given', () => {
+    expect(check('.nh-value__text { color: #0f0 }')).toEqual(['readingColor'])
+    expect(check('.nh-gcell .nh-stat__value, .nh-clock__time { color: red; font-weight: 700 }')).toEqual(['readingColor'])
+    expect(check('.nh-value__text { color: var(--nh-valuecolor, #0f0) }')).toEqual([])
+    expect(check('.nh-stat__value { color: inherit }')).toEqual([])
+    // the ghost digits, a pill's plate and a fill or a descendant are not the reading's own colour
+    expect(check('.nh-value__text::before { color: red }')).toEqual([])
+    expect(check('.nh-read__pill .nh-stat__value { color: #000 }')).toEqual([])
+    expect(check('.nh-stat__value { background-color: red; border-color: red }')).toEqual([])
+    expect(check('.nh-value__text .x { color: red }')).toEqual([])
+  })
+
   it('catches an ungated padding override, and accepts a gated one', () => {
     expect(check('.nh-widget__body { padding: 8px }')).toEqual(['ungatedPadding'])
     expect(check('.nh-widget__label { padding-top: 8px }')).toEqual(['ungatedPadding'])
@@ -180,6 +194,7 @@ describe('the stylesheet checker', () => {
     const seen = new Set<RuleId>()
     for (const css of [
       '.nh-gauge__rim { fill: red }',
+      '.nh-value__text { color: red }',
       '.nh-widget__body { padding: 1px }',
       '.nh-button { color: red }',
       '.nh-widget { border-image: linear-gradient(red, blue) 1 }',
@@ -191,7 +206,7 @@ describe('the stylesheet checker', () => {
         expect(describeIssue(issue).length).toBeGreaterThan(10)
       }
     }
-    expect(seen.size).toBe(7)
+    expect(seen.size).toBe(8)
   })
 })
 

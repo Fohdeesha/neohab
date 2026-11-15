@@ -69,6 +69,8 @@
   "Restored {{count}} components from {{when}}._other": "Restored {{count}} components from {{when}}.",
   "Review {{count}} items_one": "Review {{count}} item",
   "Review {{count}} items_other": "Review {{count}} items",
+  "Show {{count}} other rules_one": "Show {{count}} other rule",
+  "Show {{count}} other rules_other": "Show {{count}} other rules",
   "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._one": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} item.",
   "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items._other": "That name is already taken. A copy leaves yours alone; overwriting replaces {{count}} items.",
   "Turn the version history off? {{count}} restore points are deleted now. Named ones are kept until you delete them._one": "Turn the version history off? {{count}} restore point is deleted now. Named ones are kept until you delete them.",

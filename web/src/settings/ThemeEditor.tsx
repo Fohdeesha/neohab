@@ -244,6 +244,11 @@ function issueText(t: (k: string, o?: Record<string, string>) => string, issue: 
         '“{{selector}}” sets fill or stroke on .{{cls}}, which the widget paints itself. Your rule wins and pins it to one color - style width or opacity instead.',
         p
       )
+    case 'readingColor':
+      return t(
+        '“{{selector}}” colors the reading, so the Value color and color stops set on a widget never show. Use var(--nh-valuecolor, your color) instead.',
+        p
+      )
     case 'ungatedPadding':
       return t(
         '“{{selector}}” sets padding with no @container gate, so text clips in small cells. Wrap it in @container (min-height: 105px) and (min-width: 121px).',

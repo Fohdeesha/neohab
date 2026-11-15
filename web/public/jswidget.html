@@ -45,6 +45,14 @@
           sendCommand: function (name, command) {
             parent.postMessage({ neohab: true, type: 'sendCommand', name: String(name), command: String(command) }, '*')
           },
+          // resolves once openHAB has run it, to false when it did not run
+          runRule: function (uid) {
+            return new Promise(function (resolve) {
+              var id = ++seq
+              pending.set(id, resolve)
+              parent.postMessage({ neohab: true, type: 'runRule', id: id, uid: String(uid) }, '*')
+            })
+          },
           onChange: function (name, cb) {
             name = String(name)
             if (!subs.has(name)) {

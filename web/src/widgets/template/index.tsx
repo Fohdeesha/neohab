@@ -6,6 +6,8 @@ import { useConfigStore } from '../../store/config'
 import { selectStates, subscribeItems, useItemsStore } from '../../store/items'
 import { ensureCatalog, useCatalogStore } from '../../store/catalog'
 import { commandItem } from '../common/command'
+import { runRuleChecked } from '../common/rule'
+import { ensureRules } from '../../store/rules'
 import i18n from '../../i18n'
 import { useActiveTheme } from '../../themes/active'
 import { defTemplate, mergedSettingValues, type CustomWidgetDef } from '../../model/widgetdef'
@@ -77,6 +79,10 @@ function buildScope(opts: {
       if (editing || typeof item !== 'string' || !item) return
       void commandItem(item, String(value ?? ''))
     },
+    runRule: (uid: unknown) => {
+      if (editing || typeof uid !== 'string' || !uid) return
+      void runRuleChecked(uid)
+    },
     itemsInGroup: (group: unknown) => groupItems((i) => Array.isArray(i.groupNames) && i.groupNames.includes(String(group))),
     itemsWithTag: (tag: unknown) => groupItems((i) => Array.isArray(i.tags) && i.tags.includes(String(tag)))
   })
@@ -112,6 +118,8 @@ function TemplateWidget({ config, ctx }: WidgetProps<TemplateConfig>) {
 
   useEffect(() => {
     if (/itemsInGroup|itemsWithTag/.test(template)) ensureCatalog()
+    // read ahead so a disabled rule is refused with a reason instead of sent
+    if (/runRule/.test(template)) ensureRules()
   }, [template])
   const catalogLoaded = useCatalogStore((s) => s.loaded)
 
