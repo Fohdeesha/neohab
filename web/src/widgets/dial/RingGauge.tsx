@@ -123,7 +123,6 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
   const bandW = 7
   const bandW2 = 4.5
   const R3 = R * 0.72
-  const R3i = R * 0.55
 
   const uid = ctx.widgetId
   const ticks = showTicks ? gaugeTicks(min, max, start, sweep, config.tickSteps ?? 5, decimals, config.showTickLabels !== false) : []
@@ -223,12 +222,11 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
     [tickRing, inner, mask2, hideUnlit, color2, R2, tickLenLit, tickLen, tickW, count, sweep, start]
   )
 
-  // where each value ring is drawn: the 3D look puts them well inside R, and picking by R and R2 there sent a
-  // press on the outer arc to the inner item
-  const outerAt = kind === '3d' ? R3 : R
-  const innerAt = kind === '3d' ? R3i : R2
-  // a press counts only on the rings: not on the reading in the middle, and not in the gap
-  const reachFrom = inner ? Math.max(innerAt - 6, centerR * 0.6) : kind === '3d' ? Math.max(R3 - 6, centerR) : Math.max(R - 12, centerR)
+  // where each item's ring is drawn: on the 3D look that's the blocks and the smooth arc inside them
+  const outerAt = kind === '3d' ? R - 1 : R
+  const innerAt = kind === '3d' ? R3 : R2
+  // a press counts only on the rings: never on the disc behind the reading, and not in the gap
+  const reachFrom = Math.max(centerR, kind === '3d' ? R3 - 6 : inner ? R2 - 6 : R - 12)
   const reachTo = R + 14
 
   const pointer = (e: React.PointerEvent): { units: number; angle: number } => {
@@ -600,7 +598,7 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
             r={Math.max(
               centerR + 2,
               kind === '3d'
-                ? (inner ? R3i : R3) - 3
+                ? R3 - 3
                 : kind === 'led'
                   ? (inner ? R2 : R) - (inner ? ledR2 : ledR) * 2 - 0.5
                   : (inner ? R2 : R) - (inner ? bandW2 : bandW) / 2 - 0.5
@@ -651,19 +649,18 @@ export function RingGauge({ config, ctx }: WidgetProps<DialConfig>) {
                 </g>
               )
             })}
-            {clayArc(R3, 5.5, frac, zeroFrac, bidirectional, color, 'v3')}
-            {!inner
-              ? Array.from({ length: 14 }, (_, i) => {
-                  const p = polar(50, 50, (R3 + centerR) / 2, fractionToAngle(ledFraction(i, 14, sweep), start, sweep))
-                  return <circle key={`d-${i}`} className="nh-gauge__led" cx={p.x} cy={p.y} r={1.15} />
-                })
-              : null}
+            {inner
+              ? clayArc(R3, 5.5, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'v3')
+              : clayArc(R3, 5.5, frac, zeroFrac, bidirectional, color, 'v3')}
+            {Array.from({ length: 14 }, (_, i) => {
+              const p = polar(50, 50, (R3 + centerR) / 2, fractionToAngle(ledFraction(i, 14, sweep), start, sweep))
+              return <circle key={`d-${i}`} className="nh-gauge__led" cx={p.x} cy={p.y} r={1.15} />
+            })}
           </g>
         ) : null}
         {ledInner}
         {inner && kind === 'arc' ? bandRing(R2, bandW2, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'band2') : null}
         {inner && kind === 'blocks' ? blockRing(R2, bandW2, frac2, zeroFrac2, config.bidirectional2 === true, color2, true) : null}
-        {inner && kind === '3d' ? clayArc(R3i, 4, frac2, zeroFrac2, config.bidirectional2 === true, color2, 'v3i') : null}
         {ticks.map((tk, i) => {
           const p1 = polar(
             50,

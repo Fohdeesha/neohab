@@ -6,6 +6,11 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.43.1
+
+- A 3D dial with a second item shows it on the inner arc, it used to be drawn hidden behind the center
+- Pressing the middle of a 3D dial doesn't set the second item anymore
+
 ## 1.43.0
 
 - Buttons can run a scene, script or rule, picked by name from a list that keeps the three apart

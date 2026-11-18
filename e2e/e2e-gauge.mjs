@@ -1,6 +1,7 @@
-// LED gauge e2e: the dial widget's ring styles, their color stops and the alarm.
-// SAFE with a live config: creates only dashboard:nh-e2e-gauge and dashboard:nh-e2e-gaugestops and deletes
-// exactly those. Off production it also creates and deletes the managed item nh_e2e_gauge_null.
+// LED gauge e2e: the dial widget's ring styles, their color stops, the alarm and the second item's ring.
+// SAFE with a live config: creates only dashboard:nh-e2e-gauge, dashboard:nh-e2e-gaugestops and
+// dashboard:nh-e2e-gaugedual and deletes exactly those. Off production it also creates and deletes the
+// managed item nh_e2e_gauge_null.
 import { launchChromium } from './lib/browser.mjs'
 import { APP, BASE, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
 import { pickItem } from './lib/ui.mjs'
@@ -8,6 +9,7 @@ import { skipOnProduction } from './lib/guard.mjs'
 
 const UID = 'dashboard:nh-e2e-gauge'
 const UID_STOPS = 'dashboard:nh-e2e-gaugestops'
+const UID_DUAL = 'dashboard:nh-e2e-gaugedual'
 const NULL_ITEM = 'nh_e2e_gauge_null'
 const RED = '#f44336'
 const GREEN = '#4caf50'
@@ -218,6 +220,54 @@ try {
     }),
   })
   ok('stops dashboard created', seedStops.ok, String(seedStops.status))
+
+  // one dial per ring style, each with a second item. its scale is set from the reading, so the second
+  // ring sits near 30% on any server while the dimmer's is at 90
+  const temp0 = Number.parseFloat(await itemState(ITEMS.temperature))
+  const lo2 = Math.floor(Number.isFinite(temp0) ? temp0 : 0) - 30
+  const INNER = '#ff00ff'
+  const dual = (id, label, x, y, config) => ({
+    id,
+    type: 'dial',
+    config: {
+      item: ITEMS.dimmer, label, unit: '%', color: '#ffb300',
+      item2: ITEMS.temperature, min2: lo2, max2: lo2 + 100, step2: 1, color2: INNER,
+      ...config,
+    },
+    layout: { lg: { x, y, w: 3, h: 3 } },
+  })
+  const DUALS = [
+    { label: 'Dual led', outer: '#ffb300', config: { style: 'led' } },
+    { label: 'Dual ticks', outer: '#ffb300', config: { style: 'ticks' } },
+    { label: 'Dual arc', outer: '#ffb300', config: { style: 'arc' } },
+    { label: 'Dual blocks', outer: '#ffb300', config: { style: 'blocks' } },
+    // stops on both items here: the first item's color the blocks, the second item's the arc
+    {
+      label: 'Dual 3d',
+      outer: GREEN,
+      config: { style: '3d', severity: [{ value: 50, color: GREEN }], color2: '#123456', severity2: [{ value: lo2 + 10, color: INNER }] },
+    },
+    { label: 'Dual 3d scale', outer: '#ffb300', config: { style: '3d', showTicks: true } },
+  ]
+  await fetch(NS + '/' + encodeURIComponent(UID_DUAL), { method: 'DELETE', headers: AUTH }).catch(() => {})
+  const seedDual = await fetch(NS, {
+    method: 'POST',
+    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: UID_DUAL,
+      component: 'neohab:dashboard',
+      config: {
+        version: 4,
+        id: 'nh-e2e-gaugedual',
+        name: 'E2E Gauge Dual',
+        columns: 12,
+        rowHeight: 'match',
+        gap: 6,
+        widgets: DUALS.map((d, i) => dual('d-' + i, d.label, (i % 4) * 3, Math.floor(i / 4) * 3, d.config)),
+      },
+    }),
+  })
+  ok('dual dashboard created', seedDual.ok, String(seedDual.status))
 
   const posts = []
   await page.route('**/rest/items/**', (route) => {
@@ -621,6 +671,137 @@ try {
   const storedBelow = storedStops?.config?.widgets?.find((w) => w.id === 'g-below')
   ok('exit discarded the typed stop', storedBelow?.config?.severity?.[0]?.value === 95, JSON.stringify(storedBelow?.config?.severity))
 
+  // ---- a second item, on every ring style: dimmer still at 90 ----
+  await page.goto(APP + '#/d/nh-e2e-gaugedual', { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.nh-gcell:has(.nh-widget__labeltext:text-is("Dual 3d scale")) .nh-gauge__claybody', { timeout: 15000 }).catch(() => {})
+  await sleep(1500)
+  const want1 = Number.parseFloat(await itemState(ITEMS.dimmer)) / 100
+  const temp = Number.parseFloat(await itemState(ITEMS.temperature))
+  const want2 = (temp - lo2) / 100
+  ok(
+    'the two items read far enough apart to tell their rings apart',
+    Number.isFinite(want2) && Math.abs(want1 - want2) > 0.3,
+    `dimmer at ${want1}, second item ${temp} on ${lo2}..${lo2 + 100} at ${want2.toFixed(3)}`
+  )
+
+  // every lit part of the face, grouped into rings by how far out it is drawn, outermost first: how full
+  // each ring is, its color, and what is on top of it where it is lit
+  const readRings = (el) => {
+    const svg = el.querySelector('svg.nh-dial--ring')
+    if (!svg) return null
+    el.scrollIntoView({ block: 'center' })
+    const mid = (n) => {
+      if (n.tagName === 'circle') return { x: Number(n.getAttribute('cx')), y: Number(n.getAttribute('cy')) }
+      if (n.tagName === 'line') {
+        return {
+          x: (Number(n.getAttribute('x1')) + Number(n.getAttribute('x2'))) / 2,
+          y: (Number(n.getAttribute('y1')) + Number(n.getAttribute('y2'))) / 2,
+        }
+      }
+      return n.getPointAtLength(n.getTotalLength() / 2)
+    }
+    const radius = (n) => {
+      const p = mid(n)
+      return Math.hypot(p.x - 50, p.y - 50)
+    }
+    const rgb = (c) => {
+      const probe = document.createElement('span')
+      probe.style.color = c
+      document.body.appendChild(probe)
+      const out = getComputedStyle(probe).color
+      probe.remove()
+      return out
+    }
+    const groups = []
+    for (const n of svg.querySelectorAll('.nh-gauge__ledlit, .nh-gauge__tklit, .nh-gauge__blklit, .nh-gauge__claybody--lit, .nh-gauge__band')) {
+      const r = radius(n)
+      const g = groups.find((x) => Math.abs(x.r - r) < 2)
+      if (g) g.nodes.push(n)
+      else groups.push({ r, nodes: [n] })
+    }
+    groups.sort((a, b) => b.r - a.r)
+    const unlit = [...svg.querySelectorAll('.nh-gauge__led, .nh-gauge__tkmark, .nh-gauge__blk, .nh-gauge__claybody:not(.nh-gauge__claybody--lit)')]
+    const m = svg.getScreenCTM()
+    return groups.map((g) => {
+      const first = g.nodes[0]
+      const dark = unlit.filter((n) => Math.abs(radius(n) - g.r) < 2.5).length
+      // a solid band is measured against its own track, a segmented ring by its lit share
+      const frac = first.classList.contains('nh-gauge__band')
+        ? first.getTotalLength() / first.parentElement.querySelector('.nh-gauge__btrack').getTotalLength()
+        : g.nodes.length / (g.nodes.length + dark)
+      const grad = /url\(#(.+?)\)/.exec(first.getAttribute('fill') ?? '')
+      const paint = grad ? svg.querySelector('#' + CSS.escape(grad[1]) + ' stop:last-child')?.style.stopColor : first.getAttribute('stroke')
+      const p = mid(g.nodes[Math.floor(g.nodes.length / 2)])
+      const hit = document.elementFromPoint(m.a * p.x + m.c * p.y + m.e, m.b * p.x + m.d * p.y + m.f)
+      return {
+        r: Number(g.r.toFixed(1)),
+        frac: Number(frac.toFixed(3)),
+        color: rgb(paint ?? ''),
+        top: hit?.getAttribute('class') ?? hit?.tagName ?? 'nothing',
+      }
+    })
+  }
+  const rgbOf = (hex) => 'rgb(' + [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(', ') + ')'
+  const near = (a, b) => Math.abs(a - b) <= 0.06
+  const underDisc = (r) => /nh-gauge__(center|clayshadow2|clayhi2)/.test(r.top)
+  const ringsOf = {}
+  for (const d of DUALS) {
+    const rings = (await cell(d.label).evaluate(readRings).catch(() => null)) ?? []
+    ringsOf[d.label] = rings
+    const seen = JSON.stringify(rings)
+    ok(`${d.label}: one ring for each item and no third`, rings.length === 2, seen)
+    ok(
+      `${d.label}: the outer ring follows the first item`,
+      rings.length > 0 && near(rings[0].frac, want1) && rings[0].color === rgbOf(d.outer),
+      `want ${want1} in ${rgbOf(d.outer)}: ${seen}`
+    )
+    ok(
+      `${d.label}: the inner ring follows the second item`,
+      rings.length > 1 && near(rings[1].frac, want2) && rings[1].color === rgbOf(INNER),
+      `want ${want2.toFixed(3)} in ${rgbOf(INNER)}: ${seen}`
+    )
+    ok(
+      `${d.label}: nothing lit is drawn under the disc`,
+      rings.length > 1 && !rings.some(underDisc),
+      rings.map((r) => r.r + ' ' + r.top).join(' | ')
+    )
+  }
+  const grow = await page.addStyleTag({ content: '.nh-gauge__center { r: 46px !important; }' })
+  const buried = (await cell('Dual arc').evaluate(readRings).catch(() => null)) ?? []
+  ok(
+    '(control) a disc grown over the rings is caught - check has power',
+    buried.length === 2 && buried.every(underDisc),
+    buried.map((r) => r.r + ' ' + r.top).join(' | ')
+  )
+  await grow.evaluate((el) => el.remove())
+
+  // a press at three o'clock is a quarter of the way round. the page's commands stop at the route above
+  const pressAt = async (label, units) => {
+    posts.length = 0
+    const dial = cell(label).locator('svg.nh-dial--ring')
+    await dial.scrollIntoViewIfNeeded().catch(() => {})
+    const box = await dial.boundingBox().catch(() => null)
+    if (!box) return 'no dial'
+    await page.mouse.click(box.x + box.width / 2 + (units / 50) * (Math.min(box.width, box.height) / 2), box.y + box.height / 2)
+    await sleep(300)
+    return posts.map((p) => p.url.split('/').pop() + '=' + p.body).join(', ') || 'nothing'
+  }
+  for (const d of DUALS) {
+    const [outer, inner] = ringsOf[d.label]
+    const onOuter = await pressAt(d.label, outer?.r ?? 44)
+    ok(`${d.label}: a press on the outer ring commands the first item`, onOuter === `${ITEMS.dimmer}=25`, `at ${outer?.r}: ${onOuter}`)
+    const onInner = await pressAt(d.label, inner?.r ?? 33)
+    ok(
+      `${d.label}: a press on the inner ring commands the second item, on its own scale`,
+      onInner === `${ITEMS.temperature}=${lo2 + 25}`,
+      `at ${inner?.r}: ${onInner}`
+    )
+    // the scale ticks make the whole face smaller, the disc with it
+    const inside = d.config.showTicks ? 16 : 20
+    const onDisc = await pressAt(d.label, inside)
+    ok(`${d.label}: a press inside both rings commands nothing`, onDisc === 'nothing', `at ${inside}: ${onDisc}`)
+  }
+
   const realErrs = errs.filter((e) => !/ERR_INTERNET_DISCONNECTED/.test(e))
   ok('no console/page errors', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
 } catch (err) {
@@ -633,6 +814,9 @@ try {
   const delStops = await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { method: 'DELETE', headers: AUTH })
   const goneStops = (await fetch(NS + '/' + encodeURIComponent(UID_STOPS), { headers: AUTH })).status === 404
   ok('cleanup: ' + UID_STOPS + ' deleted', goneStops, 'del=' + delStops.status)
+  const delDual = await fetch(NS + '/' + encodeURIComponent(UID_DUAL), { method: 'DELETE', headers: AUTH })
+  const goneDual = (await fetch(NS + '/' + encodeURIComponent(UID_DUAL), { headers: AUTH })).status === 404
+  ok('cleanup: ' + UID_DUAL + ' deleted', goneDual, 'del=' + delDual.status)
   if (madeNull) {
     await fetch(itemUrl(NULL_ITEM), { method: 'DELETE', headers: AUTH }).catch(() => {})
     const itemGone = (await fetch(itemUrl(NULL_ITEM), { headers: AUTH })).status === 404
