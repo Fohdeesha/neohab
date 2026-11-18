@@ -3,7 +3,7 @@ import type { ComponentType } from 'react'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { displayValue, isSegmentable, numericValue, segParts, splitValueUnit } from '../common/format'
 import { resolveStateIcon } from '../common/stateIcon'
-import { getItemHistory } from '../../api/persistence'
+import { readItemHistory } from '../../api/persistence'
 import { severityColor } from '../dial/gauge'
 import { finiteOr } from '../common/itemControl'
 import { BarLook, HeroLook, PillLook, PlainLook, SegmentLook, SparkLook, SplitLook, StatLook } from './looks'
@@ -16,6 +16,7 @@ import {
   referenceValue,
   sparkArea,
   sparkPath,
+  sparkPoints,
   statPeriodMs,
   styleOf,
   trendDirection,
@@ -74,9 +75,11 @@ function ValueWidget({ config, ctx }: WidgetProps<ValueConfig>) {
     const load = async () => {
       try {
         const t0 = Date.now() - periodMs
-        const pts = await getItemHistory(config.item, new Date(t0), { boundary: true, signal: ctrl.signal })
-        const nums = pts.map((p) => ({ time: p.time, value: parseFloat(p.state) }))
-        if (!dead) setPast({ points: nums, reference: referenceValue(nums, t0) })
+        const nums: { time: number; value: number }[] = []
+        await readItemHistory(config.item, new Date(t0), { boundary: true, signal: ctrl.signal }, (rows) => {
+          for (const p of rows) nums.push({ time: p.time, value: parseFloat(p.state) })
+        })
+        if (!dead) setPast({ points: sparkPoints(nums), reference: referenceValue(nums, t0) })
       } catch {
         if (!dead) setPast(EMPTY)
       }

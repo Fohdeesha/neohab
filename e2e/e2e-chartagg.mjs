@@ -1,8 +1,9 @@
 // Chart aggregation / heatmap / full-screen view e2e.
 // SAFE with a live config: creates only dashboard:nh-e2e-agg, deletes exactly that, and commands NOTHING, it
-// only reads the history of the configured temperature item.
+// only reads the history of the configured temperature item. The app asks for history a page of rows at a
+// time, and on a production target the harness refuses a request that does not (lib/sandbox.mjs).
 import { launchChromium } from './lib/browser.mjs'
-import { APP, NS, TOKEN, AUTH, ITEMS } from './lib/target.mjs'
+import { APP, NS, TOKEN, AUTH, ITEMS, PRODUCTION } from './lib/target.mjs'
 
 const results = []
 const ok = (name, cond, detail = '') => {
@@ -260,8 +261,152 @@ try {
   const saved = await get(UID)
   ok('the group-by persisted', saved?.config.widgets[0].config.groupBy === 'day', String(saved?.config.widgets[0].config.groupBy))
 
+  // --- a long, busy range comes in parts ---------------------------------------------------------
+  // openHAB builds a whole history answer in memory, so one request for a month of a busy item is how a
+  // server runs out of heap. The history is faked here, the way the server answers it, so no server is
+  // asked for anything big: a row every 20 s, which is 129,600 rows in the 30 days the chart asks for.
+  {
+    let STEP = 20000
+    const T0 = Math.floor((Date.now() - 45 * 86400e3) / STEP) * STEP
+    const lastRow = () => Math.floor((Date.now() - T0) / STEP)
+    let state = (i) => (20 + (i % 50) / 10).toFixed(1)
+    const parts = []
+    let inFlight = 0
+    let mostInFlight = 0
+    let hold = null
+    const fake = async (route) => {
+      const q = new URL(route.request().url()).searchParams
+      const begin = Date.parse(q.get('starttime'))
+      const end = q.has('endtime') ? Date.parse(q.get('endtime')) : Date.now()
+      const limit = Number(q.get('pagelength') ?? 0)
+      const i0 = Math.max(0, Math.ceil((begin - T0) / STEP))
+      const i1 = Math.min(lastRow(), Math.floor((end - T0) / STEP))
+      const inWindow = Math.max(0, i1 - i0 + 1)
+      const take = limit > 0 ? Math.min(inWindow, limit) : inWindow
+      const data = []
+      if (q.get('boundary') === 'true' && i0 > 0) data.push({ time: begin, state: state(i0 - 1) })
+      for (let i = i0; i < i0 + take; i++) data.push({ time: T0 + i * STEP, state: state(i) })
+      if (q.get('boundary') === 'true' && i1 < lastRow()) data.push({ time: end, state: state(i1 + 1) })
+      inFlight++
+      mostInFlight = Math.max(mostInFlight, inFlight)
+      parts.push({ begin, end, limit: q.get('pagelength'), boundary: q.get('boundary'), served: take, inWindow, last: take > 0 ? T0 + (i0 + take - 1) * STEP : null })
+      if (hold) await hold
+      inFlight--
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ name: ITEM, datapoints: String(data.length), data }) }).catch(() => {})
+    }
+    const pattern = '**/rest/persistence/items/' + encodeURIComponent(ITEM) + '?**'
+    await page.route(pattern, fake)
+
+    ok('seed a busy month', await seed({ period: '30d', groupBy: 'day', series: [{ item: ITEM, aggregate: 'count', kind: 'bar' }] }))
+    await open()
+    await waitPlot()
+    await resetCounters()
+    const whole = parts[0] ? Math.floor((parts[0].end - T0) / STEP) - Math.ceil((parts[0].begin - T0) / STEP) + 1 : -1
+    const served = parts.reduce((n, p) => n + p.served, 0)
+    ok('a busy month comes in parts', parts.length >= 6, `${parts.length} requests`)
+    ok(
+      'each part asks for one page of rows and gets no more',
+      parts.length > 0 && parts.every((p) => p.limit === '20000') && Math.max(...parts.map((p) => p.served)) <= 20000,
+      `limits ${[...new Set(parts.map((p) => p.limit))].join(',')}, biggest answer ${Math.max(0, ...parts.map((p) => p.served))} rows`
+    )
+    ok('one part at a time', mostInFlight === 1, `most at once ${mostInFlight}`)
+    ok('the parts cover the range once, with no gap', whole > 100000 && served === whole, `${served} rows served of ${whole} in the window`)
+    ok(
+      'each part starts after the last row of the one before',
+      parts.slice(1).every((p, i) => parts[i].last === null || p.begin > parts[i].last),
+      parts.slice(0, 3).map((p) => new Date(p.begin).toISOString().slice(5, 16)).join(' ')
+    )
+    ok(
+      'once it knows how busy the item is, a part asks for a window of about two pages',
+      parts.length > 2 && Math.max(...parts.slice(1).map((p) => p.inWindow)) <= 50000,
+      `windows held ${parts.slice(0, 4).map((p) => p.inWindow).join(', ')} rows`
+    )
+    ok('only the first part asks for the rows around the window', parts[0]?.boundary === 'true' && parts.slice(1).every((p) => p.boundary === null), parts.map((p) => p.boundary ?? '-').slice(0, 4).join(' '))
+    ok('and the chart draws its bars', (await page.locator('.u-over').count()) === 1 && (await page.locator('.nh-chart__status').count()) === 0)
+
+    // the bars are counts of the rows in each day, so one of them says whether every row was counted once
+    const plot = await page.locator('.u-over').boundingBox()
+    await page.mouse.move(plot.x + plot.width * 0.5, plot.y + plot.height * 0.5)
+    await page.waitForSelector('.nh-chart__tt--show', { timeout: 5000 }).catch(() => {})
+    const dayCount = Number(((await page.locator('.nh-chart__tt--show .nh-chart__tt-val').first().textContent().catch(() => '')) ?? '').replace(/[^\d]/g, ''))
+    const dayName = await page.locator('.nh-chart__tt--show .nh-chart__tt-time').textContent().catch(() => '')
+    // 86,400 s of a row every 20 s; a day the clocks change on is an hour longer or shorter
+    ok('a day in the middle counts every one of its rows once', [4320, 4140, 4500].includes(dayCount), `${dayCount} rows on ${dayName}`)
+    await page.mouse.move(5, 5)
+
+    // --- and the page keeps none of it ---------------------------------------------------------------
+    // 1.3 million rows for a line of 250 points: a row every 2 s, rising steadily so any point of the line
+    // can be checked against the rows it stands for
+    {
+      const RAMP_MS = 45 * 86400e3
+      STEP = 2000
+      state = (i) => (10 + (20 * i * STEP) / RAMP_MS).toFixed(3)
+      parts.length = 0
+      const cdp = await ctx.newCDPSession(page)
+      await cdp.send('HeapProfiler.enable')
+      let peak = 0
+      let sampling = true
+      const sampler = (async () => {
+        while (sampling) {
+          const used = await cdp.send('Runtime.getHeapUsage').then((u) => u.usedSize, () => 0)
+          if (used > peak) peak = used
+          await sleep(80)
+        }
+      })()
+      ok('seed a line over a very busy month', await seed({ period: '30d', series: [{ item: ITEM }] }))
+      await open()
+      await page.waitForFunction(() => !document.querySelector('.nh-chart__status'), { timeout: 120000 }).catch(() => {})
+      sampling = false
+      await sampler
+      await cdp.send('HeapProfiler.collectGarbage')
+      const settled = (await cdp.send('Runtime.getHeapUsage')).usedSize
+      const rows = parts.reduce((n, part) => n + part.served, 0)
+      const mb = (bytes) => Math.round(bytes / 1048576)
+      ok('1.3 million rows arrive', rows > 1250000 && parts.length > 60, `${rows} rows in ${parts.length} requests`)
+      ok('and the line draws', (await page.locator('.u-over').count()) === 1 && (await page.locator('.nh-chart__status').count()) === 0)
+      // held all at once, the rows alone were over 100 MB
+      ok('the page never holds the rows: memory stays within 60 MB of where it ends', peak > 0 && peak - settled < 60 * 1048576, `peak ${mb(peak)} MB, ${mb(settled)} MB once drawn`)
+      const linePlot = await page.locator('.u-over').boundingBox()
+      await page.mouse.move(linePlot.x + linePlot.width * 0.5, linePlot.y + linePlot.height * 0.5)
+      await page.waitForSelector('.nh-chart__tt--show', { timeout: 5000 }).catch(() => {})
+      const mid = parseFloat(((await page.locator('.nh-chart__tt--show .nh-chart__tt-val').first().textContent().catch(() => '')) ?? '').replace(',', '.'))
+      // half way through the 30 days the rows stand at two thirds of the 45-day rise: 10 + 20 x 30/45
+      ok('the middle of the line reads what the rows there read', Math.abs(mid - 23.33) < 0.3, `${mid} against 23.33`)
+      await page.mouse.move(5, 5)
+      await cdp.detach().catch(() => {})
+      STEP = 20000
+      state = (i) => (20 + (i % 50) / 10).toFixed(1)
+    }
+
+    // a refresh that comes round while the last load is still arriving waits for the next one
+    parts.length = 0
+    let release
+    hold = new Promise((r) => (release = r))
+    ok('seed a chart that refreshes every 10 s', await seed({ period: '30d', refresh: 10, groupBy: 'day', series: [{ item: ITEM, aggregate: 'count', kind: 'bar' }] }))
+    await open()
+    await page.waitForTimeout(12500)
+    ok('a refresh does not start a second load on top of one still running', parts.length === 1, `${parts.length} requests in 12.5 s with the first unanswered`)
+    hold = null
+    release()
+    await waitPlot()
+    ok('the held load finishes once it is answered', (await page.locator('.u-over').count()) === 1, `${parts.length} requests in all`)
+    await page.unroute(pattern)
+  }
+
   const realErrs = errs.filter((e) => !/ResizeObserver loop/.test(e))
   ok('console clean', realErrs.length === 0, realErrs.slice(0, 3).join(' | '))
+  if (PRODUCTION) {
+    // after the console check on purpose: the refusal logs an error, which is the point of it
+    const outcome = await page.evaluate(async () => {
+      try {
+        await fetch('/rest/persistence/items/nh_e2e_nosuch_item?starttime=' + new Date(Date.now() - 3600e3).toISOString())
+        return 'sent'
+      } catch (e) {
+        return String(e?.message ?? e)
+      }
+    })
+    ok('on a production server the harness refuses a history request with no row limit', /refused/.test(outcome), outcome)
+  }
 } catch (err) {
   ok('suite ran to completion', false, String(err).slice(0, 250))
 } finally {

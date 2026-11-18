@@ -154,10 +154,15 @@ export function thinSpark(points: SparkPoint[]): SparkPoint[] {
   return out
 }
 
+// what sparkPath draws from, which is all a tile needs to keep of a window
+export function sparkPoints(points: SparkPoint[]): SparkPoint[] {
+  return thinSpark(points.filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time)))
+}
+
 // a fixed 0..100 box the svg stretches, so the look needs no measurement of its own. A flat series
 // has no span to scale against and is drawn along the middle rather than divided by a zero range.
 export function sparkPath(points: SparkPoint[]): string {
-  const usable = thinSpark(points.filter((p) => Number.isFinite(p?.value) && Number.isFinite(p?.time)))
+  const usable = sparkPoints(points)
   if (usable.length === 0) return ''
   const values = usable.map((p) => p.value)
   const [t0, t1] = extent(usable.map((p) => p.time))

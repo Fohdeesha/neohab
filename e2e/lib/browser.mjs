@@ -22,8 +22,8 @@
  */
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright-core'
-import { keepHistoryLocal } from './sandbox.mjs'
-import { LAUNCH_ARGS } from './target.mjs'
+import { boundHistory, keepHistoryLocal } from './sandbox.mjs'
+import { LAUNCH_ARGS, PRODUCTION } from './target.mjs'
 import { sweepBrowserTemp, sweepSummary } from './tempclean.mjs'
 
 const summary = sweepSummary(sweepBrowserTemp())
@@ -119,6 +119,7 @@ function prepare(browser) {
   browser.newContext = async (opts = {}) => {
     const ctx = await newContext(opts)
     if (!realHistoryWanted) await keepHistoryLocal(ctx)
+    if (PRODUCTION) await boundHistory(ctx)
     return ctx
   }
   return browser

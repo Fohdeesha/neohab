@@ -405,9 +405,9 @@ try {
   await sleep(1500)
   const fetched = persistCount - before7d
   ok('7d chip refetches all series', fetched >= 3, `fetches=${fetched}`)
-  const last = persistUrls[persistUrls.length - 1]
-  const started = new URL(last).searchParams.get('starttime')
-  const ageDays = (Date.now() - Date.parse(started)) / 86400e3
+  // a busy item's week comes in parts, and only the first of them starts where the range does
+  const starts = persistUrls.slice(before7d).map((u) => Date.parse(new URL(u).searchParams.get('starttime')))
+  const ageDays = (Date.now() - Math.min(...starts)) / 86400e3
   ok('7d starttime is ~7 days ago', ageDays > 6.9 && ageDays < 7.1, `age=${ageDays.toFixed(2)}d`)
   ok(
     '7d chip becomes active',
@@ -581,6 +581,11 @@ try {
     JSON.stringify(stored?.config?.series?.[0])
   )
 
+  ok(
+    'every history request says how many rows it will take',
+    persistUrls.length > 0 && persistUrls.every((u) => /[?&]pagelength=20000(&|$)/.test(u)),
+    `${persistUrls.filter((u) => !/[?&]pagelength=20000(&|$)/.test(u)).length} of ${persistUrls.length} without`
+  )
   ok('no console/page errors', errs.length === 0, errs.slice(0, 3).join(' | '))
 
   await page.screenshot({ path: 'shot-charts.png', fullPage: false })

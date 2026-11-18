@@ -6,6 +6,7 @@ import {
   referenceValue,
   sparkArea,
   sparkPath,
+  sparkPoints,
   SPARK_POINTS,
   thinSpark,
   statPeriodMs,
@@ -238,5 +239,26 @@ describe('sparkPath', () => {
   it('leaves a short series exactly as it was', () => {
     const rows = pts([0, 1], [1, 3], [2, 2])
     expect(thinSpark(rows)).toBe(rows)
+  })
+})
+
+describe('sparkPoints', () => {
+  it('keeps what the path is drawn from, so a tile holds a few hundred points and draws the same line', () => {
+    const week = Array.from({ length: 120000 }, (_, i) => ({ time: i * 5000, value: 20 + 5 * Math.sin(i / 900) + (i % 13 === 0 ? 3 : 0) }))
+    week[500].value = NaN
+    const kept = sparkPoints(week)
+    expect(kept.length).toBeLessThanOrEqual(240)
+    expect(kept.length).toBeGreaterThan(100)
+    expect(sparkPath(kept)).toBe(sparkPath(week))
+    expect(sparkPoints(kept)).toEqual(kept)
+  })
+
+  it('hands a short series on as it is', () => {
+    const few = [
+      { time: 0, value: 1 },
+      { time: 10, value: 2 }
+    ]
+    expect(sparkPoints(few)).toEqual(few)
+    expect(sparkPath(sparkPoints(few))).toBe(sparkPath(few))
   })
 })

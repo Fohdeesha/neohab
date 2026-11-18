@@ -190,6 +190,11 @@ leaving the key out counts, so a typo errs on the safe side). Against such a tar
   some sections need one (`e2e-audit2`, `e2e-floorplan`, `e2e-frame`, `e2e-image`, `e2e-launch`, `e2e-textscale`) skips those
   sections and prints the same line for each, so a skip is never silent. Those checks are covered
   on a test server, not on production.
+- A history request has to say how many rows it will take. openHAB builds a whole history answer
+  in memory, and one request for a year of an item that changes every few seconds has run a
+  production server out of heap. The app asks a page at a time; a request from a page with no
+  `pagelength` (an old build, a probe of your own) is refused in the browser and logged as an
+  error, so it fails the suite instead of reaching the server.
 
 ## Safety model: read before running against a server you care about
 

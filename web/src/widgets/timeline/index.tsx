@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { WidgetDefinition, WidgetProps } from '../types'
 import { WidgetFrame } from '../common/WidgetFrame'
 import { useContainerWidth } from '../../components/useContainerWidth'
-import { getItemHistory } from '../../api/persistence'
+import { readItemHistory } from '../../api/persistence'
 import { classifyHistoryError } from '../../model/persistence'
 import { PersistenceNotice, usePersistenceAdvice } from '../common/HistoryStatus'
 import { PERIOD_CHIPS, PERIOD_IDS, chipPeriods, periodMs } from '../chart/model'
@@ -12,10 +12,10 @@ import { stateMatches } from '../common/stateIcon'
 import {
   autoRefreshSeconds,
   axisTick,
+  bandBuilder,
   effectiveColorMaps,
   effectiveTimelineSeries,
   keepLiveTail,
-  partitionHistory,
   thinBands,
   type TimelineBand,
   type TimelineConfig
@@ -89,17 +89,14 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
     async function load() {
       const now = Date.now()
       const since = new Date(now - windowMs)
-      const results = await Promise.all(
-        series.map((s) =>
-          getItemHistory(s.item, since, {
-            serviceId: config.service || undefined,
-            boundary: true,
-            signal: ctrl.signal
-          })
-        )
+      const partitioned = await Promise.all(
+        series.map(async (s) => {
+          const bands = bandBuilder(now - windowMs, now, windowMs / THIN_DIVISOR)
+          await readItemHistory(s.item, since, { serviceId: config.service || undefined, boundary: true, signal: ctrl.signal }, bands.take)
+          return bands.finish()
+        })
       )
       if (disposed) return
-      const partitioned = results.map((points) => thinBands(partitionHistory(points, now - windowMs, now), windowMs / THIN_DIVISOR))
       setRows((shown) => partitioned.map((fresh, i) => keepLiveTail(fresh, shown[i], now)))
       setNowTick(now)
       setStatus(partitioned.some((r) => r.length > 0) ? 'ready' : 'empty')
@@ -111,16 +108,29 @@ function TimelineWidget({ config, ctx }: WidgetProps<TimelineConfig>) {
       return
     }
     setStatus('loading')
-    load().catch((err: unknown) => {
-      if (!disposed) setStatus(classifyHistoryError(err))
-    })
+    let loading = true
+    load()
+      .catch((err: unknown) => {
+        if (!disposed) setStatus(classifyHistoryError(err))
+      })
+      .finally(() => {
+        loading = false
+      })
 
     const stored = numOpt(config.refresh)
     const refreshEvery =
       stored !== undefined && stored > 0
         ? intervalMs(stored, { unit: 's', min: 10, max: 86_400, fallback: 300 })
         : autoRefreshSeconds(windowMs) * 1000
-    const refetch = setInterval(() => void load().catch(() => {}), refreshEvery)
+    const refetch = setInterval(() => {
+      if (loading) return
+      loading = true
+      void load()
+        .catch(() => {})
+        .finally(() => {
+          loading = false
+        })
+    }, refreshEvery)
     const tick = setInterval(() => setNowTick(Date.now()), 60_000)
     return () => {
       disposed = true

@@ -41,26 +41,64 @@ export function effectiveColorMaps(config: TimelineConfig): TimelineColorMap[] {
 }
 
 export function partitionHistory(points: HistoryPoint[], windowStart: number, now: number): TimelineBand[] {
-  const bands: TimelineBand[] = []
+  const bands = bandBuilder(windowStart, now, 0)
+  bands.take(points)
+  return bands.finish()
+}
+
+export interface BandBuilder {
+  take(points: HistoryPoint[]): void
+  finish(): TimelineBand[]
+}
+
+/**
+ * The bands of a window, built as its points arrive, so a long window of a busy item is never held: runs of
+ * one state become one band, gaps and whatever ended before the window are left out, and a band shorter
+ * than `minDuration` is folded into the one before it (thinBands), except the first and the last.
+ */
+export function bandBuilder(windowStart: number, now: number, minDuration: number): BandBuilder {
+  const out: TimelineBand[] = []
+  // the newest band so far. The last band is never thinned away, and until another follows this may be it
+  let newest: TimelineBand | undefined
   let state: string | null = null
   let start = 0
-  for (const p of points) {
-    if (p.time > now) break
-    if (state === null) {
-      state = p.state
-      start = p.time
-      continue
-    }
-    if (p.state !== state) {
-      bands.push({ state, start, end: p.time })
-      state = p.state
-      start = p.time
+  let past = false
+  const settle = (band: TimelineBand): void => {
+    const prev = out[out.length - 1]
+    if (minDuration > 0 && prev && band.end - band.start < minDuration) prev.end = band.end
+    else out.push(band)
+  }
+  const close = (end: number): void => {
+    if (state === null || !(end > windowStart) || GAP_STATES.has(state)) return
+    if (newest) settle(newest)
+    newest = { state, start: start < windowStart ? windowStart : start, end }
+  }
+  return {
+    take(points) {
+      if (past) return
+      for (const p of points) {
+        if (p.time > now) {
+          past = true
+          return
+        }
+        if (state === null) {
+          state = p.state
+          start = p.time
+        } else if (p.state !== state) {
+          close(p.time)
+          state = p.state
+          start = p.time
+        }
+      }
+    },
+    finish() {
+      close(now)
+      state = null
+      if (newest) out.push(newest)
+      newest = undefined
+      return out
     }
   }
-  if (state !== null) bands.push({ state, start, end: now })
-  return bands
-    .filter((b) => b.end > windowStart && !GAP_STATES.has(b.state))
-    .map((b) => (b.start < windowStart ? { ...b, start: windowStart } : b))
 }
 
 const MINUTE_SPAN = 3 * 3600e3

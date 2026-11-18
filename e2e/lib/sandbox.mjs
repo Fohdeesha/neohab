@@ -10,6 +10,8 @@
  * fetch rather than routing, because a route on every context would switch the HTTP cache off in
  * every suite, and a service worker cannot get in front of it.
  *
+ * boundHistory() goes on every context too when the target is a production server, the same way.
+ *
  * sharedSettings() is per suite and routes, the way e2e-launch fakes its failures: it presents the
  * server's settings with a patch on top, keeps whatever the app saves, and records which
  * components the app created so cleanup can delete exactly those. A service worker can answer a
@@ -105,6 +107,30 @@ function historyInPage() {
 
 export async function keepHistoryLocal(context) {
   await context.addInitScript(historyInPage)
+}
+
+// runs in the page. openHAB builds a whole history answer in memory, so one request for a year of a busy
+// item can run a server out of heap: on a production target a request with no row limit never leaves
+function boundedHistoryInPage() {
+  if (window.top !== window || window.__nhHistoryBound) return
+  window.__nhHistoryBound = { refused: [] }
+  const realFetch = window.fetch.bind(window)
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input?.url
+    if (typeof url === 'string' && url.includes('/rest/persistence/items/')) {
+      const rows = Number(new URL(url, location.href).searchParams.get('pagelength'))
+      if (!(rows >= 1 && rows <= 20000)) {
+        window.__nhHistoryBound.refused.push(url)
+        console.error('e2e: refused a history request with no row limit on a production target: ' + url)
+        return Promise.reject(new TypeError('history request refused by the e2e harness'))
+      }
+    }
+    return realFetch(input, init)
+  }
+}
+
+export async function boundHistory(context) {
+  await context.addInitScript(boundedHistoryInPage)
 }
 
 const SETTINGS = 'settings'

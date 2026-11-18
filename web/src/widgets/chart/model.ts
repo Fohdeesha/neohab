@@ -103,6 +103,149 @@ export const PERIODS: Record<string, number> = {
 
 export const PERIOD_CHIPS = ['1h', '3h', '6h', '12h', '24h', '7d', '30d', '1y']
 
+// a series up to this long is kept whole and reduced exactly as it always was. A longer one is folded into
+// a fine grid as it arrives, so a year of a busy item is never held to draw a few hundred points
+export const LINE_ROWS_KEPT = 200_000
+// cells in that grid: at least 64 for each point drawn, since a cell cut by a bucket's edge is split by time
+const FINE_MIN = 50_000
+const FINE_MAX = 200_000
+
+interface FineGrid {
+  push(x: number, y: number | null): void
+  points(): [number[], (number | null)[]]
+}
+
+// the mean a value held over each cell, which is what decimate works out for its own, far wider, ones.
+// A value or a gap that begins inside a cell keeps the moment it began, and the last row keeps its own, so
+// decimate lays the same buckets over this as it would over the rows. When a row lands past the grid's
+// end the cells are merged in pairs, so the rows always fill at least half of them
+function fineGrid(x0: number, x1: number, cells: number): FineGrid | null {
+  let width = (x1 - x0) / cells
+  if (!(width > 0)) return null
+  const held = new Float64Array(cells)
+  const area = new Float64Array(cells)
+  // rows that begin in a cell, for one where no value held any time
+  const sum = new Float64Array(cells)
+  const count = new Uint32Array(cells)
+  const valueFrom = new Float64Array(cells).fill(Infinity)
+  const gapFrom = new Float64Array(cells).fill(Infinity)
+  const half = cells / 2
+  const cellOf = (x: number): number => Math.min(cells - 1, Math.max(0, Math.floor((x - x0) / width)))
+  const reach = (x: number): void => {
+    while (x >= x0 + cells * width) {
+      for (let c = 0; c < half; c++) {
+        held[c] = held[2 * c] + held[2 * c + 1]
+        area[c] = area[2 * c] + area[2 * c + 1]
+        sum[c] = sum[2 * c] + sum[2 * c + 1]
+        count[c] = count[2 * c] + count[2 * c + 1]
+        valueFrom[c] = Math.min(valueFrom[2 * c], valueFrom[2 * c + 1])
+        gapFrom[c] = Math.min(gapFrom[2 * c], gapFrom[2 * c + 1])
+      }
+      held.fill(0, half)
+      area.fill(0, half)
+      sum.fill(0, half)
+      count.fill(0, half)
+      valueFrom.fill(Infinity, half)
+      gapFrom.fill(Infinity, half)
+      width *= 2
+    }
+  }
+  let has = false
+  let px = 0
+  let py: number | null = null
+  const hold = (until: number): void => {
+    if (py === null || !(until > px)) return
+    for (let c = cellOf(px); c < cells; c++) {
+      const start = x0 + c * width
+      if (start >= until) break
+      const from = Math.max(px, start)
+      const to = Math.min(until, start + width)
+      if (!(to > from)) continue
+      held[c] += to - from
+      area[c] += py * (to - from)
+      if (from < valueFrom[c]) valueFrom[c] = from
+    }
+  }
+  return {
+    push(x, y) {
+      reach(x)
+      if (has) hold(x)
+      const c = cellOf(x)
+      if (y === null) {
+        if (x < gapFrom[c]) gapFrom[c] = x
+      } else {
+        sum[c] += y
+        count[c]++
+        if (x < valueFrom[c]) valueFrom[c] = x
+      }
+      has = true
+      px = x
+      py = y
+    },
+    points() {
+      const xs: number[] = []
+      const ys: (number | null)[] = []
+      for (let c = 0; c < cells; c++) {
+        const value = held[c] > 0 ? area[c] / held[c] : count[c] > 0 ? sum[c] / count[c] : null
+        const gap = gapFrom[c] < Infinity
+        if (value !== null && gap && gapFrom[c] < valueFrom[c]) {
+          xs.push(gapFrom[c], valueFrom[c])
+          ys.push(null, value)
+        } else if (value !== null) {
+          xs.push(valueFrom[c])
+          ys.push(value)
+          if (gap) {
+            xs.push(gapFrom[c])
+            ys.push(null)
+          }
+        } else if (gap) {
+          xs.push(gapFrom[c])
+          ys.push(null)
+        }
+      }
+      if (has && xs.length > 0 && px > xs[xs.length - 1]) {
+        xs.push(px)
+        ys.push(py)
+      }
+      return [xs, ys]
+    }
+  }
+}
+
+export interface LineReducer {
+  push(x: number, y: number | null): void
+  finish(): [number[], (number | null)[]]
+}
+
+/** decimate(), fed a row at a time. */
+export function lineReducer(maxPoints: number): LineReducer {
+  let xs: number[] = []
+  let ys: (number | null)[] = []
+  let fine: FineGrid | null = null
+  return {
+    push(x, y) {
+      if (fine) {
+        fine.push(x, y)
+        return
+      }
+      xs.push(x)
+      ys.push(y)
+      if (xs.length <= LINE_ROWS_KEPT) return
+      const cells = maxPoints > 0 ? Math.min(FINE_MAX, Math.max(FINE_MIN, 2 * Math.ceil(maxPoints * 64))) : FINE_MAX
+      const grid = fineGrid(xs[0], x, cells)
+      if (!grid) return
+      for (let i = 0; i < xs.length; i++) grid.push(xs[i], ys[i])
+      fine = grid
+      xs = []
+      ys = []
+    },
+    finish() {
+      const [fx, fy] = fine ? fine.points() : [xs, ys]
+      return decimate(fx, fy, maxPoints)
+    }
+  }
+}
+
 export const PERIOD_IDS = Object.keys(PERIODS).sort((a, b) => PERIODS[a] - PERIODS[b])
 
 export function periodMs(period: string | undefined): number {

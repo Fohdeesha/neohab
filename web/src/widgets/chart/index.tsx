@@ -176,7 +176,17 @@ function ChartWidget({ config, ctx }: WidgetProps<ChartConfig>) {
     }
 
     const ctrl = new AbortController()
-    const run = () => (heatmap ? loadHeatmap() : load())
+    let running = false
+    // a long range can take longer to arrive than the refresh interval
+    const run = async () => {
+      if (running) return
+      running = true
+      try {
+        await (heatmap ? loadHeatmap() : load())
+      } finally {
+        running = false
+      }
+    }
     setStatus('loading')
     run().catch((err: unknown) => {
       if (!disposed) setStatus(classifyHistoryError(err))

@@ -6,6 +6,12 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.44.0
+
+- Long chart ranges load a page at a time, so a year of a busy item can't run openHAB out of memory
+- Charts, timelines and sparklines keep only what they draw of a long range, not every row
+- A chart or timeline doesn't start a refresh while its last load is still coming in
+
 ## 1.43.1
 
 - A 3D dial with a second item shows it on the inner arc, it used to be drawn hidden behind the center
