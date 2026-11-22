@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sheet } from '../components/Sheet'
 import { useSidePanelDocked } from '../components/useEditSurface'
-import { groupFields } from './settingsGroups'
+import { groupFields, shownFields } from './settingsGroups'
 import { ItemPicker } from '../components/ItemPicker'
 import { IconPicker } from '../components/IconPicker'
 import { RulePicker } from '../components/RulePicker'
@@ -134,9 +134,10 @@ export function SettingsPanel({ widget }: { widget: WidgetInstance }) {
   const effective = { ...def.defaultConfig(), ...widget.config }
   const customwidget = widget.type === 'template' ? (effective.customwidget as string | undefined) : undefined
   const groups = groupFields(
-    def.settings
-      .filter((f) => !(customwidget && f.key === 'template'))
-      .filter((f) => f.type === 'section' || !f.showIf || f.showIf(effective))
+    shownFields(
+      def.settings.filter((f) => !(customwidget && f.key === 'template')),
+      effective
+    )
   )
   const render = (field: SettingField) => <Field key={field.key} field={field} widget={widget} value={effective[field.key]} />
 

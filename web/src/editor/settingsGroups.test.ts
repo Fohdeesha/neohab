@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SettingField } from '../widgets/types'
-import { groupFields } from './settingsGroups'
+import { groupFields, shownFields } from './settingsGroups'
 
 const text = (key: string): SettingField => ({ key, type: 'text', label: key })
 const section = (label: string): SettingField => ({ key: 'sec-' + label, type: 'section', label })
@@ -33,5 +33,26 @@ describe('grouping a widget’s settings', () => {
   it('answers an empty schema with no groups at all', () => {
     expect(groupFields([])).toEqual([])
     expect(groupFields([section('Appearance')])).toEqual([])
+  })
+})
+
+describe('the fields a config shows', () => {
+  const inner = (c: Record<string, unknown>) => c.second === true
+  const schema: SettingField[] = [
+    { key: 'a', type: 'text', label: 'Color', relabel: { when: inner, label: 'Outer color' } },
+    section('More'),
+    { key: 'b', type: 'text', label: 'Inner color', showIf: inner }
+  ]
+
+  it('drops a field its showIf hides and keeps every marker', () => {
+    expect(shownFields(schema, {}).map((f) => f.key)).toEqual(['a', 'sec-More'])
+    expect(shownFields(schema, { second: true }).map((f) => f.key)).toEqual(['a', 'sec-More', 'b'])
+  })
+
+  it('gives a field its other name only while the condition holds', () => {
+    expect(shownFields(schema, {})[0].label).toBe('Color')
+    expect(shownFields(schema, { second: true })[0].label).toBe('Outer color')
+    // the schema itself is module data shared by every panel, so it must come through untouched
+    expect(schema[0].label).toBe('Color')
   })
 })

@@ -6,6 +6,10 @@ Anything not listed here yet is on `main` and ships with the next release.
 
 ## Unreleased
 
+## 1.44.1
+
+- Dial settings keep every color in one Colors group, and with a second item they say which ring each one colors
+
 ## 1.44.0
 
 - Long chart ranges load a page at a time, so a year of a busy item can't run openHAB out of memory

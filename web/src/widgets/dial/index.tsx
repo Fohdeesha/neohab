@@ -61,14 +61,6 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
     { key: 'iconColor', type: 'color', label: 'Icon color (mono icons)' },
     { key: 'iconSize', type: 'number', label: 'Icon size', min: 16, max: 128 },
     {
-      key: 'color',
-      type: 'color',
-      label: 'Color',
-      showIf: ring,
-      hint: 'Used below the lowest color stop; clear it to follow the theme.'
-    },
-    { key: 'severity', type: 'gaugeseverity', label: 'Color stops', base: 'color', showIf: ring },
-    {
       key: 'centerLabel',
       type: 'boolean',
       label: 'Name inside the face',
@@ -110,12 +102,37 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       showIf: ring,
       hint: 'Lights from zero - or the range midpoint - toward the value.'
     },
+    { key: 'sec-colors', type: 'section', label: 'Colors' },
+    {
+      key: 'color',
+      type: 'color',
+      label: 'Color',
+      relabel: { when: ringInner, label: 'Outer color' },
+      showIf: ring,
+      hint: 'Used below the lowest color stop; clear it to follow the theme.'
+    },
+    {
+      key: 'severity',
+      type: 'gaugeseverity',
+      label: 'Color stops',
+      relabel: { when: ringInner, label: 'Outer color stops' },
+      base: 'color',
+      showIf: ring
+    },
+    {
+      key: 'color2',
+      type: 'color',
+      label: 'Inner color',
+      showIf: ringInner,
+      hint: 'Used below the lowest color stop; clear it to follow the theme.'
+    },
+    { key: 'severity2', type: 'gaugeseverity', label: 'Inner color stops', base: 'color2', showIf: ringInner },
+    { key: 'zones', type: 'gaugezones', label: 'Zones', showIf: ring },
     { key: 'sec-scale-and-markers', type: 'section', label: 'Scale and markers' },
     { key: 'showTicks', type: 'boolean', label: 'Scale ticks', showIf: ring },
     { key: 'tickSteps', type: 'number', label: 'Scale steps', min: 1, max: 20, showIf: ringTicks },
     { key: 'showTickLabels', type: 'boolean', label: 'Scale labels', showIf: ringTicks },
     { key: 'markers', type: 'gaugemarkers', label: 'Markers', showIf: ring },
-    { key: 'zones', type: 'gaugezones', label: 'Zones', showIf: ring },
     { key: 'sec-alarm', type: 'section', label: 'Alarm' },
     {
       key: 'alarm',
@@ -164,20 +181,12 @@ export const dialWidget: WidgetDefinition<DialConfig> = {
       label: 'Second item (inner ring)',
       itemTypes: ['Dimmer', 'Number'],
       showIf: ring,
-      hint: 'Set an item to draw a second, inner ring - the dual gauge.'
+      hint: 'Set an item to draw a second, inner ring. Its colors are in the Colors group.'
     },
     { key: 'min2', type: 'number', label: 'Inner minimum', showIf: ringInner },
     { key: 'max2', type: 'number', label: 'Inner maximum', showIf: ringInner },
     { key: 'step2', type: 'number', label: 'Inner step', showIf: ringInner },
     { key: 'unit2', type: 'text', label: 'Inner unit suffix', showIf: ringInner },
-    {
-      key: 'color2',
-      type: 'color',
-      label: 'Inner color',
-      showIf: ringInner,
-      hint: 'Used below the lowest color stop; clear it to follow the theme.'
-    },
-    { key: 'severity2', type: 'gaugeseverity', label: 'Inner color stops', base: 'color2', showIf: ringInner },
     { key: 'bidirectional2', type: 'boolean', label: 'Inner fill from zero (bidirectional)', showIf: ringInner },
     {
       key: 'centerShows',

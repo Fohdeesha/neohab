@@ -21,6 +21,8 @@ export interface WidgetProps<C = Record<string, unknown>> {
 interface SettingCommon {
   showIf?: (config: Record<string, unknown>) => boolean
   hint?: string
+  // the label the field takes while `when` holds: a dial's "Color" is "Outer color" once there is an inner ring
+  relabel?: { when: (config: Record<string, unknown>) => boolean; label: string }
 }
 
 export type SettingField = SettingCommon &

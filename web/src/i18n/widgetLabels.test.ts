@@ -45,6 +45,9 @@ it('translates every field and group label a widget puts on the settings panel',
     for (const field of def.settings ?? []) {
       checked++
       if (!translated.has(field.label)) missing.push(`${def.type}.${field.key}: ${JSON.stringify(field.label)}`)
+      if (field.relabel && !translated.has(field.relabel.label)) {
+        missing.push(`${def.type}.${field.key}: ${JSON.stringify(field.relabel.label)}`)
+      }
     }
   }
   expect(missing).toEqual([])

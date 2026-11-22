@@ -478,17 +478,41 @@ try {
   ok('alarm range hidden until alarm is on', (await page.locator('.nh-sheet--side label:has-text("Alarm from")').count()) === 0)
   ok('second-item field offered', (await page.locator('.nh-sheet--side').getByText('Second item (inner ring)').count()) === 1)
   ok('inner fields hidden without a second item', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 0)
+  // every color setting in one group, named for its ring once there are two
+  const groupLabels = (name) =>
+    page.evaluate((name) => {
+      const group = [...document.querySelectorAll('.nh-sheet--side .nh-form__group')].find(
+        (d) => d.querySelector('summary')?.textContent?.trim() === name
+      )
+      return group ? [...group.querySelectorAll('.nh-form__groupbody .nh-field__label')].map((l) => l.textContent.trim()) : null
+    }, name)
+  const oneRing = await groupLabels('Colors')
+  ok('one ring: Colors holds its color, its stops and the zones', JSON.stringify(oneRing) === JSON.stringify(['Color', 'Color stops', 'Zones']), JSON.stringify(oneRing))
 
   const itemField = page.locator('.nh-sheet--side .nh-field:has-text("Second item")').locator('.nh-picker')
   const secondItem = await pickItem(page, itemField.locator('input'), ITEMS.dimmer)
   await sleep(400)
   ok('picking the second item from the list binds it', secondItem === ITEMS.dimmer, 'value=' + secondItem)
   ok('a picked second item shows the inner fields', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 1)
+  const twoRings = await groupLabels('Colors')
+  ok(
+    'two rings: Colors holds both rings, each named',
+    JSON.stringify(twoRings) === JSON.stringify(['Outer color', 'Outer color stops', 'Inner color', 'Inner color stops', 'Zones']),
+    JSON.stringify(twoRings)
+  )
+  const secondValue = await groupLabels('Second value')
+  ok(
+    'and Second value keeps no color setting of its own',
+    Array.isArray(secondValue) && secondValue.includes('Inner minimum') && !secondValue.some((l) => /color/i.test(l)),
+    JSON.stringify(secondValue)
+  )
   ok('picker shows a clear button once set', (await itemField.locator('.nh-picker__clear').count()) === 1)
   await itemField.locator('.nh-picker__clear').click()
   await sleep(400)
   ok('the ✕ empties the field', (await itemField.locator('input').inputValue()) === '')
   ok('clearing the second item hides the inner fields', (await page.locator('.nh-sheet--side label:has-text("Inner minimum")').count()) === 0)
+  const cleared = await groupLabels('Colors')
+  ok('clearing it gives the first ring its plain names back', JSON.stringify(cleared) === JSON.stringify(['Color', 'Color stops', 'Zones']), JSON.stringify(cleared))
   ok('clear button gone once empty', (await itemField.locator('.nh-picker__clear').count()) === 0)
   await page.locator('.nh-sheet--side button:has-text("Add color stop")').click()
   await sleep(200)

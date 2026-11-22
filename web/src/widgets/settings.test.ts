@@ -30,6 +30,8 @@ const {
   primaryItemOf
 } = await import('./registry')
 
+const { groupFields, shownFields } = await import('../editor/settingsGroups')
+
 registerBuiltinWidgets()
 const widgets = listWidgetDefinitions()
 
@@ -723,6 +725,50 @@ describe('every widget settings schema', () => {
       }
       expect(wrong).toEqual([])
     })
+  })
+
+  it('keeps a dial’s colors in one group, and says which ring each is for once there are two', () => {
+    const dial = widgets.find((d) => d.type === 'dial')!
+    const groupsFor = (config: Record<string, unknown>) =>
+      groupFields(shownFields(dial.settings, { ...dial.defaultConfig(), ...config })).map((g) => ({
+        label: g.label,
+        fields: g.fields.map((f) => f.label)
+      }))
+    const colorish = /color|stops|zones/i
+    for (const style of ['led', 'ticks', 'arc', 'blocks', '3d']) {
+      const one = groupsFor({ style })
+      expect(one.find((g) => g.label === 'Colors')?.fields, style).toEqual(['Color', 'Color stops', 'Zones'])
+      const two = groupsFor({ style, item2: 'nh_second' })
+      expect(two.find((g) => g.label === 'Colors')?.fields, style).toEqual([
+        'Outer color',
+        'Outer color stops',
+        'Inner color',
+        'Inner color stops',
+        'Zones'
+      ])
+      // the icon's own color is about the icon, so it stays beside the icon
+      const strays = two
+        .filter((g) => g.label !== 'Colors')
+        .flatMap((g) => g.fields.filter((f) => colorish.test(f) && f !== 'Icon color (mono icons)').map((f) => `${g.label}: ${f}`))
+      expect(strays, style).toEqual([])
+    }
+    // a classic dial has no ring to color, so the group is not there at all
+    expect(groupsFor({}).some((g) => g.label === 'Colors')).toBe(false)
+  })
+
+  it('gives a field a second name only with a condition, and never its own name again', () => {
+    const bad: string[] = []
+    let seen = 0
+    for (const def of widgets) {
+      for (const field of def.settings ?? []) {
+        if (!field.relabel) continue
+        seen++
+        if (!field.relabel.label || field.relabel.label === field.label) bad.push(`${def.type}.${field.key}`)
+        if (typeof field.relabel.when !== 'function') bad.push(`${def.type}.${field.key}: no condition`)
+      }
+    }
+    expect(bad).toEqual([])
+    expect(seen).toBeGreaterThan(0)
   })
 
   it('gives every field a key and a label, and never the same key twice', () => {

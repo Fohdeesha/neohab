@@ -20,3 +20,11 @@ export function groupFields(fields: SettingField[]): FieldGroup[] {
   }
   return groups.filter((g) => g.fields.length > 0)
 }
+
+// what the panel draws for this config: fields their showIf hides are gone, and a field that has
+// another name in this config carries it
+export function shownFields(fields: SettingField[], config: Record<string, unknown>): SettingField[] {
+  return fields
+    .filter((f) => f.type === 'section' || !f.showIf || f.showIf(config))
+    .map((f) => (f.relabel?.when(config) ? { ...f, label: f.relabel.label } : f))
+}
